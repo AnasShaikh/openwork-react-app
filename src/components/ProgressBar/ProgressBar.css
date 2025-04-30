@@ -1,0 +1,29 @@
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.progress-bar-percent {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background-color: #EAECF0;
+  }
+  
+  .progress-label {
+    color: var(--Gray-Main, #868686);
+    color: var(--Gray-Main, color(display-p3 0.5274 0.5274 0.5274));
+    font-family: 'Satoshi';
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: normal;
+    letter-spacing: 0.28px;
+  }
+  
+  .progress-bar {
+    transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
+  }
+  

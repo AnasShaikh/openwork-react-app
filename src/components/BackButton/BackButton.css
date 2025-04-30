@@ -1,0 +1,29 @@
+.form-navigationDC {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+  
+  .backButtonDC {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* .backIconDC {
+    width: 45px;
+    height: 45px;
+    cursor: pointer;
+  } */
+  
+  .formTitleDC {
+    font-family: 'Satoshi', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 27px;
+    display: flex;
+    align-items: center;
+    letter-spacing: 0.02em;
+    color: #4D4D4D;
+  }
