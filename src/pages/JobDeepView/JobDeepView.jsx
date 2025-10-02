@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Web3 from "web3";
-import L1ABI from "../../L1ABI.json"; // Import the L1 contract ABI
+import contractABI from "../../ABIs/nowjc_ABI.json"; // Updated to use the correct ABI
 import "./JobDeepView.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import Milestone from "../../components/Milestone/Milestone";
+
+const CONTRACT_ADDRESS = "0x3C597eae77aD652a20E3B54B5dE9D89c9c7016E3";
+const OP_SEPOLIA_RPC = "https://sepolia.optimism.io";
 
 function FileUpload() {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -17,35 +20,40 @@ function FileUpload() {
   };
 
   return (
-    <div style={{width: '100%'}}>
+    <div style={{ width: "100%" }}>
       <label htmlFor="image">
         <div className="form-fileUpload">
           <img src="/upload.svg" alt="" />
           <span>Click here to upload or drop files here</span>
         </div>
       </label>
-      <input id="image" type="file" accept="image/*" onChange={handleImageChange} style={{display:'none'}} />
+      <input
+        id="image"
+        type="file"
+        accept="image/*"
+        onChange={handleImageChange}
+        style={{ display: "none" }}
+      />
       {preview && <img src={preview} alt="Image preview" width="100" />}
     </div>
   );
 }
 
-function ATTACHMENTS({title}) {
+function ATTACHMENTS({ title }) {
   return (
     <div className="attachment-form">
       <img src="/attachments.svg" alt="" />
       <span>{title}</span>
     </div>
-  )
+  );
 }
 
 export default function JobInfo() {
   const { jobId } = useParams();
   const [job, setJob] = useState(null);
-
+  const [loading, setLoading] = useState(true);
   const [walletAddress, setWalletAddress] = useState("");
   const [dropdownVisible, setDropdownVisible] = useState(false);
-
 
   const handleCopyToClipboard = (address) => {
     navigator.clipboard
@@ -63,7 +71,9 @@ export default function JobInfo() {
     const checkWalletConnection = async () => {
       if (window.ethereum) {
         try {
-          const accounts = await window.ethereum.request({ method: "eth_accounts" });
+          const accounts = await window.ethereum.request({
+            method: "eth_accounts",
+          });
           if (accounts.length > 0) {
             setWalletAddress(accounts[0]);
           }
@@ -103,36 +113,145 @@ export default function JobInfo() {
   useEffect(() => {
     async function fetchJobDetails() {
       try {
-        const web3 = new Web3("https://erpc.xinfin.network"); // Using the RPC URL
-        const contractAddress = "0x00844673a088cBC4d4B4D0d63a24a175A2e2E637"; // Address of the OpenWorkL1 contract
-        const contract = new web3.eth.Contract(L1ABI, contractAddress);
+        setLoading(true);
+        const web3 = new Web3(OP_SEPOLIA_RPC);
+        const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
-        // Fetch job details
-        const jobDetails = await contract.methods.getJobDetails(jobId).call();
-        const ipfsHash = jobDetails.jobDetailHash;
+        // Fetch job details from the contract
+        const jobData = await contract.methods.getJob(jobId).call();
+        console.log("Job data from contract:", jobData);
 
-        // Fetch the job taker's address using the selected application ID
-        const selectedApplicationID = jobDetails.selectedApplicationID;
-        const jobTaker = await contract.methods
-          .getApplicationApplicant(selectedApplicationID)
-          .call();
+        // Fetch job details from IPFS
+        let jobDetails = {};
+        try {
+          if (jobData.jobDetailHash) {
+            const ipfsResponse = await fetch(
+              `https://gateway.pinata.cloud/ipfs/${jobData.jobDetailHash}`,
+            );
+            if (ipfsResponse.ok) {
+              jobDetails = await ipfsResponse.json();
+            }
+          }
+        } catch (ipfsError) {
+          console.warn("Failed to fetch IPFS data:", ipfsError);
+        }
 
-        const ipfsData = await fetchFromIPFS(ipfsHash);
+        // Fetch job giver and job taker profiles
+        let jobGiverProfile = null;
+        let jobTakerProfile = null;
 
+        try {
+          jobGiverProfile = await contract.methods
+            .getProfile(jobData.jobGiver)
+            .call();
+        } catch (error) {
+          console.warn("Job giver profile not found");
+        }
+
+        if (
+          jobData.selectedApplicant &&
+          jobData.selectedApplicant !==
+            "0x0000000000000000000000000000000000000000"
+        ) {
+          try {
+            jobTakerProfile = await contract.methods
+              .getProfile(jobData.selectedApplicant)
+              .call();
+          } catch (error) {
+            console.warn("Job taker profile not found");
+          }
+        }
+
+        // Calculate total budget from milestones (assuming USDT with 6 decimals)
+        const totalBudget = jobData.milestonePayments.reduce(
+          (sum, milestone) => {
+            return sum + parseFloat(milestone.amount);
+          },
+          0,
+        );
+        const formattedTotalBudget = (totalBudget / 1000000).toFixed(2);
+
+        // Process milestones for display
+        const processedMilestones = [];
+        if (jobData.finalMilestones && jobData.finalMilestones.length > 0) {
+          for (let i = 0; i < jobData.finalMilestones.length; i++) {
+            const milestone = jobData.finalMilestones[i];
+            let status = "Pending";
+
+            if (i < jobData.currentMilestone - 1) {
+              status = "Completed";
+            } else if (i === jobData.currentMilestone - 1) {
+              status = "In Progress";
+            }
+
+            // Try to fetch milestone details from IPFS
+            let milestoneDetails = {
+              title: `Milestone ${i + 1}`,
+              content: "Milestone description",
+            };
+
+            try {
+              if (milestone.descriptionHash) {
+                const milestoneResponse = await fetch(
+                  `https://gateway.pinata.cloud/ipfs/${milestone.descriptionHash}`,
+                );
+                if (milestoneResponse.ok) {
+                  const milestoneData = await milestoneResponse.json();
+                  milestoneDetails.title =
+                    milestoneData.title || milestoneDetails.title;
+                  milestoneDetails.content =
+                    milestoneData.content || milestoneDetails.content;
+                }
+              }
+            } catch (error) {
+              console.warn(`Failed to fetch milestone ${i} IPFS data:`, error);
+            }
+
+            processedMilestones.push({
+              ...milestoneDetails,
+              amount: (parseFloat(milestone.amount) / 1000000).toFixed(2),
+              status: status,
+            });
+          }
+        }
+
+        // Extract skills from job details
+        const skills = jobDetails.skills || ["General"];
+        const primarySkill = Array.isArray(skills) ? skills[0] : skills;
+        const additionalSkillsCount =
+          Array.isArray(skills) && skills.length > 1 ? skills.length - 1 : 0;
+
+        // Set the job state
         setJob({
-          jobId,
-          employer: jobDetails.employer,
-          escrowAmount: web3.utils.fromWei(jobDetails.escrowAmount, "ether"),
-          isJobOpen: jobDetails.isOpen,
-          taker: jobTaker,
-          ...ipfsData,
+          jobId: jobData.id,
+          title: jobDetails.title || "Untitled Job",
+          description: jobDetails.description || "No description available",
+          skills: skills,
+          primarySkill: primarySkill,
+          additionalSkillsCount: additionalSkillsCount,
+          jobGiver: jobData.jobGiver,
+          selectedApplicant: jobData.selectedApplicant,
+          status: jobData.status,
+          milestones: processedMilestones,
+          currentMilestone: parseInt(jobData.currentMilestone),
+          totalMilestones: jobData.finalMilestones.length,
+          totalBudget: formattedTotalBudget,
+          jobGiverProfile,
+          jobTakerProfile,
+          contractId: CONTRACT_ADDRESS,
+          ...jobDetails,
         });
+
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching job details:", error);
+        setLoading(false);
       }
     }
 
-    fetchJobDetails();
+    if (jobId) {
+      fetchJobDetails();
+    }
   }, [jobId]);
 
   const fetchFromIPFS = async (hash) => {
@@ -146,10 +265,11 @@ export default function JobInfo() {
   };
 
   const handleNavigation = () => {
-    window.open("https://drive.google.com/file/d/1tdpuAM3UqiiP_TKJMa5bFtxOG4bU_6ts/view", "_blank");
-    
+    window.open(
+      "https://drive.google.com/file/d/1tdpuAM3UqiiP_TKJMa5bFtxOG4bU_6ts/view",
+      "_blank",
+    );
   };
-
 
   function formatWalletAddress(address) {
     if (!address) return "";
@@ -158,32 +278,90 @@ export default function JobInfo() {
     return `${start}....${end}`;
   }
 
-  if (!job) {
+  if (loading) {
     return (
-      <div className="loading-container">
-        <img src="/OWIcon.svg" alt="Loading..." className="loading-icon" />
+      <div className="loading-containerT">
+        <div className="loading-icon">
+          <img src="/OWIcon.svg" alt="Loading..." />
+        </div>
+        <div className="loading-message">
+          <h1 id="txText">Loading Job Details...</h1>
+          <p id="txSubtext">
+            Fetching detailed job information from the blockchain. Please
+            wait...
+          </p>
+        </div>
       </div>
     );
   }
+
+  if (!job) {
+    return (
+      <div className="body-container">
+        <div className="view-jobs-container">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "400px",
+              fontSize: "18px",
+              color: "#666",
+            }}
+          >
+            <p>Job not found.</p>
+            <Link
+              to="/browse-jobs"
+              style={{
+                marginTop: "20px",
+                color: "#007bff",
+                textDecoration: "none",
+              }}
+            >
+              Back to Browse Jobs
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="info-container">
         <div className="info-content">
           <div className="newTitle">
-             <div className="titleTop">
-              <Link className="goBack" to={`/job-details/${jobId}`}><img className="goBackImage" src="/back.svg" alt="Back Button" /></Link>  
+            <div className="titleTop">
+              <Link className="goBack" to={`/job-details/${jobId}`}>
+                <img
+                  className="goBackImage"
+                  src="/back.svg"
+                  alt="Back Button"
+                />
+              </Link>
               <div className="titleText">{job.title}</div>
-              <Link className="goBack" to={`/job-details/${jobId}`} style={{visibility:'hidden'}}><img className="goBackImage" src="/back.svg" alt="Back Button" /></Link>  
-             </div>
-             <div className="titleBottom"><p>  Contract ID:{" "}
-             {formatWalletAddress("0xdEF4B440acB1B11FDb23AF24e099F6cAf3209a8d")}
-             </p><img src="/copy.svg" className="copyImage" onClick={() =>
-                     handleCopyToClipboard(
-                       "0xdEF4B440acB1B11FDb23AF24e099F6cAf3209a8d"
-                     )
-                   }
-                   /></div>
-           </div>
+              <Link
+                className="goBack"
+                to={`/job-details/${jobId}`}
+                style={{ visibility: "hidden" }}
+              >
+                <img
+                  className="goBackImage"
+                  src="/back.svg"
+                  alt="Back Button"
+                />
+              </Link>
+            </div>
+            <div className="titleBottom">
+              <p>Contract ID: {formatWalletAddress(job.contractId)}</p>
+              <img
+                src="/copy.svg"
+                className="copyImage"
+                onClick={() => handleCopyToClipboard(job.contractId)}
+              />
+            </div>
+          </div>
 
           <div className="info-cardJ">
             <div className="sectionTitle">Job Details</div>
@@ -193,7 +371,7 @@ export default function JobInfo() {
                 <div className="detail-profile">
                   <span className="detail-value-address">
                     <img src="/user.png" alt="JobGiver" className="Job" />
-                    <p>{formatWalletAddress(job.employer)}</p>
+                    <p>{formatWalletAddress(job.jobGiver)}</p>
                   </span>
                   <a href="/profile" className="view-profile">
                     <span>View Profile</span>
@@ -204,9 +382,18 @@ export default function JobInfo() {
               <div className="detail-row">
                 <span className="detail-label">TO</span>
                 <div className="detail-profile">
-                  <span className="detail-value-address" style={{ height: "47px" }}>
+                  <span
+                    className="detail-value-address"
+                    style={{ height: "47px" }}
+                  >
                     <img src="/user.png" alt="JobTaker" className="Job" />
-                    {formatWalletAddress(job.taker)}
+                    <p>
+                      {job.selectedApplicant &&
+                      job.selectedApplicant !==
+                        "0x0000000000000000000000000000000000000000"
+                        ? formatWalletAddress(job.selectedApplicant)
+                        : "Not Assigned"}
+                    </p>
                   </span>
                   <a href="/profile" className="view-profile">
                     <span>View Profile</span>
@@ -217,42 +404,63 @@ export default function JobInfo() {
               <div className="detail-row">
                 <span className="detail-label">COST</span>
                 <span className="detail-value" style={{ height: "47px" }}>
-                  {/* {job.escrowAmount}{" "} */}
-                  762.14
+                  {job.totalBudget}
                   <img src="/xdc.svg" alt="Info" className="infoIcon" />
                 </span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">DESCRIPTION</span>
                 <div className="detail-value description-value">
-                  <p>Here's a list of things I need:</p>
-                  <ul className="description-list">
-                    <p>{job.description}</p>
-                  </ul>
+                  <p>{job.description}</p>
                 </div>
               </div>
               <div className="category">
                 <span>CATEGORY</span>
                 <div className="category-box">
-                  <SkillBox title="UX Design" />
-                  <SkillBox title='+5'/>
+                  <SkillBox title={job.primarySkill} />
+                  {job.additionalSkillsCount > 0 && (
+                    <SkillBox title={`+${job.additionalSkillsCount}`} />
+                  )}
                 </div>
               </div>
               <div className="category attachments">
                 <span>ATTACHMENTS</span>
                 <div className="upload-content">
-                  <ATTACHMENTS title={'Scope of work.pdf'}/>
-                  <ATTACHMENTS title={'Reference 1.png'}/>
+                  <ATTACHMENTS title={"Scope of work.pdf"} />
+                  <ATTACHMENTS title={"Reference 1.png"} />
                 </div>
               </div>
               <div className="milestone-section">
-                  <div className="milestone-section-header">
-                      <span>MILESTONES</span>
-                  </div>
-                  <div className="milestone-section-body">
-                      <Milestone amount={25} status="Completed" title="Milestone 1" content={"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."}/>
-                      <Milestone amount={25} status="In Progress" title="Milestone 2" content={"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."}/>
-                  </div>
+                <div className="milestone-section-header">
+                  <span>
+                    MILESTONES ({job.currentMilestone} / {job.totalMilestones}{" "}
+                    Completed)
+                  </span>
+                </div>
+                <div className="milestone-section-body">
+                  {job.milestones && job.milestones.length > 0 ? (
+                    job.milestones.map((milestone, index) => (
+                      <Milestone
+                        key={index}
+                        amount={milestone.amount}
+                        status={milestone.status}
+                        title={milestone.title}
+                        content={milestone.content}
+                        editable={false}
+                      />
+                    ))
+                  ) : (
+                    <div
+                      style={{
+                        padding: "20px",
+                        textAlign: "center",
+                        color: "#666",
+                      }}
+                    >
+                      No milestones defined for this job
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

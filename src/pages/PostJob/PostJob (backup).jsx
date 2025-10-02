@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 import Web3 from "web3";
 import JobContractABI from "../../ABIs/lowjc_ABI.json";
 import "./PostJob.css";
-import { useWalletConnection } from "../../functions/useWalletConnection";
-import { formatWalletAddress } from "../../functions/formatWalletAddress";
+import { useWalletConnection } from "../../functions/useWalletConnection"; // Manages wallet connection logic
+import { formatWalletAddress } from "../../functions/formatWalletAddress"; // Utility function to format wallet address
 
 import BackButton from "../../components/BackButton/BackButton";
 import SkillBox from "../../components/SkillBox/SkillBox";
@@ -30,7 +30,7 @@ function ImageUpload() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     setSelectedImage(file);
-    setPreview(URL.createObjectURL(file));
+    setPreview(URL.createObjectURL(file)); // For preview display
   };
 
   const handleImageUpload = async () => {
@@ -38,6 +38,7 @@ function ImageUpload() {
     formData.append("image", selectedImage);
 
     try {
+      // Replace 'your-api-endpoint' with the actual upload URL
       const response = await fetch("api-endpoint", {
         method: "POST",
         body: formData,
@@ -69,6 +70,9 @@ function ImageUpload() {
         style={{ display: "none" }}
       />
       {preview && <img src={preview} alt="Image preview" width="100" />}
+      {/* <button style={{display: 'none'}} onClick={handleImageUpload} disabled={!selectedImage}>
+        Upload Image
+      </button> */}
     </div>
   );
 }
@@ -99,7 +103,7 @@ export default function PostJob() {
     },
   ]);
 
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Initialize useNavigate
 
   // Update milestones based on selected option
   useEffect(() => {
@@ -153,47 +157,123 @@ export default function PostJob() {
     setMilestones(updatedMilestones);
   };
 
-  // Function to pin individual milestone to IPFS
-  const pinMilestoneToIPFS = async (milestone, index) => {
-    try {
-      const milestoneData = {
-        title: milestone.title,
-        content: milestone.content,
-        amount: milestone.amount,
-        index: index,
-        timestamp: new Date().toISOString(),
-      };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-      const response = await fetch(
-        "https://api.pinata.cloud/pinning/pinJSONToIPFS",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization:
-              "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI1YTBkNTU1MC1hOTRhLTQ1NmEtOGE0Zi1jMDNjOWFlZGQ4MTUiLCJlbWFpbCI6Im1vaGRhbmFzMjExQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaW5fcG9saWN5Ijp7InJlZ2lvbnMiOlt7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6IkZSQTEifSx7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6Ik5ZQzEifV0sInZlcnNpb24iOjF9LCJtZmFfZW5hYmxlZCI6ZmFsc2UsInN0YXR1cyI6IkFDVElWRSJ9LCJhdXRoZW50aWNhdGlvblR5cGUiOiJzY29wZWRLZXkiLCJzY29wZWRLZXlLZXkiOiJmMmNkZGIxMTU2NjZkZThkMTkwOSIsInNjb3BlZEtleVNlY3JldCI6IjI1NmFlZGY3YjYwYmE5MjY1OTg3NGYwMmUzYmFkNWVmNThmMjIxNjU4YWQxNDkyZWY2M2I0MzYwYTMyZjVjNDQiLCJleHAiOjE3ODUzMjgzODZ9.5VYFX7EdQ07-wjD6twzLPljFi-zGoN7XSuNzgROFPuY",
-          },
-          body: JSON.stringify({
-            pinataContent: milestoneData,
-            pinataMetadata: {
-              name: `milestone-${index}-${Date.now()}`,
-              keyvalues: {
-                milestoneTitle: milestone.title,
-                milestoneIndex: index.toString(),
-                type: "milestone",
-              },
-            },
-          }),
-        },
-      );
+    if (window.ethereum) {
+      try {
+        setLoadingT(true); // Start loader
 
-      const data = await response.json();
-      return data.IpfsHash;
-    } catch (error) {
-      console.error(`Error pinning milestone ${index} to IPFS:`, error);
-      return null;
+        const web3 = new Web3(window.ethereum);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        const accounts = await web3.eth.getAccounts();
+        const fromAddress = accounts[0];
+
+        // Create comprehensive job details object
+        const jobDetails = {
+          title: jobTitle,
+          description: jobDescription,
+          skills: selectedSkills,
+          skillOracle: selectedSkillOracle,
+          milestoneType: selectedOption,
+          milestones: milestones,
+          totalCompensation: totalCompensation,
+          jobGiver: fromAddress,
+          timestamp: new Date().toISOString(),
+        };
+
+        // Pin job details to IPFS
+        const response = await pinJobDetailsToIPFS(jobDetails);
+        console.log("IPFS Response:", response);
+
+        if (response && response.IpfsHash) {
+          const jobDetailHash = response.IpfsHash;
+          console.log("IPFS Hash:", jobDetailHash);
+
+          // Prepare contract parameters
+          const contract = new web3.eth.Contract(
+            JobContractABI,
+            contractAddress,
+          );
+
+          // Extract milestone descriptions and amounts
+          const descriptions = milestones.map((m) => m.content);
+          const amounts = milestones.map((m) => m.amount * 1000000); // Convert to USDT units (6 decimals)
+
+          // DEBUG: Log all transaction data
+          console.log("=== TRANSACTION DEBUG ===");
+          console.log("Contract Address:", contractAddress);
+          console.log("Job Detail Hash:", jobDetailHash);
+          console.log("Descriptions:", descriptions);
+          console.log("Amounts:", amounts);
+          console.log("Options Value:", OPTIONS_VALUE);
+          console.log("From Address:", fromAddress);
+          console.log(
+            "Transaction Value:",
+            web3.utils.toWei("0.0001", "ether"),
+          );
+          console.log("Job Details Object:", jobDetails);
+          console.log("Milestones:", milestones);
+          console.log("========================");
+
+          // Call postJob function
+          contract.methods
+            .postJob(jobDetailHash, descriptions, amounts, OPTIONS_VALUE)
+            .send({
+              from: fromAddress,
+              value: web3.utils.toWei("0.0001", "ether"), // Gas fee for cross-chain
+              gasPrice: await web3.eth.getGasPrice(),
+            })
+            .on("receipt", function (receipt) {
+              const events = receipt.events.JobPosted;
+              if (events && events.returnValues) {
+                const jobId = events.returnValues.jobId;
+                console.log("Job ID from event:", jobId);
+
+                navigate("/browse-jobs"); // Redirect to browse jobs page
+              }
+              setLoadingT(false); // Stop loader on success
+            })
+            .on("error", function (error) {
+              console.error("Error sending transaction:", error);
+              setLoadingT(false); // Stop loader on error
+            })
+            .on("transactionHash", function (hash) {
+              console.log("Transaction hash:", hash);
+            })
+            .catch(function (error) {
+              console.error("Transaction was rejected:", error);
+              setLoadingT(false); // Stop loader when user cancels
+            });
+        } else {
+          console.error("Failed to pin job details to IPFS");
+          setLoadingT(false); // Stop loader on error
+        }
+      } catch (error) {
+        console.error("Error sending transaction:", error);
+        setLoadingT(false); // Stop loader on error
+      }
+    } else {
+      console.error("MetaMask not detected");
+      setLoadingT(false); // Stop loader if MetaMask is not detected
     }
   };
+
+  if (loadingT) {
+    return (
+      <div className="loading-containerT">
+        <div className="loading-icon">
+          <img src="/OWIcon.svg" alt="Loading..." />
+        </div>
+        <div className="loading-message">
+          <h1 id="txText">Posting Job...</h1>
+          <p id="txSubtext">
+            Your job is being posted to the blockchain. Please wait...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const pinJobDetailsToIPFS = async (jobDetails) => {
     try {
@@ -213,7 +293,6 @@ export default function PostJob() {
               keyvalues: {
                 jobTitle: jobDetails.title,
                 jobGiver: jobDetails.jobGiver,
-                type: "job",
               },
             },
           }),
@@ -227,148 +306,6 @@ export default function PostJob() {
       return null;
     }
   };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (window.ethereum) {
-      try {
-        setLoadingT(true);
-
-        const web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const accounts = await web3.eth.getAccounts();
-        const fromAddress = accounts[0];
-
-        console.log("=== STARTING MILESTONE HASHING ===");
-
-        // Step 1: Create hashes for each milestone
-        const milestoneHashes = [];
-        const milestoneAmounts = [];
-
-        for (let i = 0; i < milestones.length; i++) {
-          const milestone = milestones[i];
-          console.log(`Hashing milestone ${i}:`, milestone);
-
-          const milestoneHash = await pinMilestoneToIPFS(milestone, i);
-          if (!milestoneHash) {
-            throw new Error(`Failed to hash milestone ${i}`);
-          }
-
-          milestoneHashes.push(milestoneHash);
-          milestoneAmounts.push(milestone.amount * 1000000); // Convert to USDT units (6 decimals)
-
-          console.log(`Milestone ${i} hash:`, milestoneHash);
-        }
-
-        console.log("All milestone hashes:", milestoneHashes);
-        console.log("All milestone amounts:", milestoneAmounts);
-
-        // Step 2: Create comprehensive job details object (including milestone hashes)
-        const jobDetails = {
-          title: jobTitle,
-          description: jobDescription,
-          skills: selectedSkills,
-          skillOracle: selectedSkillOracle,
-          milestoneType: selectedOption,
-          milestones: milestones, // Original milestone data
-          milestoneHashes: milestoneHashes, // IPFS hashes of milestones
-          totalCompensation: totalCompensation,
-          jobGiver: fromAddress,
-          timestamp: new Date().toISOString(),
-        };
-
-        // Step 3: Pin comprehensive job details to IPFS
-        const jobResponse = await pinJobDetailsToIPFS(jobDetails);
-        console.log("Job IPFS Response:", jobResponse);
-
-        if (jobResponse && jobResponse.IpfsHash) {
-          const jobDetailHash = jobResponse.IpfsHash;
-          console.log("Job IPFS Hash:", jobDetailHash);
-
-          // Step 4: Prepare contract parameters
-          const contract = new web3.eth.Contract(
-            JobContractABI,
-            contractAddress,
-          );
-
-          // DEBUG: Log all transaction data
-          console.log("=== TRANSACTION DEBUG ===");
-          console.log("Contract Address:", contractAddress);
-          console.log("Job Detail Hash:", jobDetailHash);
-          console.log("Milestone Hashes (descriptions):", milestoneHashes);
-          console.log("Milestone Amounts:", milestoneAmounts);
-          console.log("Options Value:", OPTIONS_VALUE);
-          console.log("From Address:", fromAddress);
-          console.log(
-            "Transaction Value:",
-            web3.utils.toWei("0.0001", "ether"),
-          );
-          console.log("Job Details Object:", jobDetails);
-          console.log("========================");
-
-          // Step 5: Call postJob function with milestone hashes as descriptions
-          contract.methods
-            .postJob(
-              jobDetailHash,
-              milestoneHashes,
-              milestoneAmounts,
-              OPTIONS_VALUE,
-            )
-            .send({
-              from: fromAddress,
-              value: web3.utils.toWei("0.0001", "ether"),
-              gasPrice: await web3.eth.getGasPrice(),
-            })
-            .on("receipt", function (receipt) {
-              const events = receipt.events.JobPosted;
-              if (events && events.returnValues) {
-                const jobId = events.returnValues.jobId;
-                console.log("Job ID from event:", jobId);
-                navigate("/browse-jobs");
-              }
-              setLoadingT(false);
-            })
-            .on("error", function (error) {
-              console.error("Error sending transaction:", error);
-              setLoadingT(false);
-            })
-            .on("transactionHash", function (hash) {
-              console.log("Transaction hash:", hash);
-            })
-            .catch(function (error) {
-              console.error("Transaction was rejected:", error);
-              setLoadingT(false);
-            });
-        } else {
-          console.error("Failed to pin job details to IPFS");
-          setLoadingT(false);
-        }
-      } catch (error) {
-        console.error("Error in handleSubmit:", error);
-        setLoadingT(false);
-      }
-    } else {
-      console.error("MetaMask not detected");
-      setLoadingT(false);
-    }
-  };
-
-  if (loadingT) {
-    return (
-      <div className="loading-containerT">
-        <div className="loading-icon">
-          <img src="/OWIcon.svg" alt="Loading..." />
-        </div>
-        <div className="loading-message">
-          <h1 id="txText">Posting Job...</h1>
-          <p id="txSubtext">
-            Your job is being posted to the blockchain. Please wait...
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -447,6 +384,8 @@ export default function PostJob() {
                 ))}
               </div>
             </div>
+
+            {/* Amount input field is completely hidden */}
 
             <div className="form-groupDC form-platformFee">
               <div className="platform-fee">

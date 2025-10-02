@@ -3,11 +3,14 @@ import { Tooltip } from "react-tooltip";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Web3 from "web3";
-import L1ABI from "../../L1ABI.json"; // Import the L1 contract ABI
+import contractABI from "../../ABIs/nowjc_ABI.json"; // Updated to use the correct ABI
 import "./SingleJobDetails.css";
 import MenuItem from "../../components/MenuItem";
 import ToolTipContent from "../../components/ToolTipContent/ToolTipContent";
 import ToolTipMilestone from "../../components/ToolTipMilestone/ToolTipMilestone";
+
+const CONTRACT_ADDRESS = "0x3C597eae77aD652a20E3B54B5dE9D89c9c7016E3";
+const OP_SEPOLIA_RPC = "https://sepolia.optimism.io";
 
 const MILESTONETOOLTIPITEMS = [
   {
@@ -38,15 +41,19 @@ export default function SingleJobDetails() {
   const [job, setJob] = useState(null);
   const [walletAddress, setWalletAddress] = useState("");
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [loading, setLoading] = useState(true); // State for loading animation
-  const [amountPaid, setAmountPaid] = useState(0); // State for amount paid
-  const [amountReceived, setAmountReceived] = useState(0); // State for amount received
+  const [loading, setLoading] = useState(true);
+  const [amountPaid, setAmountPaid] = useState(0);
+  const [amountReceived, setAmountReceived] = useState(0);
+  const [amountLocked, setAmountLocked] = useState(0);
   const [buttonsVisible, setButtonsVisible] = useState(false);
-  const [hovered, setHovered] = useState(false); // State to track hover
+  const [hovered, setHovered] = useState(false);
   const [payHover, setPayHover] = useState(false);
   const [receiveHover, SetReceiveHover] = useState(false);
-  const coreRef = useRef(null); // Create a ref for the element
-  const [isElementReady, setIsElementReady] = useState(false); // State to track element readiness
+  const coreRef = useRef(null);
+  const [isElementReady, setIsElementReady] = useState(false);
+  const [milestoneTooltipItems, setMilestoneTooltipItems] = useState(
+    MILESTONETOOLTIPITEMS,
+  );
 
   function formatWalletAddressH(address) {
     if (!address) return "";
@@ -62,7 +69,7 @@ export default function SingleJobDetails() {
   }, [buttonFlex2]);
 
   useEffect(() => {
-    if (!isElementReady) return; // Exit if element is not ready
+    if (!isElementReady) return;
 
     const coreHome = coreRef.current;
 
@@ -86,8 +93,8 @@ export default function SingleJobDetails() {
   }, [isElementReady]);
 
   const formatAmount = (amount) => {
-    if (parseFloat(amount) === 0) return "0"; // Handle zero value without decimal
-    const roundedAmount = parseFloat(amount).toFixed(2); // Rounds to 2 decimal places
+    if (parseFloat(amount) === 0) return "0";
+    const roundedAmount = parseFloat(amount).toFixed(2);
     return roundedAmount.length > 5 ? roundedAmount.slice(0, 8) : roundedAmount;
   };
 
@@ -129,59 +136,140 @@ export default function SingleJobDetails() {
   useEffect(() => {
     async function fetchJobDetails() {
       try {
-        const web3 = new Web3("https://erpc.xinfin.network"); // Using the RPC URL
-        const contractAddress = "0x00844673a088cBC4d4B4D0d63a24a175A2e2E637"; // Address of the OpenWorkL1 contract
-        const contract = new web3.eth.Contract(L1ABI, contractAddress);
+        setLoading(true);
+        const web3 = new Web3(OP_SEPOLIA_RPC);
+        const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
-        // Fetch job details
-        const jobDetails = await contract.methods.getJobDetails(jobId).call();
-        const ipfsHash = jobDetails.jobDetailHash;
-        const ipfsData = await fetchFromIPFS(ipfsHash);
+        // Fetch job details from the contract
+        const jobData = await contract.methods.getJob(jobId).call();
+        console.log("Job data from contract:", jobData);
 
-        // Fetch proposed amount using getApplicationProposedAmount
-        const proposedAmountWei = await contract.methods
-          .getApplicationProposedAmount(jobId)
-          .call();
-        // Fetch escrow amount using getJobEscrowAmount
-        const escrowAmountWei = await contract.methods
-          .getJobEscrowAmount(jobId)
-          .call();
+        // Fetch job details from IPFS
+        let jobDetails = {};
+        try {
+          if (jobData.jobDetailHash) {
+            const ipfsResponse = await fetch(
+              `https://gateway.pinata.cloud/ipfs/${jobData.jobDetailHash}`,
+            );
+            if (ipfsResponse.ok) {
+              jobDetails = await ipfsResponse.json();
+            }
+          }
+        } catch (ipfsError) {
+          console.warn("Failed to fetch IPFS data:", ipfsError);
+        }
 
-        // Log the raw wei values
-        console.log("Proposed Amount (raw wei):", proposedAmountWei);
-        console.log("Escrow Amount (raw wei):", escrowAmountWei);
+        // Fetch job giver and job taker profiles
+        let jobGiverProfile = null;
+        let jobTakerProfile = null;
 
-        // Convert amounts from wei to ether
-        const proposedAmount = web3.utils.fromWei(proposedAmountWei, "ether");
-        const currentEscrowAmount = web3.utils.fromWei(
-          escrowAmountWei,
-          "ether"
+        try {
+          jobGiverProfile = await contract.methods
+            .getProfile(jobData.jobGiver)
+            .call();
+        } catch (error) {
+          console.warn("Job giver profile not found");
+        }
+
+        if (
+          jobData.selectedApplicant &&
+          jobData.selectedApplicant !==
+            "0x0000000000000000000000000000000000000000"
+        ) {
+          try {
+            jobTakerProfile = await contract.methods
+              .getProfile(jobData.selectedApplicant)
+              .call();
+          } catch (error) {
+            console.warn("Job taker profile not found");
+          }
+        }
+
+        // Calculate amounts from milestones (assuming USDT with 6 decimals)
+        const totalBudget = jobData.milestonePayments.reduce(
+          (sum, milestone) => {
+            return sum + parseFloat(milestone.amount);
+          },
+          0,
         );
 
-        const receivedAmount = proposedAmount - currentEscrowAmount;
+        const totalPaidAmount = parseFloat(jobData.totalPaid);
+        const currentMilestone = parseInt(jobData.currentMilestone);
 
-        setJob({
-          jobId,
-          employer: jobDetails.employer,
-          jobTaker: jobDetails.jobTaker,
-          escrowAmount: currentEscrowAmount,
-          isJobOpen: jobDetails.isOpen,
-          ...ipfsData,
+        // Calculate locked amount (remaining milestones)
+        let lockedAmount = 0;
+        if (currentMilestone <= jobData.finalMilestones.length) {
+          for (
+            let i = currentMilestone - 1;
+            i < jobData.finalMilestones.length;
+            i++
+          ) {
+            if (jobData.finalMilestones[i]) {
+              lockedAmount += parseFloat(jobData.finalMilestones[i].amount);
+            }
+          }
+        }
+
+        // Convert from contract units (6 decimals for USDT) to display units
+        const formattedTotalBudget = (totalBudget / 1000000).toFixed(2);
+        const formattedAmountPaid = (totalPaidAmount / 1000000).toFixed(2);
+        const formattedLockedAmount = (lockedAmount / 1000000).toFixed(2);
+
+        // Update milestone tooltip with actual data
+        const updatedTooltipItems = [];
+        if (jobData.finalMilestones && jobData.finalMilestones.length > 0) {
+          jobData.finalMilestones.forEach((milestone, index) => {
+            updatedTooltipItems.push({
+              title: `MILESTONE ${index + 1}`,
+              amount: (parseFloat(milestone.amount) / 1000000).toFixed(2),
+            });
+          });
+        }
+        updatedTooltipItems.push({
+          title: "PLATFORM FEES",
+          amount: "5", // You might want to calculate this based on actual platform fee
+        });
+        updatedTooltipItems.push({
+          title: "TOTAL COMPENSATION",
+          amount: formattedTotalBudget,
         });
 
-        setAmountPaid(proposedAmount);
-        setAmountReceived(receivedAmount);
+        setMilestoneTooltipItems(updatedTooltipItems);
 
-        setLoading(false); // Stop loading animation after fetching data
+        // Set the job state
+        setJob({
+          jobId: jobData.id,
+          title: jobDetails.title || "Untitled Job",
+          description: jobDetails.description || "",
+          skills: jobDetails.skills || [],
+          jobGiver: jobData.jobGiver,
+          selectedApplicant: jobData.selectedApplicant,
+          status: jobData.status,
+          milestones: jobData.finalMilestones,
+          currentMilestone: currentMilestone,
+          totalMilestones: jobData.finalMilestones.length,
+          jobGiverProfile,
+          jobTakerProfile,
+          contractId: CONTRACT_ADDRESS,
+          ...jobDetails,
+        });
+
+        setAmountPaid(parseFloat(formattedAmountPaid));
+        setAmountReceived(parseFloat(formattedAmountPaid)); // In this context, amount received = amount paid
+        setAmountLocked(parseFloat(formattedLockedAmount));
+
+        setLoading(false);
         setIsElementReady(true);
-        console.log("elements ready!!!!");
+        console.log("Job details loaded successfully");
       } catch (error) {
         console.error("Error fetching job details:", error);
-        setLoading(false); // Ensure loading stops even if there is an error
+        setLoading(false);
       }
     }
 
-    fetchJobDetails();
+    if (jobId) {
+      fetchJobDetails();
+    }
   }, [jobId]);
 
   const fetchFromIPFS = async (hash) => {
@@ -217,7 +305,7 @@ export default function SingleJobDetails() {
   const handleNavigation = () => {
     window.open(
       "https://drive.google.com/file/d/1tdpuAM3UqiiP_TKJMa5bFtxOG4bU_6ts/view",
-      "_blank"
+      "_blank",
     );
   };
 
@@ -230,14 +318,50 @@ export default function SingleJobDetails() {
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <img src="/OWIcon.svg" alt="Loading..." className="loading-icon" />
+      <div className="loading-containerT">
+        <div className="loading-icon">
+          <img src="/OWIcon.svg" alt="Loading..." />
+        </div>
+        <div className="loading-message">
+          <h1 id="txText">Loading Job Details...</h1>
+          <p id="txSubtext">
+            Fetching job information from the blockchain. Please wait...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!job) {
-    return <div></div>; // Blank div while loading
+    return (
+      <div className="body-container">
+        <div className="view-jobs-container">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "400px",
+              fontSize: "18px",
+              color: "#666",
+            }}
+          >
+            <p>Job not found.</p>
+            <Link
+              to="/browse-jobs"
+              style={{
+                marginTop: "20px",
+                color: "#007bff",
+                textDecoration: "none",
+              }}
+            >
+              Back to Browse Jobs
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -249,29 +373,23 @@ export default function SingleJobDetails() {
               <img className="goBackImage" src="/back.svg" alt="Back Button" />
             </Link>
             <div className="titleText">{job.title}</div>
-            <Link className="goBack" to="/browse-jobs" style={{visibility:'hidden'}}>
+            <Link
+              className="goBack"
+              to="/browse-jobs"
+              style={{ visibility: "hidden" }}
+            >
               <img className="goBackImage" src="/back.svg" alt="Back Button" />
             </Link>
           </div>
           <div className="titleBottom">
-            <p>
-              {" "}
-              Contract ID:{" "}
-              {formatWalletAddress(
-                "0xdEF4B440acB1B11FDb23AF24e099F6cAf3209a8d"
-              )}
-            </p>
+            <p>Contract ID: {formatWalletAddress(job.contractId)}</p>
             <img
               src="/copy.svg"
               className="copyImage"
-              onClick={() =>
-                handleCopyToClipboard(
-                  "0xdEF4B440acB1B11FDb23AF24e099F6cAf3209a8d"
-                )
-              }
+              onClick={() => handleCopyToClipboard(job.contractId)}
             />
           </div>
-          <div className="feeContent" style={{fontWeight: '400 !important'}}>
+          <div className="feeContent" style={{ fontWeight: "400 !important" }}>
             {hovered ? (
               <>
                 <span>Fees:</span>
@@ -279,7 +397,10 @@ export default function SingleJobDetails() {
                 <img src="/xdc.svg" alt="" />
               </>
             ) : (
-              <div className="titleBottom">2 / 3 Milestones Completed</div>
+              <div className="titleBottom">
+                {job.currentMilestone} / {job.totalMilestones} Milestones
+                Completed
+              </div>
             )}
             <img src="/warning.svg" alt="" data-tooltip-id="mileston-tooltip" />
             <Tooltip
@@ -289,7 +410,7 @@ export default function SingleJobDetails() {
               classNameArrow="custom-tooltip-arrow"
             >
               <div className="tooltip-form" style={{ gap: "8px" }}>
-                {MILESTONETOOLTIPITEMS.map((item, index) => (
+                {milestoneTooltipItems.map((item, index) => (
                   <ToolTipMilestone
                     key={index}
                     title={item.title}
@@ -314,7 +435,7 @@ export default function SingleJobDetails() {
             }}
           >
             <div className="amountInfo">
-              {100} {/* Displaying the amount paid */}
+              {formatAmount(amountPaid)}
               <img src="/xdc.svg" alt="USDC Icon" className="usdcIcon" />
             </div>
             <div id="amountLabelLeft" className="amountLabel">
@@ -325,9 +446,9 @@ export default function SingleJobDetails() {
               className="address"
               style={{ cursor: "pointer" }}
               title="Click to copy"
-              onClick={() => handleCopyToClipboard(job.employer)}
+              onClick={() => handleCopyToClipboard(job.jobGiver)}
             >
-              {formatWalletAddress(job.employer)}
+              {formatWalletAddress(job.jobGiver)}
             </div>
           </div>
           <div
@@ -361,11 +482,12 @@ export default function SingleJobDetails() {
             classNameArrow="custom-tooltip-arrow"
           >
             <ToolTipContent
-              name="Jollie Hall"
+              name="Job Giver"
               role="Giver"
-              content="I'm a Product Designer based in Melbourne, Australia. I enjoy working on product design, design systems, and Webflow..."
+              content="Job posting party"
             />
           </Tooltip>
+
           {/* Display Amount Received */}
           <div
             className="buttonRightInfo"
@@ -375,8 +497,7 @@ export default function SingleJobDetails() {
             }}
           >
             <div className="amountInfo">
-              {50}{" "}
-              {/* Displaying the amount received */}
+              {formatAmount(amountReceived)}
               <img src="/xdc.svg" alt="USDC Icon" className="usdcIcon" />
             </div>
             <div id="amountLabelRight" className="amountLabel">
@@ -387,9 +508,17 @@ export default function SingleJobDetails() {
               className="address"
               style={{ cursor: "pointer" }}
               title="Click to copy"
-              onClick={() => handleCopyToClipboard(job.jobTaker)}
+              onClick={() =>
+                handleCopyToClipboard(
+                  job.selectedApplicant ||
+                    "0x0000000000000000000000000000000000000000",
+                )
+              }
             >
-              {formatWalletAddress(job.jobTaker)}
+              {formatWalletAddress(
+                job.selectedApplicant ||
+                  "0x0000000000000000000000000000000000000000",
+              )}
             </div>
           </div>
           <div
@@ -423,12 +552,13 @@ export default function SingleJobDetails() {
             classNameArrow="custom-tooltip-arrow"
           >
             <ToolTipContent
-              name="Jollie Hall"
+              name="Job Taker"
               point="4.9"
               role="Taker"
-              content="I'm a Product Designer based in Melbourne, Australia. I enjoy working on product design, design systems, and Webflow..."
+              content="Selected applicant for this job"
             />
           </Tooltip>
+
           {/* Links with hover effect */}
           <Link
             to={`/job-deep-view/${job.jobId}`}
@@ -497,7 +627,7 @@ export default function SingleJobDetails() {
             />
             <img
               src="/dispute.svg"
-              alt="Disoute Icon"
+              alt="Dispute Icon"
               className="buttonIconHover"
             />
             <span className="buttonText">Raise Dispute</span>
@@ -511,7 +641,7 @@ export default function SingleJobDetails() {
           >
             <img src="/core.svg" alt="Core" className="coreImage" />
             <span className="coreText">
-              {50}{" "}
+              {formatAmount(amountLocked)}
               <img
                 src="/xdc.svg"
                 alt="USDC Icon"
