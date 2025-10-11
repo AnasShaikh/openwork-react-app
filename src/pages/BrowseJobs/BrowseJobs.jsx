@@ -7,8 +7,42 @@ import "./BrowseJobs.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import DetailButton from "../../components/DetailButton/DetailButton";
 
-const CONTRACT_ADDRESS = "0x3C597eae77aD652a20E3B54B5dE9D89c9c7016E3";
-const OP_SEPOLIA_RPC = "https://sepolia.optimism.io";
+const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
+const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
+
+// Multi-gateway IPFS fetch function with timeout
+const fetchFromIPFS = async (hash, timeout = 5000) => {
+    const gateways = [
+        `https://ipfs.io/ipfs/${hash}`,
+        `https://gateway.pinata.cloud/ipfs/${hash}`,
+        `https://cloudflare-ipfs.com/ipfs/${hash}`,
+        `https://dweb.link/ipfs/${hash}`
+    ];
+
+    const fetchWithTimeout = (url, timeout) => {
+        return Promise.race([
+            fetch(url),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), timeout)
+            )
+        ]);
+    };
+
+    for (const gateway of gateways) {
+        try {
+            const response = await fetchWithTimeout(gateway, timeout);
+            if (response.ok) {
+                const data = await response.json();
+                return data;
+            }
+        } catch (error) {
+            console.warn(`Failed to fetch from ${gateway}:`, error.message);
+            continue;
+        }
+    }
+    
+    throw new Error(`Failed to fetch ${hash} from all gateways`);
+};
 
 export default function BrowseJobs() {
     const [jobs, setJobs] = useState([]);
@@ -55,7 +89,7 @@ export default function BrowseJobs() {
     useEffect(() => {
         const initWeb3 = async () => {
             try {
-                const web3Instance = new Web3(OP_SEPOLIA_RPC);
+                const web3Instance = new Web3(ARBITRUM_SEPOLIA_RPC);
                 const contractInstance = new web3Instance.eth.Contract(
                     contractABI,
                     CONTRACT_ADDRESS,
@@ -82,9 +116,12 @@ export default function BrowseJobs() {
 
                 // Get all job IDs
                 const jobIds = await contract.methods.getAllJobIds().call();
-                console.log("Job IDs:", jobIds);
+                console.log("🔍 BrowseJobs Debug - Job IDs:", jobIds);
+                console.log("🔍 BrowseJobs Debug - Contract Address:", CONTRACT_ADDRESS);
+                console.log("🔍 BrowseJobs Debug - RPC:", ARBITRUM_SEPOLIA_RPC);
 
                 if (jobIds.length === 0) {
+                    console.log("❌ No job IDs found");
                     setJobs([]);
                     setLoading(false);
                     return;
@@ -110,16 +147,11 @@ export default function BrowseJobs() {
                             );
                         }
 
-                        // Fetch and parse IPFS data for job details
+                        // Fetch and parse IPFS data for job details with multi-gateway support
                         let jobDetails = null;
                         try {
                             if (jobData.jobDetailHash) {
-                                const ipfsResponse = await fetch(
-                                    `https://gateway.pinata.cloud/ipfs/${jobData.jobDetailHash}`,
-                                );
-                                if (ipfsResponse.ok) {
-                                    jobDetails = await ipfsResponse.json();
-                                }
+                                jobDetails = await fetchFromIPFS(jobData.jobDetailHash);
                             }
                         } catch (ipfsError) {
                             console.warn(
@@ -148,12 +180,8 @@ export default function BrowseJobs() {
                             jobData.jobGiver.slice(-4);
                         if (posterProfile && posterProfile.ipfsHash) {
                             try {
-                                const profileResponse = await fetch(
-                                    `https://gateway.pinata.cloud/ipfs/${posterProfile.ipfsHash}`,
-                                );
-                                if (profileResponse.ok) {
-                                    const profileData =
-                                        await profileResponse.json();
+                                const profileData = await fetchFromIPFS(posterProfile.ipfsHash);
+                                if (profileData) {
                                     posterName = profileData.name || posterName;
                                 }
                             } catch (profileError) {
@@ -189,7 +217,9 @@ export default function BrowseJobs() {
                 });
 
                 const resolvedJobs = await Promise.all(jobPromises);
-                const validJobs = resolvedJobs.filter((job) => job !== null);
+                const validJobs = resolvedJobs.filter((job) => 
+                    job !== null && job.title && job.title !== "Untitled Job"
+                );
 
                 // Sort by newest first (assuming job IDs are sequential)
                 validJobs.sort((a, b) => b.id.localeCompare(a.id));

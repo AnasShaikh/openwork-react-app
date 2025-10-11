@@ -32,6 +32,13 @@
     "name": "OwnableUnauthorizedAccount",
     "type": "error"
   },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "token", "type": "address" }
+    ],
+    "name": "SafeERC20FailedOperation",
+    "type": "error"
+  },
   { "inputs": [], "name": "UUPSUnauthorizedCallContext", "type": "error" },
   {
     "inputs": [
@@ -108,6 +115,37 @@
       }
     ],
     "name": "ClaimDataUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "string",
+        "name": "jobId",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "winnerChainDomain",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "DisputedFundsReleased",
     "type": "event"
   },
   {
@@ -296,6 +334,25 @@
       }
     ],
     "name": "MilestoneLocked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "oldNativeAthena",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newNativeAthena",
+        "type": "address"
+      }
+    ],
+    "name": "NativeAthenaUpdated",
     "type": "event"
   },
   {
@@ -629,7 +686,12 @@
         "name": "_descriptions",
         "type": "string[]"
       },
-      { "internalType": "uint256[]", "name": "_amounts", "type": "uint256[]" }
+      { "internalType": "uint256[]", "name": "_amounts", "type": "uint256[]" },
+      {
+        "internalType": "uint32",
+        "name": "_preferredChainDomain",
+        "type": "uint32"
+      }
     ],
     "name": "applyToJob",
     "outputs": [],
@@ -665,6 +727,20 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "cctpReceiver",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "cctpTransceiver",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       { "internalType": "address", "name": "_user", "type": "address" },
       { "internalType": "string", "name": "_ipfsHash", "type": "string" },
@@ -675,6 +751,13 @@
       }
     ],
     "name": "createProfile",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "emergencyWithdrawUSDT",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -696,6 +779,15 @@
     "inputs": [],
     "name": "getAllJobIds",
     "outputs": [{ "internalType": "string[]", "name": "", "type": "string[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllProfileUsers",
+    "outputs": [
+      { "internalType": "address[]", "name": "", "type": "address[]" }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -735,13 +827,6 @@
         "type": "tuple"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getCurrentBand",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -867,23 +952,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getPlatformBandInfo",
-    "outputs": [
-      { "internalType": "uint256", "name": "currentBand", "type": "uint256" },
-      { "internalType": "uint256", "name": "currentTotal", "type": "uint256" },
-      { "internalType": "uint256", "name": "bandMinAmount", "type": "uint256" },
-      { "internalType": "uint256", "name": "bandMaxAmount", "type": "uint256" },
-      {
-        "internalType": "uint256",
-        "name": "governanceRewardRate",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       { "internalType": "address", "name": "_user", "type": "address" }
     ],
@@ -913,6 +981,46 @@
         "type": "tuple"
       }
     ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_index", "type": "uint256" }
+    ],
+    "name": "getProfileByIndex",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "userAddress",
+            "type": "address"
+          },
+          { "internalType": "string", "name": "ipfsHash", "type": "string" },
+          {
+            "internalType": "address",
+            "name": "referrerAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "string[]",
+            "name": "portfolioHashes",
+            "type": "string[]"
+          }
+        ],
+        "internalType": "struct NativeOpenWorkJobContract.Profile",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getProfileCount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -987,11 +1095,23 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "user", "type": "address" }
+      { "internalType": "address", "name": "_jobGiver", "type": "address" },
+      { "internalType": "string", "name": "_jobId", "type": "string" },
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" },
+      {
+        "internalType": "uint32",
+        "name": "_targetChainDomain",
+        "type": "uint32"
+      },
+      {
+        "internalType": "address",
+        "name": "_targetRecipient",
+        "type": "address"
+      }
     ],
-    "name": "getUserTotalClaimableTokens",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
+    "name": "handleReleasePaymentCrossChain",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1022,7 +1142,9 @@
         "internalType": "address",
         "name": "_rewardsContract",
         "type": "address"
-      }
+      },
+      { "internalType": "address", "name": "_usdtToken", "type": "address" },
+      { "internalType": "address", "name": "_cctpReceiver", "type": "address" }
     ],
     "name": "initialize",
     "outputs": [],
@@ -1053,6 +1175,16 @@
   },
   {
     "inputs": [
+      { "internalType": "string", "name": "", "type": "string" },
+      { "internalType": "address", "name": "", "type": "address" }
+    ],
+    "name": "jobApplicantChainDomain",
+    "outputs": [{ "internalType": "uint32", "name": "", "type": "uint32" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
       { "internalType": "string", "name": "_jobId", "type": "string" }
     ],
     "name": "jobExists",
@@ -1069,6 +1201,13 @@
     "name": "lockNextMilestone",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nativeAthena",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1116,11 +1255,15 @@
   },
   {
     "inputs": [
-      { "internalType": "address", "name": "_jobGiver", "type": "address" },
-      { "internalType": "string", "name": "_jobId", "type": "string" },
-      { "internalType": "uint256", "name": "_amount", "type": "uint256" }
+      { "internalType": "address", "name": "_recipient", "type": "address" },
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" },
+      {
+        "internalType": "uint32",
+        "name": "_targetChainDomain",
+        "type": "uint32"
+      }
     ],
-    "name": "releasePayment",
+    "name": "releaseDisputedFunds",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1137,6 +1280,27 @@
       { "internalType": "uint256", "name": "_lockedAmount", "type": "uint256" }
     ],
     "name": "releasePaymentAndLockNext",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_jobGiver", "type": "address" },
+      { "internalType": "string", "name": "_jobId", "type": "string" },
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" },
+      {
+        "internalType": "uint32",
+        "name": "_targetChainDomain",
+        "type": "uint32"
+      },
+      {
+        "internalType": "address",
+        "name": "_targetRecipient",
+        "type": "address"
+      }
+    ],
+    "name": "releasePaymentCrossChain",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1185,9 +1349,40 @@
   },
   {
     "inputs": [
+      { "internalType": "address", "name": "_cctpReceiver", "type": "address" }
+    ],
+    "name": "setCCTPReceiver",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_cctpTransceiver",
+        "type": "address"
+      }
+    ],
+    "name": "setCCTPTransceiver",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       { "internalType": "address", "name": "_genesis", "type": "address" }
     ],
     "name": "setGenesis",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_nativeAthena", "type": "address" }
+    ],
+    "name": "setNativeAthena",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1201,6 +1396,25 @@
       }
     ],
     "name": "setRewardsContract",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint32", "name": "_domain", "type": "uint32" },
+      { "internalType": "address", "name": "_nowjcAddress", "type": "address" }
+    ],
+    "name": "setTargetChainNOWJC",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_newToken", "type": "address" }
+    ],
+    "name": "setUSDTToken",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1255,6 +1469,13 @@
     "type": "function"
   },
   {
+    "inputs": [{ "internalType": "uint32", "name": "", "type": "uint32" }],
+    "name": "targetChainNOWJC",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       { "internalType": "address", "name": "newOwner", "type": "address" }
     ],
@@ -1288,6 +1509,15 @@
     "name": "upgradeToAndCall",
     "outputs": [],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "usdtToken",
+    "outputs": [
+      { "internalType": "contract IERC20", "name": "", "type": "address" }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

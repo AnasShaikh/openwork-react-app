@@ -20,6 +20,23 @@ export function useWalletConnection() {
     };
 
     checkWalletConnection();
+
+    // Listen for account changes
+    const handleAccountsChanged = (accounts) => {
+      if (accounts.length > 0) {
+        setWalletAddress(accounts[0]);
+      } else {
+        setWalletAddress("");
+      }
+    };
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
+    }
   }, []);
 
   const connectWallet = async () => {
