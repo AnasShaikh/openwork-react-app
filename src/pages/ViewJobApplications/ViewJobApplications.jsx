@@ -114,21 +114,33 @@ export default function ViewJobApplications() {
                     }
                 }
 
+                // Debug: Log job data structure to understand how to fetch applications
+                console.log("🔍 Job data structure:", jobData);
+                console.log("🔍 Job applicants array:", jobData.applicants);
+                console.log("🔍 Number of applicants:", jobData.applicants?.length || 0);
+
                 // Fetch all applications for this job
                 const applicationPromises = [];
-                for (let i = 0; i < jobData.applicants.length; i++) {
+                
+                // Try to fetch applications by iterating through potential application IDs
+                // We'll try fetching applications 1 by 1 until we get an error
+                let applicationId = 1;
+                const maxApplicationsToTry = jobData.applicants?.length || 10; // Fallback to try up to 10
+                
+                for (let i = 0; i < maxApplicationsToTry; i++) {
+                    const currentAppId = applicationId + i;
                     applicationPromises.push(
-                        contract.methods.getApplication(jobId, i + 1).call()
+                        contract.methods.getApplication(jobId, currentAppId).call()
                             .then(async (appData) => {
+                                console.log(`📋 Application ${currentAppId} data:`, appData);
                                 let applicationDetails = null;
-                                let proposedMilestones = [];
 
                                 // Fetch application details from IPFS
                                 if (appData.applicationHash) {
                                     try {
                                         applicationDetails = await fetchFromIPFS(appData.applicationHash);
                                     } catch (error) {
-                                        console.warn(`Failed to fetch application ${i + 1} details from IPFS:`, error);
+                                        console.warn(`Failed to fetch application ${currentAppId} details from IPFS:`, error);
                                     }
                                 }
 
@@ -141,8 +153,8 @@ export default function ViewJobApplications() {
                                 }
 
                                 return {
-                                    id: i + 1,
-                                    applicationId: i + 1,
+                                    id: currentAppId,
+                                    applicationId: currentAppId,
                                     jobTitle: jobTitle,
                                     applicant: appData.applicant,
                                     sentTo: jobData.jobGiver,
@@ -153,7 +165,7 @@ export default function ViewJobApplications() {
                                 };
                             })
                             .catch(error => {
-                                console.error(`Error fetching application ${i + 1}:`, error);
+                                console.error(`Error fetching application ${currentAppId}:`, error);
                                 return null;
                             })
                     );
