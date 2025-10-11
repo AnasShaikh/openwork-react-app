@@ -1,0 +1,176 @@
+@font-face {
+    font-family: 'Satoshi', sans-serif;
+    src: url('/fonts/Satoshi-Regular.otf') format('opentype');
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: 'Satoshi', sans-serif;
+    src: url('/fonts/Satoshi-Medium.otf') format('opentype');
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: 'Satoshi', sans-serif;
+    src: url('/fonts/Satoshi-Bold.otf') format('opentype');
+    font-weight: 700;
+}
+
+/* Body container to match other pages */
+.body-container {
+    background-color: white;
+    min-height: 100vh;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.view-jobs-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Table title styling */
+.tableTitleV {
+    font-family: 'Satoshi', sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 27px;
+    color: #050505;
+}
+
+/* Back button styling to match other pages */
+.backButton {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+}
+
+.backIconV {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+}
+
+/* Status button styling */
+.pending-status {
+    background: #FFF7E6;
+    color: #FA8C16;
+    border: 1px solid #FFD591;
+}
+
+.accepted-status {
+    background: #F6FFED;
+    color: #52C41A;
+    border: 1px solid #B7EB8F;
+}
+
+.rejected-status {
+    background: #FFF1F0;
+    color: #FF4D4F;
+    border: 1px solid #FFCCC7;
+}
+
+/* Budget column styling to match BrowseJobs */
+.budget {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.budget span {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    color: #868686;
+}
+
+.budget img {
+    width: 16px;
+    height: 16px;
+}
+
+/* View detail button styling */
+.view-detail {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Loading container to match other pages */
+.loading-containerT {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 80vh;
+    background-color: white;
+}
+
+.loading-icon {
+    margin-bottom: 20px;
+}
+
+.loading-icon img {
+    width: 60px;
+    height: 60px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.loading-message {
+    text-align: center;
+}
+
+#txText {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: #050505;
+    margin: 0 0 10px 0;
+}
+
+#txSubtext {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #868686;
+    margin: 0;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Doc icon styling to match BrowseJobs */
+.docIcon {
+    vertical-align: middle;
+    margin-right: 8px;
+    width: 32px;
+    height: 32px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .view-jobs-container {
+        padding: 0 16px;
+    }
+    
+    .tableTitleV {
+        font-size: 18px;
+    }
+    
+    .budget {
+        padding-right: 10px;
+    }
+}

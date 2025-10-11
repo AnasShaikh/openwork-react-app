@@ -58,6 +58,7 @@ import ApplyJob from "./pages/ApplyJob/ApplyJob";
 import ViewReceivedApplication from "./pages/ViewReceivedApplication/ViewReceivedApplication";
 import ViewAnyApplication from "./pages/ViewAnyApplication/ViewAnyApplication";
 import ViewJobDetails from "./pages/ViewJobDetails/ViewJobDetails";
+import ViewJobApplications from "./pages/ViewJobApplications/ViewJobApplications";
 import ExistingMemberSkillOracle from "./pages/ExistingMemberSkillOracle/ExistingMemberSkillOracle";
 import WalletTest from "./pages/WalletTest/WalletTest";
 
@@ -260,6 +261,7 @@ export default function App() {
           <Route path="/view-received-application" element={<ViewReceivedApplication/>} />
           <Route path="/view-any-application" element={<ViewAnyApplication/>}/>
           <Route path="/view-job-details" element={<ViewJobDetails/>} />
+          <Route path="/view-job-applications/:jobId" element={<ViewJobApplications/>} />
           <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
           <Route path="/wallet-test" element={<WalletTest/>} />
         </Routes>
