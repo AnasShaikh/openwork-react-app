@@ -418,11 +418,16 @@ export default function JobInfo() {
                   </span>
                   {job.selectedApplicant &&
                   job.selectedApplicant !==
-                    "0x0000000000000000000000000000000000000000" && (
+                    "0x0000000000000000000000000000000000000000" ? (
                     <a href="/profile" className="view-profile">
                       <span>View Profile</span>
                       <img src="/view_profile.svg" alt="" />
                     </a>
+                  ) : (
+                    <Link to={`/view-job-applications/${jobId}`} className="view-profile">
+                      <span>View Applications</span>
+                      <img src="/view_profile.svg" alt="" />
+                    </Link>
                   )}
                 </div>
               </div>

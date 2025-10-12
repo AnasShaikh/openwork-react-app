@@ -193,11 +193,14 @@ export default function ViewJobApplications() {
 
     // Helper function to get status display
     const getStatusDisplay = (status) => {
+        console.log("🔍 Application status value:", status, "type:", typeof status);
         switch (parseInt(status)) {
-            case 0: return { text: "Pending", css: "pending-status" };
-            case 1: return { text: "Accepted", css: "accepted-status" };
+            case 0: return { text: "In Review", css: "pending-status" };
+            case 1: return { text: "Selected", css: "accepted-status" };
             case 2: return { text: "Rejected", css: "rejected-status" };
-            default: return { text: "Unknown", css: "pending-status" };
+            default: 
+                console.warn("Unknown status value:", status);
+                return { text: "In Review", css: "pending-status" };
         }
     };
 
@@ -207,30 +210,14 @@ export default function ViewJobApplications() {
             const statusInfo = getStatusDisplay(application.status);
 
             return [
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: "8px",
-                    }}
-                >
+                <div className="job-title-container">
                     <img
                         src="/doc.svg"
                         alt="Document Icon"
                         className="docIcon"
-                        style={{ marginTop: "2px", flexShrink: 0 }}
                     />
                     <span
-                        style={{
-                            lineHeight: "1.4",
-                            wordBreak: "break-word",
-                            hyphens: "auto",
-                            maxWidth: "200px",
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            overflow: "hidden",
-                        }}
+                        className="job-title-text"
                         title={application.jobTitle}
                     >
                         {application.jobTitle}
@@ -242,7 +229,9 @@ export default function ViewJobApplications() {
                 <div title={application.sentTo}>
                     {formatWalletAddress(application.sentTo)}
                 </div>,
-                <StatusButton status={statusInfo.text} statusCss={statusInfo.css} />,
+                <div className="status-column">
+                    <StatusButton status={statusInfo.text} statusCss={statusInfo.css} />
+                </div>,
                 <div className="budget">
                     <span>{application.amount}</span>
                     <img src="/xdc.svg" alt="Budget" />
@@ -330,7 +319,7 @@ export default function ViewJobApplications() {
         <div className="body-container">
             <div className="view-jobs-container">
                 <JobsTable
-                    title={job && job.jobDetailHash ? `Applications for ${job.jobDetailHash}` : `Applications for Job ${jobId}`}
+                    title={`Applications for Job ID: ${jobId}`}
                     tableData={currentApplications}
                     currentPage={currentPage}
                     totalPages={totalPages}
@@ -339,6 +328,8 @@ export default function ViewJobApplications() {
                     titleOptions={titleOptions}
                     filterOptions={filterOptions}
                     backUrl={`/job-deep-view/${jobId}`}
+                    applyNow={true}
+                    applyJobId={jobId}
                 />
             </div>
         </div>

@@ -41,7 +41,7 @@ function Box({icon, title, number}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection }) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, applyJobId }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -96,8 +96,12 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                         ))
                     }   
                     {applyNow?
-                     <BlueButton label="Apply Now" onClick={() => {
-                        location.pathname = '/apply-now'
+                     <BlueButton label="Apply to Job" onClick={() => {
+                        if (applyJobId) {
+                            location.href = `/apply-job?jobId=${applyJobId}`;
+                        } else {
+                            location.pathname = '/apply-now';
+                        }
                     }}/>
                     :
                      !addMember && <BlueButton label="Post a Job" icon={'/plus.svg'} onClick={() => {
