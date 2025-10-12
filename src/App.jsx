@@ -59,6 +59,7 @@ import ViewReceivedApplication from "./pages/ViewReceivedApplication/ViewReceive
 import ViewAnyApplication from "./pages/ViewAnyApplication/ViewAnyApplication";
 import ViewJobDetails from "./pages/ViewJobDetails/ViewJobDetails";
 import ExistingMemberSkillOracle from "./pages/ExistingMemberSkillOracle/ExistingMemberSkillOracle";
+import DAO from "./pages/DAO/DAO";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -260,6 +261,7 @@ export default function App() {
           <Route path="/view-any-application" element={<ViewAnyApplication/>}/>
           <Route path="/view-job-details" element={<ViewJobDetails/>} />
           <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
+          <Route path="/dao" element={<DAO/>} />
         </Routes>
       </BrowserRouter>
     </Layout>
