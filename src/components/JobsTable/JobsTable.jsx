@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./JobsTable.css";
 import DropDown from "../DropDown/DropDown";
 import SearchInput from "../SearchInput/SearchInput";
@@ -27,6 +27,8 @@ const BOXITEMS = [
 ]
 
 function Box({icon, title, number, showJoinButton, onJoinClick}) {
+    const navigate = useNavigate();
+    
     return(
         <div className="box-component">
             <div className="box-title">
@@ -36,7 +38,7 @@ function Box({icon, title, number, showJoinButton, onJoinClick}) {
             <div className="box-content">
                 <span>{number}</span>
                 {showJoinButton && number === '0' ? (
-                    <BlueButton label="Join DAO" onClick={onJoinClick} />
+                    <BlueButton label="Join DAO" onClick={() => navigate('/join-dao')} />
                 ) : (
                     <DetailButton to={`/`} imgSrc="/view.svg" alt="detail" />
                 )}
