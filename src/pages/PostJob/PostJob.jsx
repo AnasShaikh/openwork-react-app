@@ -661,14 +661,8 @@ export default function PostJob() {
           console.log("Job Details Object:", jobDetails);
           console.log("========================");
 
-          // Step 5: Get LayerZero fee quote with predicted jobId
+          // Step 5: Get LayerZero fee quote
           setTransactionStatus("Getting LayerZero fee quote...");
-          
-          // Get current job count to predict next jobId
-          const jobCounter = await contract.methods.getJobCount().call();
-          const nextJobId = `11155420-${Number(jobCounter) + 1}`; // OP Sepolia chainId
-          console.log("📊 Current job count:", jobCounter);
-          console.log("🔮 Predicted next jobId:", nextJobId);
           
           const bridgeAddress = await contract.methods.bridge().call();
           
@@ -685,7 +679,13 @@ export default function PostJob() {
           
           const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
           
-          // Encode payload with predicted jobId (matching LOWJC's internal encoding)
+          // Get current job count to predict next jobId
+          const jobCounter = await contract.methods.getJobCount().call();
+          const nextJobId = `11155420-${Number(jobCounter) + 1}`; // OP Sepolia chainId
+          console.log("📊 Current job count:", jobCounter);
+          console.log("🔮 Predicted next jobId:", nextJobId);
+          
+          // Encode payload with predicted jobId
           const payload = web3.eth.abi.encodeParameters(
             ['string', 'string', 'address', 'string', 'string[]', 'uint256[]'],
             ['postJob', nextJobId, fromAddress, jobDetailHash, milestoneHashes, milestoneAmounts]
@@ -718,7 +718,7 @@ export default function PostJob() {
           
           console.log("\n🔐 Payload for LayerZero:");
           console.log("  - Payload (hex):", payload);
-          console.log("  - Payload size (bytes):", payload.length / 2 - 1); // -1 for 0x prefix
+          console.log("  - Payload size (bytes):", payload.length / 2 - 1);
           
           // Encode the actual contract call data
           const encodedCallData = contract.methods
@@ -737,6 +737,7 @@ export default function PostJob() {
           
           // Step 6: Call postJob function with milestone hashes as descriptions
           setTransactionStatus("Sending transaction to blockchain...");
+          
           contract.methods
             .postJob(
               jobDetailHash,
