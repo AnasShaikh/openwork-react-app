@@ -10,8 +10,19 @@ import DetailButton from "../../components/DetailButton/DetailButton";
 const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
 const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 
-// Multi-gateway IPFS fetch function with timeout
+// IPFS cache with 1-hour TTL
+const ipfsCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Multi-gateway IPFS fetch function with caching
 const fetchFromIPFS = async (hash, timeout = 5000) => {
+    // Check cache first
+    const cached = ipfsCache.get(hash);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        console.log(`✅ Using cached IPFS data for ${hash}`);
+        return cached.data;
+    }
+
     const gateways = [
         `https://ipfs.io/ipfs/${hash}`,
         `https://gateway.pinata.cloud/ipfs/${hash}`,
@@ -33,6 +44,12 @@ const fetchFromIPFS = async (hash, timeout = 5000) => {
             const response = await fetchWithTimeout(gateway, timeout);
             if (response.ok) {
                 const data = await response.json();
+                // Cache the result
+                ipfsCache.set(hash, {
+                    data,
+                    timestamp: Date.now()
+                });
+                console.log(`📦 Cached IPFS data for ${hash}`);
                 return data;
             }
         } catch (error) {
@@ -53,15 +70,36 @@ export default function BrowseJobs() {
     const [loading, setLoading] = useState(true);
     const [web3, setWeb3] = useState(null);
     const [contract, setContract] = useState(null);
+    const hasFetchedRef = React.useRef(false);
 
-    const headers = [
-        "Job Title",
-        "Posted by",
-        "Skills Required",
-        "Timeline",
-        "Budget",
-        "",
+    // Column configuration
+    const allColumns = [
+        { id: "title", label: "Job Title", required: true },
+        { id: "postedBy", label: "Posted by", required: false },
+        { id: "skills", label: "Skills Required", required: false },
+        { id: "timeline", label: "Timeline", required: false },
+        { id: "budget", label: "Budget", required: false },
+        { id: "status", label: "Job Status", required: false },
+        { id: "applicants", label: "Applicants", required: false },
+        { id: "milestones", label: "Milestones", required: false },
+        { id: "actions", label: "", required: true },
     ];
+
+    // Selected columns state - default to first 6 columns
+    const [selectedColumns, setSelectedColumns] = useState([
+        "title",
+        "postedBy", 
+        "skills",
+        "timeline",
+        "budget",
+        "actions"
+    ]);
+
+    // Generate headers based on selected columns
+    const headers = selectedColumns.map(colId => {
+        const column = allColumns.find(col => col.id === colId);
+        return column ? column.label : "";
+    });
 
     const titleOptions = [
         {
@@ -74,6 +112,32 @@ export default function BrowseJobs() {
         },
     ];
 
+    // Column toggle handler
+    const handleColumnToggle = (columnId) => {
+        setSelectedColumns(prev => {
+            const isCurrentlySelected = prev.includes(columnId);
+            const column = allColumns.find(col => col.id === columnId);
+            
+            // Can't toggle required columns
+            if (column?.required) return prev;
+            
+            if (isCurrentlySelected) {
+                // Can't deselect if at minimum (4 columns)
+                if (prev.length <= 4) return prev;
+                return prev.filter(id => id !== columnId);
+            } else {
+                // Can't select if at maximum (6 columns)
+                if (prev.length >= 6) return prev;
+                
+                // Maintain column order from allColumns
+                const allColumnIds = allColumns.map(col => col.id);
+                return allColumnIds.filter(id => 
+                    prev.includes(id) || id === columnId
+                );
+            }
+        });
+    };
+
     const filterOptions = [
         {
             title: "Listings",
@@ -81,7 +145,7 @@ export default function BrowseJobs() {
         },
         {
             title: "Table Columns",
-            items: ["column1", "column2"],
+            items: [],
         },
     ];
 
@@ -110,6 +174,12 @@ export default function BrowseJobs() {
     useEffect(() => {
         const fetchJobs = async () => {
             if (!contract) return;
+            
+            // Prevent duplicate fetches
+            if (hasFetchedRef.current) {
+                return;
+            }
+            hasFetchedRef.current = true;
 
             try {
                 setLoading(true);
@@ -227,80 +297,109 @@ export default function BrowseJobs() {
                 setJobs(validJobs);
             } catch (error) {
                 console.error("Error fetching jobs:", error);
+                hasFetchedRef.current = false; // Allow retry on error
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchJobs();
+        if (contract && !hasFetchedRef.current) {
+            fetchJobs();
+        }
     }, [contract]);
 
     // Transform job data for table display
     const tableData = useMemo(() => {
+        // Status mapping
+        const statusLabels = {
+            0: "Open",
+            1: "In Progress",
+            2: "Completed",
+            3: "Cancelled",
+            4: "Disputed"
+        };
+
         return jobs.map((job) => {
             const primarySkill =
                 job.skills && job.skills.length > 0 ? job.skills[0] : "General";
             const additionalSkillsCount =
                 job.skills && job.skills.length > 1 ? job.skills.length - 1 : 0;
 
-            return [
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: "8px",
-                    }}
-                >
-                    <img
-                        src="/doc.svg"
-                        alt="Document Icon"
-                        className="docIcon"
-                        style={{ marginTop: "2px", flexShrink: 0 }}
-                    />
-                    {job.title && (
-                        <span
-                            style={{
-                                lineHeight: "1.4",
-                                wordBreak: "break-word",
-                                hyphens: "auto",
-                                maxWidth: "200px",
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                            }}
-                            title={job.title} // Show full title on hover
-                        >
-                            {job.title}
-                        </span>
-                    )}
-                </div>,
-                <div title={job.jobGiver}>{job.postedBy}</div>,
-                <div className="skills-required">
-                    <SkillBox title={primarySkill} />
-                    {additionalSkillsCount > 0 && (
-                        <SkillBox title={`+${additionalSkillsCount}`} />
-                    )}
-                </div>,
-                <div>
-                    {typeof job.timeline === "string"
-                        ? job.timeline
-                        : `${job.timeline} Weeks`}
-                </div>,
-                <div className="budget">
-                    <span>{job.budget}</span>
-                    <img src="/xdc.svg" alt="Budget" />
-                </div>,
-                <div className="view-detail">
-                    <DetailButton
-                        to={`/job-details/${job.id}`}
-                        imgSrc="/view.svg"
-                        alt="detail"
-                    />
-                </div>,
-            ];
+            // Create all possible column data
+            const allColumnData = {
+                title: (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "8px",
+                        }}
+                    >
+                        <img
+                            src="/doc.svg"
+                            alt="Document Icon"
+                            className="docIcon"
+                            style={{ marginTop: "2px", flexShrink: 0 }}
+                        />
+                        {job.title && (
+                            <span
+                                style={{
+                                    lineHeight: "1.4",
+                                    wordBreak: "break-word",
+                                    hyphens: "auto",
+                                    maxWidth: "200px",
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                }}
+                                title={job.title}
+                            >
+                                {job.title}
+                            </span>
+                        )}
+                    </div>
+                ),
+                postedBy: <div title={job.jobGiver}>{job.postedBy}</div>,
+                skills: (
+                    <div className="skills-required">
+                        <SkillBox title={primarySkill} />
+                        {additionalSkillsCount > 0 && (
+                            <SkillBox title={`+${additionalSkillsCount}`} />
+                        )}
+                    </div>
+                ),
+                timeline: (
+                    <div>
+                        {typeof job.timeline === "string"
+                            ? job.timeline
+                            : `${job.timeline} Weeks`}
+                    </div>
+                ),
+                budget: (
+                    <div className="budget">
+                        <span>{job.budget}</span>
+                        <img src="/xdc.svg" alt="Budget" />
+                    </div>
+                ),
+                status: <div>{statusLabels[job.status] || "Unknown"}</div>,
+                applicants: <div>{job.applicantCount}</div>,
+                milestones: <div>{job.milestoneCount}</div>,
+                actions: (
+                    <div className="view-detail">
+                        <DetailButton
+                            to={`/job-details/${job.id}`}
+                            imgSrc="/view.svg"
+                            alt="detail"
+                        />
+                    </div>
+                ),
+            };
+
+            // Filter based on selected columns
+            return selectedColumns.map(columnId => allColumnData[columnId]);
         });
-    }, [jobs]);
+    }, [jobs, selectedColumns]);
 
     const indexOfLastJob = currentPage * jobsPerPage;
     const indexOfFirstJob = indexOfLastJob - jobsPerPage;
@@ -338,6 +437,9 @@ export default function BrowseJobs() {
                         headers={headers}
                         titleOptions={titleOptions}
                         filterOptions={filterOptions}
+                        selectedColumns={selectedColumns}
+                        onColumnToggle={handleColumnToggle}
+                        allColumns={allColumns}
                     />
                     <div
                         style={{
@@ -381,6 +483,9 @@ export default function BrowseJobs() {
                     headers={headers}
                     titleOptions={titleOptions}
                     filterOptions={filterOptions}
+                    selectedColumns={selectedColumns}
+                    onColumnToggle={handleColumnToggle}
+                    allColumns={allColumns}
                 />
             </div>
         </div>

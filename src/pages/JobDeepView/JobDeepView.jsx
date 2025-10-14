@@ -10,8 +10,19 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
 const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 
-// Multi-gateway IPFS fetch function with timeout
+// IPFS cache with 1-hour TTL
+const ipfsCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Multi-gateway IPFS fetch function with caching
 const fetchFromIPFS = async (hash, timeout = 5000) => {
+    // Check cache first
+    const cached = ipfsCache.get(hash);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        console.log(`✅ Using cached IPFS data for ${hash}`);
+        return cached.data;
+    }
+
     const gateways = [
         `https://ipfs.io/ipfs/${hash}`,
         `https://gateway.pinata.cloud/ipfs/${hash}`,
@@ -33,6 +44,12 @@ const fetchFromIPFS = async (hash, timeout = 5000) => {
             const response = await fetchWithTimeout(gateway, timeout);
             if (response.ok) {
                 const data = await response.json();
+                // Cache the result
+                ipfsCache.set(hash, {
+                    data,
+                    timestamp: Date.now()
+                });
+                console.log(`📦 Cached IPFS data for ${hash}`);
                 return data;
             }
         } catch (error) {
@@ -145,19 +162,58 @@ export default function JobInfo() {
     setDropdownVisible(false);
   };
 
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
     async function fetchJobDetails() {
+      // Prevent duplicate fetches
+      if (hasFetchedRef.current) {
+        return;
+      }
+      hasFetchedRef.current = true;
+
       try {
         setLoading(true);
         const web3 = new Web3(ARBITRUM_SEPOLIA_RPC);
         const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
-        // Fetch job details from the contract
-        const jobData = await contract.methods.getJob(jobId).call();
-        console.log("Job data from contract:", jobData);
-        console.log("Selected applicant:", jobData.selectedApplicant);
-        console.log("Selected application ID:", jobData.selectedApplicationId);
-        console.log("Applicants array:", jobData.applicants);
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Fetch job details from the contract with retry logic
+        let jobData;
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            jobData = await contract.methods.getJob(jobId).call();
+            break;
+          } catch (error) {
+            if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+              retries--;
+              if (retries === 0) throw error;
+              console.warn(`Rate limited, retrying in ${3 - retries} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, (4 - retries) * 1000));
+            } else {
+              throw error;
+            }
+          }
+        }
+        console.log("🔍 Job data from NOWJC contract (Arbitrum):", jobData);
+        console.log("📋 Selected applicant:", jobData.selectedApplicant);
+        console.log("🔢 Selected application ID:", jobData.selectedApplicationId);
+        console.log("👥 Applicants array:", jobData.applicants);
+        console.log("💼 Job status:", jobData.status);
+        console.log("⏰ Job created at:", new Date(Number(jobData.createdAt) * 1000).toLocaleString());
+        
+        // Debug cross-chain state
+        const isSelectedApplicantSet = jobData.selectedApplicant && 
+          jobData.selectedApplicant !== "0x0000000000000000000000000000000000000000";
+        console.log("✅ Is selected applicant set?", isSelectedApplicantSet);
+        
+        if (!isSelectedApplicantSet) {
+          console.warn("⚠️ No selected applicant found - possible cross-chain sync issue");
+          console.log("🔄 Try refreshing in a few moments if job was just started");
+        }
 
         // Fetch job details from IPFS
         let jobDetails = {};
@@ -275,13 +331,22 @@ export default function JobInfo() {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching job details:", error);
+        if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+          console.error("Rate limit exceeded. Please wait a moment and refresh the page.");
+        }
         setLoading(false);
+        hasFetchedRef.current = false; // Allow retry on error
       }
     }
 
-    if (jobId) {
+    if (jobId && !hasFetchedRef.current) {
       fetchJobDetails();
     }
+
+    // Cleanup function
+    return () => {
+      // Don't reset on unmount to prevent refetch on component remount
+    };
   }, [jobId]);
 
 

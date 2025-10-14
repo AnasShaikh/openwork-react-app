@@ -46,8 +46,8 @@ export default function ApplyJob() {
   const [loadingT, setLoadingT] = useState("");
   const [selectedOption, setSelectedOption] = useState('Single Milestone');
   const [walletAddress, setWalletAddress] = useState("");
-  const [milestone1Amount, setMilestone1Amount] = useState(25);
-  const [milestone2Amount, setMilestone2Amount] = useState(25);
+  const [milestone1Amount, setMilestone1Amount] = useState(1);
+  const [milestone2Amount, setMilestone2Amount] = useState(1);
   const [milestone1Title, setMilestone1Title] = useState("Milestone 1");
   const [milestone2Title, setMilestone2Title] = useState("Milestone 2");
   const [milestone1Content, setMilestone1Content] = useState("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.");
@@ -223,7 +223,8 @@ export default function ApplyJob() {
       // Use IPFS hashes as descriptions
       const descriptions = milestoneHashes;
       
-      const amounts = milestones.map(m => m.amount * 1000000); // Convert to USDC units (6 decimals)
+      // Convert to USDC units (6 decimals) - use plain numbers, not BigInt
+      const amounts = milestones.map(m => Math.floor(m.amount * 1000000));
       
       // OP Sepolia chain domain
       const preferredChainDomain = 2;
@@ -231,16 +232,55 @@ export default function ApplyJob() {
       // LayerZero options (standard)
       const nativeOptions = "0x0003010011010000000000000000000000000007a120";
       
-      console.log("Applying to job with parameters:", {
-        jobId,
-        applicationHash,
-        descriptions,
-        amounts,
-        preferredChainDomain,
-        nativeOptions
-      });
+      // Get LayerZero fee quote from bridge
+      console.log("📊 Getting LayerZero fee quote...");
+      const bridgeAddress = await contract.methods.bridge().call();
+      console.log("Bridge address:", bridgeAddress);
       
-      // Call the contract
+      // Bridge ABI for quoteNativeChain function
+      const bridgeABI = [{
+        "inputs": [
+          {"type": "bytes", "name": "_payload"},
+          {"type": "bytes", "name": "_options"}
+        ],
+        "name": "quoteNativeChain",
+        "outputs": [{"type": "uint256", "name": "fee"}],
+        "stateMutability": "view",
+        "type": "function"
+      }];
+      
+      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+      
+      // Encode payload matching LOWJC's internal encoding
+      // LOWJC sends: abi.encode("applyToJob", msg.sender, _jobId, _appHash, _descriptions, _amounts, _preferredChainDomain)
+      const payload = web3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
+        ['applyToJob', walletAddress, jobId, applicationHash, descriptions, amounts, preferredChainDomain]
+      );
+      
+      // Get quote from bridge
+      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, nativeOptions).call();
+      console.log("💰 LayerZero quoted fee:", quotedFee.toString(), "wei");
+      console.log("💰 LayerZero quoted fee:", web3.utils.fromWei(quotedFee, 'ether'), "ETH");
+      
+      // Detailed logging for debugging
+      console.log("============ APPLY JOB DEBUG INFO ============");
+      console.log("1. jobId:", jobId, "| Type:", typeof jobId);
+      console.log("2. applicationHash:", applicationHash, "| Type:", typeof applicationHash);
+      console.log("3. descriptions:", descriptions);
+      console.log("   - Length:", descriptions.length);
+      console.log("   - Types:", descriptions.map(d => typeof d));
+      console.log("4. amounts:", amounts);
+      console.log("   - Length:", amounts.length);
+      console.log("   - Types:", amounts.map(a => typeof a));
+      console.log("   - Values:", amounts.map(a => a.toString()));
+      console.log("5. preferredChainDomain:", preferredChainDomain, "| Type:", typeof preferredChainDomain);
+      console.log("6. nativeOptions:", nativeOptions, "| Type:", typeof nativeOptions);
+      console.log("7. Using quoted fee:", quotedFee.toString(), "wei");
+      console.log("8. From address:", walletAddress);
+      console.log("==============================================");
+      
+      // Call the contract with quoted fee
       const tx = await contract.methods.applyToJob(
         jobId,
         applicationHash,
@@ -250,7 +290,7 @@ export default function ApplyJob() {
         nativeOptions
       ).send({
         from: walletAddress,
-        value: web3.utils.toWei("0.001", "ether") // LayerZero fee
+        value: quotedFee // Use the exact LayerZero quoted fee
       });
       
       console.log("Application submitted successfully:", tx.transactionHash);

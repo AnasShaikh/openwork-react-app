@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
 import contractABI from "../../ABIs/lowjc_ABI.json";
+import nowjcABI from "../../ABIs/nowjc_ABI.json";
 import "./ViewReceivedApplication.css";
 import Button from "../../components/Button/Button";
 import VoteBar from "../../components/VoteBar/VoteBar";
@@ -9,13 +10,34 @@ import BackButton from "../../components/BackButton/BackButton";
 import StatusButton from "../../components/StatusButton/StatusButton";
 import Milestone from "../../components/Milestone/Milestone";
 import Warning from "../../components/Warning/Warning";
+import Collapse from "../../components/Collapse/Collapse";
+import SkillBox from "../../components/SkillBox/SkillBox";
 
-// LOWJC Contract on OP Sepolia
+// Contract addresses and configuration
 const CONTRACT_ADDRESS = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS || "0x896a3Bc6ED01f549Fe20bD1F25067951913b793C";
 const OP_SEPOLIA_RPC = import.meta.env.VITE_OPTIMISM_SEPOLIA_RPC_URL;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
-// Multi-gateway IPFS fetch function
+// Network configuration
+const OP_SEPOLIA_NETWORK = {
+  chainId: '0xaa37dc', // 11155420
+  name: 'OP Sepolia',
+  rpcUrl: OP_SEPOLIA_RPC
+};
+
+// IPFS cache with 1-hour TTL
+const ipfsCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Multi-gateway IPFS fetch function with caching
 const fetchFromIPFS = async (hash, timeout = 5000) => {
+  // Check cache first
+  const cached = ipfsCache.get(hash);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    console.log(`✅ Using cached IPFS data for ${hash}`);
+    return cached.data;
+  }
+
   const gateways = [
     `https://ipfs.io/ipfs/${hash}`,
     `https://gateway.pinata.cloud/ipfs/${hash}`,
@@ -37,6 +59,12 @@ const fetchFromIPFS = async (hash, timeout = 5000) => {
       const response = await fetchWithTimeout(gateway, timeout);
       if (response.ok) {
         const data = await response.json();
+        // Cache the result
+        ipfsCache.set(hash, {
+          data,
+          timestamp: Date.now()
+        });
+        console.log(`📦 Cached IPFS data for ${hash}`);
         return data;
       }
     } catch (error) {
@@ -47,6 +75,31 @@ const fetchFromIPFS = async (hash, timeout = 5000) => {
   
   throw new Error(`Failed to fetch ${hash} from all gateways`);
 };
+
+// Network switching utilities
+const switchToNetwork = async (network) => {
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: network.chainId }],
+    });
+  } catch (switchError) {
+    // Network not added to MetaMask
+    if (switchError.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: network.chainId,
+          chainName: network.name,
+          rpcUrls: [network.rpcUrl],
+        }],
+      });
+    } else {
+      throw switchError;
+    }
+  }
+};
+
 
 function JobdetailItem ({title, icon , amount, token}) {
   return (
@@ -82,9 +135,11 @@ export default function ViewReceivedApplication() {
   const [loading, setLoading] = useState(true);
   const [walletAddress, setWalletAddress] = useState("");
   const [applicationDetails, setApplicationDetails] = useState(null);
+  const [jobDetails, setJobDetails] = useState(null);
   const [milestoneDetails, setMilestoneDetails] = useState([]);
   const [transactionStatus, setTransactionStatus] = useState("Start job requires USDC approval and blockchain transaction fees");
   const [isProcessing, setIsProcessing] = useState(false);
+  const hasFetchedRef = React.useRef(false);
 
   // Check wallet connection
   useEffect(() => {
@@ -114,6 +169,12 @@ export default function ViewReceivedApplication() {
         return;
       }
 
+      // Prevent duplicate fetches
+      if (hasFetchedRef.current) {
+        return;
+      }
+      hasFetchedRef.current = true;
+
       try {
         setLoading(true);
         const web3 = new Web3(OP_SEPOLIA_RPC);
@@ -128,6 +189,16 @@ export default function ViewReceivedApplication() {
         const appData = await contract.methods.getApplication(jobId, applicationId).call();
         console.log("Application data:", appData);
         setApplication(appData);
+
+        // Fetch job details from IPFS
+        if (jobData.jobDetailHash) {
+          try {
+            const jobDetailsData = await fetchFromIPFS(jobData.jobDetailHash);
+            setJobDetails(jobDetailsData);
+          } catch (error) {
+            console.warn("Failed to fetch job details from IPFS:", error);
+          }
+        }
 
         // Fetch application details from IPFS
         if (appData.applicationHash) {
@@ -176,10 +247,13 @@ export default function ViewReceivedApplication() {
       } catch (error) {
         console.error("Error fetching application data:", error);
         setLoading(false);
+        hasFetchedRef.current = false; // Allow retry on error
       }
     }
 
-    fetchApplicationData();
+    if ((jobId && applicationId) && !hasFetchedRef.current) {
+      fetchApplicationData();
+    }
   }, [jobId, applicationId]);
 
   const formatWalletAddress = (address) => {
@@ -195,6 +269,12 @@ export default function ViewReceivedApplication() {
     // Comprehensive validation before starting
     if (!walletAddress) {
       setTransactionStatus("❌ Please connect your wallet first");
+      return;
+    }
+
+    // Validate that the connected wallet is the job giver
+    if (job && job.jobGiver && walletAddress.toLowerCase() !== job.jobGiver.toLowerCase()) {
+      setTransactionStatus("❌ Only the job poster can start this job");
       return;
     }
 
@@ -222,12 +302,16 @@ export default function ViewReceivedApplication() {
 
     try {
       setIsProcessing(true);
-      setTransactionStatus("🔄 Preparing transactions and validating contracts...");
+      setTransactionStatus("🔄 Validating requirements and checking balances...");
+      console.log("🚀 Starting simplified job flow:", { jobId, applicationId, firstMilestoneAmount });
+      
+      // Ensure user is on OP Sepolia
+      await switchToNetwork(OP_SEPOLIA_NETWORK);
       
       // Initialize Web3
       const web3 = new Web3(window.ethereum);
       
-      // Contract addresses and validation
+      // Contract addresses
       const usdcTokenAddress = "0x5fd84259d66cd46123540766be93dfe6d43130d7"; // OP Sepolia USDC
       
       // USDC ERC20 ABI (minimal required functions)
@@ -260,121 +344,163 @@ export default function ViewReceivedApplication() {
       // Calculate amount in USDC units (6 decimals)
       const amountInUSDCUnits = Math.floor(firstMilestoneAmount * 1000000);
       
-      console.log("🚀 Starting job with validated parameters:", {
-        jobId,
-        applicationId: parseInt(applicationId),
-        firstMilestoneAmount,
-        amountInUSDCUnits,
-        walletAddress,
-        chainId: await web3.eth.getChainId()
-      });
-      
       // Check user's USDC balance before approval
       setTransactionStatus("🔍 Checking USDC balance...");
-      try {
-        const userBalance = await usdcContract.methods.balanceOf(walletAddress).call();
-        const balanceInUSDC = parseFloat(userBalance) / 1000000;
-        
-        if (parseFloat(userBalance) < amountInUSDCUnits) {
-          throw new Error(`Insufficient USDC balance. Required: ${firstMilestoneAmount} USDC, Available: ${balanceInUSDC.toFixed(2)} USDC`);
-        }
-        
-        console.log(`✅ USDC balance check passed: ${balanceInUSDC.toFixed(2)} USDC available`);
-      } catch (balanceError) {
-        throw new Error(`Balance check failed: ${balanceError.message}`);
+      const userBalance = await usdcContract.methods.balanceOf(walletAddress).call();
+      const balanceInUSDC = parseFloat(userBalance) / 1000000;
+      
+      if (parseFloat(userBalance) < amountInUSDCUnits) {
+        throw new Error(`Insufficient USDC balance. Required: ${firstMilestoneAmount} USDC, Available: ${balanceInUSDC.toFixed(2)} USDC`);
       }
       
-      // ============ TRANSACTION 1: USDC APPROVAL ============
-      setTransactionStatus(`💰 Step 1/2: Approving ${firstMilestoneAmount} USDC spending - Please confirm in MetaMask`);
+      console.log(`✅ USDC balance check passed: ${balanceInUSDC.toFixed(2)} USDC available`);
       
-      let approveTx;
-      try {
-        approveTx = await usdcContract.methods.approve(
-          CONTRACT_ADDRESS, 
-          amountInUSDCUnits.toString()
-        ).send({
-          from: walletAddress
-        });
-        
-        if (!approveTx || !approveTx.transactionHash) {
-          throw new Error("Approval transaction failed - no transaction hash received");
-        }
-        
-        console.log("✅ USDC approval confirmed:", {
-          txHash: approveTx.transactionHash,
-          blockNumber: approveTx.blockNumber,
-          gasUsed: approveTx.gasUsed
-        });
-        
-        setTransactionStatus(`✅ Step 1/2: USDC approval confirmed (${approveTx.transactionHash.substring(0, 8)}...)`);
-        
-      } catch (approvalError) {
-        if (approvalError.code === 4001) {
-          throw new Error("USDC approval cancelled by user");
-        }
-        throw new Error(`USDC approval failed: ${approvalError.message}`);
+      // ============ STEP 1: USDC APPROVAL ============
+      setTransactionStatus(`💰 Step 1/3: Approving ${firstMilestoneAmount} USDC spending - Please confirm in MetaMask`);
+      
+      const approveTx = await usdcContract.methods.approve(
+        CONTRACT_ADDRESS, 
+        amountInUSDCUnits.toString()
+      ).send({ from: walletAddress });
+      
+      if (!approveTx || !approveTx.transactionHash) {
+        throw new Error("Approval transaction failed");
       }
       
-      // Wait for transaction to be properly mined before proceeding
-      setTransactionStatus("⏳ Waiting for approval confirmation...");
+      console.log("✅ USDC approval confirmed:", approveTx.transactionHash);
+      setTransactionStatus(`✅ Step 1/3: USDC approval confirmed`);
+      
+      // Wait for transaction to be properly mined
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // ============ TRANSACTION 2: START JOB ============
-      setTransactionStatus("🔧 Step 2/2: Starting job with selected application - Please confirm in MetaMask");
+      // ============ STEP 2: START JOB ON OP SEPOLIA ============
+      setTransactionStatus("🔧 Step 2/3: Getting LayerZero fee quote...");
       
-      let startJobTx;
-      try {
-        startJobTx = await lowjcContract.methods.startJob(
-          jobId,
-          parseInt(applicationId), 
-          false, // useAppMilestones - use job giver's original milestones as per logs
-          "0x0003010011010000000000000000000000000007a120" // LayerZero options from logs
-        ).send({
-          from: walletAddress,
-          value: web3.utils.toWei("0.001", "ether") // LayerZero fee
-        });
-        
-        if (!startJobTx || !startJobTx.transactionHash) {
-          throw new Error("Start job transaction failed - no transaction hash received");
-        }
-        
-        console.log("🎉 Job started successfully:", {
-          txHash: startJobTx.transactionHash,
-          blockNumber: startJobTx.blockNumber,
-          gasUsed: startJobTx.gasUsed,
-          jobId,
-          applicationId: parseInt(applicationId)
-        });
-        
-        setTransactionStatus(`🎉 Job started successfully! Transaction: ${startJobTx.transactionHash.substring(0, 8)}... Redirecting...`);
-        
-      } catch (startJobError) {
-        if (startJobError.code === 4001) {
-          throw new Error("Start job transaction cancelled by user");
-        }
-        throw new Error(`Start job failed: ${startJobError.message}`);
+      // Get LayerZero fee quote from bridge
+      const bridgeAddress = await lowjcContract.methods.bridge().call();
+      console.log("Bridge address:", bridgeAddress);
+      
+      // Bridge ABI for quoteNativeChain function
+      const bridgeABI = [{
+        "inputs": [
+          {"type": "bytes", "name": "_payload"},
+          {"type": "bytes", "name": "_options"}
+        ],
+        "name": "quoteNativeChain",
+        "outputs": [{"type": "uint256", "name": "fee"}],
+        "stateMutability": "view",
+        "type": "function"
+      }];
+      
+      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+      
+      // LayerZero options
+      const nativeOptions = "0x0003010011010000000000000000000000000007a120";
+      
+      // Encode payload matching LOWJC's internal encoding for startJob
+      // LOWJC sends: abi.encode("startJob", msg.sender, _jobId, _applicationId, _useAppMilestones)
+      const payload = web3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'uint256', 'bool'],
+        ['startJob', walletAddress, jobId, parseInt(applicationId), false]
+      );
+      
+      // Get quote from bridge
+      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, nativeOptions).call();
+      console.log("💰 LayerZero quoted fee:", quotedFee.toString(), "wei");
+      console.log("💰 LayerZero quoted fee:", web3.utils.fromWei(quotedFee, 'ether'), "ETH");
+      
+      setTransactionStatus("🔧 Step 2/3: Starting job on OP Sepolia - Please confirm in MetaMask");
+      
+      const startJobTx = await lowjcContract.methods.startJob(
+        jobId,
+        parseInt(applicationId), 
+        false, // useAppMilestones
+        nativeOptions
+      ).send({
+        from: walletAddress,
+        value: quotedFee // Use the exact LayerZero quoted fee
+      });
+      
+      if (!startJobTx || !startJobTx.transactionHash) {
+        throw new Error("Start job transaction failed");
       }
       
-      // Success! Redirect after a moment
+      console.log("✅ Job started on OP Sepolia:", startJobTx.transactionHash);
+      setTransactionStatus(`✅ Step 2/3: Job started on OP Sepolia`);
+      
+      // ============ STEP 3: SEND TO BACKEND & POLL FOR STATUS ============
+      setTransactionStatus("📡 Step 3/3: Backend processing CCTP transfer...");
+      console.log("📡 Sending tx hash to backend for CCTP processing");
+      
+      // Send to backend
+      const backendResponse = await fetch(`${BACKEND_URL}/api/start-job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          jobId, 
+          txHash: startJobTx.transactionHash 
+        })
+      });
+      
+      if (!backendResponse.ok) {
+        throw new Error('Backend failed to accept request');
+      }
+      
+      const backendData = await backendResponse.json();
+      console.log("✅ Backend accepted request:", backendData);
+      
+      // Poll backend for status updates
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`${BACKEND_URL}/api/start-job-status/${jobId}`);
+          
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            console.log("📊 Backend status:", statusData);
+            
+            // Update UI based on status
+            if (statusData.status === 'polling_attestation') {
+              setTransactionStatus("⏳ Backend: Polling Circle API for CCTP attestation...");
+            } else if (statusData.status === 'executing_receive') {
+              setTransactionStatus("🔗 Backend: Executing receive() on Arbitrum...");
+            } else if (statusData.status === 'completed') {
+              clearInterval(pollInterval);
+              setTransactionStatus("🎉 Cross-chain transfer completed! Redirecting...");
+              console.log("✅ Job fully synchronized across chains");
+              
+              setTimeout(() => {
+                window.location.href = `/job-deep-view/${jobId}`;
+              }, 2000);
+            } else if (statusData.status === 'failed') {
+              clearInterval(pollInterval);
+              throw new Error(statusData.error || 'Backend processing failed');
+            }
+          }
+        } catch (pollError) {
+          console.warn("Status poll error:", pollError);
+        }
+      }, 3000); // Poll every 3 seconds
+      
+      // Set a timeout to stop polling after 10 minutes
       setTimeout(() => {
-        setTransactionStatus("🚀 Redirecting to job details...");
-        window.location.href = `/job-deep-view/${jobId}`;
-      }, 3000);
+        clearInterval(pollInterval);
+        setTransactionStatus("⏰ Backend processing is taking longer than expected. You can check the job status later.");
+        setIsProcessing(false);
+      }, 600000);
       
     } catch (error) {
-      console.error("❌ Error starting job:", error);
+      console.error("❌ Start job error:", error);
       
-      // More detailed error messages for better UX
       let errorMessage = error.message;
-      if (error.message.includes("insufficient funds")) {
-        errorMessage = "Insufficient ETH for gas fees";
-      } else if (error.message.includes("User denied")) {
+      if (error.code === 4001) {
         errorMessage = "Transaction cancelled by user";
+      } else if (error.message.includes("insufficient funds")) {
+        errorMessage = "Insufficient ETH for gas fees";
       } else if (error.message.includes("execution reverted")) {
         errorMessage = "Transaction failed - contract requirements not met";
       }
       
-      setTransactionStatus(`❌ Failed: ${errorMessage}`);
+      setTransactionStatus(`❌ Error: ${errorMessage}`);
       setIsProcessing(false);
     }
   };
@@ -420,13 +546,26 @@ export default function ViewReceivedApplication() {
           <StatusButton status={'Pending'} statusCss={'pending-status'}/>
         </div>
           <div className="form-body">
-            <div className="job-show-details">
-                <span>{applicationDetails?.jobTitle || job?.jobDetailHash || `Job ${jobId}`}</span>
-                <div className="show-details">
-                    <span>Show Details</span>
-                    <img src="/array.svg" alt="" />
+            <Collapse 
+              title={jobDetails?.title || `Job ${jobId}`}
+              content={
+                <div style={{ padding: '10px 0' }}>
+                  <p style={{ marginBottom: '10px', lineHeight: '1.6' }}>
+                    {jobDetails?.description || "Loading job details..."}
+                  </p>
+                  {jobDetails?.skills && jobDetails.skills.length > 0 && (
+                    <div>
+                      <strong>Required Skills:</strong>
+                      <div className="skills-required" style={{ marginTop: '8px' }}>
+                        {jobDetails.skills.map((skill, idx) => (
+                          <SkillBox key={idx} title={skill} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-            </div>
+              }
+            />
             <div>
                 <div className="detail-row">
                     <span className="detail-label">APPLICATION SUBMITTED BY</span>
@@ -490,7 +629,7 @@ export default function ViewReceivedApplication() {
             <div>
                <div className="vote-button-section">
                     <Button 
-                      label={isProcessing ? 'Processing...' : 'Start Job with this Application'} 
+                      label={isProcessing ? 'Processing Multi-Chain Transaction...' : 'Start Job (Cross-Chain Process)'} 
                       buttonCss={'downvote-button upvote-button'}
                       onClick={handleStartJob}
                       style={{ 

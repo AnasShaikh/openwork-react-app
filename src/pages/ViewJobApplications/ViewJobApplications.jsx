@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Web3 from "web3";
-import contractABI from "../../ABIs/lowjc_ABI.json";
+import contractABI from "../../ABIs/nowjc_ABI.json";
 import JobsTable from "../../components/JobsTable/JobsTable";
 import "./ViewJobApplications.css";
 import StatusButton from "../../components/StatusButton/StatusButton";
 import DetailButton from "../../components/DetailButton/DetailButton";
 
-// LOWJC Contract on OP Sepolia
-const CONTRACT_ADDRESS = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS || "0x896a3Bc6ED01f549Fe20bD1F25067951913b793C";
-const OP_SEPOLIA_RPC = import.meta.env.VITE_OPTIMISM_SEPOLIA_RPC_URL;
+// NOWJC Contract on Arbitrum Sepolia
+const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS || "0x9E39B37275854449782F1a2a4524405cE79d6C1e";
+const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 
 // Multi-gateway IPFS fetch function with timeout
 const fetchFromIPFS = async (hash, timeout = 5000) => {
@@ -95,12 +95,12 @@ export default function ViewJobApplications() {
 
             try {
                 setLoading(true);
-                const web3 = new Web3(OP_SEPOLIA_RPC);
+                const web3 = new Web3(ARBITRUM_SEPOLIA_RPC);
                 const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
                 // Fetch job data first
                 const jobData = await contract.methods.getJob(jobId).call();
-                console.log("Job data:", jobData);
+                console.log("🏢 Job data from NOWJC (Arbitrum):", jobData);
                 setJob(jobData);
 
                 // Get job title from IPFS if available
@@ -115,24 +115,26 @@ export default function ViewJobApplications() {
                 }
 
                 // Debug: Log job data structure to understand how to fetch applications
-                console.log("🔍 Job data structure:", jobData);
+                console.log("🔍 NOWJC Job data structure:", jobData);
+                console.log("🔍 Selected applicant:", jobData.selectedApplicant);
+                console.log("🔍 Selected application ID:", jobData.selectedApplicationId);
                 console.log("🔍 Job applicants array:", jobData.applicants);
                 console.log("🔍 Number of applicants:", jobData.applicants?.length || 0);
 
                 // Fetch all applications for this job
                 const applicationPromises = [];
                 
-                // Try to fetch applications by iterating through potential application IDs
-                // We'll try fetching applications 1 by 1 until we get an error
-                let applicationId = 1;
-                const maxApplicationsToTry = jobData.applicants?.length || 10; // Fallback to try up to 10
+                // Use the selected application ID if available, otherwise try multiple IDs
+                const selectedAppId = jobData.selectedApplicationId ? Number(jobData.selectedApplicationId) : null;
+                const applicationsToTry = selectedAppId ? [selectedAppId] : [1, 2, 3, 4, 5]; // Try first 5 if no specific ID
                 
-                for (let i = 0; i < maxApplicationsToTry; i++) {
-                    const currentAppId = applicationId + i;
+                for (const appId of applicationsToTry) {
                     applicationPromises.push(
-                        contract.methods.getApplication(jobId, currentAppId).call()
+                        contract.methods.getApplication(jobId, appId).call()
                             .then(async (appData) => {
-                                console.log(`📋 Application ${currentAppId} data:`, appData);
+                                console.log(`📋 Application ${appId} data from NOWJC:`, appData);
+                                console.log(`🔍 Available fields:`, Object.keys(appData));
+                                console.log(`📊 Status field:`, appData.status, typeof appData.status);
                                 let applicationDetails = null;
 
                                 // Fetch application details from IPFS
@@ -140,7 +142,7 @@ export default function ViewJobApplications() {
                                     try {
                                         applicationDetails = await fetchFromIPFS(appData.applicationHash);
                                     } catch (error) {
-                                        console.warn(`Failed to fetch application ${currentAppId} details from IPFS:`, error);
+                                        console.warn(`Failed to fetch application ${appId} details from IPFS:`, error);
                                     }
                                 }
 
@@ -153,8 +155,8 @@ export default function ViewJobApplications() {
                                 }
 
                                 return {
-                                    id: currentAppId,
-                                    applicationId: currentAppId,
+                                    id: appId,
+                                    applicationId: appId,
                                     jobTitle: jobTitle,
                                     applicant: appData.applicant,
                                     sentTo: jobData.jobGiver,
@@ -165,7 +167,7 @@ export default function ViewJobApplications() {
                                 };
                             })
                             .catch(error => {
-                                console.error(`Error fetching application ${currentAppId}:`, error);
+                                console.error(`Error fetching application ${appId}:`, error);
                                 return null;
                             })
                     );
@@ -284,6 +286,8 @@ export default function ViewJobApplications() {
                         titleOptions={titleOptions}
                         filterOptions={filterOptions}
                         backUrl={`/job-deep-view/${jobId}`}
+                        applyNow={true}
+                        applyJobId={jobId}
                     />
                     <div
                         style={{

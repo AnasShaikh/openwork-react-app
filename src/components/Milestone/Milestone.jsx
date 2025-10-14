@@ -11,6 +11,7 @@ export default function Milestone({
     content,
     editable,
     onUpdate,
+    onDelete,
 }) {
     const [open, setOpen] = useState(false);
     const [edit, setEdit] = useState(false);
@@ -117,6 +118,7 @@ export default function Milestone({
                                     <Button
                                         buttonCss="editButton"
                                         icon="/delete.svg"
+                                        onClick={onDelete}
                                     />
                                 </div>
                             </>

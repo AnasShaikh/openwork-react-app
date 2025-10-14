@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React from "react";
 import './ComboBox.css';
 
-const ComboBox = ({ label = "Member Name" }) => {
-  const [isChecked, setIsChecked] = useState(false);
-
-  const toggleCheckbox = () => setIsChecked(!isChecked);
+const ComboBox = ({ label = "Member Name", isChecked = false, onChange, disabled = false }) => {
+  const handleClick = () => {
+    if (!disabled && onChange) {
+      onChange();
+    }
+  };
 
   return (
     <div
       className="combobox"
-      onClick={toggleCheckbox}
+      onClick={handleClick}
+      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
       {/* Custom Checkbox */}
       <div

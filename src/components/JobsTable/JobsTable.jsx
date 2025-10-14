@@ -41,7 +41,24 @@ function Box({icon, title, number}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, applyJobId }) {
+export default function JobsTable({ 
+    title, 
+    tableData, 
+    currentPage, 
+    totalPages, 
+    onPageChange, 
+    headers, 
+    titleOptions, 
+    filterOptions, 
+    applyNow, 
+    addMember, 
+    backUrl='/work', 
+    boxSection, 
+    applyJobId,
+    selectedColumns,
+    onColumnToggle,
+    allColumns
+}) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -90,10 +107,20 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                     <SearchInput />
                     <div className="title-option">
                     {
-                        filterOptions.map((options, index) => (
-                            // <DropDown label={options.title} options={options.items} />
-                            <FilterOption label={options.title} options={options.items} />
-                        ))
+                        filterOptions.map((options, index) => {
+                            const isColumnSelector = options.title === "Table Columns";
+                            return (
+                                <FilterOption 
+                                    key={index}
+                                    label={options.title} 
+                                    options={options.items}
+                                    isColumnSelector={isColumnSelector}
+                                    selectedColumns={isColumnSelector ? selectedColumns : undefined}
+                                    onColumnToggle={isColumnSelector ? onColumnToggle : undefined}
+                                    allColumns={isColumnSelector ? allColumns : undefined}
+                                />
+                            );
+                        })
                     }   
                     {applyNow?
                      <BlueButton label="Apply to Job" onClick={() => {
