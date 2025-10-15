@@ -20,7 +20,7 @@ export default function Newproposel() {
         {
             icon: "/upgrade-icon.svg",
             title: "Contract Upgrade Proposal",
-            path: "/upgrade-proposal"
+            path: "/contract-upgrade-proposal"
         },
         {
             icon: "/update-icon.svg",
