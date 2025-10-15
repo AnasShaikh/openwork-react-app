@@ -59,6 +59,8 @@ The `src/pages/` directory contains the following page-level components, each re
 - **BrowseJobs**, **BrowseTalent**: Browsing jobs and talent.
 - **DAO**: DAO governance page with proposals, voting statistics, and member management.
 - **JoinDAO**: Join the DAO page with staking information and Join DAO button. Shows minimum staking amount (1,000,000 OW tokens), current balance, and information about OpenWork DAO governance. Links to About page for OpenWork Paper.
+- **Newproposel**: New Proposal creation page with selection of 6 proposal types (Treasury, OpenWork Job, Contract Upgrade, Contract Update, Skill Oracle, Skill Oracle Member). Each proposal type is displayed as a clickable card with icon and arrow.
+- **TreasuryProposal**: Treasury Proposal form page with wallet selection dropdown, amount input, receiver wallet display, description textarea, and file upload. Includes Submit Proposal button. Shows wallet balance and OW token icons.
 - **DirectContractForm**, **PostJob**: Job posting and direct contracts.
 - **Governance**, **MembersGovernance**: Governance-related views.
 - **JobDeepView**, **JobUpdate**, **SingleJobDetails**: Detailed job views and updates.

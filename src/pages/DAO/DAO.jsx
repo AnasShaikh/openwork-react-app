@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import JobsTable from "../../components/JobsTable/JobsTable";
 import "./DAO.css";
 import DetailButton from "../../components/DetailButton/DetailButton";
 import BlueButton from "../../components/BlueButton/BlueButton";
 
 export default function DAO() {
+    const navigate = useNavigate();
     const [currentPage, setCurrentPage] = useState(1);
     const proposalsPerPage = 4;
 
@@ -144,7 +146,7 @@ export default function DAO() {
                     customBoxItems={customBoxItems}
                     customButtonLabel="New Proposal"
                     customButtonIcon="/plus.svg"
-                    onCustomButtonClick={() => console.log('New Proposal clicked')}
+                    onCustomButtonClick={() => navigate('/new-proposal')}
                 />
             </div>
         </div>

@@ -61,6 +61,8 @@ import ViewJobDetails from "./pages/ViewJobDetails/ViewJobDetails";
 import ExistingMemberSkillOracle from "./pages/ExistingMemberSkillOracle/ExistingMemberSkillOracle";
 import DAO from "./pages/DAO/DAO";
 import JoinDAO from "./pages/JoinDAO/JoinDAO";
+import Newproposel from "./pages/Newproposel/Newproposel";
+import TreasuryProposal from "./pages/TreasuryProposal/TreasuryProposal";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -264,6 +266,8 @@ export default function App() {
           <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
           <Route path="/dao" element={<DAO/>} />
           <Route path="/join-dao" element={<JoinDAO/>} />
+          <Route path="/new-proposal" element={<Newproposel/>} />
+          <Route path="/treasury-proposal" element={<TreasuryProposal/>} />
         </Routes>
       </BrowserRouter>
     </Layout>
