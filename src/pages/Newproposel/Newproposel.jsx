@@ -15,7 +15,7 @@ export default function Newproposel() {
         {
             icon: "/openwork-job-icon.svg",
             title: "OpenWork Job Proposal",
-            path: "/job-proposal"
+            path: "/openworkjobproposel"
         },
         {
             icon: "/upgrade-icon.svg",
@@ -25,7 +25,7 @@ export default function Newproposel() {
         {
             icon: "/update-icon.svg",
             title: "Contract Update Proposal",
-            path: "/update-proposal"
+            path: "/contractupdateproposel"
         },
         {
             icon: "/skill-oracle-icon.svg",

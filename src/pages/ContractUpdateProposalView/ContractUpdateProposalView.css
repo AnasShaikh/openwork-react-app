@@ -1,0 +1,565 @@
+.proposalViewContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background-color: #FEFEFE;
+  min-height: 100vh;
+  animation: fadeIn 0.4s ease-in-out;
+  padding-top: 154px;
+  position: relative;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Card Container - Starts from Proposal Details */
+.proposalViewCard {
+  width: 520px;
+  background-color: #FFFFFF;
+  border-radius: 24px;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeInUp 0.5s ease-in-out;
+}
+
+/* Main Title Wrapper - Outside Card, Centered */
+.proposalMainTitleWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.proposalMainTitle {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  color: #4D4D4D;
+  margin: 0;
+  text-align: center;
+  line-height: normal;
+}
+
+.proposalStatusBadge {
+  background-color: #ECFDF3;
+  border: 1px solid #ABEFC6;
+  border-radius: 6px;
+  padding: 4px 10px 6px 10px;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  color: #067647;
+}
+
+/* View Contract Link - Outside Card, Centered */
+.viewContractLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  margin-bottom: 32px;
+}
+
+.viewContractLink span {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #1246FF;
+  line-height: 24px;
+}
+
+.viewContractLink img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Proposal Details Header Section with Line */
+.proposalDetailsHeaderSection {
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  margin: -8px -32px 0 -32px;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/* Proposal Details Header */
+.proposalDetailsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.proposalSectionTitle {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: #4D4D4D;
+  margin: 0;
+  line-height: normal;
+}
+
+.timeLeft {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #868686;
+  line-height: normal;
+}
+
+/* Proposed By Section */
+.proposedBySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.proposerInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.proposerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.proposerAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 96px;
+  object-fit: cover;
+}
+
+.proposerName {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #050505;
+}
+
+.viewProfileButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.viewProfileButton span {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #1246FF;
+}
+
+.viewProfileButton img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Proposal Content */
+.proposalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.contractDetailsBox {
+  border: 2px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 20px 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background-color: #FFFFFF;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.contractParameter {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  color: #4D4D4D;
+  margin: 0;
+}
+
+.valuesRow {
+  display: flex;
+  gap: 16px;
+}
+
+.valueColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.valueLabel {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.currentValueBox {
+  background-color: #F5F5F5;
+  border: 2px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #868686;
+  height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.proposedValueBox {
+  border: 2px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #050505;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background-color: #FFFFFF;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.reasonBox {
+  border: 2px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 131px;
+  background-color: #FFFFFF;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.reasonBox p {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #050505;
+  margin: 0;
+  line-height: 24px;
+}
+
+/* Voting Section */
+.votingSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tokensRow {
+  display: flex;
+  gap: 16px;
+}
+
+.tokensBox {
+  flex: 1;
+  background-color: #F5F5F5;
+  border: 2px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tokensLabel {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.tokensValue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tokensValue span {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  color: #4D4D4D;
+}
+
+.tokenIcon {
+  width: 16px;
+  height: 16px;
+  padding: 8px 16px;
+  background: linear-gradient(to bottom, #1246FF 23.958%, #4770FF 134.37%);
+  border: 1px solid #1246FF;
+  border-radius: 10px;
+}
+
+/* Progress Section */
+.progressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: center;
+}
+
+.thresholdLabel {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.progressBarContainer {
+  height: 8px;
+  position: relative;
+  width: 100%;
+}
+
+.progressBarGreen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 39.25%;
+  height: 8px;
+  background-color: #17B26A;
+  border-radius: 8px;
+  border: 0px 0px 0px 1px solid #050505;
+}
+
+.progressBarRed {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 58.33%;
+  height: 8px;
+  background-color: #EAECF0;
+  border-radius: 8px;
+}
+
+.thresholdLine {
+  position: absolute;
+  left: 73%;
+  top: -4px;
+  width: 2px;
+  height: 16px;
+  background-color: #050505;
+  transform: rotate(90deg);
+  transform-origin: center;
+}
+
+.voteStats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.totalVotes {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.voteLegend {
+  display: flex;
+  gap: 24px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendItem img {
+  width: 8px;
+  height: 8px;
+}
+
+.legendItem span {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Conditions Box */
+.conditionsBox {
+  background-color: #F5F5F5;
+  border: 2px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.conditionsTitle {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  color: #767676;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.conditionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.conditionsList p {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #4D4D4D;
+  margin: 0;
+  line-height: 24px;
+}
+
+.conditionCurrent {
+  color: #767676;
+}
+
+.voteHistoryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-end;
+}
+
+.voteHistoryButton span {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #1246FF;
+}
+
+.voteHistoryButton img {
+  width: 16px;
+  height: 16px;
+}
+
+.chevronRotated {
+  transform: rotate(90deg);
+}
+
+/* Vote Buttons */
+.voteButtonsRow {
+  display: flex;
+  gap: 24px;
+}
+
+.downvoteButton,
+.upvoteButton {
+  flex: 1;
+  background: linear-gradient(to bottom, #F4F4F4, #FEFEFE);
+  border: 4px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 12px 16px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.downvoteButton {
+  color: #B42318;
+}
+
+.upvoteButton {
+  color: #067647;
+}
+
+.downvoteButton img,
+.upvoteButton img {
+  width: 16px;
+  height: 16px;
+}
+
+.downvoteButton:hover,
+.upvoteButton:hover {
+  background: linear-gradient(to bottom, #E8E8E8, #F4F4F4);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

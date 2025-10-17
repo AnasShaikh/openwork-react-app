@@ -20,7 +20,8 @@ export default function DAO() {
             voteSubmissions: 70,
             type: "Upgrade",
             timeLeft: "2 days",
-            color: "#FFA500"
+            color: "#FFA500",
+            viewUrl: "/contract-upgrade-proposal-view"
         },
         {
             id: "0x2345",
@@ -29,25 +30,38 @@ export default function DAO() {
             voteSubmissions: 90,
             type: "Update",
             timeLeft: "5 days",
-            color: "#00C853"
+            color: "#00C853",
+            viewUrl: "/contract-update-proposal-view"
         },
         {
             id: "0x3456",
-            title: "OpenWork Token Contract Upgrade",
+            title: "Treasury Proposal",
             proposedBy: "Jollie Hall",
             voteSubmissions: 40,
             type: "Treasury",
             timeLeft: "1 day",
-            color: "#F44336"
+            color: "#F44336",
+            viewUrl: "/treasury-proposal-view"
         },
         {
             id: "0x4567",
-            title: "OpenWork Token Contract Upgrade",
+            title: "Dissolve General Skill Oracle",
             proposedBy: "0xDEAF...f8BB",
             voteSubmissions: 60,
-            type: "Upgrade",
+            type: "Dissolve Oracle",
             timeLeft: "2 hrs",
-            color: "#FFA500"
+            color: "#FFA500",
+            viewUrl: "/dissolve-oracle-proposal-view"
+        },
+        {
+            id: "0x5678",
+            title: "Recruit Member to Skill Oracle",
+            proposedBy: "Mollie Hall",
+            voteSubmissions: 80,
+            type: "Recruitment",
+            timeLeft: "3 days",
+            color: "#00C853",
+            viewUrl: "/recruitment-proposal-view"
         }
     ];
 
@@ -94,7 +108,7 @@ export default function DAO() {
                 <div className="proposal-type">{proposal.type}</div>,
                 <div className="time-left">{proposal.timeLeft}</div>,
                 <div className="view-detail">
-                    <DetailButton to={`/vote-proposal`} imgSrc="/view.svg" alt="detail" />
+                    <DetailButton to={proposal.viewUrl} imgSrc="/view.svg" alt="detail" />
                 </div>
             ];
         });

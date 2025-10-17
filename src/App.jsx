@@ -66,6 +66,19 @@ import TreasuryProposal from "./pages/TreasuryProposal/TreasuryProposal";
 import ContractUpgradeProposal from "./pages/ContractUpgradeProposal/ContractUpgradeProposal";
 import SkillOracleProposal from "./pages/SkillOracleProposal/SkillOracleProposal";
 import SkillOracleMemberProposal from "./pages/SkillOracleMemberProposal/SkillOracleMemberProposal";
+import ContractUpdateProposel from "./pages/ContractUpdateProposel/ContractUpdateProposel";
+import ContractUpdateProposelStep2 from "./pages/ContractUpdateProposelStep2/ContractUpdateProposelStep2";
+import ContractUpdateProposelStep3 from "./pages/ContractUpdateProposelStep3/ContractUpdateProposelStep3";
+import OpenWorkJobProposel from "./pages/OpenWorkJobProposel/OpenWorkJobProposel";
+import NewSkillOracleStep2 from "./pages/NewSkillOracleStep2/NewSkillOracleStep2";
+import DissolveSkillOracleStep2 from "./pages/DissolveSkillOracleStep2/DissolveSkillOracleStep2";
+import SkillOracleRecruitmentStep2 from "./pages/SkillOracleRecruitmentStep2/SkillOracleRecruitmentStep2";
+import SkillOracleMemberRemovalStep2 from "./pages/SkillOracleMemberRemovalStep2/SkillOracleMemberRemovalStep2";
+import ContractUpdateProposalView from "./pages/ContractUpdateProposalView/ContractUpdateProposalView";
+import ContractUpgradeProposalView from "./pages/ContractUpgradeProposalView/ContractUpgradeProposalView";
+import TreasuryProposalView from "./pages/TreasuryProposalView/TreasuryProposalView";
+import DissolveOracleProposalView from "./pages/DissolveOracleProposalView/DissolveOracleProposalView";
+import RecruitmentProposalView from "./pages/RecruitmentProposalView/RecruitmentProposalView";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -274,6 +287,21 @@ export default function App() {
           <Route path="/contract-upgrade-proposal" element={<ContractUpgradeProposal/>} />
           <Route path="/skill-oracle-proposal" element={<SkillOracleProposal/>} />
           <Route path="/skill-oracle-member-proposal" element={<SkillOracleMemberProposal/>} />
+          <Route path="/contractupdateproposel" element={<ContractUpdateProposel/>} />
+          <Route path="/contract-update-step2" element={<ContractUpdateProposelStep2/>} />
+          <Route path="/contractupdateproposelstep3" element={<ContractUpdateProposelStep3/>} />
+          <Route path="/dao-votes-update-form" element={<ContractUpdateProposelStep3/>} />
+          <Route path="/dao-staking-update-form" element={<ContractUpdateProposelStep3/>} />
+          <Route path="/openworkjobproposel" element={<OpenWorkJobProposel/>} />
+          <Route path="/newskilloraclestep2" element={<NewSkillOracleStep2/>} />
+          <Route path="/dissolveskilloraclestep2" element={<DissolveSkillOracleStep2/>} />
+          <Route path="/skilloraclerecruitmentstep2" element={<SkillOracleRecruitmentStep2/>} />
+          <Route path="/skilloraclememberremovalstep2" element={<SkillOracleMemberRemovalStep2/>} />
+          <Route path="/contract-update-proposal-view" element={<ContractUpdateProposalView/>} />
+          <Route path="/contract-upgrade-proposal-view" element={<ContractUpgradeProposalView/>} />
+          <Route path="/treasury-proposal-view" element={<TreasuryProposalView/>} />
+          <Route path="/dissolve-oracle-proposal-view" element={<DissolveOracleProposalView/>} />
+          <Route path="/recruitment-proposal-view" element={<RecruitmentProposalView/>} />
         </Routes>
       </BrowserRouter>
     </Layout>

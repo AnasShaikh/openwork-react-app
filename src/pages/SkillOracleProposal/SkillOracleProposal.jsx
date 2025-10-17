@@ -11,13 +11,13 @@ export default function SkillOracleProposal() {
             id: 1,
             icon: "/create-skill-oracle-icon.svg",
             name: "Create a New Skill Oracle",
-            route: "/create-skill-oracle"
+            route: "/newskilloraclestep2"
         },
         {
             id: 2,
             icon: "/dissolve-skill-oracle-icon.svg",
             name: "Dissolve an existing Skill Oracle",
-            route: "/dissolve-skill-oracle"
+            route: "/dissolveskilloraclestep2"
         }
     ];
 

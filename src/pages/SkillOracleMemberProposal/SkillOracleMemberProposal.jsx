@@ -11,13 +11,13 @@ export default function SkillOracleProposal() {
             id: 1,
             icon: "/recruit-member-icon.svg",
             name: "Recruit a member to a Skill Oracle",
-            route: "/joinee-application"
+            route: "/skilloraclerecruitmentstep2"
         },
         {
             id: 2,
             icon: "/remove-member-skill-oracle-icon.svg",
             name: "Remove a member from a Skill Oracle",
-            route: "/removal-application"
+            route: "/skilloraclememberremovalstep2"
         }
     ];
 
