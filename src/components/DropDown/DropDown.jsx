@@ -34,9 +34,8 @@ const DropDown = ({ label, options, customCSS, width }) => {
       {isOpen && (
         <ul className="dropdown-menu">
           {options.map((option, index) => (
-            <>
+            <React.Fragment key={index}>
               <li
-                key={index}
                 className="dropdown-item"
                 onClick={() => handleOptionClick(option)}
               >
@@ -47,7 +46,7 @@ const DropDown = ({ label, options, customCSS, width }) => {
                   ):<span>{option}</span>}
               </li>
               {index !=options.length-1 &&<span className='dropdown-line'/>}
-            </>
+            </React.Fragment>
           ))}
         </ul>
       )}

@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Web3 from "web3";
-import contractABI from "../../ABIs/nowjc_ABI.json";
+import contractABI from "../../ABIs/genesis_ABI.json";
 import JobsTable from "../../components/JobsTable/JobsTable";
 import "./BrowseJobs.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import DetailButton from "../../components/DetailButton/DetailButton";
 
-const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
+const CONTRACT_ADDRESS = import.meta.env.VITE_GENESIS_CONTRACT_ADDRESS;
 const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 
 // IPFS cache with 1-hour TTL

@@ -694,46 +694,11 @@ export default function PostJob() {
           const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, LAYERZERO_OPTIONS_VALUE).call();
           console.log("💰 LayerZero quoted fee:", web3.utils.fromWei(quotedFee, 'ether'), "ETH");
           
-          // ============================================================
-          // DETAILED CONTRACT CALL LOGGING
-          // ============================================================
-          console.log("\n🔍 ========== DETAILED CONTRACT CALL INFO ==========");
-          console.log("📋 Function: postJob()");
-          console.log("\n📦 Parameters:");
-          console.log("  1. jobDetailHash:", jobDetailHash);
-          console.log("  2. milestoneHashes (array):");
-          console.log("     - Length:", milestoneHashes.length);
-          console.log("     - Contents:", milestoneHashes);
-          console.log("  3. milestoneAmounts (array):");
-          console.log("     - Length:", milestoneAmounts.length);
-          console.log("     - Contents:", milestoneAmounts);
-          console.log("     - Human readable:", milestoneAmounts.map(amt => (amt / 1000000).toFixed(2) + " USDC"));
-          console.log("  4. LAYERZERO_OPTIONS_VALUE:", LAYERZERO_OPTIONS_VALUE);
-          
-          console.log("\n💸 Transaction Details:");
-          console.log("  - From:", fromAddress);
-          console.log("  - Value (ETH):", web3.utils.fromWei(quotedFee, 'ether'));
-          console.log("  - Value (Wei):", quotedFee);
-          console.log("  - Gas Price:", await web3.eth.getGasPrice());
-          
-          console.log("\n🔐 Payload for LayerZero:");
-          console.log("  - Payload (hex):", payload);
-          console.log("  - Payload size (bytes):", payload.length / 2 - 1);
-          
-          // Encode the actual contract call data
-          const encodedCallData = contract.methods
-            .postJob(jobDetailHash, milestoneHashes, milestoneAmounts, LAYERZERO_OPTIONS_VALUE)
-            .encodeABI();
-          console.log("\n📝 Encoded Contract Call Data:");
-          console.log("  - Call data (hex):", encodedCallData);
-          console.log("  - Call data size (bytes):", encodedCallData.length / 2 - 1);
-          
-          console.log("\n📊 Summary:");
-          console.log("  - Total milestones:", milestones.length);
-          console.log("  - Total compensation:", totalCompensation, "USDC");
-          console.log("  - Contract address:", contractAddress);
-          console.log("  - Chain ID:", chainId);
-          console.log("=".repeat(55) + "\n");
+          // FIXED FEE OVERRIDE: Use 0.001 ETH instead of quoted fee
+          // To switch back to dynamic quoting: change feeToUse = fixedFee to feeToUse = quotedFee
+          const fixedFee = web3.utils.toWei('0.001', 'ether');
+          const feeToUse = fixedFee; // Change to: quotedFee for dynamic quoting
+          console.log("⚠️ Using fixed fee override:", web3.utils.fromWei(feeToUse, 'ether'), "ETH");
           
           // Step 6: Call postJob function with milestone hashes as descriptions
           setTransactionStatus("Sending transaction to blockchain...");
@@ -747,7 +712,7 @@ export default function PostJob() {
             )
             .send({
               from: fromAddress,
-              value: quotedFee, // Use quoted fee
+              value: feeToUse, // Using fixed 0.001 ETH (switch to quotedFee for dynamic)
               gasPrice: await web3.eth.getGasPrice(),
             })
             .on("receipt", function (receipt) {

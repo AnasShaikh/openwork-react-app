@@ -91,9 +91,19 @@ function FileUpload() {
   );
 }
 
-function ATTACHMENTS({ title }) {
+function ATTACHMENTS({ title, ipfsHash }) {
+  const handleClick = () => {
+    if (ipfsHash) {
+      window.open(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`, '_blank');
+    }
+  };
+
   return (
-    <div className="attachment-form">
+    <div 
+      className="attachment-form" 
+      onClick={handleClick}
+      style={{ cursor: ipfsHash ? 'pointer' : 'default' }}
+    >
       <img src="/attachments.svg" alt="" />
       <span>{title}</span>
     </div>
@@ -521,8 +531,24 @@ export default function JobInfo() {
               <div className="category attachments">
                 <span>ATTACHMENTS</span>
                 <div className="upload-content">
-                  <ATTACHMENTS title={"Scope of work.pdf"} />
-                  <ATTACHMENTS title={"Reference 1.png"} />
+                  {job.attachments && job.attachments.length > 0 ? (
+                    job.attachments.map((attachment, index) => (
+                      <ATTACHMENTS 
+                        key={index}
+                        title={attachment.name} 
+                        ipfsHash={attachment.ipfsHash}
+                      />
+                    ))
+                  ) : (
+                    <div style={{ 
+                      padding: "12px", 
+                      color: "#666", 
+                      fontSize: "14px",
+                      fontStyle: "italic" 
+                    }}>
+                      No attachments
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="milestone-section">
