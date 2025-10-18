@@ -585,11 +585,13 @@ export default function DirectContractForm() {
           // Job taker chain domain (OP Sepolia = 11155420)
           const jobTakerChainDomain = 11155420;
 
-          // Step 5: Get LayerZero fee (using fixed fee like PostJob)
+          // Step 5: Use higher gas limit for DirectContract (1.6M gas for destination)
           setTransactionStatus("Preparing LayerZero transaction...");
           
-          // FIXED FEE: Use 0.001 ETH (same as PostJob)
-          // This avoids issues with dynamic fee quoting for multiple milestones
+          // DirectContract needs more destination gas than PostJob due to extra parameters
+          const DIRECT_CONTRACT_OPTIONS = '0x00030100110100000000000000000000000000186A00';
+          
+          // FIXED FEE: Use 0.001 ETH
           const fixedFee = web3.utils.toWei('0.001', 'ether');
           const feeToUse = fixedFee;
           console.log("💰 Using fixed LayerZero fee:", web3.utils.fromWei(feeToUse, 'ether'), "ETH");
@@ -600,9 +602,10 @@ export default function DirectContractForm() {
           console.log("Milestone Hashes:", milestoneHashes);
           console.log("Milestone Amounts:", milestoneAmounts);
           console.log("Chain Domain:", jobTakerChainDomain);
-          console.log("LayerZero Options:", LAYERZERO_OPTIONS_VALUE);
+          console.log("Milestone Count:", milestones.length);
+          console.log("LayerZero Options (1.6M gas):", DIRECT_CONTRACT_OPTIONS);
 
-          // Step 6: Call startDirectContract with fixed fee
+          // Step 6: Call startDirectContract with higher gas options
           setTransactionStatus("Sending transaction to blockchain...");
           
           contract.methods
@@ -612,7 +615,7 @@ export default function DirectContractForm() {
               milestoneHashes,
               milestoneAmounts,
               jobTakerChainDomain,
-              LAYERZERO_OPTIONS_VALUE
+              DIRECT_CONTRACT_OPTIONS
             )
             .send({
               from: fromAddress,
@@ -713,6 +716,45 @@ export default function DirectContractForm() {
       console.error('Error pinning job details to IPFS:', error);
       return null;
     }
+  };
+
+  // Helper function to calculate LayerZero gas based on milestone count
+  const calculateLayerZeroGas = (milestoneCount) => {
+    // Base gas for function call overhead and basic operations
+    const BASE_GAS = 500000;
+    
+    // Per-milestone gas cost (storage operations, array processing, events)
+    // DirectContract has extra parameters (jobTaker address, chainDomain) so needs more gas per milestone
+    const GAS_PER_MILESTONE = 300000;
+    
+    // Calculate total gas needed
+    const totalGas = BASE_GAS + (milestoneCount * GAS_PER_MILESTONE);
+    
+    // Add 20% buffer for safety margin
+    const gasWithBuffer = Math.floor(totalGas * 1.2);
+    
+    console.log(`🔥 Gas calculation for ${milestoneCount} milestone(s):`);
+    console.log(`   Base: ${BASE_GAS}, Per-Milestone: ${GAS_PER_MILESTONE}`);
+    console.log(`   Total: ${totalGas}, With Buffer: ${gasWithBuffer}`);
+    
+    return gasWithBuffer;
+  };
+
+  // Helper function to build LayerZero options with custom gas limit
+  const buildLayerZeroOptions = (gasLimit) => {
+    // Convert gas limit to hex and pad to 24 characters (12 bytes)
+    const gasHex = gasLimit.toString(16).padStart(24, '0');
+    
+    // Construct the full options value
+    // 0x0003 = options type/version
+    // 01001101 = configuration flags
+    // gasHex = custom gas limit
+    const optionsValue = '0x000301001101' + gasHex;
+    
+    console.log(`⚙️ Built LayerZero options: ${optionsValue}`);
+    console.log(`   Gas limit: ${gasLimit} (0x${gasLimit.toString(16)})`);
+    
+    return optionsValue;
   };
 
 
