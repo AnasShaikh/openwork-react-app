@@ -32,19 +32,23 @@ function ContractUpdateProposalView() {
 
   return (
     <div className="proposalViewContainer">
-      {/* Back Button - Outside, aligned left */}
-      <BackButtonProposal to="/dao" />
-
-      {/* Main Title - Outside, Centered */}
-      <div className="proposalMainTitleWrapper">
-        <h1 className="proposalMainTitle">OpenWork DAO Smart Contract Proposal</h1>
-        <div className="proposalStatusBadge">Open</div>
+      {/* Header Section with Back Button, Title, and Badge */}
+      <div className="proposalHeaderSection">
+        <div className="back">
+          <BackButtonProposal to="/dao" />
+          <div className="proposalMainTitleWrapper">
+            <h1 className="proposalMainTitle">OpenWork DAO Smart Contract Proposal</h1>
+            <div className="proposalStatusBadge">Open</div>
+          </div>
+        </div>
       </div>
 
       {/* View Contract Link - Outside, Centered */}
       <div className="viewContractLink" onClick={handleViewContract}>
         <span>View contract</span>
-        <img src="/arrow-up-right.svg" alt="View" />
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 11L11 5M11 5H7M11 5V9" stroke="#1246FF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </div>
 
       {/* Card starts from Proposal Details */}
@@ -67,7 +71,9 @@ function ContractUpdateProposalView() {
             </div>
             <button className="viewProfileButton" onClick={handleViewProfile}>
               <span>View Profile</span>
-              <img src="/arrow-up-right.svg" alt="View" />
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 11L11 5M11 5H7M11 5V9" stroke="#1246FF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -117,26 +123,34 @@ function ContractUpdateProposalView() {
 
           {/* Progress Bar */}
           <div className="progressSection">
-            <div className="progressHeader">
-              <span className="thresholdLabel">MIN. THRESHOLD 75%</span>
-            </div>
-            <div className="progressBarContainer">
-              <div className="progressBarGreen"></div>
-              <div className="progressBarRed"></div>
-              <div className="thresholdLine"></div>
-            </div>
-          </div>
-
-          <div className="voteStats">
-            <span className="totalVotes">0.25M TOTAL VOTES</span>
-            <div className="voteLegend">
-              <div className="legendItem">
-                <img src="/ellipse-green.svg" alt="" />
-                <span>0.25M IN FAVOUR</span>
+            <div className="progressBarWrapper">
+              <div className="progressHeader">
+                <span className="thresholdLabel">MIN. THRESHOLD 75%</span>
               </div>
-              <div className="legendItem">
-                <img src="/ellipse-red.svg" alt="" />
-                <span>0 AGAINST</span>
+              <div className="progressBarContainer">
+                <div className="progressBarGreen"></div>
+                <div className="progressBarRed">
+                  <div className="progressBarRedFill"></div>
+                </div>
+                <div className="thresholdLine"></div>
+              </div>
+            </div>
+
+            <div className="voteStats">
+              <span className="totalVotes">0.25M TOTAL VOTES</span>
+              <div className="voteLegend">
+                <div className="legendItem">
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="4" cy="4" r="4" fill="#17B26A"/>
+                  </svg>
+                  <span>0.25M IN FAVOUR</span>
+                </div>
+                <div className="legendItem">
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="4" cy="4" r="4" fill="#B42318"/>
+                  </svg>
+                  <span>0 AGAINST</span>
+                </div>
               </div>
             </div>
           </div>
@@ -151,7 +165,9 @@ function ContractUpdateProposalView() {
           </div>
           <button className="voteHistoryButton" onClick={handleVoteHistory}>
             <span>Vote History</span>
-            <img src="/chevron-up.svg" alt="" className="chevronRotated" />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="chevronRotated">
+              <path d="M12 10L8 6L4 10" stroke="#1246FF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
         </div>
 
@@ -159,11 +175,11 @@ function ContractUpdateProposalView() {
         <div className="voteButtonsRow">
           <button className="downvoteButton" onClick={handleDownvote}>
             <span>Downvote</span>
-            <img src="/downvote-icon.svg" alt="Downvote" />
+            <img src="/downvote.svg" alt="Downvote" className="voteIcon" />
           </button>
           <button className="upvoteButton" onClick={handleUpvote}>
             <span>Upvote</span>
-            <img src="/upvote-icon.svg" alt="Upvote" />
+            <img src="/upvote.svg" alt="Upvote" className="voteIcon" />
           </button>
         </div>
       </div>
