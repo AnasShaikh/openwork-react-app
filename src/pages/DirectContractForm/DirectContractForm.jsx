@@ -585,7 +585,42 @@ export default function DirectContractForm() {
           // Job taker chain domain (OP Sepolia = 11155420)
           const jobTakerChainDomain = 11155420;
 
-          // Step 5: Use higher gas limit for DirectContract (1.6M gas for destination)
+          // Step 5: Approve USDC spending (total of all milestones)
+          setTransactionStatus("💰 Approving USDC spending - Please confirm in MetaMask");
+          
+          const USDC_ADDRESS = "0x5fd84259d66Cd46123540766Be93DFE6d43130D7"; // OP Sepolia USDC
+          const totalUSDC = milestones.reduce((sum, milestone) => sum + milestone.amount, 0) * 1000000; // Convert to USDC units (6 decimals)
+          
+          console.log("💰 Approving USDC amount:", totalUSDC, "units (", totalUSDC / 1000000, "USDC)");
+          
+          const usdcABI = [{
+            "inputs": [
+              {"internalType": "address", "name": "spender", "type": "address"},
+              {"internalType": "uint256", "name": "amount", "type": "uint256"}
+            ],
+            "name": "approve",
+            "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          }];
+          
+          const usdcContract = new web3.eth.Contract(usdcABI, USDC_ADDRESS);
+          
+          try {
+            await usdcContract.methods.approve(
+              contractAddress,
+              totalUSDC.toString()
+            ).send({ from: fromAddress });
+            
+            console.log("✅ USDC approval successful");
+          } catch (approvalError) {
+            console.error("❌ USDC approval failed:", approvalError);
+            setTransactionStatus("❌ USDC approval failed - Please try again");
+            setLoadingT(false);
+            return;
+          }
+
+          // Step 6: Use higher gas limit for DirectContract (1.6M gas for destination)
           setTransactionStatus("Preparing LayerZero transaction...");
           
           // DirectContract needs more destination gas than PostJob due to extra parameters
