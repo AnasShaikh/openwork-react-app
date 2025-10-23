@@ -47,7 +47,7 @@ function Box({icon, title, number, showJoinButton, onJoinClick}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick }) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, selectedColumns = [], onColumnToggle = () => {}, allColumns = [] }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
