@@ -20,68 +20,75 @@
 
 .contract-update-step3-container {
   width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 40px 80px;
+  background-color: #FEFEFE;
   min-height: 100vh;
-  background-color: #fefefe;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  animation: fadeIn 0.4s ease-out;
 }
 
-.contract-update-step3-card {
-  width: 520px;
-  background-color: #ffffff;
-  border: 2px solid #ffffff;
-  border-radius: 24px;
-  box-shadow: 0px 0px 1px rgba(0, 0, 0, 0.04), 0px 2px 6px rgba(0, 0, 0, 0.04);
-  animation: fadeInUp 0.5s ease-out;
+/* Header Section - Same as View Pages */
+.proposalHeaderSection {
+  margin-bottom: 16px;
 }
 
-.contract-update-step3-header {
-  height: 88px;
-  background-color: #ffffff;
-  border: 2px solid rgba(0, 0, 0, 0.04);
-  border-radius: 24px 24px 0 0;
+.back {
   display: flex;
   align-items: center;
-  padding: 0 32px;
-}
-
-.contract-update-step3-content {
-  background-color: #ffffff;
-  border: 2px solid rgba(0, 0, 0, 0.04);
-  border-radius: 0 0 24px 24px;
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
   gap: 20px;
 }
 
-.contract-update-step3-view-link {
+.proposalMainTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.proposalMainTitle {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: normal;
+  letter-spacing: 0.48px;
+  color: #4D4D4D;
+  margin: 0;
+}
+
+.viewContractLink {
   display: flex;
   align-items: center;
   gap: 8px;
-  text-decoration: none;
-  align-self: center;
+  cursor: pointer;
+  margin-bottom: 32px;
+  justify-content: center;
 }
 
-.contract-update-step3-view-link span {
+.viewContractLink span {
   font-family: 'Satoshi', sans-serif;
   font-weight: 500;
   font-size: 14px;
   line-height: 24px;
-  color: #1246ff;
+  color: #1246FF;
 }
 
-.contract-update-step3-external-icon {
-  width: 16px;
-  height: 16px;
+.contract-update-step3-card {
+  width: 520px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.04);
+  border-radius: 24px;
+  box-shadow: 0px 0px 1px rgba(0, 0, 0, 0.04), 0px 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .contract-update-step3-card-section {
-  width: 440px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .contract-update-step3-card-title {
@@ -91,7 +98,9 @@
   line-height: normal;
   letter-spacing: 0.4px;
   color: #4d4d4d;
-  margin: 0 0 20px 0;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .contract-update-step3-description {
@@ -102,11 +111,10 @@
   letter-spacing: 0.28px;
   color: #868686;
   margin: 0;
-  width: 440px;
 }
 
 .contract-update-step3-field-section {
-  width: 440px;
+  width: 100%;
   background-color: #ffffff;
   border: 2px solid rgba(0, 0, 0, 0.04);
   border-radius: 12px;
@@ -191,7 +199,7 @@
 }
 
 .contract-update-step3-textarea {
-  width: 440px;
+  width: 100%;
   min-height: 131px;
   background-color: #ffffff;
   border: 2px solid rgba(0, 0, 0, 0.04);
@@ -216,7 +224,7 @@
 }
 
 .contract-update-step3-actions {
-  width: 440px;
+  width: 100%;
 }
 
 .contract-update-step3-submit {

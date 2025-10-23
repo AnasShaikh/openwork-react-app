@@ -64,6 +64,7 @@ import JoinDAO from "./pages/JoinDAO/JoinDAO";
 import Newproposel from "./pages/Newproposel/Newproposel";
 import TreasuryProposal from "./pages/TreasuryProposal/TreasuryProposal";
 import ContractUpgradeProposal from "./pages/ContractUpgradeProposal/ContractUpgradeProposal";
+import ContractUpgradeProposalStep2 from "./pages/ContractUpgradeProposalStep2/ContractUpgradeProposalStep2";
 import SkillOracleProposal from "./pages/SkillOracleProposal/SkillOracleProposal";
 import SkillOracleMemberProposal from "./pages/SkillOracleMemberProposal/SkillOracleMemberProposal";
 import ContractUpdateProposel from "./pages/ContractUpdateProposel/ContractUpdateProposel";
@@ -79,6 +80,12 @@ import ContractUpgradeProposalView from "./pages/ContractUpgradeProposalView/Con
 import TreasuryProposalView from "./pages/TreasuryProposalView/TreasuryProposalView";
 import DissolveOracleProposalView from "./pages/DissolveOracleProposalView/DissolveOracleProposalView";
 import RecruitmentProposalView from "./pages/RecruitmentProposalView/RecruitmentProposalView";
+import ChainSwitching from "./pages/ChainSwitching/ChainSwitching";
+import ReferralNotEligible from "./pages/ReferralNotEligible/ReferralNotEligible";
+import ReferralEligible from "./pages/ReferralEligible/ReferralEligible";
+import ReferEarnNotEligible from "./pages/ReferEarnNotEligible/ReferEarnNotEligible";
+import ReferEarn from "./pages/ReferEarn/ReferEarn";
+import UserReferralSignIn from "./pages/UserReferralSignIn/UserReferralSignIn";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -285,6 +292,7 @@ export default function App() {
           <Route path="/new-proposal" element={<Newproposel/>} />
           <Route path="/treasury-proposal" element={<TreasuryProposal/>} />
           <Route path="/contract-upgrade-proposal" element={<ContractUpgradeProposal/>} />
+          <Route path="/contract-upgrade-proposal-step2" element={<ContractUpgradeProposalStep2/>} />
           <Route path="/skill-oracle-proposal" element={<SkillOracleProposal/>} />
           <Route path="/skill-oracle-member-proposal" element={<SkillOracleMemberProposal/>} />
           <Route path="/contractupdateproposel" element={<ContractUpdateProposel/>} />
@@ -302,6 +310,12 @@ export default function App() {
           <Route path="/treasury-proposal-view" element={<TreasuryProposalView/>} />
           <Route path="/dissolve-oracle-proposal-view" element={<DissolveOracleProposalView/>} />
           <Route path="/recruitment-proposal-view" element={<RecruitmentProposalView/>} />
+          <Route path="/chain-switching" element={<ChainSwitching/>} />
+          <Route path="/referral-not-eligible" element={<ReferralNotEligible/>} />
+          <Route path="/referral-eligible" element={<ReferralEligible/>} />
+          <Route path="/refer-earn-not-eligible" element={<ReferEarnNotEligible/>} />
+          <Route path="/refer-earn" element={<ReferEarn/>} />
+          <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
         </Routes>
       </BrowserRouter>
     </Layout>

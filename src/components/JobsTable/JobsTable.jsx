@@ -47,7 +47,7 @@ function Box({icon, title, number, showJoinButton, onJoinClick}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle }) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -65,7 +65,7 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                         </Link>
                         <div className="tableTitleV">{title}</div>
                     </div>
-                    <Button label={'Refer & Earn'} icon='/refer_earn.svg' buttonCss={'refer-earn'}/>
+                    <Button label={'Refer & Earn'} icon='/refer_earn.svg' buttonCss={'refer-earn'} onClick={onReferEarnClick}/>
                 </div>
                 <div className="box-section">
                     {

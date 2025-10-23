@@ -141,6 +141,10 @@ export default function DAO() {
         }
     ];
 
+    const handleReferEarnClick = () => {
+        navigate('/refer-earn');
+    };
+
     return (
         <div className="body-container">
             <div className="view-jobs-container">
@@ -161,6 +165,7 @@ export default function DAO() {
                     customButtonLabel="New Proposal"
                     customButtonIcon="/plus.svg"
                     onCustomButtonClick={() => navigate('/new-proposal')}
+                    onReferEarnClick={handleReferEarnClick}
                 />
             </div>
         </div>

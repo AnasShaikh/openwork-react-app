@@ -10,7 +10,7 @@ export default function ContractUpgradeProposal() {
         {
             id: 1,
             name: "OpenWork DAO Smart Contract",
-            route: "/contract-upgrade-dao"
+            route: "/contract-upgrade-proposal-step2"
         },
         {
             id: 2,
