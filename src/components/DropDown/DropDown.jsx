@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import './DropDown.css';
 
-const DropDown = ({ label, options, customCSS, width }) => {
+const DropDown = ({ label, options, customCSS, width, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState(label);
 
   const toggleDropdown = (e) => {
     e.preventDefault();
+    if (disabled) return;
     setIsOpen(!isOpen);
   }
 

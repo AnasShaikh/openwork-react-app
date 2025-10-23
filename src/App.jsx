@@ -234,13 +234,12 @@ export default function App() {
           <Route path="/raise-dispute/:jobId" element={<RaiseDispute/>}/>
           <Route path="/job-taker-details/:jobId" element={<TakerJobDetails/>}/>
           <Route path="/about" element={<About/>}/>
-          <Route path="/profile" element={<Profile/>}/>
-          <Route path="/profile-about" element={<ProfileAbout/>}/>
-          <Route path="/profile-jobs" element={<ProfileJobs/>}/>
+          <Route path="/profile/:address" element={<Profile/>}/>
+          <Route path="/profile/:address/about" element={<ProfileOwnerView/>}/>
+          <Route path="/profile/:address/jobs" element={<ProfileJobs/>}/>
           <Route path="/payments/:jobId" element={<Payments/>} />
           <Route path="/payment-history/:jobId" element={<PaymentHistory/>} />
           <Route path="/payment-refund/:jobId" element={<PaymentRefund/>} />
-          <Route path="/profile-owner-view/:jobId" element={<ProfileOwnerView/>}/>
           <Route path="/skill-verification/:jobId" element={<GetSkillsVerified/>}/>
           <Route path="/skill-oracles" element={<SkillOracle/>} />
           <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />

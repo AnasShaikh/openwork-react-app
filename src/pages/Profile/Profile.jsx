@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import Web3 from "web3";
 import MenuItem from "../../components/MenuItem";
 
 // Importing custom hooks and utility functions to modularize the logic for better separation of concerns
@@ -8,10 +9,17 @@ import { useDropdown } from "../../functions/useDropdown"; // Manages dropdown v
 import { useHoverEffect } from "../../functions/useHoverEffect"; // Manages hover states for radial buttons
 import { useMobileDetection } from "../../functions/useMobileDetection"; // Detects if the user is on a mobile device
 import { useButtonHover } from "../../functions/useButtonHover"; // Custom hook for handling button hover events
+import ProfileGenesisABI from "../../ABIs/profile-genesis_ABI.json";
 
 import './Profile.css';
 
 export default function Profile() {
+    // Get address from URL params
+    const { address } = useParams();
+
+    // State for profile data
+    const [profilePhotoHash, setProfilePhotoHash] = useState("");
+
     // Using the useWalletConnection hook to handle wallet-related state and logic
     const { walletAddress, connectWallet, disconnectWallet } =
       useWalletConnection();
@@ -47,6 +55,59 @@ export default function Profile() {
         "_blank",
       );
     };
+
+    // Fetch profile data from blockchain and IPFS
+    useEffect(() => {
+      async function fetchProfileData() {
+        if (!address) return;
+        
+        try {
+          console.log("Fetching profile data for:", address);
+          
+          // Get profile from ProfileGenesis contract on Arbitrum Sepolia
+          const web3 = new Web3(import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL);
+          const contractAddress = import.meta.env.VITE_PROFILE_GENESIS_ADDRESS;
+          const contract = new web3.eth.Contract(ProfileGenesisABI, contractAddress);
+          
+          // Check if profile exists
+          const profileExists = await contract.methods.hasProfile(address).call();
+          
+          if (!profileExists) {
+            console.log("No profile found for this address");
+            return;
+          }
+          
+          const profile = await contract.methods.getProfile(address).call();
+          const ipfsHash = profile.ipfsHash;
+          
+          console.log("Profile IPFS hash:", ipfsHash);
+          
+          if (!ipfsHash || ipfsHash === "") {
+            console.log("No IPFS hash found for profile");
+            return;
+          }
+          
+          // Fetch profile data from IPFS
+          const response = await fetch(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch profile data from IPFS");
+          }
+          
+          const profileData = await response.json();
+          console.log("Fetched profile data:", profileData);
+          
+          // Update profile photo
+          if (profileData.profilePhotoHash) {
+            setProfilePhotoHash(profileData.profilePhotoHash);
+          }
+          
+        } catch (error) {
+          console.error("Error fetching profile data:", error);
+        }
+      }
+      
+      fetchProfileData();
+    }, [address]);
   
     return (
       <main className="container-home">
@@ -120,7 +181,7 @@ export default function Profile() {
   
           {/* Left button with hover functionality */}
           <MenuItem
-            to="/profile-about"
+            to={`/profile/${address}/about`}
             id="buttonLeft-home"
             buttonsVisible={buttonsVisible}
             buttonFlex={buttonFlex}
@@ -134,7 +195,7 @@ export default function Profile() {
   
           {/* Right button with hover functionality */}
           <MenuItem
-            to="/profile-jobs"
+            to={`/profile/${address}/jobs`}
             id="buttonRight-home"
             buttonsVisible={buttonsVisible}
             buttonFlex={buttonFlex}
@@ -153,7 +214,13 @@ export default function Profile() {
             Hover to get started
           </div> */}
           <div className="core-profile">
-            <img src="/user.png" alt=""/>
+            <img 
+              src={profilePhotoHash 
+                ? `https://gateway.pinata.cloud/ipfs/${profilePhotoHash}` 
+                : "/user.png"
+              } 
+              alt="Profile"
+            />
             <div className="profile-point">
                 <span>4.9</span>
                 <img src="/star.svg" alt="" />

@@ -30,6 +30,12 @@ const Header = () => {
     location.pathname = '/'
   }
 
+  const goToMyProfile = () => {
+    if (walletAddress) {
+      location.pathname = `/profile/${walletAddress}`
+    }
+  }
+
   return (
     <header className="header-home">
       <img
@@ -66,7 +72,7 @@ const Header = () => {
               </div>
               {dropdownVisible && (
                 <div className="dropdownMenu-home">
-                  <div className="dropdownMenuItem-home" onClick={handleNavigation}>
+                  <div className="dropdownMenuItem-home" onClick={goToMyProfile}>
                     <span className="dropdownMenuItemText-home" style={{ color: "#868686" }}>
                       My Profile
                     </span>
