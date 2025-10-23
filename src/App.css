@@ -1,4 +1,11 @@
 /* Global Styles */
+/* Add this to your global stylesheet */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 @font-face {
   font-family: 'Satoshi', sans-serif;
   src: url('/public/fonts/Satoshi-Regular.otf');
