@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./JobsTable.css";
 import DropDown from "../DropDown/DropDown";
 import SearchInput from "../SearchInput/SearchInput";
@@ -26,7 +26,9 @@ const BOXITEMS = [
     }
 ]
 
-function Box({icon, title, number}) {
+function Box({icon, title, number, showJoinButton, onJoinClick}) {
+    const navigate = useNavigate();
+    
     return(
         <div className="box-component">
             <div className="box-title">
@@ -35,30 +37,17 @@ function Box({icon, title, number}) {
             </div>
             <div className="box-content">
                 <span>{number}</span>
-                <DetailButton to={`/`} imgSrc="/view.svg" alt="detail" />
+                {showJoinButton && number === '0' ? (
+                    <BlueButton label="Join DAO" onClick={() => navigate('/join-dao')} />
+                ) : (
+                    <DetailButton to={`/`} imgSrc="/view.svg" alt="detail" />
+                )}
             </div>
         </div>
     )
 }
 
-export default function JobsTable({ 
-    title, 
-    tableData, 
-    currentPage, 
-    totalPages, 
-    onPageChange, 
-    headers, 
-    titleOptions, 
-    filterOptions, 
-    applyNow, 
-    addMember, 
-    backUrl='/work', 
-    boxSection, 
-    applyJobId,
-    selectedColumns,
-    onColumnToggle,
-    allColumns
-}) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -76,12 +65,19 @@ export default function JobsTable({
                         </Link>
                         <div className="tableTitleV">{title}</div>
                     </div>
-                    <Button label={'Refer & Earn'} icon='/refer_earn.svg' buttonCss={'refer-earn'}/>
+                    <Button label={'Refer & Earn'} icon='/refer_earn.svg' buttonCss={'refer-earn'} onClick={onReferEarnClick}/>
                 </div>
                 <div className="box-section">
                     {
-                        BOXITEMS.map((item, index) => (
-                            <Box key={index} icon={item.icon} title={item.title} number={item.number} />
+                        (customBoxItems || BOXITEMS).map((item, index) => (
+                            <Box 
+                                key={index} 
+                                icon={item.icon} 
+                                title={item.title} 
+                                number={item.number}
+                                showJoinButton={customBoxItems ? true : false}
+                                onJoinClick={() => console.log('Join DAO clicked')}
+                            />
                         ))
                     }
                 </div>
@@ -91,7 +87,7 @@ export default function JobsTable({
                     { !boxSection && <Link to={backUrl} className="backButton">
                         <img src="/back.svg" alt="Back" className="backIconV" />
                     </Link>}
-                    <div className="tableTitleV">{title}</div>
+                    <div className="tableTitleV">{ledgerTitle || title}</div>
                 </div>
                 <div className="title-option">
                     {
@@ -122,19 +118,17 @@ export default function JobsTable({
                             );
                         })
                     }   
-                    {applyNow?
-                     <BlueButton label="Apply to Job" onClick={() => {
-                        if (applyJobId) {
-                            location.href = `/apply-job?jobId=${applyJobId}`;
-                        } else {
-                            location.pathname = '/apply-now';
-                        }
+                    {customButtonLabel ? 
+                     <BlueButton label={customButtonLabel} icon={customButtonIcon} onClick={onCustomButtonClick || (() => {})} />
+                    : applyNow?
+                     <BlueButton label="Apply Now" onClick={() => {
+                        location.pathname = '/apply-now'
                     }}/>
                     :
                      !addMember && <BlueButton label="Post a Job" icon={'/plus.svg'} onClick={() => {
                         location.pathname = '/post-job'
                     }}/>}
-                    {addMember && <BlueButton label="Add Member" icon={'/plus.svg'} onClick={() => {
+                    {addMember && !customButtonLabel && <BlueButton label="Add Member" icon={'/plus.svg'} onClick={() => {
                         location.pathname = '/add-member'
                     }}/>}
                     </div>

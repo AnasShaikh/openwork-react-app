@@ -19,11 +19,12 @@
   .formTitleDC {
     font-family: 'Satoshi', sans-serif;
     font-style: normal;
-    font-weight: 500;
+    font-weight: 700;
     font-size: 20px;
     line-height: 27px;
     display: flex;
     align-items: center;
     letter-spacing: 0.02em;
     color: #4D4D4D;
+    white-space: nowrap;
   }

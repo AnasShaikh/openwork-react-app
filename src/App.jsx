@@ -60,7 +60,33 @@ import ViewAnyApplication from "./pages/ViewAnyApplication/ViewAnyApplication";
 import ViewJobDetails from "./pages/ViewJobDetails/ViewJobDetails";
 import ViewJobApplications from "./pages/ViewJobApplications/ViewJobApplications";
 import ExistingMemberSkillOracle from "./pages/ExistingMemberSkillOracle/ExistingMemberSkillOracle";
-import WalletTest from "./pages/WalletTest/WalletTest";
+import DAO from "./pages/DAO/DAO";
+import JoinDAO from "./pages/JoinDAO/JoinDAO";
+import Newproposel from "./pages/Newproposel/Newproposel";
+import TreasuryProposal from "./pages/TreasuryProposal/TreasuryProposal";
+import ContractUpgradeProposal from "./pages/ContractUpgradeProposal/ContractUpgradeProposal";
+import ContractUpgradeProposalStep2 from "./pages/ContractUpgradeProposalStep2/ContractUpgradeProposalStep2";
+import SkillOracleProposal from "./pages/SkillOracleProposal/SkillOracleProposal";
+import SkillOracleMemberProposal from "./pages/SkillOracleMemberProposal/SkillOracleMemberProposal";
+import ContractUpdateProposel from "./pages/ContractUpdateProposel/ContractUpdateProposel";
+import ContractUpdateProposelStep2 from "./pages/ContractUpdateProposelStep2/ContractUpdateProposelStep2";
+import ContractUpdateProposelStep3 from "./pages/ContractUpdateProposelStep3/ContractUpdateProposelStep3";
+import OpenWorkJobProposel from "./pages/OpenWorkJobProposel/OpenWorkJobProposel";
+import NewSkillOracleStep2 from "./pages/NewSkillOracleStep2/NewSkillOracleStep2";
+import DissolveSkillOracleStep2 from "./pages/DissolveSkillOracleStep2/DissolveSkillOracleStep2";
+import SkillOracleRecruitmentStep2 from "./pages/SkillOracleRecruitmentStep2/SkillOracleRecruitmentStep2";
+import SkillOracleMemberRemovalStep2 from "./pages/SkillOracleMemberRemovalStep2/SkillOracleMemberRemovalStep2";
+import ContractUpdateProposalView from "./pages/ContractUpdateProposalView/ContractUpdateProposalView";
+import ContractUpgradeProposalView from "./pages/ContractUpgradeProposalView/ContractUpgradeProposalView";
+import TreasuryProposalView from "./pages/TreasuryProposalView/TreasuryProposalView";
+import DissolveOracleProposalView from "./pages/DissolveOracleProposalView/DissolveOracleProposalView";
+import RecruitmentProposalView from "./pages/RecruitmentProposalView/RecruitmentProposalView";
+import ChainSwitching from "./pages/ChainSwitching/ChainSwitching";
+import ReferralNotEligible from "./pages/ReferralNotEligible/ReferralNotEligible";
+import ReferralEligible from "./pages/ReferralEligible/ReferralEligible";
+import ReferEarnNotEligible from "./pages/ReferEarnNotEligible/ReferEarnNotEligible";
+import ReferEarn from "./pages/ReferEarn/ReferEarn";
+import UserReferralSignIn from "./pages/UserReferralSignIn/UserReferralSignIn";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -262,7 +288,35 @@ export default function App() {
           <Route path="/view-job-details" element={<ViewJobDetails/>} />
           <Route path="/view-job-applications/:jobId" element={<ViewJobApplications/>} />
           <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
-          <Route path="/wallet-test" element={<WalletTest/>} />
+          <Route path="/dao" element={<DAO/>} />
+          <Route path="/join-dao" element={<JoinDAO/>} />
+          <Route path="/new-proposal" element={<Newproposel/>} />
+          <Route path="/treasury-proposal" element={<TreasuryProposal/>} />
+          <Route path="/contract-upgrade-proposal" element={<ContractUpgradeProposal/>} />
+          <Route path="/contract-upgrade-proposal-step2" element={<ContractUpgradeProposalStep2/>} />
+          <Route path="/skill-oracle-proposal" element={<SkillOracleProposal/>} />
+          <Route path="/skill-oracle-member-proposal" element={<SkillOracleMemberProposal/>} />
+          <Route path="/contractupdateproposel" element={<ContractUpdateProposel/>} />
+          <Route path="/contract-update-step2" element={<ContractUpdateProposelStep2/>} />
+          <Route path="/contractupdateproposelstep3" element={<ContractUpdateProposelStep3/>} />
+          <Route path="/dao-votes-update-form" element={<ContractUpdateProposelStep3/>} />
+          <Route path="/dao-staking-update-form" element={<ContractUpdateProposelStep3/>} />
+          <Route path="/openworkjobproposel" element={<OpenWorkJobProposel/>} />
+          <Route path="/newskilloraclestep2" element={<NewSkillOracleStep2/>} />
+          <Route path="/dissolveskilloraclestep2" element={<DissolveSkillOracleStep2/>} />
+          <Route path="/skilloraclerecruitmentstep2" element={<SkillOracleRecruitmentStep2/>} />
+          <Route path="/skilloraclememberremovalstep2" element={<SkillOracleMemberRemovalStep2/>} />
+          <Route path="/contract-update-proposal-view" element={<ContractUpdateProposalView/>} />
+          <Route path="/contract-upgrade-proposal-view" element={<ContractUpgradeProposalView/>} />
+          <Route path="/treasury-proposal-view" element={<TreasuryProposalView/>} />
+          <Route path="/dissolve-oracle-proposal-view" element={<DissolveOracleProposalView/>} />
+          <Route path="/recruitment-proposal-view" element={<RecruitmentProposalView/>} />
+          <Route path="/chain-switching" element={<ChainSwitching/>} />
+          <Route path="/referral-not-eligible" element={<ReferralNotEligible/>} />
+          <Route path="/referral-eligible" element={<ReferralEligible/>} />
+          <Route path="/refer-earn-not-eligible" element={<ReferEarnNotEligible/>} />
+          <Route path="/refer-earn" element={<ReferEarn/>} />
+          <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
         </Routes>
       </BrowserRouter>
     </Layout>
