@@ -23,7 +23,7 @@
   }
   
   .table {
-    width: 100%;
+    width: calc(100% - 48px);
     margin: 28px 24px;
     border-collapse: collapse; /* Remove borders between table cells */
     border: none;
