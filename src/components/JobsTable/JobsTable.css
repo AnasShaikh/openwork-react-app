@@ -63,7 +63,7 @@
   }
   
   .table thead tr th:first-child {
-    width: 196px;
+    min-width: 196px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -72,35 +72,35 @@
   .table thead tr th:nth-child(2),
   .table thead tr th:nth-child(5),
   .table thead tr th:nth-child(6) {
-    width: 144px;
+    min-width: 144px;
   }
 
   .table thead tr th:nth-child(3) {
-    width: 180px;
+    min-width: 180px;
   }
 
   .table thead tr th:nth-child(4) {
-    width: 109px;
+    min-width: 109px;
   }
   
   /* Decrease the distance between the 2nd, 3rd, and 4th columns */
 
   .table tbody tr td:first-child {
-    width: 196px;
+    min-width: 196px;
   }
 
   .table tbody tr td:nth-child(2),
   .table tbody tr td:nth-child(5),
   .table tbody tr td:nth-child(6) {
-    width: 144px;
+    min-width: 144px;
   }
 
   .table tbody tr td:nth-child(3) {
-    width: 180px;
+    min-width: 180px;
   }
 
   .table tbody tr td:nth-child(4) {
-    width: 109px;
+    min-width: 109px;
   }
 
   .table thead tr th:nth-child(5) {
