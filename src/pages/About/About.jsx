@@ -46,33 +46,35 @@ function AboutItem ({icon, title}) {
 
 export default function () {
     return (
-        <div className="about-form">
-            <div>
-                <img src="/about-logo.svg" alt="" width={176}/>
-            </div>
-            <div className="about-title">
-                <span>{'Welcome to the future \nof work!'}</span>
-            </div>
-            <div className="about-content">
-                <span>
-                We're building OpenWork, a decentralized work protocol redefining the way people collaborate on the internet. Free from central authority, OpenWork introduces a new paradigm of work engagement and management.
-                </span>
-            </div>
-            <div className="about-item-section">
-                {ABOUTITEMS.map((item, index) => (
-                    <AboutItem icon={item.icon} title={item.title} key={index}/>
-                ))}
-            </div>
-            <div className="know-more">Know More</div>
-            <div>
-                {
-                    COLLAPSEITEMS.map((item, index) => (
-                        <>
-                            <Collapse title={item.title} content={item.content} key={index}/>
-                            {index != COLLAPSEITEMS.length-1 && (<span className="about-item-line"></span>)}
-                        </>
-                    ))
-                }
+        <div className="about-page-wrapper">
+            <div className="about-form">
+                <div>
+                    <img src="/about-logo.svg" alt="" width={176}/>
+                </div>
+                <div className="about-title">
+                    <span>{'Welcome to the future \nof work!'}</span>
+                </div>
+                <div className="about-content">
+                    <span>
+                    We're building OpenWork, a decentralized work protocol redefining the way people collaborate on the internet. Free from central authority, OpenWork introduces a new paradigm of work engagement and management.
+                    </span>
+                </div>
+                <div className="about-item-section">
+                    {ABOUTITEMS.map((item, index) => (
+                        <AboutItem icon={item.icon} title={item.title} key={index}/>
+                    ))}
+                </div>
+                <div className="know-more">Know More</div>
+                <div>
+                    {
+                        COLLAPSEITEMS.map((item, index) => (
+                            <>
+                                <Collapse title={item.title} content={item.content} key={index}/>
+                                {index != COLLAPSEITEMS.length-1 && (<span className="about-item-line"></span>)}
+                            </>
+                        ))
+                    }
+                </div>
             </div>
         </div>
     )

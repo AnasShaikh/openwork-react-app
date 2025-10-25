@@ -1,3 +1,10 @@
+.about-page-wrapper {
+    min-height: calc(100vh - 80px);
+    width: 100%;
+    background: transparent;
+    position: relative;
+}
+
 .about-form {
     padding: 40px;
     margin: 65px auto;
@@ -10,6 +17,8 @@
     border: 2px solid #f7f7f7;
     background: var(--Base-White, #FFF);
     background: var(--Base-White, color(display-p3 1 1 1));
+    position: relative;
+    z-index: 1;
 }
 
 .about-title {
