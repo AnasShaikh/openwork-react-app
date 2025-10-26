@@ -17,18 +17,6 @@
   pointer-events: all;
 }
 
-/* Hover Trigger Area - Invisible but triggers menu on hover */
-.menu-trigger-area {
-  position: absolute;
-  width: 180px;
-  height: 100px;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10001;
-  cursor: pointer;
-}
-
 /* Rotating Radiant Glow - Same as home page */
 .radiant-glow-menu {
   position: absolute;
@@ -97,7 +85,7 @@
 
 .menu-text {
   position: absolute;
-  top: 50%;
+  top: 32%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: 'Satoshi', sans-serif;
@@ -113,23 +101,6 @@
 
 .radial-menu-wrapper.menu-open .menu-text {
   opacity: 1;
-}
-
-/* Overlay and Glow Effects */
-.radial-menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(254, 254, 254, 0.7);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  animation: fadeIn 0.3s ease-out;
-  pointer-events: none;
-  z-index: 9998;
-  isolation: isolate;
-  will-change: backdrop-filter;
 }
 
 /* Large Background Circle */
@@ -196,7 +167,7 @@
   left: 50%;
   bottom: 53px;
   transform: translateX(-50%);
-  animation: scaleInCentered 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s backwards;
+  animation: smoothFadeIn 0.4s ease-out 0.1s backwards;
 }
 
 .radial-menu-item.center-top:hover {
@@ -206,25 +177,25 @@
 .radial-menu-item.left-top {
   left: 16px;
   bottom: 165px;
-  animation: scaleInDelayed 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0s backwards;
+  animation: smoothFadeIn 0.4s ease-out 0s backwards;
 }
 
 .radial-menu-item.left-middle {
   left: 98px;
   bottom: 85px;
-  animation: scaleInDelayed 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s backwards;
+  animation: smoothFadeIn 0.4s ease-out 0.05s backwards;
 }
 
 .radial-menu-item.right-top {
   right: 16px;
   bottom: 165px;
-  animation: scaleInDelayed 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+  animation: smoothFadeIn 0.4s ease-out 0.2s backwards;
 }
 
 .radial-menu-item.right-middle {
   right: 98px;
   bottom: 85px;
-  animation: scaleInDelayed 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s backwards;
+  animation: smoothFadeIn 0.4s ease-out 0.15s backwards;
 }
 
 /* Menu Item Icon */
@@ -281,25 +252,12 @@
   }
 }
 
-@keyframes scaleInDelayed {
+@keyframes smoothFadeIn {
   from {
     opacity: 0;
-    transform: scale(0);
   }
   to {
     opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes scaleInCentered {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) scale(0);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
   }
 }
 

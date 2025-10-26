@@ -47,7 +47,7 @@ function Box({icon, title, number, showJoinButton, onJoinClick}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, selectedColumns = [], onColumnToggle = () => {}, allColumns = [] }) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, hideBackButton, hidePostJob }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -84,7 +84,7 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
             </>}
             <div className="title-section">
                 <div className="back">
-                    { !boxSection && <Link to={backUrl} className="backButton">
+                    { !boxSection && !hideBackButton && <Link to={backUrl} className="backButton">
                         <img src="/back.svg" alt="Back" className="backIconV" />
                     </Link>}
                     <div className="tableTitleV">{ledgerTitle || title}</div>
@@ -125,7 +125,7 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                         location.pathname = '/apply-now'
                     }}/>
                     :
-                     !addMember && <BlueButton label="Post a Job" icon={'/plus.svg'} onClick={() => {
+                     !addMember && !hidePostJob && <BlueButton label="Post a Job" icon={'/plus.svg'} onClick={() => {
                         location.pathname = '/post-job'
                     }}/>}
                     {addMember && !customButtonLabel && <BlueButton label="Add Member" icon={'/plus.svg'} onClick={() => {

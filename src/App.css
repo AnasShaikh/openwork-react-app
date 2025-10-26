@@ -46,13 +46,27 @@ body > #root > div {
   min-height: 100vh;
 }
 
-/* Hide page content when radial menu is active */
-body.radial-menu-active .about-page-wrapper,
-body.radial-menu-active .about-form {
-  opacity: 0;
-  filter: blur(20px);
-  -webkit-filter: blur(20px);
-  transition: opacity 0.3s ease-out, filter 0.3s ease-out;
+/* Hide page content when radial menu is active - Apply to all main content */
+body.radial-menu-active > #root > * {
+  filter: blur(8px);
+  -webkit-filter: blur(8px);
+  transition: filter 0.3s ease-out;
+}
+
+/* Keep header visible and unblurred */
+body.radial-menu-active > #root > * > .header-home,
+body.radial-menu-active > #root > * > header {
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+/* Keep radial menu unblurred */
+body.radial-menu-active .radial-menu-wrapper,
+body.radial-menu-active .radial-menu-wrapper *,
+body.radial-menu-active .radial-menu-overlay,
+body.radial-menu-active .menu-background-circle {
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 
 .container-home {
@@ -138,12 +152,17 @@ body.radial-menu-active .about-form {
   cursor: pointer;
   width: 40px;
   height: 40px;
-  transition: opacity 0.5s;
+  transition: all 0.3s ease;
   position: absolute;
   /* left: 700px; */
   /* position: absolute; */
   left:calc(50% - 20px);
   opacity: 0;
+}
+
+.header-home img#owToken-home:hover {
+  transform: scale(1.1);
+  filter: brightness(1.2);
 }
 
 .header-home img#owToken-home.visible-home {

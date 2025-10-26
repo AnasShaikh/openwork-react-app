@@ -1,10 +1,13 @@
 import React from "react";
+import ReactDOM from "react-dom";
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { useDropdown } from "../../functions/useDropdown";
 import { formatWalletAddress } from "../../functions/formatWalletAddress";
 import RadialMenu from "../RadialMenu/RadialMenu";
 
 const Header = () => {
+  const [showRadialMenu, setShowRadialMenu] = React.useState(false);
+
   // Access wallet connection state and functions
   const { walletAddress, connectWallet, disconnectWallet } = useWalletConnection();
 
@@ -38,23 +41,57 @@ const Header = () => {
   }
 
   return (
-    <header className="header-home">
-      {/* RadialMenu - shows on hover over center of navbar */}
-      <RadialMenu />
-      
-      <img
-        src="/Logo.jpg"
-        alt="Openwork Logo"
-        id="logo-home"
-        className={`logo-home ${walletAddress ? "hidden-home" : "visible-home"}`}
-      />
-      <img
-        src="/OWIcon.svg"
-        alt="OWToken Icon"
-        id="owToken-home"
-        className={walletAddress ? "visible-home" : ""}
-        onClick={goHome}
-      />
+    <>
+      {/* Unified hover area that includes both icon and radial menu */}
+      <div 
+        onMouseEnter={() => setShowRadialMenu(true)}
+        onMouseLeave={() => setShowRadialMenu(false)}
+        style={{ 
+          position: 'fixed', 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          top: 0, 
+          width: '600px',
+          height: '600px',
+          zIndex: 10000,
+          pointerEvents: showRadialMenu ? 'auto' : 'none'
+        }}
+      >
+        {/* Icon - always visible, always hoverable */}
+        <img
+          src="/OWIcon.svg"
+          alt="OWToken Icon"
+          id="owToken-home"
+          className={walletAddress ? "visible-home" : ""}
+          onClick={goHome}
+          style={{ 
+            position: 'absolute', 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            top: '20px', 
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+            width: '40px',
+            height: '40px'
+          }}
+        />
+        
+        {/* RadialMenu rendered via portal when hovering */}
+        {showRadialMenu && ReactDOM.createPortal(
+          <div style={{ pointerEvents: 'auto' }}>
+            <RadialMenu />
+          </div>,
+          document.body
+        )}
+      </div>
+
+      <header className="header-home">
+        <img
+          src="/Logo.jpg"
+          alt="Openwork Logo"
+          id="logo-home"
+          className={`logo-home ${walletAddress ? "hidden-home" : "visible-home"}`}
+        />
 
       <div className="right-header">
         {walletAddress ? (
@@ -115,6 +152,7 @@ const Header = () => {
         )}
       </div>
     </header>
+    </>
   );
 };
 
