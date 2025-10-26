@@ -263,6 +263,7 @@ export default function App() {
           <Route path="/job-taker-details/:jobId" element={<TakerJobDetails/>}/>
           <Route path="/about" element={<About/>}/>
           <Route path="/profile" element={<Profile/>}/>
+          <Route path="/profile/:address" element={<ProfileOwnerView/>}/>
           <Route path="/profile-about" element={<ProfileAbout/>}/>
           <Route path="/profile-jobs" element={<ProfileJobs/>}/>
           <Route path="/edit-picture" element={<EditPicture/>}/>
