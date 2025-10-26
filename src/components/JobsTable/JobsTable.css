@@ -22,6 +22,12 @@
     margin: 0;
   }
   
+  
+  body {
+    background-color: white; /* Setting overall background color */
+    margin: 0;
+  }
+  
   .table {
     width: auto;
     margin: 28px 24px;

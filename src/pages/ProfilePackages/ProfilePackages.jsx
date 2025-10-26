@@ -143,6 +143,13 @@ export default function ProfilePackages() {
     const totalPages = Math.ceil(packages.length / packagesPerPage);
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+    React.useEffect(() => {
+        document.body.classList.add('profile-packages-page');
+        return () => {
+            document.body.classList.remove('profile-packages-page');
+        };
+    }, []);
+
     return (
         <div className="body-container">
             <div className="newTitle">
@@ -176,8 +183,9 @@ export default function ProfilePackages() {
                     titleOptions={titleOptions}
                     filterOptions={filterOptions}
                     applyNow={false}
-                    customButtonLabel=" "
                     backUrl="/profile"
+                    hideBackButton={true}
+                    hidePostJob={true}
                 />
             </div>
         </div>

@@ -1,5 +1,12 @@
 @import url("../ProfilePortfolio/ProfilePortfolio.css");
 
+/* Reset body styles that JobsTable applies globally */
+body.profile-packages-page {
+    background-color: white;
+    margin: 0;
+}
+
+/* Isolate ProfilePackages from JobsTable body styles */
 .body-container {
     min-height: calc(100vh - 80px);
     width: 100%;
@@ -8,30 +15,42 @@
     font-family: 'Satoshi', sans-serif;
 }
 
-/* Title Section - Match Portfolio alignment */
-.newTitle {
-    margin-top: 4%;
+/* Override and specific styling for ProfilePackages */
+.body-container .newTitle {
+    margin-top: 88px;
+    margin-bottom: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.titleTop {
+
+.body-container .titleTop {
     display: flex;
     align-items: center;
     gap: 20px;
 }
 
-.titleBottom {
+.body-container .titleBottom {
     display: flex;
     align-items: center;
 }
 
+/* Wrapper to isolate JobsTable styles */
 .view-jobs-container {
     width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
+    max-width: 960px;
+    margin: 32px auto 0;
+    padding: 0 20px 80px;
+    position: relative;
+    z-index: 1;
+    /* Prevent JobsTable styles from affecting parent layout */
+    isolation: isolate;
+}
+
+.view-jobs-container .table {
+    width: 100%;
+    margin: 28px auto;
 }
 
 /* Package Title Cell */
