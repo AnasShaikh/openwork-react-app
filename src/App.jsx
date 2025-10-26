@@ -34,6 +34,12 @@ import About from "./pages/About/About";
 import Profile from "./pages/Profile/Profile";
 import ProfileAbout from "./pages/ProfileAbout/ProfileAbout";
 import ProfileJobs from "./pages/ProfileJobs/ProfileJobs";
+import ProfilePortfolio from "./pages/ProfilePortfolio/ProfilePortfolio";
+import ProfilePortfolioOwner from "./pages/ProfilePortfolioOwner/ProfilePortfolioOwner";
+import ViewWorkProfile from "./pages/ViewWorkProfile/ViewWorkProfile";
+import ProfilePackages from "./pages/ProfilePackages/ProfilePackages";
+import ViewPackage from "./pages/ViewPackage/ViewPackage";
+import CreatePackage from "./pages/CreatePackage/CreatePackage";
 import EditPicture from "./pages/EditPicture/EditPicture";
 import Payments from "./pages/Payments/Payments";
 import PaymentHistory from "./pages/PaymentHistory/PaymentHistory";
@@ -264,6 +270,12 @@ export default function App() {
           <Route path="/profile" element={<Profile/>}/>
           <Route path="/profile-about" element={<ProfileAbout/>}/>
           <Route path="/profile-jobs" element={<ProfileJobs/>}/>
+          <Route path="/profile-portfolio" element={<ProfilePortfolio/>}/>
+          <Route path="/profile-portfolio-owner" element={<ProfilePortfolioOwner/>}/>
+          <Route path="/view-work-profile/:id" element={<ViewWorkProfile/>}/>
+          <Route path="/profile-packages" element={<ProfilePackages/>}/>
+          <Route path="/view-package/:packageId" element={<ViewPackage/>}/>
+          <Route path="/create-package" element={<CreatePackage/>}/>
           <Route path="/edit-picture" element={<EditPicture/>}/>
           <Route path="/payments/:jobId" element={<Payments/>} />
           <Route path="/payment-history/:jobId" element={<PaymentHistory/>} />

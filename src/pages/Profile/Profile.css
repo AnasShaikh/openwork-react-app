@@ -35,3 +35,9 @@
     line-height: normal;
     letter-spacing: 0.24px;
 }
+
+/* Define CSS variables for SVG icons */
+.buttonContainer-home img.buttonIcon-home {
+    --stroke-0: #1246FF;
+    --fill-0: #F2F4F7;
+}

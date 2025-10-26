@@ -1,0 +1,256 @@
+.viewwork-page-wrapper {
+  min-height: calc(100vh - 80px);
+  width: 100%;
+  background: transparent;
+  position: relative;
+  font-family: 'Satoshi', sans-serif;
+}
+
+/* Title Section */
+.newTitle {
+  margin-top: 4%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.titleTop {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.titleBottom {
+  display: flex;
+  align-items: center;
+}
+
+.titleText {
+  white-space: pre;
+  font-family: 'Satoshi', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.02em;
+  color: #4D4D4D;
+}
+
+.goBack {
+  margin-left: -15px;
+  height: 40px;
+  width: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.goBackImage {
+  width: 100%;
+  height: 100%;
+}
+
+/* User Info Section */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Satoshi', sans-serif;
+  font-size: 14px;
+  color: #868686;
+}
+
+.user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-name {
+  font-weight: 400;
+  color: #050505;
+}
+
+.user-separator {
+  color: #868686;
+}
+
+.user-package {
+  font-weight: 400;
+  color: #868686;
+}
+
+/* Content Container */
+.viewwork-content {
+  max-width: 876px;
+  margin: 32px auto 0;
+  padding: 0 20px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header Bar with Badges */
+.viewwork-header-bar {
+  background: white;
+  border: 2px solid #f7f7f7;
+  border-radius: 24px 24px 0 0;
+  padding: 28px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 111px;
+  box-sizing: border-box;
+}
+
+.viewwork-badges {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.viewwork-badge {
+  background: white;
+  border: 1px solid #ebebeb;
+  border-radius: 9999px;
+  padding: 6px 12px;
+  font-family: 'Satoshi', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #344054;
+  white-space: nowrap;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Main Image Display */
+.viewwork-main-image {
+  background: white;
+  border-left: 2px solid #f7f7f7;
+  border-right: 2px solid #f7f7f7;
+  padding: 24px 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.main-image {
+  width: 100%;
+  max-width: 796px;
+  height: 491px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Image Gallery */
+.viewwork-image-gallery {
+  background: white;
+  border-left: 2px solid #f7f7f7;
+  border-right: 2px solid #f7f7f7;
+  padding: 0 40px 24px 40px;
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.viewwork-image-gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.gallery-thumbnail {
+  flex-shrink: 0;
+  width: 160px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.gallery-thumbnail:first-child {
+  margin-left: 0;
+}
+
+.gallery-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-thumbnail:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-thumbnail.active {
+  border-color: #1246ff;
+  box-shadow: 0 0 0 1px #1246ff;
+}
+
+/* Description Section */
+.viewwork-description {
+  background: white;
+  border: 2px solid #f7f7f7;
+  border-radius: 0 0 24px 24px;
+  padding: 32px 40px;
+}
+
+.viewwork-description p {
+  font-family: 'Satoshi', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #050505;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .viewwork-content {
+    max-width: 720px;
+  }
+}
+
+@media (max-width: 768px) {
+  .viewwork-content {
+    max-width: 100%;
+    padding: 0 20px 60px;
+  }
+
+  .viewwork-header-bar {
+    padding: 24px;
+    height: auto;
+  }
+
+  .main-image {
+    height: auto;
+    max-height: 400px;
+  }
+
+  .viewwork-image-gallery {
+    padding: 0 20px 24px 20px;
+    gap: 12px;
+  }
+
+  .gallery-thumbnail {
+    width: 120px;
+    height: 75px;
+  }
+
+  .viewwork-description {
+    padding: 24px;
+  }
+}

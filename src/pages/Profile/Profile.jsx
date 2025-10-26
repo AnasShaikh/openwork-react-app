@@ -118,21 +118,33 @@ export default function Profile() {
             />
           </div>
   
-          {/* Left button with hover functionality */}
+          {/* Top button - About */}
           <MenuItem
             to="/profile-about"
-            id="buttonLeft-home"
+            id="buttonTop-home"
             buttonsVisible={buttonsVisible}
             buttonFlex={buttonFlex}
             onMouseEnter={() => setButtonsVisible(true)} // Show buttons on hover
             onMouseLeave={() => setButtonsVisible(false)} // Hide buttons on hover out
             imgSrc="/radial-button.svg"
-            iconSrc="/profile-about.svg"
+            iconSrc="/menu-profile-icon.svg"
             text="About"
           />
+
+          {/* Left button - Portfolio */}
+          <MenuItem
+            to="/profile-portfolio"
+            id="buttonLeft-home"
+            buttonsVisible={buttonsVisible}
+            buttonFlex={buttonFlex}
+            onMouseEnter={() => setButtonsVisible(true)}
+            onMouseLeave={() => setButtonsVisible(false)}
+            imgSrc="/radial-button.svg"
+            iconSrc="/menu-work-icon.svg"
+            text="Portfolio"
+          />
   
-  
-          {/* Right button with hover functionality */}
+          {/* Right button - Work */}
           <MenuItem
             to="/profile-jobs"
             id="buttonRight-home"
@@ -141,8 +153,21 @@ export default function Profile() {
             onMouseEnter={() => setButtonsVisible(true)}
             onMouseLeave={() => setButtonsVisible(false)}
             imgSrc='/radial-button.svg'
-            iconSrc='/profile-jobs.svg'
-            text='Jobs' 
+            iconSrc='/menu-work-icon.svg'
+            text='Work' 
+          />
+
+          {/* Bottom button - Packages */}
+          <MenuItem
+            to="/profile-packages"
+            id="buttonBottom-home"
+            buttonsVisible={buttonsVisible}
+            buttonFlex={buttonFlex}
+            onMouseEnter={() => setButtonsVisible(true)}
+            onMouseLeave={() => setButtonsVisible(false)}
+            imgSrc="/radial-button.svg"
+            iconSrc="/menu-jobs-icon.svg"
+            text="Packages"
           />
   
           {/* Hover text prompting user to hover over the radial menu */}
