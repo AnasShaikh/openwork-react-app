@@ -74,23 +74,43 @@ export default function ExistingMemberSkillOracle() {
 
     const titleOptions = [
         {
-            title: 'Talent View',
-            items: ['view1', 'view2']
+            title: 'Skill Oracle View',
+            items: [
+                'Jobs View',
+                'Skill Oracle View',
+                'Talent View',
+                'DAO View'
+            ]
         },
         {
-            title: 'People',
-            items: ['initiated1', 'initiated2']
+            title: 'Oracles',
+            items: [
+                'Oracles',
+                'Members',
+                'Disputes',
+                'Proposals/Applications'
+            ]
         }
     ];
 
     const filterOptions = [
         {
             title: 'Table Columns',
-            items: ['column1', 'column2']
+            items: [
+                'Name',
+                'Rating',
+                'Skills',
+                'Experience',
+                'Completion Rate'
+            ]
         },
         {
             title: 'Filter',
-            items: ['column1', 'column2']
+            items: [
+                'All',
+                'Active',
+                'Inactive'
+            ]
         }
     ];
 

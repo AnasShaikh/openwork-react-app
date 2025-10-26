@@ -90,30 +90,41 @@ export default function ProfileJobs() {
 
     const titleOptions = [
         {
-            title : 'Jobs View',
+            title: 'Jobs View',
             items: [
-                'view1', 'view2'
+                'Jobs View',
+                'Skill Oracle View',
+                'Talent View',
+                'DAO View'
             ]
         },
         {
-            title : 'Initiated',
+            title: 'Initiated',
             items: [
-                'initiated1', 'initiated2'
+                'Listings',
+                'Initiated',
+                'Applications'
             ]
         }
     ]
 
     const filterOptions = [
         {
-            title : 'Table Columns',
+            title: 'Table Columns',
             items: [
-                'listing1', 'listing2'
+                'Title',
+                'From',
+                'To',
+                'Status',
+                'Amount'
             ]
         },
         {
-            title : 'Filter',
+            title: 'Filter',
             items: [
-                'column1', 'column2'
+                'All',
+                'Active',
+                'Completed'
             ]
         }
     ] 

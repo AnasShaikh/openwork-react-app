@@ -78,30 +78,40 @@ export default function BrowseTalent() {
 
     const titleOptions = [
         {
-            title : 'Talent View',
+            title: 'Talent View',
             items: [
-                'view1', 'view2'
+                'Jobs View',
+                'Skill Oracle View',
+                'Talent View',
+                'DAO View'
             ]
         },
         {
-            title : 'People',
+            title: 'People',
             items: [
-                'initiated1', 'initiated2'
+                'People',
+                'Packages'
             ]
         }
     ]
 
     const filterOptions = [
         {
-            title : 'Table Columns',
+            title: 'Table Columns',
             items: [
-                'column1', 'column2'
+                'Name',
+                'Rating',
+                'Skills',
+                'Experience',
+                'Hourly Rate'
             ]
         },
         {
-            title : 'Filter',
+            title: 'Filter',
             items: [
-                'column1', 'column2'
+                'All',
+                'Top Rated',
+                'Available Now'
             ]
         }
     ] 

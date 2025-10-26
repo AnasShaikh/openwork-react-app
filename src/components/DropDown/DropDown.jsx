@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './DropDown.css';
 
-const DropDown = ({ label, options, customCSS, width }) => {
+const DropDown = ({ label, options, customCSS, width, onOptionSelect }) => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState(label);
 
@@ -13,6 +15,32 @@ const DropDown = ({ label, options, customCSS, width }) => {
   const handleOptionClick = (option) => {
     setSelectedOption(option);
     setIsOpen(false);
+    
+    // Handle navigation based on option
+    if (onOptionSelect) {
+      onOptionSelect(option);
+    } else if (typeof option === 'string') {
+      // Map view names to routes
+      const routeMap = {
+        'Jobs View': '/browse-jobs',
+        'Skill Oracle View': '/skill-oracles',
+        'Talent View': '/browse-talent',
+        'DAO View': '/dao',
+        'People': '/browse-talent',
+        'Packages': '/profile-packages',
+        'Oracles': '/skill-oracles',
+        'Members': '/members-skill-oracle',
+        'Disputes': '/disputes',
+        'Proposals/Applications': '/proposals',
+        'Listings': '/browse-jobs',
+        'Initiated': '/profile-jobs',
+        'Applications': '/applications'
+      };
+      
+      if (routeMap[option]) {
+        navigate(routeMap[option]);
+      }
+    }
   };
 
   return (

@@ -32,22 +32,41 @@ export default function BrowseJobs() {
     const titleOptions = [
         {
             title: "Jobs View",
-            items: ["view1", "view2"],
+            items: [
+                "Jobs View",
+                "Skill Oracle View", 
+                "Talent View",
+                "DAO View"
+            ],
         },
         {
-            title: "Initiated",
-            items: ["initiated1", "initiated2"],
+            title: "Listings",
+            items: [
+                "Listings",
+                "Initiated",
+                "Applications"
+            ],
         },
     ];
 
     const filterOptions = [
         {
-            title: "Listings",
-            items: ["listing1", "listing2"],
+            title: "Table Columns",
+            items: [
+                "Title",
+                "Posted by",
+                "Budget",
+                "Deadline",
+                "Status"
+            ],
         },
         {
-            title: "Table Columns",
-            items: ["column1", "column2"],
+            title: "Filter",
+            items: [
+                "All",
+                "Active",
+                "Completed"
+            ],
         },
     ];
 

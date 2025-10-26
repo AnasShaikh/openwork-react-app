@@ -68,18 +68,40 @@ export default function DAO() {
     const titleOptions = [
         {
             title: 'DAO View',
-            items: ['view1', 'view2']
+            items: [
+                'Jobs View',
+                'Skill Oracle View',
+                'Talent View',
+                'DAO View'
+            ]
         },
         {
             title: 'Proposals',
-            items: ['All', 'Active', 'Completed']
+            items: [
+                'Members',
+                'Proposals'
+            ]
         }
     ];
 
     const filterOptions = [
         {
             title: 'Table Columns',
-            items: ['column1', 'column2']
+            items: [
+                'Title',
+                'Proposed by',
+                'Vote Submission',
+                'Type',
+                'Time Left'
+            ]
+        },
+        {
+            title: 'Filter',
+            items: [
+                'All',
+                'Active',
+                'Completed'
+            ]
         }
     ];
 

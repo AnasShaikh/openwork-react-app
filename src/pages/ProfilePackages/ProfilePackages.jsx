@@ -73,13 +73,17 @@ export default function ProfilePackages() {
         {
             title: 'Talent View',
             items: [
-                'view1', 'view2'
+                'Jobs View', 
+                'Skill Oracle View',
+                'Talent View',
+                'DAO View'
             ]
         },
         {
             title: 'Packages',
             items: [
-                'package1', 'package2'
+                'People',
+                'Packages'
             ]
         }
     ];
@@ -88,13 +92,19 @@ export default function ProfilePackages() {
         {
             title: 'Table Columns',
             items: [
-                'column1', 'column2'
+                'Title',
+                'Posted by',
+                'Rating',
+                'Category',
+                'Cost'
             ]
         },
         {
             title: 'Filter',
             items: [
-                'filter1', 'filter2'
+                'All',
+                'Active',
+                'Completed'
             ]
         }
     ];
