@@ -36,16 +36,20 @@ body {
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
 }
 .info-content {
     background-color: transparent;
     border-radius: 10px;
+    margin: 0 auto;
     margin-top: 0px;
     width: 100%;
     max-width: 520px;
-    display: flex;
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
 }
 
 .info-navigation {
@@ -114,6 +118,7 @@ body {
   margin-bottom: 20px;
 }
 .info-cardJ {
+  width: 100%;
   max-width: 520px;
   margin-top: 48px;
 }

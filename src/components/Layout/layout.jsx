@@ -3,7 +3,7 @@ import Header from "./header";
 
 export function Layout({ children }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowX: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
             <Header>
             </Header>
             {children}
