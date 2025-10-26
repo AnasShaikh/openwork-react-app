@@ -2,6 +2,7 @@ import React from "react";
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { useDropdown } from "../../functions/useDropdown";
 import { formatWalletAddress } from "../../functions/formatWalletAddress";
+import RadialMenu from "../RadialMenu/RadialMenu";
 
 const Header = () => {
   // Access wallet connection state and functions
@@ -38,6 +39,9 @@ const Header = () => {
 
   return (
     <header className="header-home">
+      {/* RadialMenu - shows on hover over center of navbar */}
+      <RadialMenu />
+      
       <img
         src="/Logo.jpg"
         alt="Openwork Logo"

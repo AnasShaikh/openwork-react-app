@@ -34,6 +34,7 @@ import About from "./pages/About/About";
 import Profile from "./pages/Profile/Profile";
 import ProfileAbout from "./pages/ProfileAbout/ProfileAbout";
 import ProfileJobs from "./pages/ProfileJobs/ProfileJobs";
+import EditPicture from "./pages/EditPicture/EditPicture";
 import Payments from "./pages/Payments/Payments";
 import PaymentHistory from "./pages/PaymentHistory/PaymentHistory";
 import PaymentRefund from "./pages/PaymentRefund/PaymentRefund";
@@ -87,6 +88,7 @@ import ReferralEligible from "./pages/ReferralEligible/ReferralEligible";
 import ReferEarnNotEligible from "./pages/ReferEarnNotEligible/ReferEarnNotEligible";
 import ReferEarn from "./pages/ReferEarn/ReferEarn";
 import UserReferralSignIn from "./pages/UserReferralSignIn/UserReferralSignIn";
+import SkillVerification from "./pages/SkillVerification/SkillVerification";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -260,9 +262,10 @@ export default function App() {
           <Route path="/raise-dispute/:jobId" element={<RaiseDispute/>}/>
           <Route path="/job-taker-details/:jobId" element={<TakerJobDetails/>}/>
           <Route path="/about" element={<About/>}/>
-          <Route path="/profile/:address" element={<Profile/>}/>
-          <Route path="/profile/:address/about" element={<ProfileOwnerView/>}/>
-          <Route path="/profile/:address/jobs" element={<ProfileJobs/>}/>
+          <Route path="/profile" element={<Profile/>}/>
+          <Route path="/profile-about" element={<ProfileAbout/>}/>
+          <Route path="/profile-jobs" element={<ProfileJobs/>}/>
+          <Route path="/edit-picture" element={<EditPicture/>}/>
           <Route path="/payments/:jobId" element={<Payments/>} />
           <Route path="/payment-history/:jobId" element={<PaymentHistory/>} />
           <Route path="/payment-refund/:jobId" element={<PaymentRefund/>} />
@@ -317,6 +320,7 @@ export default function App() {
           <Route path="/refer-earn-not-eligible" element={<ReferEarnNotEligible/>} />
           <Route path="/refer-earn" element={<ReferEarn/>} />
           <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
+          <Route path="/skill-verification-page" element={<SkillVerification/>} />
         </Routes>
       </BrowserRouter>
     </Layout>

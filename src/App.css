@@ -35,6 +35,26 @@ body {
   font-family: 'Satoshi', sans-serif;
 }
 
+/* Global page wrapper for consistent blur effect */
+body > #root {
+  position: relative;
+  isolation: isolate;
+}
+
+body > #root > div {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Hide page content when radial menu is active */
+body.radial-menu-active .about-page-wrapper,
+body.radial-menu-active .about-form {
+  opacity: 0;
+  filter: blur(20px);
+  -webkit-filter: blur(20px);
+  transition: opacity 0.3s ease-out, filter 0.3s ease-out;
+}
+
 .container-home {
   position: relative;
   width: 100%;
