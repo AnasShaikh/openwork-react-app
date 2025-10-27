@@ -6,7 +6,6 @@ import JobsTable from "../../components/JobsTable/JobsTable";
 import "./SkillOracle.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import DetailButton from "../../components/DetailButton/DetailButton";
-import ProgressBar from "../../components/ProgressBar/ProgressBar";
 
 export default function SkillOracle() {
     const [members, setMembers] = useState([]);
@@ -147,7 +146,7 @@ export default function SkillOracle() {
                 'Oracles',
                 'Members',
                 'Disputes',
-                'Proposals/Applications'
+                'Proposals'
             ]
         }
     ];
@@ -195,8 +194,17 @@ export default function SkillOracle() {
                     <SkillBox title="+2" />
                 </div>,
                 <div className="experience">{displayExperience + " Years"}</div>,
-                <div className="hourly-rate experience-percent">
-                    <ProgressBar percent={displayPercent} />
+                <div className="vote-progress">
+                    <div className="progress-bar-container">
+                        <div 
+                            className="progress-bar-fill" 
+                            style={{ 
+                                width: `${displayPercent}%`,
+                                backgroundColor: displayPercent < 50 ? '#F44336' : displayPercent < 90 ? '#FFA500' : '#00C853'
+                            }}
+                        />
+                    </div>
+                    <span className="vote-percentage">{displayPercent}%</span>
                 </div>,
                 <div className="view-detail">
                     <DetailButton to={profileLink} imgSrc="/view.svg" alt="detail" />

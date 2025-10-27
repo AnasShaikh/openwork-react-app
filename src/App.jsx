@@ -51,6 +51,8 @@ import ApplyNow from "./pages/ApplyNow/ApplyNow";
 import JoinNow from "./pages/JoinNow/JoinNow";
 import SkillOracle from "./pages/SkillOracle/SkillOracle";
 import MembersSkillOracle from "./pages/MembersSkillOracle/MembersSkillOracle";
+import SkillOracleProposals from "./pages/SkillOracleProposals/SkillOracleProposals";
+import SkillOracleDisputes from "./pages/SkillOracleDisputes/SkillOracleDisputes";
 import MembersGovernance from "./pages/MembersGovernance/MembersGovernance";
 import RemoveMember from "./pages/RemoveMember/RemoveMember";
 import VotingHistory from "./pages/VotingHistory/VotingHistory";
@@ -287,6 +289,8 @@ export default function App() {
           <Route path="/skill-verification/:jobId" element={<GetSkillsVerified/>}/>
           <Route path="/skill-oracles" element={<SkillOracle/>} />
           <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />
+          <Route path="/skill-oracle-proposals" element={<SkillOracleProposals/>} />
+          <Route path="/skill-oracle-disputes" element={<SkillOracleDisputes/>} />
           <Route path="/members-governance/:jobId" element={<MembersGovernance/>} />
           <Route path="/remove-member/:jobId" element={<RemoveMember/>} />
           <Route path="/apply-now" element={<ApplyNow/>}/>

@@ -29,9 +29,10 @@ const DropDown = ({ label, options, customCSS, width, onOptionSelect }) => {
         'People': '/browse-talent',
         'Packages': '/profile-packages',
         'Oracles': '/skill-oracles',
-        'Members': '/members-skill-oracle',
-        'Disputes': '/disputes',
-        'Proposals/Applications': '/proposals',
+        'Members': '/members-skill-oracles',
+        'Disputes': '/skill-oracle-disputes',
+        'Proposals/Applications': '/skill-oracle-proposals',
+        'Proposals': '/skill-oracle-proposals',
         'Listings': '/browse-jobs',
         'Initiated': '/profile-jobs',
         'Applications': '/application-jobs'
