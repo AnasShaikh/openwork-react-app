@@ -9,7 +9,6 @@ const DropDown = ({ label, options, customCSS, width, onOptionSelect }) => {
 
   const toggleDropdown = (e) => {
     e.preventDefault();
-    if (disabled) return;
     setIsOpen(!isOpen);
   }
 
