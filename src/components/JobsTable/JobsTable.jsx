@@ -47,7 +47,7 @@ function Box({icon, title, number, showJoinButton, onJoinClick}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, hideBackButton, hidePostJob }) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, hideBackButton, hidePostJob, selectedColumns, onColumnToggle, allColumns }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -103,10 +103,20 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                     <SearchInput />
                     <div className="title-option">
                     {
-                        filterOptions.map((options, index) => (
-                            // <DropDown label={options.title} options={options.items} />
-                            <FilterOption label={options.title} options={options.items} />
-                        ))
+                        filterOptions.map((options, index) => {
+                            const isColumnSelector = options.title === "Table Columns";
+                            return (
+                                <FilterOption 
+                                    key={index}
+                                    label={options.title} 
+                                    options={options.items}
+                                    isColumnSelector={isColumnSelector}
+                                    selectedColumns={isColumnSelector ? selectedColumns : undefined}
+                                    onColumnToggle={isColumnSelector ? onColumnToggle : undefined}
+                                    allColumns={isColumnSelector ? allColumns : undefined}
+                                />
+                            );
+                        })
                     }   
                     {customButtonLabel ? 
                      <BlueButton label={customButtonLabel} icon={customButtonIcon} onClick={onCustomButtonClick || (() => {})} />

@@ -65,6 +65,7 @@ import ApplyJob from "./pages/ApplyJob/ApplyJob";
 import ViewReceivedApplication from "./pages/ViewReceivedApplication/ViewReceivedApplication";
 import ViewAnyApplication from "./pages/ViewAnyApplication/ViewAnyApplication";
 import ViewJobDetails from "./pages/ViewJobDetails/ViewJobDetails";
+import ViewJobApplications from "./pages/ViewJobApplications/ViewJobApplications";
 import ExistingMemberSkillOracle from "./pages/ExistingMemberSkillOracle/ExistingMemberSkillOracle";
 import DAO from "./pages/DAO/DAO";
 import JoinDAO from "./pages/JoinDAO/JoinDAO";
@@ -268,6 +269,7 @@ export default function App() {
           <Route path="/job-taker-details/:jobId" element={<TakerJobDetails/>}/>
           <Route path="/about" element={<About/>}/>
           <Route path="/profile" element={<Profile/>}/>
+          <Route path="/profile/:address" element={<ProfileOwnerView/>}/>
           <Route path="/profile-about" element={<ProfileAbout/>}/>
           <Route path="/profile-jobs" element={<ProfileJobs/>}/>
           <Route path="/profile-portfolio" element={<ProfilePortfolio/>}/>
@@ -280,7 +282,6 @@ export default function App() {
           <Route path="/payments/:jobId" element={<Payments/>} />
           <Route path="/payment-history/:jobId" element={<PaymentHistory/>} />
           <Route path="/payment-refund/:jobId" element={<PaymentRefund/>} />
-          <Route path="/profile-owner-view/:jobId" element={<ProfileOwnerView/>}/>
           <Route path="/skill-verification/:jobId" element={<GetSkillsVerified/>}/>
           <Route path="/skill-oracles" element={<SkillOracle/>} />
           <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />
@@ -301,6 +302,7 @@ export default function App() {
           <Route path="/view-received-application" element={<ViewReceivedApplication/>} />
           <Route path="/view-any-application" element={<ViewAnyApplication/>}/>
           <Route path="/view-job-details" element={<ViewJobDetails/>} />
+          <Route path="/view-job-applications/:jobId" element={<ViewJobApplications/>} />
           <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
           <Route path="/dao" element={<DAO/>} />
           <Route path="/join-dao" element={<JoinDAO/>} />

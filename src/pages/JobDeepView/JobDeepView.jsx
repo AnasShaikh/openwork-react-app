@@ -5,9 +5,61 @@ import contractABI from "../../ABIs/nowjc_ABI.json"; // Updated to use the corre
 import "./JobDeepView.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import Milestone from "../../components/Milestone/Milestone";
+import BlueButton from "../../components/BlueButton/BlueButton";
 
-const CONTRACT_ADDRESS = "0x3C597eae77aD652a20E3B54B5dE9D89c9c7016E3";
-const OP_SEPOLIA_RPC = "https://sepolia.optimism.io";
+const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
+const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
+
+// IPFS cache with 1-hour TTL
+const ipfsCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Multi-gateway IPFS fetch function with caching
+const fetchFromIPFS = async (hash, timeout = 5000) => {
+    // Check cache first
+    const cached = ipfsCache.get(hash);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        console.log(`✅ Using cached IPFS data for ${hash}`);
+        return cached.data;
+    }
+
+    const gateways = [
+        `https://ipfs.io/ipfs/${hash}`,
+        `https://gateway.pinata.cloud/ipfs/${hash}`,
+        `https://cloudflare-ipfs.com/ipfs/${hash}`,
+        `https://dweb.link/ipfs/${hash}`
+    ];
+
+    const fetchWithTimeout = (url, timeout) => {
+        return Promise.race([
+            fetch(url),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), timeout)
+            )
+        ]);
+    };
+
+    for (const gateway of gateways) {
+        try {
+            const response = await fetchWithTimeout(gateway, timeout);
+            if (response.ok) {
+                const data = await response.json();
+                // Cache the result
+                ipfsCache.set(hash, {
+                    data,
+                    timestamp: Date.now()
+                });
+                console.log(`📦 Cached IPFS data for ${hash}`);
+                return data;
+            }
+        } catch (error) {
+            console.warn(`Failed to fetch from ${gateway}:`, error.message);
+            continue;
+        }
+    }
+    
+    throw new Error(`Failed to fetch ${hash} from all gateways`);
+};
 
 function FileUpload() {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -39,9 +91,19 @@ function FileUpload() {
   );
 }
 
-function ATTACHMENTS({ title }) {
+function ATTACHMENTS({ title, ipfsHash }) {
+  const handleClick = () => {
+    if (ipfsHash) {
+      window.open(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`, '_blank');
+    }
+  };
+
   return (
-    <div className="attachment-form">
+    <div 
+      className="attachment-form" 
+      onClick={handleClick}
+      style={{ cursor: ipfsHash ? 'pointer' : 'default' }}
+    >
       <img src="/attachments.svg" alt="" />
       <span>{title}</span>
     </div>
@@ -110,27 +172,64 @@ export default function JobInfo() {
     setDropdownVisible(false);
   };
 
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
     async function fetchJobDetails() {
+      // Prevent duplicate fetches
+      if (hasFetchedRef.current) {
+        return;
+      }
+      hasFetchedRef.current = true;
+
       try {
         setLoading(true);
-        const web3 = new Web3(OP_SEPOLIA_RPC);
+        const web3 = new Web3(ARBITRUM_SEPOLIA_RPC);
         const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
-        // Fetch job details from the contract
-        const jobData = await contract.methods.getJob(jobId).call();
-        console.log("Job data from contract:", jobData);
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Fetch job details from the contract with retry logic
+        let jobData;
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            jobData = await contract.methods.getJob(jobId).call();
+            break;
+          } catch (error) {
+            if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+              retries--;
+              if (retries === 0) throw error;
+              console.warn(`Rate limited, retrying in ${3 - retries} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, (4 - retries) * 1000));
+            } else {
+              throw error;
+            }
+          }
+        }
+        console.log("🔍 Job data from NOWJC contract (Arbitrum):", jobData);
+        console.log("📋 Selected applicant:", jobData.selectedApplicant);
+        console.log("🔢 Selected application ID:", jobData.selectedApplicationId);
+        console.log("👥 Applicants array:", jobData.applicants);
+        console.log("💼 Job status:", jobData.status);
+        console.log("⏰ Job created at:", new Date(Number(jobData.createdAt) * 1000).toLocaleString());
+        
+        // Debug cross-chain state
+        const isSelectedApplicantSet = jobData.selectedApplicant && 
+          jobData.selectedApplicant !== "0x0000000000000000000000000000000000000000";
+        console.log("✅ Is selected applicant set?", isSelectedApplicantSet);
+        
+        if (!isSelectedApplicantSet) {
+          console.warn("⚠️ No selected applicant found - possible cross-chain sync issue");
+          console.log("🔄 Try refreshing in a few moments if job was just started");
+        }
 
         // Fetch job details from IPFS
         let jobDetails = {};
         try {
           if (jobData.jobDetailHash) {
-            const ipfsResponse = await fetch(
-              `https://gateway.pinata.cloud/ipfs/${jobData.jobDetailHash}`,
-            );
-            if (ipfsResponse.ok) {
-              jobDetails = await ipfsResponse.json();
-            }
+            jobDetails = await fetchFromIPFS(jobData.jobDetailHash);
           }
         } catch (ipfsError) {
           console.warn("Failed to fetch IPFS data:", ipfsError);
@@ -178,9 +277,9 @@ export default function JobInfo() {
             const milestone = jobData.finalMilestones[i];
             let status = "Pending";
 
-            if (i < jobData.currentMilestone - 1) {
+            if (i < Number(jobData.currentMilestone) - 1) {
               status = "Completed";
-            } else if (i === jobData.currentMilestone - 1) {
+            } else if (i === Number(jobData.currentMilestone) - 1) {
               status = "In Progress";
             }
 
@@ -192,11 +291,8 @@ export default function JobInfo() {
 
             try {
               if (milestone.descriptionHash) {
-                const milestoneResponse = await fetch(
-                  `https://gateway.pinata.cloud/ipfs/${milestone.descriptionHash}`,
-                );
-                if (milestoneResponse.ok) {
-                  const milestoneData = await milestoneResponse.json();
+                const milestoneData = await fetchFromIPFS(milestone.descriptionHash);
+                if (milestoneData) {
                   milestoneDetails.title =
                     milestoneData.title || milestoneDetails.title;
                   milestoneDetails.content =
@@ -245,24 +341,24 @@ export default function JobInfo() {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching job details:", error);
+        if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+          console.error("Rate limit exceeded. Please wait a moment and refresh the page.");
+        }
         setLoading(false);
+        hasFetchedRef.current = false; // Allow retry on error
       }
     }
 
-    if (jobId) {
+    if (jobId && !hasFetchedRef.current) {
       fetchJobDetails();
     }
+
+    // Cleanup function
+    return () => {
+      // Don't reset on unmount to prevent refetch on component remount
+    };
   }, [jobId]);
 
-  const fetchFromIPFS = async (hash) => {
-    try {
-      const response = await fetch(`https://gateway.pinata.cloud/ipfs/${hash}`);
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching data from IPFS:", error);
-      return {};
-    }
-  };
 
   const handleNavigation = () => {
     window.open(
@@ -395,10 +491,19 @@ export default function JobInfo() {
                         : "Not Assigned"}
                     </p>
                   </span>
-                  <a href="/profile" className="view-profile">
-                    <span>View Profile</span>
-                    <img src="/view_profile.svg" alt="" />
-                  </a>
+                  {job.selectedApplicant &&
+                  job.selectedApplicant !==
+                    "0x0000000000000000000000000000000000000000" ? (
+                    <a href="/profile" className="view-profile">
+                      <span>View Profile</span>
+                      <img src="/view_profile.svg" alt="" />
+                    </a>
+                  ) : (
+                    <Link to={`/view-job-applications/${jobId}`} className="view-profile">
+                      <span>View Applications</span>
+                      <img src="/view_profile.svg" alt="" />
+                    </Link>
+                  )}
                 </div>
               </div>
               <div className="detail-row">
@@ -426,8 +531,24 @@ export default function JobInfo() {
               <div className="category attachments">
                 <span>ATTACHMENTS</span>
                 <div className="upload-content">
-                  <ATTACHMENTS title={"Scope of work.pdf"} />
-                  <ATTACHMENTS title={"Reference 1.png"} />
+                  {job.attachments && job.attachments.length > 0 ? (
+                    job.attachments.map((attachment, index) => (
+                      <ATTACHMENTS 
+                        key={index}
+                        title={attachment.name} 
+                        ipfsHash={attachment.ipfsHash}
+                      />
+                    ))
+                  ) : (
+                    <div style={{ 
+                      padding: "12px", 
+                      color: "#666", 
+                      fontSize: "14px",
+                      fontStyle: "italic" 
+                    }}>
+                      No attachments
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="milestone-section">
@@ -462,6 +583,25 @@ export default function JobInfo() {
                   )}
                 </div>
               </div>
+              
+              {/* Apply Now Button - Only show if job is not assigned yet */}
+              {(!job.selectedApplicant || 
+                job.selectedApplicant === "0x0000000000000000000000000000000000000000") && (
+                <div style={{ marginTop: "24px", width: "100%" }}>
+                  <BlueButton
+                    label="Apply Now"
+                    style={{ 
+                      width: "100%", 
+                      justifyContent: "center",
+                      marginTop: "8px"
+                    }}
+                    onClick={() => {
+                      // Navigate to apply page with job ID
+                      window.location.href = `/apply-job?jobId=${jobId}`;
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

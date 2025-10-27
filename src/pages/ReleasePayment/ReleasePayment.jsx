@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
-import L1ABI from "../../L1ABI.json";
-import JobContractABI from "../../JobContractABI.json";
+import contractABI from "../../ABIs/nowjc_ABI.json";
+import lowjcABI from "../../ABIs/lowjc_ABI.json";
 import "./ReleasePayment.css";
 import PaymentItem from "../../components/PaymentItem/PaymentItem";
 import DropDown from "../../components/DropDown/DropDown";
@@ -40,6 +40,10 @@ export default function ReleasePayment() {
   const [walletAddress, setWalletAddress] = useState("");
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [loading, setLoading] = useState(true); // Initialize loading state
+  const [transactionStatus, setTransactionStatus] = useState("Click to release milestone payment");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+  const [currentMilestoneNumber, setCurrentMilestoneNumber] = useState(1);
 
   function formatWalletAddressH(address) {
     if (!address) return "";
@@ -115,61 +119,103 @@ export default function ReleasePayment() {
   useEffect(() => {
     async function fetchJobDetails() {
       try {
-        const web3 = new Web3("https://erpc.xinfin.network"); // Using the specified RPC endpoint
-        const contractAddress = "0x00844673a088cBC4d4B4D0d63a24a175A2e2E637";
-        const contract = new web3.eth.Contract(L1ABI, contractAddress);
+        console.log("🔍 Fetching job details for jobId:", jobId);
+        
+        // Use NOWJC contract on Arbitrum Sepolia
+        const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
+        const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS || "0x9E39B37275854449782F1a2a4524405cE79d6C1e";
+        
+        const web3 = new Web3(ARBITRUM_SEPOLIA_RPC);
+        const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
-        // Fetch job details
-        const jobDetails = await contract.methods.getJobDetails(jobId).call();
-        const ipfsHash = jobDetails.jobDetailHash;
-        const ipfsData = await fetchFromIPFS(ipfsHash);
+        // Fetch job details from NOWJC contract
+        const jobData = await contract.methods.getJob(jobId).call();
+        console.log("📋 Job data from NOWJC:", jobData);
 
-        // Fetch proposed amount using getApplicationProposedAmount
-        const proposedAmountWei = await contract.methods
-          .getApplicationProposedAmount(jobId)
-          .call();
+        // Fetch job details from IPFS
+        let jobDetails = {};
+        try {
+          if (jobData.jobDetailHash) {
+            jobDetails = await fetchFromIPFS(jobData.jobDetailHash);
+          }
+        } catch (ipfsError) {
+          console.warn("Failed to fetch IPFS data:", ipfsError);
+        }
 
-        // Fetch escrow amount using getJobEscrowAmount
-        const escrowAmountWei = await contract.methods
-          .getJobEscrowAmount(jobId)
-          .call();
+        // Calculate amounts from milestone payments (USDC with 6 decimals)
+        const totalBudget = jobData.milestonePayments.reduce((sum, milestone) => {
+          return sum + parseFloat(milestone.amount);
+        }, 0);
+        
+        const totalBudgetUSDC = (totalBudget / 1000000).toFixed(2); // Convert from USDC units
 
-        // Convert amounts from wei to ether
-        const proposedAmount = web3.utils.fromWei(proposedAmountWei, "ether");
-        const currentEscrowAmount = web3.utils.fromWei(escrowAmountWei, "ether");
-
-        const amountReleased = proposedAmount - currentEscrowAmount;
+        // For release payment, we need to check current milestone status
+        // This is a simplified version - you may need to add more logic based on milestone completion
+        const currentMilestone = jobData.currentMilestone ? Number(jobData.currentMilestone) : 0;
+        const releasableAmount = currentMilestone < jobData.milestonePayments.length 
+          ? (parseFloat(jobData.milestonePayments[currentMilestone]?.amount || 0) / 1000000).toFixed(2)
+          : "0.00";
 
         setJob({
           jobId,
-          employer: jobDetails.employer,
-          escrowAmount: currentEscrowAmount,
-          isJobOpen: jobDetails.isOpen,
-          totalEscrowAmount: proposedAmount,
-          amountLocked: currentEscrowAmount,
-          amountReleased: amountReleased,
-          ...ipfsData,
+          jobGiver: jobData.jobGiver,
+          selectedApplicant: jobData.selectedApplicant,
+          jobStatus: jobData.status,
+          totalBudget: totalBudgetUSDC,
+          currentMilestone,
+          releasableAmount,
+          milestonePayments: jobData.milestonePayments,
+          currentLockedAmount: jobData.currentLockedAmount || 0,
+          totalReleased: jobData.totalReleased || 0,
+          ...jobDetails,
         });
 
-        setLoading(false); // Stop loading animation after fetching data
+        console.log("✅ Job details loaded successfully");
+        setLoading(false);
       } catch (error) {
-        console.error("Error fetching job details:", error);
-        setLoading(false); // Ensure loading stops even if there is an error
+        console.error("❌ Error fetching job details:", error);
+        setLoading(false);
       }
     }
 
-    fetchJobDetails();
+    if (jobId) {
+      fetchJobDetails();
+    }
   }, [jobId]);
 
 
-  const fetchFromIPFS = async (hash) => {
-    try {
-      const response = await fetch(`https://gateway.pinata.cloud/ipfs/${hash}`);
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching data from IPFS:", error);
-      return {};
+  // Multi-gateway IPFS fetch function
+  const fetchFromIPFS = async (hash, timeout = 5000) => {
+    const gateways = [
+      `https://ipfs.io/ipfs/${hash}`,
+      `https://gateway.pinata.cloud/ipfs/${hash}`,
+      `https://cloudflare-ipfs.com/ipfs/${hash}`,
+      `https://dweb.link/ipfs/${hash}`
+    ];
+
+    const fetchWithTimeout = (url, timeout) => {
+      return Promise.race([
+        fetch(url),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), timeout)
+        )
+      ]);
+    };
+
+    for (const gateway of gateways) {
+      try {
+        const response = await fetchWithTimeout(gateway, timeout);
+        if (response.ok) {
+          const data = await response.json();
+          return data;
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch from ${gateway}:`, error.message);
+        continue;
+      }
     }
+    
+    throw new Error(`Failed to fetch ${hash} from all gateways`);
   };
 
   const handleNavigation = () => {
@@ -182,56 +228,321 @@ export default function ReleasePayment() {
     return roundedAmount.length > 5 ? roundedAmount.slice(0, 8) : roundedAmount;
   };
 
- 
-  const handleReleasePayment = async () => {
-      location.pathname = '/project-complete'
-    // if (window.ethereum) {
-    //   try {
-       
-    //     setLoadingT(true); // Start loader
-
-    //     const web3 = new Web3(window.ethereum);
-    //     await window.ethereum.request({ method: "eth_requestAccounts" });
-    //     const accounts = await web3.eth.getAccounts();
-    //     const fromAddress = accounts[0];
-
-    //     const jobContractAddress = "0xdEF4B440acB1B11FDb23AF24e099F6cAf3209a8d";
-    //     const jobContract = new web3.eth.Contract(
-    //       JobContractABI,
-    //       jobContractAddress
-    //     );
-
-    //     const amountInWei = web3.utils.toWei(releaseAmount, "ether");
-
-    //     jobContract.methods
-    //       .releasePartialPayment(jobId, amountInWei)
-    //       .send({
-    //         from: fromAddress,
-    //         gasPrice: await web3.eth.getGasPrice(),
-    //       })
-    //       .on("receipt", function (receipt) {
-    //         console.log("Transaction successful:", receipt);
-    //         alert("Payment released successfully!");
-    //         navigate(-1);
-    //       })
-    //       .on("error", function (error) {
-    //         console.error("Error releasing payment:", error);
-    //         alert("Error releasing payment. Check the console for details.");
-    //       })
-    //       .finally(() => {
-    //         setLoadingT(false); // Stop loader
-    //       });
-    //   } catch (error) {
-    //     console.error("Error releasing payment:", error);
-    //     alert("Error releasing payment. Check the console for details.");
-    //     setLoadingT(false); // Stop loader on error
-    //   }
-    // } else {
-    //   console.error("MetaMask not detected");
-    //   alert("MetaMask is not installed. Please install it to use this app.");
-    // }
+  // Helper to safely convert BigInt to Number
+  const safeNumber = (value) => {
+    if (typeof value === 'bigint') return Number(value);
+    return parseFloat(value) || 0;
   };
 
+ 
+  // Simplified payment release flow - backend handles CCTP processing
+  const handleReleasePayment = async () => {
+    if (!walletAddress) {
+      setTransactionStatus("❌ Please connect your wallet first");
+      return;
+    }
+
+    if (!job) {
+      setTransactionStatus("❌ Job data not loaded");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setTransactionStatus("🔄 Step 1/2: Releasing payment on OP Sepolia...");
+      
+      const OP_SEPOLIA_RPC = import.meta.env.VITE_OPTIMISM_SEPOLIA_RPC_URL;
+      const LOWJC_CONTRACT_ADDRESS = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS || "0x896a3Bc6ED01f549Fe20bD1F25067951913b793C";
+      const web3 = new Web3(window.ethereum);
+      
+      // Ensure user is on OP Sepolia
+      const chainId = await web3.eth.getChainId();
+      const opSepoliaChainId = 11155420;
+      
+      if (chainId !== opSepoliaChainId) {
+        setTransactionStatus("🔗 Switching to OP Sepolia network...");
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa37dc' }],
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xaa37dc',
+                chainName: 'OP Sepolia',
+                rpcUrls: [OP_SEPOLIA_RPC],
+              }],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+      }
+
+      const lowjcContract = new web3.eth.Contract(lowjcABI, LOWJC_CONTRACT_ADDRESS);
+      
+      // Get the amount to release (convert BigInt to string for web3.js)
+      const amount = (job.currentLockedAmount || 0).toString();
+      
+      // Get LayerZero fee quote
+      setTransactionStatus("💰 Getting LayerZero fee quote...");
+      const bridgeAddress = await lowjcContract.methods.bridge().call();
+      
+      const bridgeABI = [{
+        "inputs": [
+          {"type": "bytes", "name": "_payload"},
+          {"type": "bytes", "name": "_options"}
+        ],
+        "name": "quoteNativeChain",
+        "outputs": [{"type": "uint256", "name": "fee"}],
+        "stateMutability": "view",
+        "type": "function"
+      }];
+      
+      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+      const nativeOptions = "0x0003010011010000000000000000000000000007a120";
+      
+      // Encode payload for releasePaymentCrossChain (must match LOWJC's encoding)
+      const payload = web3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'uint256', 'uint32', 'address'],
+        ['releasePaymentCrossChain', walletAddress, jobId, amount, 2, job.selectedApplicant]
+      );
+      
+      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, nativeOptions).call();
+      console.log("💰 LayerZero quoted fee:", web3.utils.fromWei(quotedFee, 'ether'), "ETH");
+      
+      setTransactionStatus("💰 Releasing payment - Please confirm in MetaMask");
+      
+      const releasePaymentTx = await lowjcContract.methods.releasePaymentCrossChain(
+        jobId,
+        2,
+        job.selectedApplicant,
+        nativeOptions
+      ).send({
+        from: walletAddress,
+        value: quotedFee // Use quoted fee
+      });
+
+      console.log("✅ Payment release initiated:", releasePaymentTx.transactionHash);
+      
+      // Step 2: Send to backend for CCTP processing
+      setTransactionStatus("🔄 Step 2/2: Backend processing CCTP transfer...");
+      
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/release-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          jobId,
+          opSepoliaTxHash: releasePaymentTx.transactionHash
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setTransactionStatus("✅ Backend is processing payment! You can close this window.");
+        
+        // Optional: Poll for status updates
+        pollPaymentStatus(jobId, backendUrl);
+      } else {
+        throw new Error(result.error || 'Backend failed to start processing');
+      }
+
+    } catch (error) {
+      console.error("❌ Error releasing payment:", error);
+      
+      let errorMessage = error.message;
+      if (error.code === 4001) {
+        errorMessage = "Transaction cancelled by user";
+      } else if (error.message.includes("insufficient funds")) {
+        errorMessage = "Insufficient ETH for gas fees";
+      } else if (error.message.includes("network")) {
+        errorMessage = "Network switching failed - please switch to OP Sepolia manually";
+      }
+      
+      setTransactionStatus(`❌ Error: ${errorMessage}`);
+      setIsProcessing(false);
+    }
+  };
+
+  // Optional: Poll backend for status updates
+  const pollPaymentStatus = async (jobId, backendUrl, maxAttempts = 60) => {
+    let attempts = 0;
+    
+    const checkStatus = async () => {
+      if (attempts >= maxAttempts) {
+        setTransactionStatus("⏱️ Still processing... Check back later");
+        setIsProcessing(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/release-payment-status/${jobId}`);
+        const status = await response.json();
+        
+        if (status.success) {
+          if (status.status === 'completed') {
+            setTransactionStatus("🎉 Milestone payment released! You can now lock the next milestone.");
+            setIsProcessing(false);
+            return;
+          } else if (status.status === 'failed') {
+            setTransactionStatus(`❌ Payment failed: ${status.error || status.message}`);
+            setIsProcessing(false);
+            return;
+          } else {
+            // Still processing
+            setTransactionStatus(`🔄 ${status.message || 'Processing...'}`);
+            attempts++;
+            setTimeout(checkStatus, 5000); // Check every 5 seconds
+          }
+        }
+      } catch (error) {
+        console.warn("Status check failed:", error);
+        attempts++;
+        setTimeout(checkStatus, 5000);
+      }
+    };
+    
+    setTimeout(checkStatus, 5000); // Start checking after 5 seconds
+  };
+
+  // Lock next milestone function
+  const handleLockNextMilestone = async () => {
+    if (!walletAddress) {
+      setTransactionStatus("❌ Please connect your wallet first");
+      return;
+    }
+
+    if (!job) {
+      setTransactionStatus("❌ Job data not loaded");
+      return;
+    }
+
+    try {
+      setIsLocking(true);
+      setTransactionStatus(`🔒 Locking Milestone ${currentMilestoneNumber + 1}...`);
+      
+      const OP_SEPOLIA_RPC = import.meta.env.VITE_OPTIMISM_SEPOLIA_RPC_URL;
+      const LOWJC_CONTRACT_ADDRESS = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS || "0x896a3Bc6ED01f549Fe20bD1F25067951913b793C";
+      const USDC_ADDRESS = "0x5fd84259d66Cd46123540766Be93DFE6d43130D7"; // OP Sepolia USDC
+      const web3 = new Web3(window.ethereum);
+      
+      // Ensure user is on OP Sepolia
+      const chainId = await web3.eth.getChainId();
+      const opSepoliaChainId = 11155420;
+      
+      if (chainId !== opSepoliaChainId) {
+        setTransactionStatus("🔗 Switching to OP Sepolia network...");
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa37dc' }],
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xaa37dc',
+                chainName: 'OP Sepolia',
+                rpcUrls: [OP_SEPOLIA_RPC],
+              }],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+      }
+
+      // Get next milestone amount from job data
+      const nextMilestoneIndex = currentMilestoneNumber; // 0-indexed
+      if (nextMilestoneIndex >= job.milestonePayments.length) {
+        setTransactionStatus("❌ No more milestones to lock");
+        setIsLocking(false);
+        return;
+      }
+
+      const nextMilestoneAmount = job.milestonePayments[nextMilestoneIndex].amount;
+      
+      // Approve USDC spending
+      setTransactionStatus("💰 Approving USDC spending - Please confirm in MetaMask");
+      const usdcContract = new web3.eth.Contract(
+        [{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
+        USDC_ADDRESS
+      );
+      
+      await usdcContract.methods.approve(LOWJC_CONTRACT_ADDRESS, nextMilestoneAmount).send({
+        from: walletAddress
+      });
+
+      console.log("✅ USDC approval successful");
+      
+      // Get LayerZero fee quote for lockNextMilestone
+      setTransactionStatus("🔒 Getting LayerZero fee quote...");
+      const lowjcContract = new web3.eth.Contract(lowjcABI, LOWJC_CONTRACT_ADDRESS);
+      const bridgeAddress = await lowjcContract.methods.bridge().call();
+      
+      const bridgeABI = [{
+        "inputs": [
+          {"type": "bytes", "name": "_payload"},
+          {"type": "bytes", "name": "_options"}
+        ],
+        "name": "quoteNativeChain",
+        "outputs": [{"type": "uint256", "name": "fee"}],
+        "stateMutability": "view",
+        "type": "function"
+      }];
+      
+      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+      const nativeOptions = "0x0003010011010000000000000000000000000007a120";
+      
+      // Encode payload for lockNextMilestone
+      const payload = web3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'uint256'],
+        ['lockNextMilestone', walletAddress, jobId, nextMilestoneAmount]
+      );
+      
+      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, nativeOptions).call();
+      console.log("💰 LayerZero quoted fee:", web3.utils.fromWei(quotedFee, 'ether'), "ETH");
+      
+      setTransactionStatus("🔒 Locking milestone - Please confirm in MetaMask");
+      
+      const lockTx = await lowjcContract.methods.lockNextMilestone(
+        jobId,
+        nativeOptions
+      ).send({
+        from: walletAddress,
+        value: quotedFee // Use quoted fee
+      });
+
+      console.log("✅ Milestone locked:", lockTx.transactionHash);
+      
+      setTransactionStatus(`✅ Milestone ${currentMilestoneNumber + 1} locked successfully! You can now release it.`);
+      setCurrentMilestoneNumber(currentMilestoneNumber + 1);
+      setIsLocking(false);
+      
+    } catch (error) {
+      console.error("❌ Error locking milestone:", error);
+      
+      let errorMessage = error.message;
+      if (error.code === 4001) {
+        errorMessage = "Transaction cancelled by user";
+      } else if (error.message.includes("insufficient funds")) {
+        errorMessage = "Insufficient funds (need USDC + ETH for gas)";
+      } else if (error.message.includes("network")) {
+        errorMessage = "Network switching failed - please switch to OP Sepolia manually";
+      }
+      
+      setTransactionStatus(`❌ Error: ${errorMessage}`);
+      setIsLocking(false);
+    }
+  };
+
+  // Loading states
   if (loadingT) {
     return (
       <div className="loading-containerT">
@@ -281,10 +592,22 @@ export default function ReleasePayment() {
           <div className="release-payment-body">
             <div className="form-groupDC job-body">
               <div className="job-detail-sectionR">
-                <JobdetailItem title="AMOUNT PAID TO ESCROW" amount={job.totalEscrowAmount}/>
-                <JobdetailItem title="OTHER FEES" icon={true} amount={job.totalEscrowAmount}/>
-                <JobdetailItem title="TOTAL AMOUNT LOCKED" amount={job.amountLocked}/>
-                <JobdetailItem title="AMOUNT RELEASED" amount={job.amountReleased}/>
+                <JobdetailItem 
+                  title={`CURRENT MILESTONE #${currentMilestoneNumber}`} 
+                  amount={job.milestonePayments[currentMilestoneNumber - 1] ? formatAmount(safeNumber(job.milestonePayments[currentMilestoneNumber - 1].amount) / 1000000) : '0'}
+                />
+                <JobdetailItem 
+                  title="TOTAL MILESTONES" 
+                  amount={job.milestonePayments.length}
+                />
+                <JobdetailItem 
+                  title="AMOUNT RELEASED" 
+                  amount={formatAmount(safeNumber(job.totalReleased || 0) / 1000000)}
+                />
+                <JobdetailItem 
+                  title="AMOUNT LOCKED" 
+                  amount={formatAmount(safeNumber(job.currentLockedAmount || 0) / 1000000)}
+                />
               </div>
             </div>
             <div className="form-groupDC">
@@ -313,11 +636,37 @@ export default function ReleasePayment() {
               <img src="/xdc.svg" alt="USDC" className="usdc-icon" />
             </button> */}
             <div className="form-groupDC" style={{display:'flex', alignItems:'center', gap:'16px'}}>
-              <BlueButton label='Release' amount='250' style={{width: '242px', justifyContent:'center', padding: '8px 16px', borderRadius: '12px'}} onClick={handleReleasePayment}/>
-              <BlueButton label='Lock' amount='250' style={{width: '198px', justifyContent:'center', padding: '8px 16px', borderRadius: '12px'}}/>
+              <BlueButton 
+                label={isProcessing ? 'Processing...' : 'Release'} 
+                amount={job.milestonePayments[currentMilestoneNumber - 1] ? formatAmount(safeNumber(job.milestonePayments[currentMilestoneNumber - 1].amount) / 1000000) : '0'} 
+                style={{
+                  width: '242px', 
+                  justifyContent:'center', 
+                  padding: '8px 16px', 
+                  borderRadius: '12px',
+                  opacity: isProcessing ? 0.7 : 1,
+                  cursor: isProcessing ? 'not-allowed' : 'pointer'
+                }} 
+                onClick={handleReleasePayment}
+                disabled={isProcessing}
+              />
+              <BlueButton 
+                label={isLocking ? 'Locking...' : 'Lock Next'} 
+                amount={job.milestonePayments[currentMilestoneNumber] ? formatAmount(safeNumber(job.milestonePayments[currentMilestoneNumber].amount) / 1000000) : '0'} 
+                style={{
+                  width: '198px', 
+                  justifyContent:'center', 
+                  padding: '8px 16px', 
+                  borderRadius: '12px',
+                  opacity: isLocking ? 0.7 : 1,
+                  cursor: isLocking ? 'not-allowed' : 'pointer'
+                }}
+                onClick={handleLockNextMilestone}
+                disabled={isLocking}
+              />
             </div>
             <div className="warning-form">
-              <Warning content={"Once the first milestone is done, tokens are also to be paid for the next milestone, along with releasing the payment for the current milestone."} />
+              <Warning content={transactionStatus} />
             </div>
           </div>
         </div>

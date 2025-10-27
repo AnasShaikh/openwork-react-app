@@ -15,6 +15,6 @@ export default defineConfig({
       ext: '.gz',
     })],
   server: {
-    host: '0.0.0.0',
+    host: '0.0.0.0'
   }
 })

@@ -9,8 +9,8 @@ import MenuItem from "../../components/MenuItem";
 import ToolTipContent from "../../components/ToolTipContent/ToolTipContent";
 import ToolTipMilestone from "../../components/ToolTipMilestone/ToolTipMilestone";
 
-const CONTRACT_ADDRESS = "0x3C597eae77aD652a20E3B54B5dE9D89c9c7016E3";
-const OP_SEPOLIA_RPC = "https://sepolia.optimism.io";
+const CONTRACT_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
+const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 
 const MILESTONETOOLTIPITEMS = [
   {
@@ -137,7 +137,7 @@ export default function SingleJobDetails() {
     async function fetchJobDetails() {
       try {
         setLoading(true);
-        const web3 = new Web3(OP_SEPOLIA_RPC);
+        const web3 = new Web3(ARBITRUM_SEPOLIA_RPC);
         const contract = new web3.eth.Contract(contractABI, CONTRACT_ADDRESS);
 
         // Fetch job details from the contract
@@ -148,15 +148,43 @@ export default function SingleJobDetails() {
         let jobDetails = {};
         try {
           if (jobData.jobDetailHash) {
-            const ipfsResponse = await fetch(
+            console.log("📄 Fetching IPFS data from hash:", jobData.jobDetailHash);
+            // Try multiple IPFS gateways in case of rate limiting
+            const gateways = [
+              `https://ipfs.io/ipfs/${jobData.jobDetailHash}`,
               `https://gateway.pinata.cloud/ipfs/${jobData.jobDetailHash}`,
-            );
+              `https://cloudflare-ipfs.com/ipfs/${jobData.jobDetailHash}`,
+              `https://dweb.link/ipfs/${jobData.jobDetailHash}`
+            ];
+            
+            let ipfsResponse = null;
+            for (const gateway of gateways) {
+              try {
+                console.log("🔗 Trying gateway:", gateway);
+                ipfsResponse = await fetch(gateway);
+                if (ipfsResponse.ok) {
+                  console.log("✅ Gateway successful:", gateway);
+                  break;
+                }
+              } catch (e) {
+                console.log("❌ Gateway failed:", gateway, e.message);
+                continue;
+              }
+            }
             if (ipfsResponse.ok) {
               jobDetails = await ipfsResponse.json();
+              console.log("📋 IPFS jobDetails received:", jobDetails);
+              console.log("📝 Job title from IPFS:", jobDetails.title);
+              console.log("📄 Job description from IPFS:", jobDetails.description);
+              console.log("💰 Job skills from IPFS:", jobDetails.skills);
+            } else {
+              console.log("❌ IPFS response not ok:", ipfsResponse.status);
             }
+          } else {
+            console.log("❌ No jobDetailHash found in contract data");
           }
         } catch (ipfsError) {
-          console.warn("Failed to fetch IPFS data:", ipfsError);
+          console.warn("❌ Failed to fetch IPFS data:", ipfsError);
         }
 
         // Fetch job giver and job taker profiles
@@ -247,7 +275,7 @@ export default function SingleJobDetails() {
           status: jobData.status,
           milestones: jobData.finalMilestones,
           currentMilestone: currentMilestone,
-          totalMilestones: jobData.finalMilestones.length,
+          totalMilestones: jobData.milestonePayments.length,
           jobGiverProfile,
           jobTakerProfile,
           contractId: CONTRACT_ADDRESS,
