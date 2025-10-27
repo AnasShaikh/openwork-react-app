@@ -37,6 +37,17 @@ const DropDown = ({ label, options, customCSS, width, onOptionSelect }) => {
         'Initiated': '/profile-jobs',
         'Applications': '/application-jobs'
       };
+
+      // Handle DAO context specifically
+      if (option === 'Members' && window.location.pathname.includes('/dao')) {
+        navigate('/dao-members');
+        return;
+      }
+
+      if (option === 'Proposals' && window.location.pathname.includes('/dao')) {
+        navigate('/dao');
+        return;
+      }
       
       if (routeMap[option]) {
         navigate(routeMap[option]);

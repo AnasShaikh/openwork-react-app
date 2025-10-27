@@ -53,6 +53,7 @@ import SkillOracle from "./pages/SkillOracle/SkillOracle";
 import MembersSkillOracle from "./pages/MembersSkillOracle/MembersSkillOracle";
 import SkillOracleProposals from "./pages/SkillOracleProposals/SkillOracleProposals";
 import SkillOracleDisputes from "./pages/SkillOracleDisputes/SkillOracleDisputes";
+import DAOMembers from "./pages/DAOMembers/DAOMembers";
 import MembersGovernance from "./pages/MembersGovernance/MembersGovernance";
 import RemoveMember from "./pages/RemoveMember/RemoveMember";
 import VotingHistory from "./pages/VotingHistory/VotingHistory";
@@ -291,6 +292,7 @@ export default function App() {
           <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />
           <Route path="/skill-oracle-proposals" element={<SkillOracleProposals/>} />
           <Route path="/skill-oracle-disputes" element={<SkillOracleDisputes/>} />
+          <Route path="/dao-members" element={<DAOMembers/>} />
           <Route path="/members-governance/:jobId" element={<MembersGovernance/>} />
           <Route path="/remove-member/:jobId" element={<RemoveMember/>} />
           <Route path="/apply-now" element={<ApplyNow/>}/>
