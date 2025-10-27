@@ -34,6 +34,7 @@ import About from "./pages/About/About";
 import Profile from "./pages/Profile/Profile";
 import ProfileAbout from "./pages/ProfileAbout/ProfileAbout";
 import ProfileJobs from "./pages/ProfileJobs/ProfileJobs";
+import ApplicationJobs from "./pages/ApplicationJobs/ApplicationJobs";
 import ProfilePortfolio from "./pages/ProfilePortfolio/ProfilePortfolio";
 import ProfilePortfolioOwner from "./pages/ProfilePortfolioOwner/ProfilePortfolioOwner";
 import ViewWorkProfile from "./pages/ViewWorkProfile/ViewWorkProfile";
@@ -272,6 +273,7 @@ export default function App() {
           <Route path="/profile/:address" element={<ProfileOwnerView/>}/>
           <Route path="/profile-about" element={<ProfileAbout/>}/>
           <Route path="/profile-jobs" element={<ProfileJobs/>}/>
+          <Route path="/application-jobs" element={<ApplicationJobs/>}/>
           <Route path="/profile-portfolio" element={<ProfilePortfolio/>}/>
           <Route path="/profile-portfolio-owner" element={<ProfilePortfolioOwner/>}/>
           <Route path="/view-work-profile/:id" element={<ViewWorkProfile/>}/>

@@ -34,7 +34,7 @@ const DropDown = ({ label, options, customCSS, width, onOptionSelect }) => {
         'Proposals/Applications': '/proposals',
         'Listings': '/browse-jobs',
         'Initiated': '/profile-jobs',
-        'Applications': '/applications'
+        'Applications': '/application-jobs'
       };
       
       if (routeMap[option]) {
