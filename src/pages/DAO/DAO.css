@@ -158,3 +158,11 @@
     animation: fadeInUp 0.5s ease-out 0.8s backwards;
 }
 /* changes*/
+
+/* View Detail Button Positioning */
+.view-detail {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-right: 32px;
+}

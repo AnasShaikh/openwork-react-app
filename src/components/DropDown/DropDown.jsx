@@ -29,13 +29,25 @@ const DropDown = ({ label, options, customCSS, width, onOptionSelect }) => {
         'People': '/browse-talent',
         'Packages': '/profile-packages',
         'Oracles': '/skill-oracles',
-        'Members': '/members-skill-oracle',
-        'Disputes': '/disputes',
-        'Proposals/Applications': '/proposals',
+        'Members': '/members-skill-oracles',
+        'Disputes': '/skill-oracle-disputes',
+        'Proposals/Applications': '/skill-oracle-proposals',
+        'Proposals': '/skill-oracle-proposals',
         'Listings': '/browse-jobs',
         'Initiated': '/profile-jobs',
-        'Applications': '/applications'
+        'Applications': '/application-jobs'
       };
+
+      // Handle DAO context specifically
+      if (option === 'Members' && window.location.pathname.includes('/dao')) {
+        navigate('/dao-members');
+        return;
+      }
+
+      if (option === 'Proposals' && window.location.pathname.includes('/dao')) {
+        navigate('/dao');
+        return;
+      }
       
       if (routeMap[option]) {
         navigate(routeMap[option]);

@@ -3,7 +3,6 @@ import JobsTable from "../../components/JobsTable/JobsTable";
 import "./MembersSkillOracle.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import DetailButton from "../../components/DetailButton/DetailButton";
-import ProgressBar from "../../components/ProgressBar/ProgressBar";
 
 export default function MembersSkillOracle() {
     //   const [jobs, setJobs] = useState([]);
@@ -22,7 +21,8 @@ export default function MembersSkillOracle() {
             rating: '4.9',
             skills: 'UX Design',
             experience: '4',
-            prcent: '70'
+            prcent: 70,
+            color: '#FFA500'
         },
         {
             id: 1,
@@ -30,39 +30,44 @@ export default function MembersSkillOracle() {
             rating: '4.9',
             skills: 'UX Design',
             experience: '4',
-            prcent: '90'
+            prcent: 90,
+            color: '#00C853'
         },
         {
-            id: 0,
+            id: 2,
             name: 'Mollie Hall',
             rating: '4.9',
             skills: 'UX Design',
             experience: '4',
-            prcent: '40'
+            prcent: 40,
+            color: '#F44336'
         },
         {
-            id: 0,
+            id: 3,
             name: 'Mollie Hall',
             rating: '4.9',
             skills: 'UX Design',
             experience: '4',
-            prcent: '60'
+            prcent: 60,
+            color: '#FFA500'
         },
         {
-            id: 0,
+            id: 4,
             name: 'Mollie Hall',
             rating: '4.9',
             skills: 'UX Design',
             experience: '4',
-            prcent: '20'
+            prcent: 20,
+            color: '#F44336'
         },
         {
-            id: 0,
+            id: 5,
             name: 'Mollie Hall',
             rating: '4.9',
             skills: 'UX Design',
             experience: '4',
-            prcent: '80'
+            prcent: 80,
+            color: '#00C853'
         },
         {
             id: 0,
@@ -90,7 +95,7 @@ export default function MembersSkillOracle() {
                 'Oracles',
                 'Members',
                 'Disputes',
-                'Proposals/Applications'
+                'Proposals'
             ]
         }
     ]
@@ -132,8 +137,17 @@ export default function MembersSkillOracle() {
                     <SkillBox title="+2"/>
                 </div>,
                 <div className="experience">{user.experience+" Years"}</div>,
-                <div className="hourly-rate experience-percent">
-                    <ProgressBar percent={user.prcent}/>
+                <div className="vote-progress">
+                    <div className="progress-bar-container">
+                        <div 
+                            className="progress-bar-fill" 
+                            style={{ 
+                                width: `${user.prcent}%`,
+                                backgroundColor: user.color 
+                            }}
+                        />
+                    </div>
+                    <span className="vote-percentage">{user.prcent}%</span>
                 </div>,
                 <div className="view-detail">
                     <DetailButton to={`/members-governance/0`} title={'Governance'} imgSrc="/view.svg" alt="detail"/>

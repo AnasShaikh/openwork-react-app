@@ -7,7 +7,10 @@ const ChainSelector = () => {
 
   const chains = [
     { name: "Arbitrum", icon: "/arbitrum-chain.png" },
-    { name: "Ethereum", icon: "/ethereum-chain.png" }
+    { name: "Ethereum", icon: "/ethereum-chain.png" },
+    { name: "Polygon", icon: "/polygon-chain.png" },
+    { name: "Optimism", icon: "/optimism-chain.png" },
+    { name: "Base", icon: "/base-chain.png" }
   ];
 
   const handleChainSelect = (chainName) => {

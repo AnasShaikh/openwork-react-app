@@ -71,6 +71,7 @@ export default function BrowseJobs() {
     const [web3, setWeb3] = useState(null);
     const [contract, setContract] = useState(null);
     const hasFetchedRef = React.useRef(false);
+    const navigate = useNavigate();
 
     // Column configuration
     const allColumns = [

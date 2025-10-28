@@ -34,6 +34,7 @@ import About from "./pages/About/About";
 import Profile from "./pages/Profile/Profile";
 import ProfileAbout from "./pages/ProfileAbout/ProfileAbout";
 import ProfileJobs from "./pages/ProfileJobs/ProfileJobs";
+import ApplicationJobs from "./pages/ApplicationJobs/ApplicationJobs";
 import ProfilePortfolio from "./pages/ProfilePortfolio/ProfilePortfolio";
 import ProfilePortfolioOwner from "./pages/ProfilePortfolioOwner/ProfilePortfolioOwner";
 import ViewWorkProfile from "./pages/ViewWorkProfile/ViewWorkProfile";
@@ -50,6 +51,9 @@ import ApplyNow from "./pages/ApplyNow/ApplyNow";
 import JoinNow from "./pages/JoinNow/JoinNow";
 import SkillOracle from "./pages/SkillOracle/SkillOracle";
 import MembersSkillOracle from "./pages/MembersSkillOracle/MembersSkillOracle";
+import SkillOracleProposals from "./pages/SkillOracleProposals/SkillOracleProposals";
+import SkillOracleDisputes from "./pages/SkillOracleDisputes/SkillOracleDisputes";
+import DAOMembers from "./pages/DAOMembers/DAOMembers";
 import MembersGovernance from "./pages/MembersGovernance/MembersGovernance";
 import RemoveMember from "./pages/RemoveMember/RemoveMember";
 import VotingHistory from "./pages/VotingHistory/VotingHistory";
@@ -272,6 +276,7 @@ export default function App() {
           <Route path="/profile/:address" element={<ProfileOwnerView/>}/>
           <Route path="/profile-about" element={<ProfileAbout/>}/>
           <Route path="/profile-jobs" element={<ProfileJobs/>}/>
+          <Route path="/application-jobs" element={<ApplicationJobs/>}/>
           <Route path="/profile-portfolio" element={<ProfilePortfolio/>}/>
           <Route path="/profile-portfolio-owner" element={<ProfilePortfolioOwner/>}/>
           <Route path="/view-work-profile/:id" element={<ViewWorkProfile/>}/>
@@ -285,6 +290,9 @@ export default function App() {
           <Route path="/skill-verification/:jobId" element={<GetSkillsVerified/>}/>
           <Route path="/skill-oracles" element={<SkillOracle/>} />
           <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />
+          <Route path="/skill-oracle-proposals" element={<SkillOracleProposals/>} />
+          <Route path="/skill-oracle-disputes" element={<SkillOracleDisputes/>} />
+          <Route path="/dao-members" element={<DAOMembers/>} />
           <Route path="/members-governance/:jobId" element={<MembersGovernance/>} />
           <Route path="/remove-member/:jobId" element={<RemoveMember/>} />
           <Route path="/apply-now" element={<ApplyNow/>}/>
