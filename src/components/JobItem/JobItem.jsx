@@ -1,11 +1,18 @@
 import React from "react";
 import Button from "../Button/Button";
+import { useNavigate } from "react-router-dom";
 
 import './JobItem.css'
 
-export default function JobItem ({icon, inform, devName,time, payAmount}) {
+export default function JobItem ({icon, inform, devName,time, payAmount, jobId}) {
+    const navigate = useNavigate();
+    
     const viewWork =() => {
-        location.pathname = '/view-work/0';
+        if (jobId) {
+            navigate(`/view-job-details/${jobId}`);
+        } else {
+            navigate('/view-work/0');
+        }
     }
     return (
         <div className="jobItem-form">

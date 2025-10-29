@@ -10,11 +10,11 @@ const RadialMenu = () => {
   }, []);
 
   const menuItems = [
-    { id: 'home', label: 'Home', icon: '/menu-home-icon.svg', position: 'center-top', route: '/' },
     { id: 'profile', label: 'My Profile', icon: '/menu-profile-icon.svg', position: 'left-top', route: '/profile' },
-    { id: 'jobs', label: 'Jobs', icon: '/menu-jobs-icon.svg', position: 'left-middle', route: '/browse-jobs' },
-    { id: 'about', label: 'About', icon: '/menu-work-icon.svg', position: 'right-top', route: '/about' },
+    { id: 'about', label: 'About', icon: '/openwork-job-icon.svg', position: 'right-top', route: '/about' },
+    { id: 'jobs', label: 'Jobs', icon: '/menu-work-icon.svg', position: 'left-middle', route: '/browse-jobs' },
     { id: 'governance', label: 'Governance', icon: '/menu-governance-icon.svg', position: 'right-middle', route: '/governance' },
+    { id: 'home', label: 'Home', icon: '/menu-home-icon.svg', position: 'center-bottom', route: '/' },
   ];
 
   const handleMenuClick = (route) => {
@@ -32,8 +32,6 @@ const RadialMenu = () => {
           <img src="/menu-circle.svg" alt="" />
         </div>
 
-        {/* Rotating Radiant Glow - Commented out for now */}
-        {/* <img src="/RadiantGlow.png" alt="Radiant Glow" className="radiant-glow-menu" /> */}
 
         {/* Menu Text */}
         <span className="menu-text">MENU</span>
@@ -42,6 +40,7 @@ const RadialMenu = () => {
           {menuItems.map((item) => (
             <div
               key={item.id}
+              id={item.id}
               className={`radial-menu-item ${item.position}`}
               onClick={() => handleMenuClick(item.route)}
             >

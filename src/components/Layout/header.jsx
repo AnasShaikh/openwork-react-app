@@ -47,7 +47,7 @@ const Header = () => {
         onMouseEnter={() => setShowRadialMenu(true)}
         onMouseLeave={() => setShowRadialMenu(false)}
         style={{ 
-          position: 'fixed', 
+          position: 'absolute', 
           left: '50%', 
           transform: 'translateX(-50%)', 
           top: 0, 

@@ -309,7 +309,7 @@ export default function App() {
           <Route path="/apply-job" element={<ApplyJob/>} />
           <Route path="/view-received-application" element={<ViewReceivedApplication/>} />
           <Route path="/view-any-application" element={<ViewAnyApplication/>}/>
-          <Route path="/view-job-details" element={<ViewJobDetails/>} />
+          <Route path="/view-job-details/:jobId" element={<ViewJobDetails/>} />
           <Route path="/view-job-applications/:jobId" element={<ViewJobApplications/>} />
           <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
           <Route path="/dao" element={<DAO/>} />

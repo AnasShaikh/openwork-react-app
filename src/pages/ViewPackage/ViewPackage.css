@@ -59,7 +59,7 @@
 /* Body */
 .view-package-body {
     background-color: #ffffff;
-    border: 2px solid rgba(0, 0, 0, 0.04);
+    border: 2px solid #ffffff;
     border-radius: 0 0 24px 24px;
     padding: 32px;
     display: flex;
@@ -150,8 +150,8 @@
 }
 
 .view-package-view-profile img {
-    width: 16px;
-    height: 16px;
+    width: 8px;
+    height: 10px;
 }
 
 /* Cost */

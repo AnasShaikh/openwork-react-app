@@ -151,7 +151,7 @@ export default function ApplicationJobs() {
                     <img src="/xdc.svg" alt="XDC" />
                 </div>,
                 <div className="view-detail">
-                    <DetailButton to={`/application-details/${application.id}`} imgSrc="/view.svg" alt="detail"  />
+                    <DetailButton to={`/view-job-details/${application.id}`} imgSrc="/view.svg" alt="detail"  />
                 </div>
             ];
         });

@@ -1,5 +1,5 @@
 .chain-selector-wrapper {
-  position: fixed;
+  position: absolute;
   top: 28px;
   left: 80px;
   z-index: 200;
@@ -39,7 +39,7 @@
 
 /* Chain Dropdown Tooltip */
 .chain-dropdown-tooltip {
-  position: fixed;
+  position: absolute;
   top: 64px;
   left: 37px;
   z-index: 201;

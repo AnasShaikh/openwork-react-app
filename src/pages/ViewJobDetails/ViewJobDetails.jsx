@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
 import L1ABI from "../../L1ABI.json"; // Import the L1 contract ABI
 import "./ViewJobDetails.css";
@@ -43,13 +43,23 @@ function ATTACHMENTS({title}) {
 }
 
 export default function ViewJobDetails() {
+  const navigate = useNavigate();
+  const { jobId } = useParams();
+
+  const handleBack = () => {
+    navigate(-1); // Go back to previous page
+  };
+
   return (
     <>
       <div className="info-container">
         <div className="info-content">
           <div className="info-cardJ">
             <div className="sectionTitle">
-                <BackButton to={`/members-skill-oracles`} style={{gap: '20px'}} title="UI for OpenWork"/>
+                <div onClick={handleBack} style={{cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '20px'}}>
+                  <img src="/back.svg" alt="Back" style={{width: '24px', height: '24px'}} />
+                  <span style={{fontSize: '18px', fontWeight: '600'}}>UI for OpenWork</span>
+                </div>
             </div>
             <div className="sectionBody">
               <div className="detail-row">
