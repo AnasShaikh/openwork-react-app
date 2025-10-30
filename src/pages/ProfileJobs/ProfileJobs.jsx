@@ -151,7 +151,7 @@ export default function ProfileJobs() {
                     <img src="/xdc.svg" alt="Budget" />
                 </div>,
                 <div className="view-detail">
-                    <DetailButton to={`/job-details/${job.id}`} imgSrc="/view.svg" alt="detail"  />
+                    <DetailButton to={`/view-job-details/${job.id}`} imgSrc="/view.svg" alt="detail"  />
                 </div>
             ];
         });

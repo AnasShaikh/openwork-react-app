@@ -90,7 +90,7 @@
   transform: translate(-50%, -50%);
   font-family: 'Satoshi', sans-serif;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12px;
   letter-spacing: 0.56px;
   color: #B3B3B3;
   text-align: center;
@@ -103,11 +103,11 @@
   opacity: 1;
 }
 
-/* Large Background Circle */
+/* Large Background Circle - Moved down a bit */
 .menu-background-circle {
   position: fixed;
   left: 50%;
-  top: -170px;
+  top: -120px;
   transform: translateX(-50%);
   width: 466px;
   height: 466px;
@@ -121,11 +121,11 @@
   object-fit: contain;
 }
 
-/* Menu Items Container */
+/* Menu Items Container - Adjusted to match */
 .radial-menu-items {
   position: fixed;
   left: 50%;
-  top: -140px;
+  top: -90px;
   transform: translateX(-50%);
   width: 520px;
   height: 520px;
@@ -162,45 +162,45 @@
     0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-/* Menu Item Positions - Curved bottom layout matching Figma */
-.radial-menu-item.center-top {
-  left: 50%;
-  bottom: 53px;
-  transform: translateX(-50%);
-  animation: smoothFadeIn 0.4s ease-out 0.1s backwards;
-}
-
-.radial-menu-item.center-top:hover {
-  transform: translateX(-50%) scale(1.15);
-}
-
+/* Menu Item Positions - Correct circular curve alignment */
 .radial-menu-item.left-top {
-  left: 16px;
-  bottom: 165px;
+  left: 2px;
+  bottom: 200px;
   animation: smoothFadeIn 0.4s ease-out 0s backwards;
 }
 
+.radial-menu-item.right-top {
+  right: 2px;
+  bottom: 200px;
+  animation: smoothFadeIn 0.4s ease-out 0.2s backwards;
+}
+
 .radial-menu-item.left-middle {
-  left: 98px;
+  left: 65px;
   bottom: 85px;
   animation: smoothFadeIn 0.4s ease-out 0.05s backwards;
 }
 
-.radial-menu-item.right-top {
-  right: 16px;
-  bottom: 165px;
-  animation: smoothFadeIn 0.4s ease-out 0.2s backwards;
-}
-
 .radial-menu-item.right-middle {
-  right: 98px;
+  right: 65px;
   bottom: 85px;
   animation: smoothFadeIn 0.4s ease-out 0.15s backwards;
 }
 
+.radial-menu-item.center-bottom {
+  left: 50%;
+  bottom: 50px;
+  transform: translateX(-50%);
+  animation: smoothFadeIn 0.4s ease-out 0.1s backwards;
+}
+
+.radial-menu-item.center-bottom:hover {
+  transform: translateX(-50%) scale(1.15);
+}
+
 /* Menu Item Icon */
 .menu-item-icon {
-  width: 16px;
+  width: 18px;
   height: 16px;
   display: flex;
   align-items: center;
@@ -211,6 +211,11 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* Specific icon width for About icon only */
+.radial-menu-item#about .menu-item-icon {
+  width: 20px;
 }
 
 /* Menu Item Label */

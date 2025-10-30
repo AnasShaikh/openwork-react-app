@@ -217,7 +217,7 @@ export default function ViewJobs() {
                         </td>
                         <td>{job.isJobOpen ? "Open" : "Closed"}</td>
                         <td className="view-icon-cell">
-                          <Link to={`/job-details/${job.jobId}`}>
+                          <Link to={`/view-job-details/${job.jobId}`}>
                             <img
                               src="/view.svg"
                               alt="View"
