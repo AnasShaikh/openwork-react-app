@@ -17,70 +17,36 @@
   pointer-events: all;
 }
 
-/* Rotating Radiant Glow - Same as home page */
-.radiant-glow-menu {
-  position: absolute;
-  width: 558px;
-  height: 558px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  animation: rotate-glow-menu 4s linear infinite;
-  pointer-events: none;
-}
+/* 🎯 Circular Expanding Menu Animation */
 
-@keyframes rotate-glow-menu {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
+/* Background Circle Expansion - Barely visible glow */
+@keyframes circleExpand {
+  0% {
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
   }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
+  50% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
   }
 }
 
-/* Core Circle - Same as home page */
-.core-menu {
-  position: absolute;
-  width: 440px;
-  height: 440px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: opacity 0.5s ease;
-}
-
-.core-image-menu {
-  position: absolute;
-  width: 440px;
-  height: 440px;
-  top: -1px;
-  left: -1px;
-  transition: opacity 0.5s ease;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.core-hovered-menu {
-  position: absolute;
-  width: 440px;
-  height: 440px;
-  top: -1px;
-  left: -1px;
-  opacity: 0;
-  z-index: 2;
-  transition: opacity 0.8s ease-in-out;
-  pointer-events: none;
-}
-
-.radial-menu-wrapper:hover .core-hovered-menu {
-  opacity: 1;
+/* Background Circle Collapse - Reverse */
+@keyframes circleCollapse {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
+  }
 }
 
 .menu-text {
@@ -96,11 +62,43 @@
   text-align: center;
   z-index: 10002;
   pointer-events: none;
-  opacity: 1;
+  opacity: 0;
+}
+
+@keyframes menuFadeIn {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .radial-menu-wrapper.menu-open .menu-text {
   opacity: 1;
+  animation: menuFadeIn 0.5s ease-in-out 0.1s forwards;
+}
+
+.radial-menu-wrapper.menu-closing .menu-text {
+  animation: menuFadeOut 0.5s ease-in-out forwards;
+}
+
+@keyframes menuFadeOut {
+  0% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Large Background Circle - Moved down a bit */
@@ -108,11 +106,17 @@
   position: fixed;
   left: 50%;
   top: -120px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(0);
   width: 466px;
   height: 466px;
   z-index: 9999;
   pointer-events: none;
+  animation: circleExpand 0.6s ease-in-out forwards;
+  opacity: 0;
+}
+
+.radial-menu-wrapper.menu-closing .menu-background-circle {
+  animation: circleCollapse 0.6s ease-in-out forwards;
 }
 
 .menu-background-circle img {
@@ -121,16 +125,50 @@
   object-fit: contain;
 }
 
-/* Menu Items Container - Adjusted to match */
+/* Menu Items Container - Grouped with background circle */
 .radial-menu-items {
   position: fixed;
   left: 50%;
   top: -90px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(0);
   width: 520px;
   height: 520px;
   pointer-events: none;
   z-index: 10002;
+  opacity: 0;
+  animation: groupedExpand 0.6s ease-in-out forwards;
+}
+
+.radial-menu-wrapper.menu-closing .radial-menu-items {
+  animation: groupedCollapse 0.6s ease-in-out forwards;
+}
+
+@keyframes groupedExpand {
+  0% {
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes groupedCollapse {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
+  }
 }
 
 /* Individual Menu Item */
@@ -152,6 +190,12 @@
   box-shadow: 
     0 4px 12px rgba(0, 0, 0, 0.08),
     0 0 20px rgba(18, 70, 255, 0.05);
+  opacity: 0;
+  animation: itemFadeIn 0.5s ease-in-out 0.15s forwards;
+}
+
+.radial-menu-wrapper.menu-closing .radial-menu-item {
+  animation: itemFadeOut 0.5s ease-in-out forwards;
 }
 
 .radial-menu-item:hover {
@@ -166,32 +210,27 @@
 .radial-menu-item.left-top {
   left: 2px;
   bottom: 200px;
-  animation: smoothFadeIn 0.4s ease-out 0s backwards;
 }
 
 .radial-menu-item.right-top {
   right: 2px;
   bottom: 200px;
-  animation: smoothFadeIn 0.4s ease-out 0.2s backwards;
 }
 
 .radial-menu-item.left-middle {
   left: 65px;
   bottom: 85px;
-  animation: smoothFadeIn 0.4s ease-out 0.05s backwards;
 }
 
 .radial-menu-item.right-middle {
   right: 65px;
   bottom: 85px;
-  animation: smoothFadeIn 0.4s ease-out 0.15s backwards;
 }
 
 .radial-menu-item.center-bottom {
   left: 50%;
   bottom: 50px;
   transform: translateX(-50%);
-  animation: smoothFadeIn 0.4s ease-out 0.1s backwards;
 }
 
 .radial-menu-item.center-bottom:hover {
@@ -242,12 +281,68 @@
   color: #b3b3b3;
   text-align: center;
   white-space: nowrap;
-  animation: fadeIn 0.5s ease-out 0.3s backwards;
+  opacity: 0;
+  animation: instructionFadeIn 0.7s ease-in-out 0.2s forwards;
   pointer-events: none;
   z-index: 10002;
 }
 
+.radial-menu-wrapper.menu-closing .hover-instruction {
+  animation: instructionFadeOut 0.7s ease-in-out forwards;
+}
+
+@keyframes instructionFadeOut {
+  0% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 /* Animations */
+@keyframes itemFadeIn {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes itemFadeOut {
+  0% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes instructionFadeIn {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
