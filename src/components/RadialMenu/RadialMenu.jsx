@@ -3,11 +3,19 @@ import './RadialMenu.css';
 
 const RadialMenu = () => {
   const [isOpen, setIsOpen] = useState(true); // Always open when component is rendered
+  const [isClosing, setIsClosing] = useState(false);
 
   React.useEffect(() => {
     document.body.classList.add('radial-menu-active');
     return () => document.body.classList.remove('radial-menu-active');
   }, []);
+
+  const handleMouseLeave = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+    }, 600); // Match animation duration
+  };
 
   const menuItems = [
     { id: 'profile', label: 'My Profile', icon: '/menu-profile-icon.svg', position: 'left-top', route: '/profile' },
@@ -23,10 +31,9 @@ const RadialMenu = () => {
 
   return (
     <div 
-      onMouseEnter={() => {}} 
-      onMouseLeave={() => {}}
+      onMouseLeave={handleMouseLeave}
     >
-      <div className="radial-menu-wrapper menu-open">
+      <div className={`radial-menu-wrapper ${isOpen ? 'menu-open' : ''} ${isClosing ? 'menu-closing' : ''}`}>
         {/* Large Background Circle from Figma */}
         <div className="menu-background-circle">
           <img src="/menu-circle.svg" alt="" />
