@@ -133,6 +133,9 @@ contract CrossChainLocalOpenWorkJobContract is
     event DisputeResolved(string indexed jobId, bool jobGiverWins, address winner, uint256 amount);
     event BridgeSet(address indexed bridge);
     event CCTPMintRecipientSet(address indexed mintRecipient);
+    event ProfileUpdated(address indexed user, string newIpfsHash);
+    event PortfolioItemUpdated(address indexed user, uint256 index, string newPortfolioHash);
+    event PortfolioItemRemoved(address indexed user, uint256 index);
     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -673,6 +676,63 @@ function upgradeFromDAO(address newImplementation) external {
         bridge.sendToNativeChain{value: msg.value}("addPortfolio", payload, _nativeOptions);
         
         emit PortfolioAdded(msg.sender, _portfolioHash);
+    }
+    
+    function updateProfile(
+        string memory _newIpfsHash,
+        bytes calldata _nativeOptions
+    ) external payable nonReentrant {
+        require(hasProfile[msg.sender], "Profile does not exist");
+        require(bytes(_newIpfsHash).length > 0, "IPFS hash cannot be empty");
+        
+        // Update local profile
+        profiles[msg.sender].ipfsHash = _newIpfsHash;
+        
+        // Send to native chain
+        bytes memory payload = abi.encode("updateProfile", msg.sender, _newIpfsHash);
+        bridge.sendToNativeChain{value: msg.value}("updateProfile", payload, _nativeOptions);
+        
+        emit ProfileUpdated(msg.sender, _newIpfsHash);
+    }
+    
+    function updatePortfolioItem(
+        uint256 _index,
+        string memory _newPortfolioHash,
+        bytes calldata _nativeOptions
+    ) external payable nonReentrant {
+        require(hasProfile[msg.sender], "Profile does not exist");
+        require(bytes(_newPortfolioHash).length > 0, "Portfolio hash cannot be empty");
+        require(_index < profiles[msg.sender].portfolioHashes.length, "Portfolio index out of bounds");
+        
+        // Update local portfolio
+        profiles[msg.sender].portfolioHashes[_index] = _newPortfolioHash;
+        
+        // Send to native chain
+        bytes memory payload = abi.encode("updatePortfolioItem", msg.sender, _index, _newPortfolioHash);
+        bridge.sendToNativeChain{value: msg.value}("updatePortfolioItem", payload, _nativeOptions);
+        
+        emit PortfolioItemUpdated(msg.sender, _index, _newPortfolioHash);
+    }
+    
+    function removePortfolioItem(
+        uint256 _index,
+        bytes calldata _nativeOptions
+    ) external payable nonReentrant {
+        require(hasProfile[msg.sender], "Profile does not exist");
+        require(_index < profiles[msg.sender].portfolioHashes.length, "Portfolio index out of bounds");
+        
+        // Remove from local portfolio (move last to index and pop)
+        uint256 lastIndex = profiles[msg.sender].portfolioHashes.length - 1;
+        if (_index != lastIndex) {
+            profiles[msg.sender].portfolioHashes[_index] = profiles[msg.sender].portfolioHashes[lastIndex];
+        }
+        profiles[msg.sender].portfolioHashes.pop();
+        
+        // Send to native chain
+        bytes memory payload = abi.encode("removePortfolioItem", msg.sender, _index);
+        bridge.sendToNativeChain{value: msg.value}("removePortfolioItem", payload, _nativeOptions);
+        
+        emit PortfolioItemRemoved(msg.sender, _index);
     }
     
     // ==================== DISPUTE RESOLUTION ====================

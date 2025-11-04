@@ -99,6 +99,7 @@ import ReferEarnNotEligible from "./pages/ReferEarnNotEligible/ReferEarnNotEligi
 import ReferEarn from "./pages/ReferEarn/ReferEarn";
 import UserReferralSignIn from "./pages/UserReferralSignIn/UserReferralSignIn";
 import SkillVerification from "./pages/SkillVerification/SkillVerification";
+import OpenworkDocs from "./pages/Documentation/OpenworkDocs";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -342,6 +343,7 @@ export default function App() {
           <Route path="/refer-earn" element={<ReferEarn/>} />
           <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
           <Route path="/skill-verification-page" element={<SkillVerification/>} />
+          <Route path="/docs" element={<OpenworkDocs/>} />
         </Routes>
       </BrowserRouter>
     </Layout>
