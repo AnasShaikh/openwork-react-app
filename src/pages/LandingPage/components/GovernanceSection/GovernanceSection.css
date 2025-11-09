@@ -63,7 +63,7 @@
   height: 360px;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-30%, -50%);
 }
 
 /* Ellipse Background */
@@ -93,8 +93,8 @@
   position: absolute;
   left: 61.67px;
   top: 80.99px;
-  width: 217.618px;
-  height: 217.53px;
+  width: 280px;
+  height: 280px;
   animation: lp9-rotate-glow 20s linear infinite;
   z-index: 1;
 }
@@ -125,6 +125,29 @@
   width: 217.618px;
   height: 217.618px;
   z-index: 2;
+}
+
+.lp-9-core-circle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 280px;
+  height: 280px;
+  background: url('/RadiantGlow.png') center/contain no-repeat;
+  animation: lp9-rotate-glow 20s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes lp9-rotate-glow {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .lp-9-core-bg {

@@ -28,10 +28,7 @@ const GovernanceSection = () => {
             <img src="/assets/lp9-ellipse-bg.svg" alt="" className="lp-9-ellipse-bg" />
 
             {/* Radiant Glow */}
-            <div className="lp-9-radiant-glow">
-              <img src="/assets/lp7-glow-1.svg" alt="" className="lp-9-glow-layer-1" />
-              <img src="/assets/lp7-glow-2.svg" alt="" className="lp-9-glow-layer-2" />
-            </div>
+            <div className="lp-9-radiant-glow"></div>
 
             {/* Core Circle */}
             <div className="lp-9-core-circle">

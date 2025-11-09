@@ -29,9 +29,12 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 590px;
-  height: 590px;
+  width: 740px;
+  height: 740px;
+  background: url('/RadiantGlow.png') center/contain no-repeat;
   animation: rotate-glow 20s linear infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
 @keyframes rotate-glow {
@@ -41,21 +44,6 @@
   to {
     transform: translate(-50%, -50%) rotate(360deg);
   }
-}
-
-.glow-layer-1,
-.glow-layer-2 {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.glow-layer-2 {
-  opacity: 0.5;
 }
 
 /* Main Circle */

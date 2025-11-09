@@ -75,6 +75,34 @@
   height: 340.798px;
   z-index: 0;
   pointer-events: none;
+  transform-origin: center center;
+  animation: rotate-lp10-outer 60s linear infinite;
+}
+
+@keyframes rotate-lp10-outer {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Chain Icons Container - rotates with outer circle */
+.lp-10-chain-icons-container {
+  position: absolute;
+  left: 0;
+  top: 19.2px;
+  width: 340.798px;
+  height: 340.798px;
+  z-index: 3;
+  pointer-events: none;
+  transform-origin: center center;
+  animation: rotate-lp10-outer 60s linear infinite;
+}
+
+.lp-10-chain-icons-container > * {
+  pointer-events: all;
 }
 
 /* Radiant Glow */
@@ -114,6 +142,29 @@
   width: 217.618px;
   height: 217.618px;
   z-index: 2;
+}
+
+.lp-10-core-circle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 280px;
+  height: 280px;
+  background: url('/RadiantGlow.png') center/contain no-repeat;
+  animation: lp10-rotate-glow 20s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes lp10-rotate-glow {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .lp-10-core-bg {
@@ -156,6 +207,34 @@
   height: 340.798px;
   z-index: 0;
   pointer-events: none;
+  transform-origin: center center;
+  animation: rotate-lp10-outer 60s linear infinite;
+}
+
+@keyframes rotate-lp10-outer {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Outer Chain Icons Container - rotates with ellipse */
+.lp-10-outer-icons-container {
+  position: absolute;
+  left: 0;
+  top: 19.2px;
+  width: 340.798px;
+  height: 340.798px;
+  z-index: 3;
+  pointer-events: none;
+  transform-origin: center center;
+  animation: rotate-lp10-outer 60s linear infinite;
+}
+
+.lp-10-outer-icons-container > * {
+  pointer-events: all;
 }
 
 /* Chain Icons */
@@ -173,7 +252,7 @@
 
 /* Chain Positions */
 .lp-10-chain-ethereum {
-  left: 156.55px;
+  left: 106.55px;
   top: 0;
   width: 38.403px;
   height: 38.403px;
@@ -188,14 +267,14 @@
 
 .lp-10-chain-bnb {
   left: 15.47px;
-  top: 277.76px;
+  top: 267.76px;
   width: 29.869px;
   height: 29.869px;
 }
 
 .lp-10-chain-arbitrum-bottom {
   left: 290.58px;
-  top: 277.76px;
+  top: 267.76px;
   width: 29.869px;
   height: 29.869px;
 }

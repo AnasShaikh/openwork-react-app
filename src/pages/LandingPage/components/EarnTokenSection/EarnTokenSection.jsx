@@ -28,10 +28,7 @@ const EarnTokenSection = () => {
             <img src="/assets/lp8-ellipse-bg.svg" alt="" className="lp-8-ellipse-bg" />
 
             {/* Radiant Glow */}
-            <div className="lp-8-radiant-glow">
-              <img src="/assets/lp8-glow-1.svg" alt="" className="lp-8-glow-layer-1" />
-              <img src="/assets/lp8-glow-2.svg" alt="" className="lp-8-glow-layer-2" />
-            </div>
+            <div className="lp-8-radiant-glow"></div>
 
             {/* Core Circle */}
             <div className="lp-8-core-circle">

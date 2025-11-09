@@ -9,6 +9,42 @@ const HeroSection = () => {
     });
   };
 
+  const handleDiscoverable = () => {
+    document.getElementById('lp-2-section').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
+  const handleDirectContract = () => {
+    document.getElementById('lp-5-section').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
+  const handleJobProgress = () => {
+    document.getElementById('lp-6-section').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
+  const handlePostJob = () => {
+    document.getElementById('lp-4-section').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
+  const handleRaiseDispute = () => {
+    document.getElementById('lp-7-section').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
+  const handleDAO = () => {
+    document.getElementById('lp-9-section').scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
   const handleSetProfile = () => {
     document.getElementById('lp-2-section').scrollIntoView({ 
       behavior: 'smooth' 
@@ -21,18 +57,7 @@ const HeroSection = () => {
         {/* Background Circle Group */}
         <div className="circle-group">
           {/* Radiant Glow Background */}
-          <div className="radiant-glow-container">
-            <img 
-              src="/assets/e497ce42e79911156d2ac01b9b492722d31c5347.svg" 
-              alt="" 
-              className="glow-layer-1"
-            />
-            <img 
-              src="/assets/7dd35a3b5143b478d7e0d882fc32060b2307086c.svg" 
-              alt="" 
-              className="glow-layer-2"
-            />
-          </div>
+          <div className="radiant-glow-container"></div>
           
           {/* Main Circle */}
           <img 
@@ -48,31 +73,37 @@ const HeroSection = () => {
             icon="/assets/62526e6f62a12cd8f3ecb86db19a495650068ad0.svg"
             buttonCss="icon-btn icon-discoverable"
             label="Discoverable"
+            onClick={handleDiscoverable}
           />
           <Button 
             icon="/assets/48d7e8cd65b4036c787ad29a2bdce07c13f29021.svg"
             buttonCss="icon-btn icon-direct-contract"
             label="Direct Contract"
+            onClick={handleDirectContract}
           />
           <Button 
             icon="/assets/7fbdaad122c8922623aaea9b99c9cdd6cc503c6f.svg"
             buttonCss="icon-btn icon-job-progress"
             label="Job In Progress"
+            onClick={handleJobProgress}
           />
           <Button 
             icon="/assets/5993be528342167da5598a847635eb201549dae4.svg"
             buttonCss="icon-btn icon-post-job"
             label="Post Job"
+            onClick={handlePostJob}
           />
           <Button 
             icon="/assets/0db7d9f3333eba0f15f08e07625cd29728a834ec.svg"
             buttonCss="icon-btn icon-raise-dispute"
             label="Raise Dispute"
+            onClick={handleRaiseDispute}
           />
           <Button 
             icon="/assets/141af504612ac4760b6ff60cc6346fee9cea46cc.svg"
             buttonCss="icon-btn icon-dao"
             label="DAO"
+            onClick={handleDAO}
           />
           <Button 
             icon="/assets/3d388d45b23ed4826566c6c199aff49f93e7acec.svg"

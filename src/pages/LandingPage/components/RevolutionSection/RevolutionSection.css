@@ -79,6 +79,16 @@
   height: 370.676px;
   z-index: 1;
   pointer-events: none;
+  animation: rotate-network 60s linear infinite;
+}
+
+@keyframes rotate-network {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Center Token */

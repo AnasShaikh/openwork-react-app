@@ -85,6 +85,11 @@
   flex-shrink: 0;
 }
 
+/* Rotate arrow down in hero section */
+.lp-1-section .lp-button-icon {
+  transform: rotate(135deg);
+}
+
 @media (max-width: 480px) {
   .lp-section {
     padding: 30px 16px;
