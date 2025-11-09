@@ -22,18 +22,38 @@ const LandingPage = () => {
       <LandingSidebar />
       <LandingHeader />
       <HeroSection />
-      <ProfileSection />
-      <LedgerSection />
-      <PostJobSection />
-      <DirectContractSection />
-      <JobProgressSection />
-      <DisputeSection />
-      <EarnTokenSection />
-      <GovernanceSection />
-      <MultiChainSection />
-      <ArchitectureSection />
-      <RevolutionSection />
-      <ContactSection />
+      <div id="discoverable">
+        <ProfileSection />
+      </div>
+      <div id="job-contract">
+        <LedgerSection />
+      </div>
+      <div id="direct-contract">
+        <PostJobSection />
+      </div>
+      <div id="job-progress">
+        <DirectContractSection />
+      </div>
+      <div id="raise-dispute">
+        <JobProgressSection />
+      </div>
+      <div id="earn-govern">
+        <DisputeSection />
+      </div>
+      <div id="dao">
+        <EarnTokenSection />
+      </div>
+      <div id="local-network">
+        <GovernanceSection />
+      </div>
+      <div id="openwork-arch">
+        <MultiChainSection />
+      </div>
+      <div id="work-revolution">
+        <ArchitectureSection />
+        <RevolutionSection />
+        <ContactSection />
+      </div>
     </div>
   );
 };

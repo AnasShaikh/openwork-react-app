@@ -130,9 +130,10 @@
 /* Center Athena */
 .lp-7-center-athena {
   position: absolute;
-  left: 133.84px;
-  top: 126.22px;
+  left: 183.84px;
+  top: 176.22px;
   width: 100.804px;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -150,10 +151,9 @@
 }
 
 .lp-7-athena-image {
-  width: 79.727px;
-  height: 82.476px;
-  object-fit: cover;
-  transform: scaleY(-1) rotate(180deg);
+  width: 99.727px;
+  height: 102.476px;
+  object-fit: contain;
   position: relative;
   z-index: 2;
 }
@@ -161,7 +161,8 @@
 .lp-7-athena-bg {
   position: absolute;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100.804px;
   height: 14.662px;
   z-index: 1;

@@ -38,10 +38,9 @@ const DisputeSection = () => {
 
             <div className="lp-7-center-athena">
               <div className="lp-7-athena-container">
-                <img src="/assets/lp7-athena.png" alt="Athena" className="lp-7-athena-image" />
+                <img src="/assets/Athena.svg" alt="Athena" className="lp-7-athena-image" />
                 <img src="/assets/lp7-rectangle-bg.svg" alt="" className="lp-7-athena-bg" />
               </div>
-              <span className="lp-7-athena-label">ATHENA</span>
             </div>
 
             {[1, 2, 3, 4, 5].map((num) => (

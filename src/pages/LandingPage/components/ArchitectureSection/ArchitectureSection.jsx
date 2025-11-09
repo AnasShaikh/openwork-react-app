@@ -23,31 +23,12 @@ const ArchitectureSection = () => {
         </div>
 
         <div className="lp-11-diagram-container">
-          {/* Architecture diagram - complex SVG structure in main CSS */}
-          <div className="lp-11-architecture-diagram">
-            <div className="lp-11-connector lp-11-connector-1"></div>
-            <div className="lp-11-connector lp-11-connector-2"></div>
-            <div className="lp-11-connector lp-11-connector-3"></div>
-
-            {/* Simplified diagram - full structure in original */}
-            <div className="lp-11-layer lp-11-layer-top">
-              <div className="lp-11-layer-label">
-                <span className="lp-11-label-text">Local Chains</span>
-              </div>
-            </div>
-
-            <div className="lp-11-layer lp-11-layer-middle">
-              <div className="lp-11-layer-label">
-                <span className="lp-11-label-text">OpenWork Chain</span>
-              </div>
-            </div>
-
-            <div className="lp-11-layer lp-11-layer-bottom">
-              <div className="lp-11-layer-label">
-                <span className="lp-11-label-text">Ethereum Mainnet</span>
-              </div>
-            </div>
-          </div>
+          {/* Architecture diagram */}
+          <img 
+            src="/assets/LP-11 architectecture.svg" 
+            alt="OpenWork Architecture Diagram" 
+            className="lp-11-architecture-image"
+          />
         </div>
       </div>
     </section>
