@@ -80,7 +80,7 @@
 .lp-13-textarea {
   width: 100%;
   padding: 12px 16px;
-  border: 1.471px solid white;
+  border: 2px solid rgba(0, 0, 0, 0.04);
   border-radius: 8.823px;
   background: white;
   font-family: 'Satoshi', sans-serif;
