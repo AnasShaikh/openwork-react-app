@@ -99,6 +99,7 @@ import ReferEarnNotEligible from "./pages/ReferEarnNotEligible/ReferEarnNotEligi
 import ReferEarn from "./pages/ReferEarn/ReferEarn";
 import UserReferralSignIn from "./pages/UserReferralSignIn/UserReferralSignIn";
 import SkillVerification from "./pages/SkillVerification/SkillVerification";
+import LandingPage from "./pages/LandingPage/LandingPage";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -252,7 +253,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Define routes for different pages */}
-          <Route path="/" element={<MainPage />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/home" element={<MainPage />} />
           <Route path="/notifications" element={<Notification/>} />
           <Route path="connect-wallet" element={<ConnectWallet/>} />
           <Route path="/work" element={<Work />} />

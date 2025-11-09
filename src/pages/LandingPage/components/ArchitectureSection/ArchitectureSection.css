@@ -1,0 +1,421 @@
+/* LP-11 Architecture Section Styles */
+
+.lp-11-section {
+  width: 100%;
+  min-height: 734px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  padding: 64px 0;
+}
+
+.lp-11-container {
+  max-width: 1280px;
+  width: 100%;
+  padding: 0 162px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 90px;
+}
+
+/* Left Content */
+.lp-11-content {
+  width: 432px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.lp-11-content > button,
+.lp-11-content > div > button {
+  width: fit-content;
+}
+
+.lp-11-heading {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 48px;
+  letter-spacing: -1.6px;
+  color: #050505;
+  margin: 0;
+}
+
+.lp-11-description {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: #767676;
+  margin: 0;
+  margin-top: 12px;
+}
+
+/* Right Content - Architecture Diagram */
+.lp-11-diagram-container {
+  width: 500px;
+  height: 450px;
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.lp-11-architecture-diagram {
+  position: absolute;
+  width: 304.775px;
+  height: 430px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Connecting Lines */
+.lp-11-connector {
+  position: absolute;
+  width: 0;
+  border-left: 1px solid #E0E0E0;
+  z-index: 1;
+}
+
+.lp-11-connector-1 {
+  left: 83.79px;
+  top: 108.91px;
+  height: 36.249px;
+}
+
+.lp-11-connector-2 {
+  left: 152.85px;
+  top: 108.91px;
+  height: 36.249px;
+}
+
+.lp-11-connector-3 {
+  left: 221.91px;
+  top: 108.91px;
+  height: 36.249px;
+}
+
+/* Layers */
+.lp-11-layer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-11-layer-top {
+  top: 0;
+}
+
+.lp-11-layer-middle {
+  top: 137px;
+}
+
+.lp-11-layer-bottom {
+  top: 310.3px;
+}
+
+/* Layer Labels */
+.lp-11-layer-label {
+  display: flex;
+  align-items: center;
+  gap: 7.366px;
+  background: white;
+  border-radius: 8.858px;
+  padding: 10px 12px;
+  width: fit-content;
+}
+
+.lp-11-label-text {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 11.049px;
+  color: #676767;
+  white-space: nowrap;
+}
+
+.lp-11-chain-icons {
+  display: flex;
+  align-items: center;
+  gap: -5.525px;
+}
+
+.lp-11-chain-icon-small {
+  width: 12.891px;
+  height: 12.891px;
+  margin-right: -5.525px;
+}
+
+.lp-11-chain-icon-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lp-11-token-icon,
+.lp-11-eth-icon {
+  width: 14.732px;
+  height: 14.732px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-11-owork-badge {
+  width: 14.732px;
+  height: 14.732px;
+  border-radius: 10px;
+  border: 1px solid #1246FF;
+  background: linear-gradient(180deg, #1246FF 23.958%, #4770FF 134.37%);
+}
+
+.lp-11-eth-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Layer Content */
+.lp-11-layer-content {
+  position: relative;
+  background: white;
+  border: 0.92px solid #F2F2F2;
+  border-radius: 11px;
+  padding: 12px 22px;
+  min-height: 77.345px;
+}
+
+.lp-11-native-label,
+.lp-11-main-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 9.208px;
+  color: rgba(43, 43, 43, 0.6);
+  text-align: center;
+  white-space: nowrap;
+  z-index: 0;
+}
+
+.lp-11-user-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5.696px;
+  position: absolute;
+  left: 10.39px;
+  top: 12.21px;
+}
+
+.lp-11-user-icon {
+  width: 56.958px;
+  height: 56.958px;
+  border-radius: 50%;
+  border: 2.848px solid white;
+  background: linear-gradient(180deg, #F4F4F4 0%, #FEFEFE 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-11-user-label {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 8.544px;
+  color: #2B2B2B;
+  text-align: center;
+}
+
+.lp-11-bridge-label,
+.lp-11-bridge-middle {
+  position: absolute;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7.366px;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 11.049px;
+  color: #2B2B2B;
+  text-align: center;
+  z-index: 5;
+}
+
+.lp-11-bridge-label {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lp-11-bridge-middle {
+  left: 50%;
+  top: 270.47px;
+  transform: translateX(-50%);
+}
+
+.lp-11-contract-group {
+  display: flex;
+  align-items: center;
+  gap: 11.049px;
+  position: relative;
+  z-index: 1;
+}
+
+.lp-11-native-group,
+.lp-11-main-group {
+  justify-content: center;
+}
+
+.lp-11-contract-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3.683px;
+  padding: 10px 13px;
+  background: linear-gradient(180deg, #F4F4F4 0%, #FEFEFE 100%);
+  border: 3.683px solid white;
+  border-radius: 8.858px;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 500;
+  font-size: 11.049px;
+  color: #2B2B2B;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lp-11-token-icon-small {
+  width: 14.732px;
+  height: 14.732px;
+  border-radius: 10px;
+  border: 1px solid #1246FF;
+  background: linear-gradient(180deg, #1246FF 23.958%, #4770FF 134.37%);
+}
+
+.lp-11-eth-icon-small {
+  width: 14.732px;
+  height: 14.732px;
+}
+
+.lp-11-eth-icon-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Responsive Design */
+@media (max-width: 1440px) {
+  .lp-11-container {
+    padding: 0 120px;
+    gap: 70px;
+  }
+
+  .lp-11-content {
+    width: 400px;
+  }
+
+  .lp-11-heading {
+    font-size: 36px;
+    line-height: 44px;
+  }
+
+  .lp-11-diagram-container {
+    width: 460px;
+    height: 420px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .lp-11-container {
+    padding: 0 80px;
+    gap: 50px;
+    flex-direction: column;
+  }
+
+  .lp-11-content {
+    width: 100%;
+    max-width: 500px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .lp-11-heading {
+    font-size: 32px;
+    line-height: 40px;
+  }
+
+  .lp-11-description {
+    font-size: 15px;
+    line-height: 23px;
+  }
+
+  .lp-11-diagram-container {
+    width: 100%;
+    max-width: 460px;
+    height: 420px;
+  }
+}
+
+@media (max-width: 768px) {
+  .lp-11-section {
+    padding: 60px 0;
+  }
+
+  .lp-11-container {
+    padding: 0 40px;
+    gap: 40px;
+  }
+
+  .lp-11-heading {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .lp-11-description {
+    font-size: 14px;
+    line-height: 21px;
+  }
+
+  .lp-11-diagram-container {
+    width: 100%;
+    max-width: 380px;
+    height: 350px;
+  }
+
+  .lp-11-architecture-diagram {
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+@media (max-width: 480px) {
+  .lp-11-container {
+    padding: 0 20px;
+    gap: 30px;
+  }
+
+  .lp-11-heading {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .lp-11-description {
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  .lp-11-diagram-container {
+    width: 100%;
+    max-width: 320px;
+    height: 300px;
+  }
+
+  .lp-11-architecture-diagram {
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+}
