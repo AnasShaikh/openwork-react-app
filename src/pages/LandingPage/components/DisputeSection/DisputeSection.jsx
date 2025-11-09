@@ -34,7 +34,7 @@ const DisputeSection = () => {
               <img src="/assets/lp7-core-circle.svg" alt="" className="lp-7-core-bg" />
             </div>
 
-            <img src="/assets/lp7-ellipse-bg.svg" alt="" className="lp-7-ellipse-bg" />
+            <img src="/assets/outer-circle-dispute.svg" alt="" className="lp-7-ellipse-bg" />
 
             <div className="lp-7-center-athena">
               <div className="lp-7-athena-container">
