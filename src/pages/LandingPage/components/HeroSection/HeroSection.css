@@ -108,7 +108,7 @@
 /* Expand on hover */
 .icon-btn:hover {
   width: auto !important;
-  padding: 10.667px 16px 10.667px 10.667px !important;
+  padding: 14.667px 16px 14.667px 14.667px !important;
   border-radius: 24px !important;
   gap: 0;
   box-shadow: 0 4px 16px rgba(18, 70, 255, 0.25);
@@ -142,6 +142,7 @@
 .icon-direct-contract {
   left: 624px;
   top: 68px;
+  transform: translateX(-50%);
 }
 
 .icon-job-progress {

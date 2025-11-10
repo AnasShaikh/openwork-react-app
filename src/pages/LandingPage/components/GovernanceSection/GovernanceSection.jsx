@@ -24,8 +24,32 @@ const GovernanceSection = () => {
 
         <div className="lp-9-circle-container">
           <div className="lp-9-governance-circle-group">
-            {/* Ellipse Background */}
-            <img src="/assets/lp9-ellipse-bg.svg" alt="" className="lp-9-ellipse-bg" />
+            {/* Ellipse Background and Avatars Container (rotates together) */}
+            <div className="lp-9-outer-ring-container">
+              {/* Ellipse Background */}
+              <img src="/assets/lp9-ellipse-bg.svg" alt="" className="lp-9-ellipse-bg" />
+
+              {/* Community Avatars */}
+              <div className="lp-9-avatar lp-9-avatar-top">
+                <img src="/assets/lp7-oracle-1.png" alt="Member" className="lp-9-avatar-img" />
+              </div>
+
+              <div className="lp-9-avatar lp-9-avatar-left">
+                <img src="/assets/lp7-oracle-2.png" alt="Member" className="lp-9-avatar-img" />
+              </div>
+
+              <div className="lp-9-avatar lp-9-avatar-bottom-left">
+                <img src="/assets/lp7-oracle-3.png" alt="Member" className="lp-9-avatar-img" />
+              </div>
+
+              <div className="lp-9-avatar lp-9-avatar-bottom-right">
+                <img src="/assets/lp7-oracle-4.png" alt="Member" className="lp-9-avatar-img" />
+              </div>
+
+              <div className="lp-9-avatar lp-9-avatar-right">
+                <img src="/assets/lp7-oracle-5.png" alt="Member" className="lp-9-avatar-img" />
+              </div>
+            </div>
 
             {/* Radiant Glow */}
             <div className="lp-9-radiant-glow"></div>
@@ -33,27 +57,6 @@ const GovernanceSection = () => {
             {/* Core Circle */}
             <div className="lp-9-core-circle">
               <img src="/assets/lp7-core-circle.svg" alt="" className="lp-9-core-bg" />
-            </div>
-
-            {/* Community Avatars */}
-            <div className="lp-9-avatar lp-9-avatar-top">
-              <img src="/assets/lp7-oracle-1.png" alt="Member" className="lp-9-avatar-img" />
-            </div>
-
-            <div className="lp-9-avatar lp-9-avatar-left">
-              <img src="/assets/lp7-oracle-2.png" alt="Member" className="lp-9-avatar-img" />
-            </div>
-
-            <div className="lp-9-avatar lp-9-avatar-bottom-left">
-              <img src="/assets/lp7-oracle-3.png" alt="Member" className="lp-9-avatar-img" />
-            </div>
-
-            <div className="lp-9-avatar lp-9-avatar-bottom-right">
-              <img src="/assets/lp7-oracle-4.png" alt="Member" className="lp-9-avatar-img" />
-            </div>
-
-            <div className="lp-9-avatar lp-9-avatar-right">
-              <img src="/assets/lp7-oracle-5.png" alt="Member" className="lp-9-avatar-img" />
             </div>
 
             {/* Center Governance Icon */}

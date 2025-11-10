@@ -40,9 +40,12 @@ const HeroSection = () => {
   };
 
   const handleDAO = () => {
-    document.getElementById('lp-9-section').scrollIntoView({ 
-      behavior: 'smooth' 
-    });
+    const element = document.getElementById('lp-9-section');
+    if (element) {
+      const yOffset = -100; // Offset to bring it down a bit
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
 
   const handleSetProfile = () => {
