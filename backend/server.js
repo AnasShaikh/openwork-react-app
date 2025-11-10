@@ -4,11 +4,16 @@ const { Web3 } = require('web3');
 const config = require('./config');
 const { processStartJob } = require('./flows/start-job');
 const { processReleasePayment } = require('./flows/release-payment');
+const { compileContract } = require('./utils/compiler');
+const deploymentRoutes = require('./routes/deployments');
 
 // Initialize Express
 const app = express();
 app.use(express.json());
 app.use(cors()); // Enable CORS for frontend communication
+
+// Mount deployment routes
+app.use('/api/deployments', deploymentRoutes);
 
 // Track processing jobs to avoid duplicates
 const processingJobs = new Set();
@@ -289,6 +294,41 @@ app.post('/api/stop-listener', (req, res) => {
     success: true,
     message: 'Event listener stopped'
   });
+});
+
+// Compile contract endpoint
+app.post('/api/compile', async (req, res) => {
+  const { contractName } = req.body;
+  
+  if (!contractName) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing contractName'
+    });
+  }
+  
+  console.log(`\n📦 API: Received compile request for ${contractName}`);
+  
+  try {
+    const result = await compileContract(contractName);
+    
+    console.log(`✅ Successfully compiled ${contractName}`);
+    
+    res.json({
+      success: true,
+      contractName,
+      abi: result.abi,
+      bytecode: result.bytecode
+    });
+    
+  } catch (error) {
+    console.error(`❌ Compilation failed for ${contractName}:`, error.message);
+    
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 /**

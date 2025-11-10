@@ -1093,5 +1093,63 @@ contract UUPSProxy is ERC1967Proxy {
     function supportsUUPS() external pure returns (bool) {
         return true;
     }
-}`
+}`,
+
+  deployConfig: {
+    type: 'uups',
+    constructor: [
+      { 
+        name: 'initialOwner',
+        type: 'address',
+        default: 'WALLET',
+        description: 'Address that will own the Main DAO contract',
+        placeholder: '0x...'
+      },
+      { 
+        name: 'openworkToken',
+        type: 'address',
+        description: 'OpenWork Token (OWORK) contract address',
+        placeholder: '0x5f24747d5e59F9CCe5a9815BC12E2fB5Ae713679'
+      },
+      { 
+        name: 'chainId',
+        type: 'uint32',
+        description: 'Chain ID (84532 for Base Sepolia)',
+        placeholder: '84532'
+      },
+      { 
+        name: 'bridge',
+        type: 'address',
+        description: 'Main Bridge contract address',
+        placeholder: '0x...'
+      }
+    ],
+    networks: {
+      testnet: {
+        name: 'Base Sepolia',
+        chainId: 84532,
+        rpcUrl: 'https://sepolia.base.org',
+        explorer: 'https://sepolia.basescan.org',
+        currency: 'ETH'
+      },
+      mainnet: {
+        name: 'Ethereum Mainnet',
+        chainId: 1,
+        rpcUrl: 'https://eth.llamarpc.com',
+        explorer: 'https://etherscan.io',
+        currency: 'ETH'
+      }
+    },
+    estimatedGas: '890K',
+    postDeploy: {
+      message: 'Main DAO deployed successfully! Governance system is now active.',
+      nextSteps: [
+        'Verify both proxy and implementation on explorer',
+        'Set the Main Rewards contract address',
+        'Configure the Main Bridge contract address',
+        'Transfer initial OW tokens to test staking',
+        'Create first governance proposal to test system'
+      ]
+    }
+  }
 };

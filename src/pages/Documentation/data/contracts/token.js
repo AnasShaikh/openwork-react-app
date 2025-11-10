@@ -865,5 +865,44 @@ contract VotingToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     {
         return super.nonces(owner);
     }
-}`
+}`,
+
+  deployConfig: {
+    type: 'standard',
+    constructor: [
+      { 
+        name: 'initialOwner',
+        type: 'address',
+        default: 'WALLET',
+        description: 'Address that will own the token contract and can mint tokens',
+        placeholder: '0x...'
+      }
+    ],
+    networks: {
+      testnet: {
+        name: 'Base Sepolia',
+        chainId: 84532,
+        rpcUrl: 'https://sepolia.base.org',
+        explorer: 'https://sepolia.basescan.org',
+        currency: 'ETH'
+      },
+      mainnet: {
+        name: 'Base Mainnet',
+        chainId: 8453,
+        rpcUrl: 'https://mainnet.base.org',
+        explorer: 'https://basescan.org',
+        currency: 'ETH'
+      }
+    },
+    estimatedGas: '2.1M',
+    postDeploy: {
+      message: 'Token deployed successfully! Initial supply of 1B OWORK minted to your address.',
+      nextSteps: [
+        'Transfer tokens to Main Rewards contract for user claims',
+        'Transfer tokens to Main DAO treasury',
+        'Verify contract on Basescan',
+        'Add token to MetaMask'
+      ]
+    }
+  }
 };

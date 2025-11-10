@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { FileText, Code, TestTube, Play, Database, History, ArrowRight, Edit2, Rocket, ChevronDown, ChevronRight, MessageSquare, Send, X, Copy, Check } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { FileText, Code, TestTube, Play, Database, History, ArrowRight, Edit2, Rocket, ChevronDown, ChevronRight, MessageSquare, Send, X, Copy, Check, Wallet, AlertCircle, ExternalLink } from 'lucide-react';
 import './OpenworkDocs.css';
 import { contractsData } from './data/contracts';
 import { ipfsData } from './data/ipfsData';
 import { columnPositions, statusColors } from './data/columnPositions';
 import { arrowConnections } from './data/arrowConnections';
+import Web3 from 'web3';
 
 const OpenworkDocs = () => {
   const [selectedContract, setSelectedContract] = useState(null);
@@ -17,6 +18,22 @@ const OpenworkDocs = () => {
     { role: 'oppy', text: 'Hi! I\'m Agent Oppy, your OpenWork assistant. Ask me anything about the protocol, contracts, or how to get started!' }
   ]);
   const [copiedCode, setCopiedCode] = useState(null);
+  
+  // Deployment state
+  const [web3, setWeb3] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [currentNetwork, setCurrentNetwork] = useState(null);
+  const [deployParams, setDeployParams] = useState({});
+  const [deployStatus, setDeployStatus] = useState('idle'); // idle, deploying, success, error
+  const [deployedAddress, setDeployedAddress] = useState(null);
+  const [txHash, setTxHash] = useState(null);
+  const [deployReceipt, setDeployReceipt] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  
+  // Deployment history state
+  const [deploymentHistory, setDeploymentHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [backendError, setBackendError] = useState(null);
 
   const handleCopyCode = async (code, id) => {
     try {
@@ -27,6 +44,75 @@ const OpenworkDocs = () => {
       console.error('Failed to copy code:', err);
     }
   };
+
+  // Load deployment history for a contract
+  const loadDeploymentHistory = async (contractId) => {
+    if (!contractId) return;
+    
+    try {
+      setLoadingHistory(true);
+      setBackendError(null);
+      
+      const response = await fetch(`http://localhost:3001/api/deployments/${contractId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setDeploymentHistory(data.deployments || []);
+      } else {
+        setDeploymentHistory([]);
+      }
+    } catch (error) {
+      console.error('Error loading deployment history:', error);
+      setBackendError('Backend server not available. Deploy history will not be shown.');
+      setDeploymentHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Save deployment to backend
+  const saveDeployment = async (contractId, contractName, address, txHash) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/deployments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractId,
+          contractName,
+          address,
+          networkName: currentNetwork.name,
+          chainId: currentNetwork.chainId,
+          deployerAddress: account,
+          transactionHash: txHash || null,
+          constructorParams: deployParams
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ Deployment saved to history');
+        // Reload history after save
+        await loadDeploymentHistory(contractId);
+      }
+    } catch (error) {
+      console.error('Error saving deployment:', error);
+      // Don't fail the deployment if history save fails
+    }
+  };
+
+  // Load history when switching to Deploy tab
+  useEffect(() => {
+    if (selectedContract && selectedContract !== 'ipfs' && selectedContract !== 'oppy' && activeTab === 'deploy' && account) {
+      loadDeploymentHistory(selectedContract);
+    }
+  }, [selectedContract, activeTab, account]);
 
   // Auto-layout: Calculate x,y positions from column and order
   const contracts = useMemo(() => {
@@ -916,9 +1002,486 @@ const OpenworkDocs = () => {
                   </div>
                 )}
 
-                {activeTab === 'deploy' && selected && (
+                {activeTab === 'deploy' && selected && selected.deployConfig && (
                   <div className="docs-deploy-tab">
-                    <p>Deployment interface coming soon...</p>
+                    {!account ? (
+                      <div className="docs-deploy-connect">
+                        <Wallet size={48} style={{ color: '#2563eb', marginBottom: '16px' }} />
+                        <h3>Connect Your Wallet</h3>
+                        <p>Connect your wallet to deploy {selected.name} on your current network</p>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              if (window.ethereum) {
+                                const web3Instance = new Web3(window.ethereum);
+                                const accounts = await window.ethereum.request({ 
+                                  method: 'eth_requestAccounts' 
+                                });
+                                
+                                // Get network info
+                                const chainId = await web3Instance.eth.getChainId();
+                                
+                                // Map common network names
+                                const networkNames = {
+                                  1: 'Ethereum Mainnet',
+                                  5: 'Goerli Testnet',
+                                  11155111: 'Sepolia Testnet',
+                                  8453: 'Base Mainnet',
+                                  84532: 'Base Sepolia',
+                                  42161: 'Arbitrum One',
+                                  421614: 'Arbitrum Sepolia',
+                                  10: 'Optimism',
+                                  420: 'Optimism Goerli',
+                                  137: 'Polygon',
+                                  80001: 'Mumbai Testnet'
+                                };
+                                
+                                setCurrentNetwork({
+                                  chainId: Number(chainId),
+                                  name: networkNames[Number(chainId)] || `Chain ID ${chainId}`
+                                });
+                                
+                                setWeb3(web3Instance);
+                                setAccount(accounts[0]);
+                                
+                                // Initialize params with defaults
+                                const params = {};
+                                selected.deployConfig.constructor.forEach(param => {
+                                  if (param.default === 'WALLET') {
+                                    params[param.name] = accounts[0];
+                                  } else if (param.name === 'chainId') {
+                                    // Auto-populate chainId from connected network
+                                    params[param.name] = Number(chainId).toString();
+                                  }
+                                });
+                                setDeployParams(params);
+                              } else {
+                                alert('Please install MetaMask!');
+                              }
+                            } catch (error) {
+                              console.error('Error connecting wallet:', error);
+                              setErrorMessage('Failed to connect wallet');
+                            }
+                          }}
+                          className="docs-deploy-connect-button"
+                        >
+                          <Wallet size={20} />
+                          <span>Connect Wallet</span>
+                        </button>
+                      </div>
+                    ) : deployStatus === 'success' ? (
+                      <div className="docs-deploy-success">
+                        <div className="docs-deploy-success-icon">
+                          <Check size={48} />
+                        </div>
+                        <h3>Deployment Successful!</h3>
+                        <p>{selected.deployConfig.postDeploy.message}</p>
+                        
+                        <div className="docs-deploy-result-card">
+                          <div className="docs-deploy-result-row">
+                            <span>Contract Address:</span>
+                            <div className="docs-deploy-address">
+                              {deployedAddress}
+                              <button 
+                                onClick={() => navigator.clipboard.writeText(deployedAddress)}
+                                className="docs-deploy-copy-btn"
+                              >
+                                <Copy size={16} />
+                              </button>
+                              <a 
+                                href={(() => {
+                                  const explorers = {
+                                    1: 'https://etherscan.io',
+                                    5: 'https://goerli.etherscan.io',
+                                    11155111: 'https://sepolia.etherscan.io',
+                                    8453: 'https://basescan.org',
+                                    84532: 'https://sepolia.basescan.org',
+                                    42161: 'https://arbiscan.io',
+                                    421614: 'https://sepolia.arbiscan.io',
+                                    10: 'https://optimistic.etherscan.io',
+                                    420: 'https://goerli-optimism.etherscan.io',
+                                    137: 'https://polygonscan.com',
+                                    80001: 'https://mumbai.polygonscan.com'
+                                  };
+                                  const explorerUrl = explorers[currentNetwork?.chainId] || 'https://etherscan.io';
+                                  return `${explorerUrl}/address/${deployedAddress}`;
+                                })()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="docs-deploy-copy-btn"
+                              >
+                                <ExternalLink size={16} />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="docs-deploy-next-steps">
+                          <h4>Next Steps:</h4>
+                          <ul>
+                            {selected.deployConfig.postDeploy.nextSteps.map((step, idx) => (
+                              <li key={idx}>{step}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <button 
+                          onClick={() => {
+                            setDeployStatus('idle');
+                            setDeployedAddress(null);
+                            setTxHash(null);
+                          }}
+                          className="docs-deploy-button"
+                        >
+                          Deploy Another
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="docs-deploy-form-container">
+                        <div className="docs-deploy-header-section">
+                          <h3>Deploy {selected.name}</h3>
+                          <p>Connected: {account?.slice(0, 6)}...{account?.slice(-4)}</p>
+                        </div>
+
+                        {currentNetwork && (
+                          <div className="docs-deploy-network-info">
+                            <div className="docs-deploy-network-info-row">
+                              <span className="docs-deploy-network-label">Network:</span>
+                              <span className="docs-deploy-network-value">{currentNetwork.name}</span>
+                            </div>
+                            <div className="docs-deploy-network-info-row">
+                              <span className="docs-deploy-network-label">Chain ID:</span>
+                              <span className="docs-deploy-network-value">{currentNetwork.chainId}</span>
+                            </div>
+                            <p className="docs-deploy-network-hint">
+                              Contract will be deployed on your currently connected network. To change networks, switch in MetaMask.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="docs-deploy-params-section">
+                          <h4>Constructor Parameters:</h4>
+                          {selected.deployConfig.constructor.map((param, idx) => (
+                            <div key={idx} className="docs-deploy-param">
+                              <label>
+                                {param.name}
+                                <span className="docs-deploy-param-type">({param.type})</span>
+                              </label>
+                              <p className="docs-deploy-param-desc">{param.description}</p>
+                              <input
+                                type="text"
+                                value={deployParams[param.name] || ''}
+                                onChange={(e) => setDeployParams(prev => ({
+                                  ...prev,
+                                  [param.name]: e.target.value
+                                }))}
+                                placeholder={param.placeholder || param.name}
+                                disabled={deployStatus === 'deploying'}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="docs-deploy-info">
+                          <AlertCircle size={16} />
+                          <span>Estimated Gas: {selected.deployConfig.estimatedGas}</span>
+                        </div>
+
+                        {errorMessage && (
+                          <div className="docs-deploy-error">
+                            <AlertCircle size={16} />
+                            <span>{errorMessage}</span>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={async () => {
+                            try {
+                              setDeployStatus('deploying');
+                              setErrorMessage('');
+
+                              // Validate constructor args
+                              const invalidParams = selected.deployConfig.constructor.filter(p => !deployParams[p.name]);
+                              if (invalidParams.length > 0) {
+                                throw new Error(`Missing required parameters: ${invalidParams.map(p => p.name).join(', ')}`);
+                              }
+
+                              // Check if this is a UUPS contract
+                              const isUUPS = selected.deployConfig.type === 'uups';
+
+                              if (isUUPS) {
+                                // ====== UUPS 2-STEP DEPLOYMENT ======
+                                console.log('🔷 Deploying UUPS contract (2-step process)...');
+                                
+                                // Step 1: Compile implementation contract
+                                console.log('📦 Step 1: Compiling implementation...');
+                                const implCompileResponse = await fetch('http://localhost:3001/api/compile', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ contractName: 'MainDAO' })
+                                });
+                                
+                                if (!implCompileResponse.ok) {
+                                  const errorData = await implCompileResponse.json();
+                                  throw new Error(`Implementation compilation failed: ${errorData.error || 'Unknown error'}`);
+                                }
+                                
+                                const implArtifact = await implCompileResponse.json();
+                                console.log('✅ Implementation compiled');
+                                
+                                // Step 2: Deploy implementation (NO constructor args)
+                                console.log('🚀 Step 2: Deploying implementation...');
+                                const implContract = new web3.eth.Contract(implArtifact.abi);
+                                const implDeployTx = implContract.deploy({
+                                  data: implArtifact.bytecode
+                                  // NO arguments - UUPS implementation has no constructor params!
+                                });
+
+                                const implGas = await implDeployTx.estimateGas({ from: account });
+                                const implGasWithBuffer = implGas + (implGas * 20n / 100n);
+                                
+                                const deployedImpl = await implDeployTx.send({
+                                  from: account,
+                                  gas: implGasWithBuffer
+                                });
+                                
+                                const implAddress = deployedImpl.options.address;
+                                console.log('✅ Implementation deployed at:', implAddress);
+                                
+                                // Step 3: Compile proxy contract
+                                console.log('📦 Step 3: Compiling proxy...');
+                                const proxyCompileResponse = await fetch('http://localhost:3001/api/compile', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ contractName: 'UUPSProxy' })
+                                });
+                                
+                                if (!proxyCompileResponse.ok) {
+                                  const errorData = await proxyCompileResponse.json();
+                                  throw new Error(`Proxy compilation failed: ${errorData.error || 'Unknown error'}`);
+                                }
+                                
+                                const proxyArtifact = await proxyCompileResponse.json();
+                                console.log('✅ Proxy compiled');
+                                
+                                // Step 4: Encode initialize() call with user params
+                                console.log('🔧 Step 4: Encoding initialize call...');
+                                const initData = web3.eth.abi.encodeFunctionCall(
+                                  {
+                                    name: 'initialize',
+                                    type: 'function',
+                                    inputs: selected.deployConfig.constructor.map(param => ({
+                                      type: param.type,
+                                      name: param.name
+                                    }))
+                                  },
+                                  selected.deployConfig.constructor.map(p => deployParams[p.name])
+                                );
+                                console.log('✅ Initialize data encoded');
+                                
+                                // Step 5: Deploy proxy with (implementation, initData)
+                                console.log('🚀 Step 5: Deploying proxy...');
+                                const proxyContract = new web3.eth.Contract(proxyArtifact.abi);
+                                const proxyDeployTx = proxyContract.deploy({
+                                  data: proxyArtifact.bytecode,
+                                  arguments: [implAddress, initData]
+                                });
+
+                                const proxyGas = await proxyDeployTx.estimateGas({ from: account });
+                                const proxyGasWithBuffer = proxyGas + (proxyGas * 20n / 100n);
+                                
+                                const deployedProxy = await proxyDeployTx.send({
+                                  from: account,
+                                  gas: proxyGasWithBuffer
+                                });
+                                
+                                const proxyAddress = deployedProxy.options.address;
+                                console.log('✅ Proxy deployed at:', proxyAddress);
+                                console.log('🎉 UUPS deployment complete!');
+                                
+                                // Set proxy as primary address
+                                setDeployedAddress(proxyAddress);
+                                setTxHash(proxyAddress);
+                                setDeployStatus('success');
+                                
+                                // Save deployment with implementation address
+                                await saveDeployment(selected.id, selected.name, proxyAddress, proxyAddress, {
+                                  implementationAddress: implAddress,
+                                  isUUPS: true
+                                });
+                              } else {
+                                // ====== REGULAR CONTRACT DEPLOYMENT ======
+                                console.log('📦 Compiling contract...');
+                                const compileResponse = await fetch('http://localhost:3001/api/compile', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ contractName: 'VotingToken' })
+                                });
+                                
+                                if (!compileResponse.ok) {
+                                  const errorData = await compileResponse.json();
+                                  throw new Error(`Compilation failed: ${errorData.error || 'Unknown error'}`);
+                                }
+                                
+                                const artifact = await compileResponse.json();
+                                console.log('✅ Contract compiled');
+                                
+                                if (!artifact.bytecode || artifact.bytecode.length < 100) {
+                                  throw new Error('Invalid bytecode returned from compilation');
+                                }
+                                
+                                // Prepare constructor args
+                                const args = selected.deployConfig.constructor.map(p => deployParams[p.name]);
+                                
+                                // Create contract instance
+                                const contract = new web3.eth.Contract(artifact.abi);
+                                
+                                // Deploy
+                                const deployTx = contract.deploy({
+                                  data: artifact.bytecode,
+                                  arguments: args
+                                });
+
+                                const gas = await deployTx.estimateGas({ from: account });
+                                const gasWithBuffer = gas + (gas * 20n / 100n);
+                                
+                                const deployed = await deployTx.send({
+                                  from: account,
+                                  gas: gasWithBuffer
+                                });
+                                
+                                const contractAddress = deployed.options.address;
+                                setDeployedAddress(contractAddress);
+                                setTxHash(contractAddress);
+                                setDeployStatus('success');
+                                
+                                // Save deployment to history
+                                await saveDeployment(selected.id, selected.name, contractAddress, contractAddress);
+                              }
+                            } catch (error) {
+                              console.error('❌ Deployment error:', error);
+                              
+                              let userMessage = error.message || 'Deployment failed';
+                              
+                              if (error.message && error.message.includes('Internal JSON-RPC error')) {
+                                userMessage = 'Deployment failed: Invalid bytecode or gas estimation error. The artifact file needs valid compiled bytecode. Please compile the contract first using Hardhat, Foundry, or Remix.';
+                              } else if (error.message && error.message.includes('insufficient funds')) {
+                                userMessage = 'Insufficient funds: Your wallet needs more ETH to pay for gas fees.';
+                              } else if (error.message && error.message.includes('user rejected')) {
+                                userMessage = 'Transaction rejected: You cancelled the transaction in MetaMask.';
+                              }
+                              
+                              setErrorMessage(userMessage);
+                              setDeployStatus('idle');
+                            }
+                          }}
+                          disabled={deployStatus === 'deploying' || !deployParams.initialOwner}
+                          className="docs-deploy-button"
+                        >
+                          {deployStatus === 'deploying' ? (
+                            <>
+                              <div className="docs-deploy-spinner"></div>
+                              <span>Deploying...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Rocket size={20} />
+                              <span>Deploy Contract</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Deployment History */}
+                        {backendError && (
+                          <div className="docs-deploy-info" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                            <AlertCircle size={16} />
+                            <span>{backendError}</span>
+                          </div>
+                        )}
+                        {!backendError && deploymentHistory.length > 0 && (
+                          <div className="docs-deployment-history">
+                            <h4 className="docs-deployment-history-title">
+                              <History size={18} />
+                              <span>Deployment History</span>
+                            </h4>
+                            {loadingHistory ? (
+                              <div className="docs-deployment-history-loading">Loading history...</div>
+                            ) : (
+                              <div className="docs-deployment-history-list">
+                                {deploymentHistory.map((deployment, idx) => {
+                                  const isCurrent = idx === 0;
+                                  const deployedDate = new Date(deployment.deployed_at);
+                                  const timeAgo = (() => {
+                                    const seconds = Math.floor((new Date() - deployedDate) / 1000);
+                                    if (seconds < 60) return `${seconds}s ago`;
+                                    const minutes = Math.floor(seconds / 60);
+                                    if (minutes < 60) return `${minutes}m ago`;
+                                    const hours = Math.floor(minutes / 60);
+                                    if (hours < 24) return `${hours}h ago`;
+                                    const days = Math.floor(hours / 24);
+                                    return `${days}d ago`;
+                                  })();
+
+                                  const explorers = {
+                                    1: 'https://etherscan.io',
+                                    5: 'https://goerli.etherscan.io',
+                                    11155111: 'https://sepolia.etherscan.io',
+                                    8453: 'https://basescan.org',
+                                    84532: 'https://sepolia.basescan.org',
+                                    42161: 'https://arbiscan.io',
+                                    421614: 'https://sepolia.arbiscan.io',
+                                    10: 'https://optimistic.etherscan.io',
+                                    420: 'https://goerli-optimism.etherscan.io',
+                                    137: 'https://polygonscan.com',
+                                    80001: 'https://mumbai.polygonscan.com'
+                                  };
+                                  const explorerUrl = explorers[deployment.chain_id] || 'https://etherscan.io';
+
+                                  return (
+                                    <div key={deployment.id} className={`docs-deployment-history-item ${isCurrent ? 'docs-deployment-history-item-current' : ''}`}>
+                                      {isCurrent && (
+                                        <div className="docs-deployment-history-current-badge">
+                                          <Check size={12} />
+                                          <span>CURRENT</span>
+                                        </div>
+                                      )}
+                                      <div className="docs-deployment-history-header">
+                                        <span className="docs-deployment-history-network">{deployment.network_name}</span>
+                                        <span className="docs-deployment-history-time">{timeAgo}</span>
+                                      </div>
+                                      <div className="docs-deployment-history-address">
+                                        {deployment.address.slice(0, 10)}...{deployment.address.slice(-8)}
+                                      </div>
+                                      <div className="docs-deployment-history-deployer">
+                                        By: {deployment.deployer_address.slice(0, 6)}...{deployment.deployer_address.slice(-4)}
+                                      </div>
+                                      <div className="docs-deployment-history-actions">
+                                        <button
+                                          onClick={() => navigator.clipboard.writeText(deployment.address)}
+                                          className="docs-deployment-history-action"
+                                          title="Copy address"
+                                        >
+                                          <Copy size={14} />
+                                        </button>
+                                        <a
+                                          href={`${explorerUrl}/address/${deployment.address}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="docs-deployment-history-action"
+                                          title="View on explorer"
+                                        >
+                                          <ExternalLink size={14} />
+                                        </a>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
