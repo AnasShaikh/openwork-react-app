@@ -99,7 +99,7 @@ import ReferEarnNotEligible from "./pages/ReferEarnNotEligible/ReferEarnNotEligi
 import ReferEarn from "./pages/ReferEarn/ReferEarn";
 import UserReferralSignIn from "./pages/UserReferralSignIn/UserReferralSignIn";
 import SkillVerification from "./pages/SkillVerification/SkillVerification";
-import OpenworkDocs from "./pages/Documentation/OpenworkDocs";
+import LandingPage from "./pages/LandingPage/LandingPage";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -249,103 +249,109 @@ function MainPage() {
 
 export default function App() {
   return (
-    <Layout>
-      <BrowserRouter>
-        <Routes>
-          {/* Define routes for different pages */}
-          <Route path="/" element={<MainPage />} />
-          <Route path="/notifications" element={<Notification/>} />
-          <Route path="connect-wallet" element={<ConnectWallet/>} />
-          <Route path="/work" element={<Work />} />
-          <Route path="/governance" element={<Governance/>}/>
-          <Route path="/browse-jobs" element={<BrowseJobs/>}/>
-          <Route path="/browse-talent" element={<BrowseTalent/>}/>
-          <Route path="/direct-contract" element={<DirectContractForm />} />
-          <Route path="/post-job" element={<PostJob/>}/>
-          <Route path="/view-jobs" element={<ViewJobs />} />
-          <Route path="view-work/:jobId" element={<ViewWork/>}/>
-          <Route path="/job-details/:jobId" element={<SingleJobDetails />} />
-          <Route path="/job-deep-view/:jobId" element={<JobDeepView />} />
-          <Route path="/release-payment/:jobId" element={<ReleasePayment />} />{" "}
-          <Route path="/project-complete" element = {<ProjectComplete/>}/>
-          <Route path="/job-update/:jobId" element={<JobUpdate />} />
-          <Route path="/add-update/:jobId" element={<AddUpdate />} />
-          <Route path="/raise-dispute/:jobId" element={<RaiseDispute/>}/>
-          <Route path="/job-taker-details/:jobId" element={<TakerJobDetails/>}/>
-          <Route path="/about" element={<About/>}/>
-          <Route path="/profile" element={<Profile/>}/>
-          <Route path="/profile/:address" element={<ProfileOwnerView/>}/>
-          <Route path="/profile-about" element={<ProfileAbout/>}/>
-          <Route path="/profile-jobs" element={<ProfileJobs/>}/>
-          <Route path="/application-jobs" element={<ApplicationJobs/>}/>
-          <Route path="/profile-portfolio" element={<ProfilePortfolio/>}/>
-          <Route path="/profile-portfolio-owner" element={<ProfilePortfolioOwner/>}/>
-          <Route path="/view-work-profile/:id" element={<ViewWorkProfile/>}/>
-          <Route path="/profile-packages" element={<ProfilePackages/>}/>
-          <Route path="/view-package/:packageId" element={<ViewPackage/>}/>
-          <Route path="/create-package" element={<CreatePackage/>}/>
-          <Route path="/edit-picture" element={<EditPicture/>}/>
-          <Route path="/payments/:jobId" element={<Payments/>} />
-          <Route path="/payment-history/:jobId" element={<PaymentHistory/>} />
-          <Route path="/payment-refund/:jobId" element={<PaymentRefund/>} />
-          <Route path="/skill-verification/:jobId" element={<GetSkillsVerified/>}/>
-          <Route path="/skill-oracles" element={<SkillOracle/>} />
-          <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />
-          <Route path="/skill-oracle-proposals" element={<SkillOracleProposals/>} />
-          <Route path="/skill-oracle-disputes" element={<SkillOracleDisputes/>} />
-          <Route path="/dao-members" element={<DAOMembers/>} />
-          <Route path="/members-governance/:jobId" element={<MembersGovernance/>} />
-          <Route path="/remove-member/:jobId" element={<RemoveMember/>} />
-          <Route path="/apply-now" element={<ApplyNow/>}/>
-          <Route path="/join-now" element={<JoinNow/>}/>
-          <Route path="/voting-history/:jobId" element={<VotingHistory/>} />
-          <Route path="/add-member" element={<AddMember/>} />
-          <Route path="/review-dispute/:jobId" element={<ReviewDispute/>} />
-          <Route path="/joinee-application/:jobId" element={<JoineeApplication/>} />
-          <Route path="/removal-application/:jobId" element={<RemovalApplication/>} />
-          <Route path="/recruitment-application/:jobId" element={<RecruitmentApplication/>} />
-          <Route path="/skill-verification-application/:jobId" element={<SkillVerificationApplication/>} />
-          <Route path="/vote-proposal" element={<VoteProposal/>} />
-          <Route path="/vote-submission" element={<VoteSubmission/>} />
-          <Route path="/apply-job" element={<ApplyJob/>} />
-          <Route path="/view-received-application" element={<ViewReceivedApplication/>} />
-          <Route path="/view-any-application" element={<ViewAnyApplication/>}/>
-          <Route path="/view-job-details/:jobId" element={<ViewJobDetails/>} />
-          <Route path="/view-job-applications/:jobId" element={<ViewJobApplications/>} />
-          <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
-          <Route path="/dao" element={<DAO/>} />
-          <Route path="/join-dao" element={<JoinDAO/>} />
-          <Route path="/new-proposal" element={<Newproposel/>} />
-          <Route path="/treasury-proposal" element={<TreasuryProposal/>} />
-          <Route path="/contract-upgrade-proposal" element={<ContractUpgradeProposal/>} />
-          <Route path="/contract-upgrade-proposal-step2" element={<ContractUpgradeProposalStep2/>} />
-          <Route path="/skill-oracle-proposal" element={<SkillOracleProposal/>} />
-          <Route path="/skill-oracle-member-proposal" element={<SkillOracleMemberProposal/>} />
-          <Route path="/contractupdateproposel" element={<ContractUpdateProposel/>} />
-          <Route path="/contract-update-step2" element={<ContractUpdateProposelStep2/>} />
-          <Route path="/contractupdateproposelstep3" element={<ContractUpdateProposelStep3/>} />
-          <Route path="/dao-votes-update-form" element={<ContractUpdateProposelStep3/>} />
-          <Route path="/dao-staking-update-form" element={<ContractUpdateProposelStep3/>} />
-          <Route path="/openworkjobproposel" element={<OpenWorkJobProposel/>} />
-          <Route path="/newskilloraclestep2" element={<NewSkillOracleStep2/>} />
-          <Route path="/dissolveskilloraclestep2" element={<DissolveSkillOracleStep2/>} />
-          <Route path="/skilloraclerecruitmentstep2" element={<SkillOracleRecruitmentStep2/>} />
-          <Route path="/skilloraclememberremovalstep2" element={<SkillOracleMemberRemovalStep2/>} />
-          <Route path="/contract-update-proposal-view" element={<ContractUpdateProposalView/>} />
-          <Route path="/contract-upgrade-proposal-view" element={<ContractUpgradeProposalView/>} />
-          <Route path="/treasury-proposal-view" element={<TreasuryProposalView/>} />
-          <Route path="/dissolve-oracle-proposal-view" element={<DissolveOracleProposalView/>} />
-          <Route path="/recruitment-proposal-view" element={<RecruitmentProposalView/>} />
-          <Route path="/chain-switching" element={<ChainSwitching/>} />
-          <Route path="/referral-not-eligible" element={<ReferralNotEligible/>} />
-          <Route path="/referral-eligible" element={<ReferralEligible/>} />
-          <Route path="/refer-earn-not-eligible" element={<ReferEarnNotEligible/>} />
-          <Route path="/refer-earn" element={<ReferEarn/>} />
-          <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
-          <Route path="/skill-verification-page" element={<SkillVerification/>} />
-          <Route path="/docs" element={<OpenworkDocs/>} />
-        </Routes>
-      </BrowserRouter>
-    </Layout>
+    <BrowserRouter>
+      <Routes>
+        {/* Landing page without Layout (no header/chain selector) */}
+        <Route path="/" element={<LandingPage />} />
+        
+        {/* All other routes with Layout */}
+        <Route path="/*" element={
+          <Layout>
+            <Routes>
+              <Route path="/home" element={<MainPage />} />
+              <Route path="/notifications" element={<Notification/>} />
+              <Route path="connect-wallet" element={<ConnectWallet/>} />
+              <Route path="/work" element={<Work />} />
+              <Route path="/governance" element={<Governance/>}/>
+              <Route path="/browse-jobs" element={<BrowseJobs/>}/>
+              <Route path="/browse-talent" element={<BrowseTalent/>}/>
+              <Route path="/direct-contract" element={<DirectContractForm />} />
+              <Route path="/post-job" element={<PostJob/>}/>
+              <Route path="/view-jobs" element={<ViewJobs />} />
+              <Route path="view-work/:jobId" element={<ViewWork/>}/>
+              <Route path="/job-details/:jobId" element={<SingleJobDetails />} />
+              <Route path="/job-deep-view/:jobId" element={<JobDeepView />} />
+              <Route path="/release-payment/:jobId" element={<ReleasePayment />} />{" "}
+              <Route path="/project-complete" element = {<ProjectComplete/>}/>
+              <Route path="/job-update/:jobId" element={<JobUpdate />} />
+              <Route path="/add-update/:jobId" element={<AddUpdate />} />
+              <Route path="/raise-dispute/:jobId" element={<RaiseDispute/>}/>
+              <Route path="/job-taker-details/:jobId" element={<TakerJobDetails/>}/>
+              <Route path="/about" element={<About/>}/>
+              <Route path="/profile" element={<Profile/>}/>
+              <Route path="/profile/:address" element={<ProfileOwnerView/>}/>
+              <Route path="/profile-about" element={<ProfileAbout/>}/>
+              <Route path="/profile-jobs" element={<ProfileJobs/>}/>
+              <Route path="/application-jobs" element={<ApplicationJobs/>}/>
+              <Route path="/profile-portfolio" element={<ProfilePortfolio/>}/>
+              <Route path="/profile-portfolio-owner" element={<ProfilePortfolioOwner/>}/>
+              <Route path="/view-work-profile/:id" element={<ViewWorkProfile/>}/>
+              <Route path="/profile-packages" element={<ProfilePackages/>}/>
+              <Route path="/view-package/:packageId" element={<ViewPackage/>}/>
+              <Route path="/create-package" element={<CreatePackage/>}/>
+              <Route path="/edit-picture" element={<EditPicture/>}/>
+              <Route path="/payments/:jobId" element={<Payments/>} />
+              <Route path="/payment-history/:jobId" element={<PaymentHistory/>} />
+              <Route path="/payment-refund/:jobId" element={<PaymentRefund/>} />
+              <Route path="/skill-verification/:jobId" element={<GetSkillsVerified/>}/>
+              <Route path="/skill-oracles" element={<SkillOracle/>} />
+              <Route path="/members-skill-oracles" element={<MembersSkillOracle/>} />
+              <Route path="/skill-oracle-proposals" element={<SkillOracleProposals/>} />
+              <Route path="/skill-oracle-disputes" element={<SkillOracleDisputes/>} />
+              <Route path="/dao-members" element={<DAOMembers/>} />
+              <Route path="/members-governance/:jobId" element={<MembersGovernance/>} />
+              <Route path="/remove-member/:jobId" element={<RemoveMember/>} />
+              <Route path="/apply-now" element={<ApplyNow/>}/>
+              <Route path="/join-now" element={<JoinNow/>}/>
+              <Route path="/voting-history/:jobId" element={<VotingHistory/>} />
+              <Route path="/add-member" element={<AddMember/>} />
+              <Route path="/review-dispute/:jobId" element={<ReviewDispute/>} />
+              <Route path="/joinee-application/:jobId" element={<JoineeApplication/>} />
+              <Route path="/removal-application/:jobId" element={<RemovalApplication/>} />
+              <Route path="/recruitment-application/:jobId" element={<RecruitmentApplication/>} />
+              <Route path="/skill-verification-application/:jobId" element={<SkillVerificationApplication/>} />
+              <Route path="/vote-proposal" element={<VoteProposal/>} />
+              <Route path="/vote-submission" element={<VoteSubmission/>} />
+              <Route path="/apply-job" element={<ApplyJob/>} />
+              <Route path="/view-received-application" element={<ViewReceivedApplication/>} />
+              <Route path="/view-any-application" element={<ViewAnyApplication/>}/>
+              <Route path="/view-job-details/:jobId" element={<ViewJobDetails/>} />
+              <Route path="/view-job-applications/:jobId" element={<ViewJobApplications/>} />
+              <Route path="/existing-skill-oracles" element={<ExistingMemberSkillOracle/>} />
+              <Route path="/dao" element={<DAO/>} />
+              <Route path="/join-dao" element={<JoinDAO/>} />
+              <Route path="/new-proposal" element={<Newproposel/>} />
+              <Route path="/treasury-proposal" element={<TreasuryProposal/>} />
+              <Route path="/contract-upgrade-proposal" element={<ContractUpgradeProposal/>} />
+              <Route path="/contract-upgrade-proposal-step2" element={<ContractUpgradeProposalStep2/>} />
+              <Route path="/skill-oracle-proposal" element={<SkillOracleProposal/>} />
+              <Route path="/skill-oracle-member-proposal" element={<SkillOracleMemberProposal/>} />
+              <Route path="/contractupdateproposel" element={<ContractUpdateProposel/>} />
+              <Route path="/contract-update-step2" element={<ContractUpdateProposelStep2/>} />
+              <Route path="/contractupdateproposelstep3" element={<ContractUpdateProposelStep3/>} />
+              <Route path="/dao-votes-update-form" element={<ContractUpdateProposelStep3/>} />
+              <Route path="/dao-staking-update-form" element={<ContractUpdateProposelStep3/>} />
+              <Route path="/openworkjobproposel" element={<OpenWorkJobProposel/>} />
+              <Route path="/newskilloraclestep2" element={<NewSkillOracleStep2/>} />
+              <Route path="/dissolveskilloraclestep2" element={<DissolveSkillOracleStep2/>} />
+              <Route path="/skilloraclerecruitmentstep2" element={<SkillOracleRecruitmentStep2/>} />
+              <Route path="/skilloraclememberremovalstep2" element={<SkillOracleMemberRemovalStep2/>} />
+              <Route path="/contract-update-proposal-view" element={<ContractUpdateProposalView/>} />
+              <Route path="/contract-upgrade-proposal-view" element={<ContractUpgradeProposalView/>} />
+              <Route path="/treasury-proposal-view" element={<TreasuryProposalView/>} />
+              <Route path="/dissolve-oracle-proposal-view" element={<DissolveOracleProposalView/>} />
+              <Route path="/recruitment-proposal-view" element={<RecruitmentProposalView/>} />
+              <Route path="/chain-switching" element={<ChainSwitching/>} />
+              <Route path="/referral-not-eligible" element={<ReferralNotEligible/>} />
+              <Route path="/referral-eligible" element={<ReferralEligible/>} />
+              <Route path="/refer-earn-not-eligible" element={<ReferEarnNotEligible/>} />
+              <Route path="/refer-earn" element={<ReferEarn/>} />
+              <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
+              <Route path="/skill-verification-page" element={<SkillVerification/>} />
+            </Routes>
+          </Layout>
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }
