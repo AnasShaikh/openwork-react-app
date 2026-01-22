@@ -10,10 +10,10 @@
 
 | Chain | Total | Verified | Pending | Status |
 |-------|-------|----------|---------|--------|
-| Arbitrum One | 20 | 20 | 0 | Complete |
+| Arbitrum One | 21 | 21 | 0 | Complete |
 | Optimism | 6 | 6 | 0 | Complete |
 | Ethereum Mainnet | 5 | 5 | 0 | Complete |
-| **TOTAL** | **31** | **31** | **0** | **100%** |
+| **TOTAL** | **32** | **32** | **0** | **100%** |
 
 ---
 
@@ -46,7 +46,7 @@
 | 11 | CCTPTransceiver | `0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87` | [x] Verified | [Arbiscan](https://arbiscan.io/address/0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87) |
 | 12 | NativeContractRegistry | `0x29D61B1a9E2837ABC0810925429Df641CBed58c3` | [x] Verified | [Arbiscan](https://arbiscan.io/address/0x29D61B1a9E2837ABC0810925429Df641CBed58c3) |
 
-## Supporting Contracts - Jan 22 (8)
+## Supporting Contracts - Jan 22 (9)
 
 | # | Contract | Implementation | Proxy | Status |
 |---|----------|---------------|-------|--------|
@@ -54,12 +54,14 @@
 | 14 | NativeAthenaActivityTracker | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` | [x] Verified |
 | 15 | NativeAthenaOracleManager | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | [x] Verified |
 | 16 | NativeProfileManager | `0xf82D59Cf9339D500C1b35C87D02dE422223812f6` | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | [x] Verified |
+| 17 | NativeGenesisReader | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | N/A (Non-Upgradeable) | [x] Verified |
 
 **Arbiscan Links (Jan 22):**
 - [ProfileGenesis Impl](https://arbiscan.io/address/0xae31d7be760D92807B013a71bb51f2cBB132166b) | [Proxy](https://arbiscan.io/address/0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E)
 - [ActivityTracker Impl](https://arbiscan.io/address/0x9588A78748a8bc82295bf44d87C4b9F924d11AE8) | [Proxy](https://arbiscan.io/address/0x8C04840c3f5b5a8c44F9187F9205ca73509690EA)
 - [OracleManager Impl](https://arbiscan.io/address/0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59) | [Proxy](https://arbiscan.io/address/0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15)
 - [ProfileManager Impl](https://arbiscan.io/address/0xf82D59Cf9339D500C1b35C87D02dE422223812f6) | [Proxy](https://arbiscan.io/address/0x51285003A01319c2f46BB2954384BCb69AfB1b45)
+- [GenesisReader](https://arbiscan.io/address/0x72ee091C288512f0ee9eB42B8C152fbB127Dc782)
 
 ---
 

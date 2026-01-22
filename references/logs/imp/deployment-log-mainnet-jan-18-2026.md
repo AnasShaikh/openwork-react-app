@@ -1357,3 +1357,28 @@ Transaction hash: 0x816d1b51bc00a86b5b979aa2802d77ff16135c6ced07df1cf9bb56a5a6d4
 | NativeProfileManager | `0xf82D59Cf9339D500C1b35C87D02dE422223812f6` | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` |
 
 ---
+
+## 38. NativeGenesisReader (Arbitrum Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/native/native-genesis-reader.sol:NativeGenesisReader" \
+  --constructor-args 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x72ee091C288512f0ee9eB42B8C152fbB127Dc782
+Transaction hash: 0xa16a1bd67acbc00bb74cc0311107e65895eb066b8ce2ebe56383dea4e8ec41ca
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x72ee091C288512f0ee9eB42B8C152fbB127Dc782
+
+**Constructor Args:**
+- `_genesis`: `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` (Genesis Proxy)
+
+---
