@@ -171,6 +171,7 @@
 | NativeAthenaOracleManager | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | ✅ Verified |
 | NativeProfileManager | `0xf82D59Cf9339D500C1b35C87D02dE422223812f6` | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | ✅ Verified |
 | NativeContractRegistry | `0x29D61B1a9E2837ABC0810925429Df641CBed58c3` | N/A (Non-Upgradeable) | ✅ Verified |
+| NativeGenesisReader | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | N/A (Non-Upgradeable) | ✅ Verified |
 
 ### External Dependencies (Arbitrum One)
 
