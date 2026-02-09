@@ -1382,3 +1382,1508 @@ Transaction hash: 0xa16a1bd67acbc00bb74cc0311107e65895eb066b8ce2ebe56383dea4e8ec
 - `_genesis`: `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` (Genesis Proxy)
 
 ---
+
+# OPTIMISM LOWJC REDEPLOYMENT - January 23, 2026
+
+## Issue
+
+The original LOWJC Proxy (section 17) was initialized with `_chainId: 2` (CCTP Domain) instead of `30111` (LayerZero EID). This caused job IDs to start with "2-" instead of "30111-".
+
+## 39. LocalOpenWorkJobContract Implementation V2 (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/local/local-openwork-job-contract.sol:LocalOpenWorkJobContract"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0xfab6Eb4858f1c9C2445787Ff142582DE291F0dEC
+Transaction hash: 0x81594312de2b9d6517f47ab08c335c3185005929750757cb1103ebe61a4696af
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0xfab6Eb4858f1c9C2445787Ff142582DE291F0dEC
+
+---
+
+## 40. LOWJC Proxy V2 (Optimism Mainnet) - UNINITIALIZED
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/utilities/proxy.sol:UUPSProxy" \
+  --constructor-args 0xfab6Eb4858f1c9C2445787Ff142582DE291F0dEC 0x
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0xDae5036a1d9E7C6CE953604FF238E13BD2B83951
+Transaction hash: 0xdbfe3c489f5a63cc530b3725e7ed502a790b17db4ffe394be9f0efbb9ea7add3
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0xDae5036a1d9E7C6CE953604FF238E13BD2B83951
+
+---
+
+## 41. LOWJC Proxy V2 Initialization
+
+**Command:**
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0xDae5036a1d9E7C6CE953604FF238E13BD2B83951 \
+  "initialize(address,address,uint32,address,address)" \
+  0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C \
+  0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 \
+  30111 \
+  0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510
+```
+
+**Initialize Args:**
+- `_owner`: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
+- `_usdcToken`: `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85`
+- `_chainId`: `30111` (LayerZero EID - **CORRECT**)
+- `_bridge`: `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36`
+- `_cctpSender`: `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510`
+
+**Output:**
+```
+status               1 (success)
+transactionHash      0xbd9ddc1465086766fe9a9a124136941815f2cae65a83cae51206b418ddcf8ee2
+blockNumber          146755157
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/tx/0xbd9ddc1465086766fe9a9a124136941815f2cae65a83cae51206b418ddcf8ee2
+
+---
+
+## 42. Bridge Configuration - Update LOWJC Reference
+
+**Command:**
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  "setLowjcContract(address)" \
+  0xDae5036a1d9E7C6CE953604FF238E13BD2B83951
+```
+
+**Output:**
+```
+status               1 (success)
+transactionHash      0xd36608dee120245d111c612950a8eb21d1b65af519574145e7c5bc5762389086
+blockNumber          146755187
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/tx/0xd36608dee120245d111c612950a8eb21d1b65af519574145e7c5bc5762389086
+
+**Note:** LocalLZOpenworkBridge now points to new LOWJC Proxy V2 (`0xDae5036a1d9E7C6CE953604FF238E13BD2B83951`) with correct chainId=30111.
+
+---
+
+## LOWJC Redeployment Summary (V2)
+
+| Contract | Old Address | New Address |
+|----------|-------------|-------------|
+| LOWJC Impl | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | `0xfab6Eb4858f1c9C2445787Ff142582DE291F0dEC` |
+| LOWJC Proxy | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` (chainId=2 ❌) | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` (chainId=30111 ✅) |
+
+**V1 is DEPRECATED** - wrong chainId.
+
+---
+
+# OPTIMISM LOWJC V3 REDEPLOYMENT - January 23, 2026
+
+## Issue
+
+LOWJC Proxy V2 (`0xDae5036a1d9E7C6CE953604FF238E13BD2B83951`) had a broken upgrade mechanism - `upgradeToAndCall` transactions succeeded but implementation never changed. Root cause unknown.
+
+**Solution:** Deploy fresh proxy with new implementation.
+
+---
+
+## 43. LocalOpenWorkJobContract Implementation V3 (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/local/local-openwork-job-contract.sol:LocalOpenWorkJobContract"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0xcC09C58e654D92CBaa5184E000275500b32b2117
+Transaction hash: 0x02701d9f1a58277de90a552533663417d298d9d82765de938d92eefd54ba99d5
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0xcC09C58e654D92CBaa5184E000275500b32b2117
+
+---
+
+## 44. LOWJC Proxy V3 (Optimism Mainnet) - UNINITIALIZED
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/utilities/proxy.sol:UUPSProxy" \
+  --constructor-args 0xcC09C58e654D92CBaa5184E000275500b32b2117 0x
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x9588A78748a8bc82295bf44d87C4b9F924d11AE8
+Transaction hash: 0xc76895e18cf0021aee4325100ffc6602c2c3a14e81b67f5a4a303628af732b2a
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0x9588A78748a8bc82295bf44d87C4b9F924d11AE8
+
+---
+
+## 45. LOWJC Proxy V3 Initialization
+
+**Command:**
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x9588A78748a8bc82295bf44d87C4b9F924d11AE8 \
+  "initialize(address,address,uint32,address,address)" \
+  0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C \
+  0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 \
+  30111 \
+  0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510
+```
+
+**Initialize Args:**
+- `_owner`: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
+- `_usdcToken`: `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85`
+- `_chainId`: `30111` (LayerZero EID - **CORRECT**)
+- `_bridge`: `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36`
+- `_cctpSender`: `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510`
+
+**Output:**
+```
+status               1 (success)
+transactionHash      0x5a1a424ec902fdf1de90b6f2777c39c2d459f1b27aab96b255740d4a2d9c5998
+blockNumber          146781735
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/tx/0x5a1a424ec902fdf1de90b6f2777c39c2d459f1b27aab96b255740d4a2d9c5998
+
+---
+
+## 46. LOWJC V3 ↔ LocalAthena Connection
+
+### 46a. LOWJC V3 → setAthenaClientContract
+
+**Command:**
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x9588A78748a8bc82295bf44d87C4b9F924d11AE8 \
+  "setAthenaClientContract(address)" \
+  0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d
+```
+
+**Output:**
+```
+status               1 (success)
+transactionHash      0xba77eed426d27996b85677bf24c11143decd1a0a9df05304f90c914280f9b056
+blockNumber          146781752
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/tx/0xba77eed426d27996b85677bf24c11143decd1a0a9df05304f90c914280f9b056
+
+### 46b. LocalAthena → setJobContract
+
+**Command:**
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d \
+  "setJobContract(address)" \
+  0x9588A78748a8bc82295bf44d87C4b9F924d11AE8
+```
+
+**Output:**
+```
+status               1 (success)
+transactionHash      0x6251fea7d63bf8cb06589e14963431c8d5b4fdc88a52ab2121239b1cf33a5ea9
+blockNumber          146781755
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/tx/0x6251fea7d63bf8cb06589e14963431c8d5b4fdc88a52ab2121239b1cf33a5ea9
+
+---
+
+## 47. LOWJC V3 ↔ LocalBridge Connection
+
+### 47a. LocalBridge → setLowjcContract to V3
+
+**Command:**
+```bash
+source .env && cast send 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  "setLowjcContract(address)" \
+  0x9588A78748a8bc82295bf44d87C4b9F924d11AE8 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Verified on-chain
+
+### 47b. LocalBridge → authorizeContract for V3
+
+**Command:**
+```bash
+source .env && cast send 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  "authorizeContract(address,bool)" \
+  0x9588A78748a8bc82295bf44d87C4b9F924d11AE8 \
+  true \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Verified on-chain
+
+### 47c. LOWJC V3 → setCCTPMintRecipient
+
+**Command:**
+```bash
+source .env && cast send 0x9588A78748a8bc82295bf44d87C4b9F924d11AE8 \
+  "setCCTPMintRecipient(address)" \
+  0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Verified on-chain
+
+### Verification Results
+
+```
+LocalBridge.lowjcContract(): 0x9588A78748a8bc82295bf44d87C4b9F924d11AE8 ✅
+LocalBridge.authorizedContracts(V3): true ✅
+LOWJC V3.cctpMintRecipient(): 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 ✅
+```
+
+---
+
+## LOWJC Version Summary
+
+| Version | Proxy Address | Implementation | chainId | Status |
+|---------|---------------|----------------|---------|--------|
+| V1 | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | 2 ❌ | DEPRECATED |
+| V2 | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` | `0xfab6Eb4858f1c9C2445787Ff142582DE291F0dEC` | 30111 ✅ | DEPRECATED (upgrade broken) |
+| V3 | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | `0xcC09C58e654D92CBaa5184E000275500b32b2117` | 30111 ✅ | DEPRECATED (impl mismatch) |
+| V4 | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | `0xcC09C58e654D92CBaa5184E000275500b32b2117` | 30111 ✅ | ✅ ACTIVE |
+
+---
+
+# OPTIMISM LOWJC V4 DEPLOYMENT - January 23, 2026
+
+## Issue
+
+LOWJC V3 Proxy (`0x9588A78748a8bc82295bf44d87C4b9F924d11AE8`) was deployed with `0x` as init data, causing proxy implementation slot mismatch. The proxy stored wrong implementation address (`0x6eb0caa8050652f12a827f8db8fafbbf917c7388`) instead of the correct one (`0xcC09C58e654D92CBaa5184E000275500b32b2117`).
+
+**Root Cause:** Passing `0x` (empty bytes) to ERC1967Proxy constructor caused unexpected behavior.
+
+**Solution:** Deploy proxy with atomic initialization - pass full init calldata directly in constructor args.
+
+---
+
+## 48. LOWJC Proxy V4 (Optimism Mainnet) - ATOMIC INITIALIZATION
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/utilities/proxy.sol:UUPSProxy" \
+  --constructor-args 0xcC09C58e654D92CBaa5184E000275500b32b2117 $(cast calldata "initialize(address,address,uint32,address,address)" 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 30111 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510)
+```
+
+**Constructor Args:**
+- Implementation: `0xcC09C58e654D92CBaa5184E000275500b32b2117` (LOWJC Impl V3 - reused)
+- Init data: `initialize(owner, usdc, chainId, bridge, cctp)` - passed directly for atomic init
+
+**Initialize Args (embedded in constructor):**
+- `_owner`: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
+- `_usdcToken`: `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85`
+- `_chainId`: `30111` (LayerZero EID)
+- `_bridge`: `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36`
+- `_cctpSender`: `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510`
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x620205A4Ff0E652fF03a890d2A677de878a1dB63
+Transaction hash: [deployment tx]
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0x620205A4Ff0E652fF03a890d2A677de878a1dB63
+
+**Implementation Verification:**
+```bash
+cast storage 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x000000000000000000000000cC09C58e654D92CBaa5184E000275500b32b2117 ✅
+```
+
+---
+
+## 49. LOWJC V4 Configuration
+
+### 49a. LOWJC V4 → setAthenaClientContract
+
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setAthenaClientContract(address)" \
+  0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d
+```
+
+**Status:** ✅ Verified
+
+### 49b. LocalAthena → setJobContract to V4
+
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d \
+  "setJobContract(address)" \
+  0x620205A4Ff0E652fF03a890d2A677de878a1dB63
+```
+
+**Status:** ✅ Verified
+
+### 49c. LocalBridge → setLowjcContract to V4
+
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  "setLowjcContract(address)" \
+  0x620205A4Ff0E652fF03a890d2A677de878a1dB63
+```
+
+**Status:** ✅ Verified
+
+### 49d. LocalBridge → authorizeContract for V4
+
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  "authorizeContract(address,bool)" \
+  0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  true
+```
+
+**Status:** ✅ Verified
+
+### 49e. LOWJC V4 → setCCTPMintRecipient
+
+```bash
+source .env && cast send --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY \
+  0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setCCTPMintRecipient(address)" \
+  0x8EfbF240240613803B9c9e716d4b5AD1388aFd99
+```
+
+**Status:** ✅ Verified
+
+---
+
+## 50. LOWJC V4 Connection Verification
+
+```bash
+# Verify all connections
+cast call 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 "lowjcContract()(address)" --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 ✅
+
+cast call 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 "authorizedContracts(address)(bool)" 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: true ✅
+
+cast call 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 "cctpMintRecipient()(address)" --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 ✅
+
+cast call 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 "athenaClientContract()(address)" --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d ✅
+
+cast call 0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d "jobContract()(address)" --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 ✅
+```
+
+All connections verified ✅
+
+---
+
+## 51. LOWJC V4 Cross-Chain Test - Job "30111-3"
+
+**Date:** January 23, 2026
+
+### postJob Transaction
+
+**Source TX (Optimism):** `0x6430e160b5843b7ca5474c2e5582b3216ebb984dce0ace40fa9d3819ac9ca5d7`
+
+**LayerZero Status:** DELIVERED ✅
+
+| Field | Value |
+|-------|-------|
+| Source EID | 30111 (Optimism) |
+| Destination EID | 30110 (Arbitrum) |
+| Nonce | 12 |
+| Source Status | SUCCEEDED |
+| Destination Status | **SUCCEEDED** ✅ |
+| Job ID | 30111-3 |
+| Destination TX | `0x0de20bc81375566301e2201e60750f0811fb353e34b19f98019c1ab27a685db1` |
+
+**Job Details:**
+- Job ID: `30111-3`
+- CID: `QmSkipJob2`
+- Milestones: 1 ("Milestone 1")
+- Amount: 10000 (0.01 USDC)
+- Job Giver: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
+
+**Result:** Cross-chain job posting working correctly with V4 proxy ✅
+
+---
+
+## Key Lesson Learned
+
+**Problem:** Deploying UUPS proxy with `0x` as init data (for separate initialization) caused implementation slot corruption.
+
+**Solution:** Always use atomic initialization - embed full init calldata in proxy constructor:
+```bash
+# WRONG (causes implementation mismatch):
+forge create ... UUPSProxy --constructor-args 0xIMPL 0x
+
+# CORRECT (atomic initialization):
+forge create ... UUPSProxy --constructor-args 0xIMPL $(cast calldata "initialize(...)" arg1 arg2 ...)
+```
+
+---
+
+# OPTIMISM CCTPTransceiver V2 DEPLOYMENT - January 23, 2026
+
+## Issue
+
+CCTPTransceiver V1 (`0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510`) was deployed with **CCTP V1 addresses**, but our contract uses **CCTP V2 function signatures** (depositForBurn with 7 parameters).
+
+**Root Cause:** Wrong Circle CCTP contract addresses used during initial deployment.
+
+| Version | TokenMessenger | MessageTransmitter | Issue |
+|---------|---------------|-------------------|-------|
+| V1 (Wrong) | `0x2B4069517957735bE00ceE0fadAE88a26365528f` | `0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8` | CCTP V1 contracts |
+| V2 (Correct) | `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` | `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` | CCTP V2 contracts |
+
+---
+
+## 52. CCTPTransceiver V2 (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/utilities/cctp-transceiver.sol:CCTPTransceiver" \
+  --constructor-args \
+  0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d \
+  0x81D40F21F12A8F0E3252Bccb954D722d4c464B64 \
+  0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85
+```
+
+**Constructor Args:**
+- `_tokenMessenger`: `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` (TokenMessengerV2)
+- `_messageTransmitter`: `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` (MessageTransmitterV2)
+- `_usdc`: `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` (Optimism USDC)
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15
+
+---
+
+## CCTPTransceiver Version Summary
+
+| Version | Address | TokenMessenger | Status |
+|---------|---------|----------------|--------|
+| V1 | `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` | V1 (wrong) | ⚠️ DEPRECATED |
+| V2 | `0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15` | V2 (correct) | ✅ ACTIVE |
+
+---
+
+## 53. LOWJC V4 → setCCTPSender to V2
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setCCTPSender(address)" \
+  0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Updated
+
+---
+
+## 54. startJob Test - Job "30111-3" with CCTP
+
+**Date:** January 23, 2026
+
+### Transaction
+
+**Source TX (Optimism):** `0x879245f389719ecb80675e8a1cf0fdb0f5ba7d0a5a35d672fdb643cec45cc00d`
+
+**Parameters:**
+- Job ID: `30111-3`
+- Application ID: `1`
+- Amount: 10000 (0.01 USDC)
+
+### CCTP Results
+
+| Field | Value |
+|-------|-------|
+| Source | Optimism (Domain 2) |
+| Destination | Arbitrum (Domain 3) |
+| Amount Sent | 10000 |
+| Fee | 1 |
+| Amount Received | 9999 |
+| Mint Recipient | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` (NOWJC) |
+| Attestation Status | **COMPLETE** ✅ |
+
+**CCTP Completion TX (Arbitrum):**
+```bash
+cast send 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64 \
+  "receiveMessage(bytes,bytes)" \
+  "MESSAGE" "ATTESTATION" \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+### LayerZero Results
+
+| Field | Value |
+|-------|-------|
+| Status | **DELIVERED** ✅ |
+| Destination TX | `0x80ecadd417b7508ebab7943d95767f0386170df17c92873868a1395c11dd3b19` |
+
+### Verification
+
+**NOWJC USDC Balance (Arbitrum):**
+```bash
+cast call 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 "balanceOf(address)(uint256)" 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 --rpc-url $ARBITRUM_MAINNET_RPC_URL
+# Result: 9999 ✅
+```
+
+**Result:** Full startJob + CCTP V2 integration working on mainnet ✅
+
+---
+
+# NATIVE REWARDS CONTRACT V2 - January 23, 2026
+
+## Issue
+
+NativeRewardsContract V1 (`0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7`) reverts in `processJobPayment` when users don't have a profile in ProfileGenesis. The `getUserReferrer()` call reverts instead of returning address(0).
+
+**Root Cause:** Direct call to `profileGenesis.getUserReferrer(user)` without try/catch.
+
+**Fix:** Wrap referrer lookups in try/catch to gracefully handle missing profiles.
+
+---
+
+## 55. NativeRewardsContract V2 (Arbitrum Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/native/native-rewards-contract-graceful-referrer-fix.sol:NativeRewardsContract" \
+  --constructor-args 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294
+```
+
+**Constructor Args:**
+- `_owner`: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
+- `_jobContract`: `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` (NOWJC Proxy)
+- `_genesis`: `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` (Genesis Proxy)
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9
+Transaction hash: 0x1185676d513f6d0ced9d119e9774c3581e806a1dcee546c4daed2ff41a353933
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9
+
+**Source:** `src/suites/mainnet-ready/native/native-rewards-contract-graceful-referrer-fix.sol`
+
+---
+
+## 56. Configuration - Update References to V2
+
+### 56a. NOWJC → setRewardsContract
+
+```bash
+source .env && cast send 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  "setRewardsContract(address)" \
+  0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9 \
+  --private-key $PROD_DEPLOYER_KEY \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+```
+
+**Status:** ⏳ Pending
+
+### 56b. DAO → setRewardsContract
+
+```bash
+source .env && cast send 0x24af98d763724362DC920507b351cC99170a5aa4 \
+  "setRewardsContract(address)" \
+  0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9 \
+  --private-key $PROD_DEPLOYER_KEY \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+```
+
+**Status:** ⏳ Pending
+
+### 56c. Athena → setRewardsContract
+
+```bash
+source .env && cast send 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf \
+  "setRewardsContract(address)" \
+  0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9 \
+  --private-key $PROD_DEPLOYER_KEY \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+```
+
+**Status:** ⏳ Pending
+
+---
+
+## NativeRewardsContract Version Summary
+
+| Version | Address | Status | Issue |
+|---------|---------|--------|-------|
+| V1 | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | ⚠️ DEPRECATED | Reverts on missing profile |
+| V2 | `0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9` | ✅ **ACTIVE** | Graceful referrer handling |
+
+---
+
+# NATIVE LZ OPENWORK BRIDGE V2 - January 24, 2026
+
+## Issue
+
+NativeLZOpenworkBridge V1 (`0xF78B688846673C3f6b93184BeC230d982c0db0c9`) uses `msg.sender` as the LayerZero refund address in `sendSyncVotingPower()`. When called via NativeRewardsContract, the refund goes to NativeRewardsContract which has no `receive()` function, causing `Transfer_NativeFailed` error.
+
+**Root Cause:** `payable(msg.sender)` used as refund address instead of the actual user.
+
+**Fix:** Use `payable(user)` parameter as refund address so excess ETH returns to the caller's wallet.
+
+---
+
+## 57. NativeLZOpenworkBridge V2 (Arbitrum Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/native/native-lz-openwork-bridge-v2-refund-fix.sol:NativeLZOpenworkBridgeV2" \
+  --constructor-args \
+  0x1a44076050125825900e736c501f859c50fE728c \
+  0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C \
+  30101
+```
+
+**Constructor Args:**
+- `_endpoint`: `0x1a44076050125825900e736c501f859c50fE728c` (LZ Endpoint V2 on Arbitrum)
+- `_owner`: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C` (Deployer)
+- `_mainChainEid`: `30101` (Ethereum Mainnet)
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F
+Transaction hash: 0x6fc89c5f586154d4d8c448667bd796e52aa3a6cf70fd2ff903e15aa2b1731e96
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F
+
+**Source:** `src/suites/mainnet-ready/native/native-lz-openwork-bridge-v2-refund-fix.sol`
+
+---
+
+## 58. Configuration - Bridge V2 Setup (All Complete ✅)
+
+### Peers Configured
+
+| Bridge V2 Peer | EID | Address | Status |
+|----------------|-----|---------|--------|
+| ETH Bridge | 30101 | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | ✅ |
+| Local Bridge (Optimism) | 30111 | `0x74566644782e98c87a12e8fc6f7c4c72e2908a36` | ✅ |
+
+### Authorized Contracts in Bridge V2
+
+| Contract | Address | Status |
+|----------|---------|--------|
+| NativeRewardsContract V2 | `0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9` | ✅ |
+| NOWJC Proxy | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | ✅ |
+| DAO Proxy | `0x24af98d763724362DC920507b351cC99170a5aa4` | ✅ |
+| Athena Proxy | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | ✅ |
+
+### Native Contracts → Bridge V2
+
+| Contract | setBridge to V2 | Status |
+|----------|-----------------|--------|
+| NativeRewardsContract V2 | ✅ | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
+| NOWJC Proxy | ✅ | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
+| DAO Proxy | ✅ | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
+| Athena Proxy | ✅ | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
+
+### Remote Chain → Bridge V2
+
+| Chain | Contract | Peer Set to V2 | Status |
+|-------|----------|----------------|--------|
+| ETH | ETHLZOpenworkBridge | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | ✅ |
+| Optimism | LocalLZOpenworkBridge | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | ✅ |
+
+---
+
+## 59. syncVotingPower Test - January 24, 2026 ✅
+
+**Test:** Sync Anas wallet voting power from Arbitrum → ETH
+
+| Step | Details |
+|------|---------|
+| Wallet | `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724` |
+| Voting Power | 30,000,000 OW (team tokens) |
+| LZ Fee | ~0.000216 ETH |
+| Result | ✅ Synced to ETH DAO |
+
+**Verification:**
+```bash
+cast call 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294 "userTotalRewards(address)" 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724 --rpc-url $ETHEREUM_MAINNET_RPC_URL
+# Result: 30,000,000 OW ✅
+```
+
+---
+
+## NativeLZOpenworkBridge Version Summary
+
+| Version | Address | Status | Issue |
+|---------|---------|--------|-------|
+| V1 | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | ⚠️ DEPRECATED | Refund to non-payable contract |
+| V2 | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | ✅ **ACTIVE** | User refund address fix |
+
+---
+
+---
+
+# LOWJC LITE - Gas Optimization Upgrade - January 26, 2026
+
+## Background & Rationale
+
+### Problem
+The original `LocalOpenWorkJobContract` (LOWJC) stored redundant data that already exists on the native chain (Arbitrum) in NOWJC/Genesis. This caused unnecessarily high gas costs for users on remote chains (Optimism, Base, etc.).
+
+### Analysis
+We conducted a rigorous gas analysis and found that functions like `applyToJob` were storing:
+- Full `Application` struct (~276k gas) - **REDUNDANT**
+- `jobApplicationCounter` mapping - **REDUNDANT**
+- Milestone descriptions (strings) - **REDUNDANT** (only amounts needed locally)
+
+Since NOWJC/Genesis is the source of truth, LOWJC only needs to store:
+1. `job.jobGiver` - For authorization checks
+2. `job.status` - For state validation
+3. `job.currentLockedAmount` - For double-spend prevention
+4. `job.milestoneAmounts[]` - For payment tracking (amounts only, no descriptions)
+
+### Gas Savings Summary
+
+| Function | Original Gas | Lite Gas | Savings |
+|----------|-------------|----------|---------|
+| `postJob` | ~310,000 | ~136,400 | **56%** |
+| `applyToJob` | ~301,000 | ~16,800 | **94%** |
+| `startJob` | ~340,000 | ~126,600 | **63%** |
+| `submitWork` | ~62,000 | ~17,900 | **71%** |
+| `rate` | ~66,600 | ~14,500 | **78%** |
+
+**Full job lifecycle: ~68% gas reduction (~1.5M gas saved per job)**
+
+---
+
+## 60. LOWJC Lite Implementation (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  src/suites/mainnet-ready/local/local-openwork-job-contract-lite.sol:LocalOpenWorkJobContractLite
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x912818b95BF846e0278869a06253F934673EB747
+Transaction hash: 0x32b149dd8a7642ab211bfeca9cf4aec994194534484be17e85fbe14e0b84544f
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0x912818b95BF846e0278869a06253F934673EB747
+
+**Source:** `src/suites/mainnet-ready/local/local-openwork-job-contract-lite.sol`
+
+**Key Changes from Original LOWJC:**
+- Removed `profiles` mapping (use Genesis directly)
+- Removed `hasProfile` mapping
+- Removed `jobApplications` mapping (applications stored only on native chain)
+- Removed `jobApplicationCounter`
+- Removed `jobRatings` and `userRatings` mappings
+- Simplified `Job` struct to security-critical fields only
+- Removed string storage for milestone descriptions (only amounts stored locally)
+
+---
+
+## 61. LOWJC V4 Proxy Upgrade to Lite
+
+**Command:**
+```bash
+source .env && cast send \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "upgradeToAndCall(address,bytes)" \
+  0x912818b95BF846e0278869a06253F934673EB747 \
+  0x
+```
+
+**Output:**
+```
+transactionHash: 0xde3150beab4f387e9b60121531bcccf78704018999f2a2a09c1c5e2643b657a9
+status: 1 (success)
+gasUsed: 37800
+```
+
+**Verification:**
+```bash
+cast storage 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x000000000000000000000000912818b95bf846e0278869a06253f934673eb747 ✅
+```
+
+---
+
+## LOWJC Version Summary (Optimism)
+
+| Version | Implementation | Proxy | Status | Notes |
+|---------|----------------|-------|--------|-------|
+| V1-V3 | Various | Various | ❌ DEPRECATED | Initialization/upgrade issues |
+| V4 | `0xcC09C58e654D92CBaa5184E000275500b32b2117` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | Full storage version |
+| Lite | `0x912818b95BF846e0278869a06253F934673EB747` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | 68% gas reduction |
+
+*See "LOWJC Lite Version Summary (Updated)" at end of document for current active version.*
+
+---
+
+## Breaking Changes in Lite Version
+
+1. **`getApplication()` removed** - Query Genesis on Arbitrum instead
+2. **`getProfile()` removed** - Query Genesis on Arbitrum instead
+3. **`getRating()` removed** - Query Genesis on Arbitrum instead
+4. **Event changes** - `JobApplication` event no longer includes `applicationId` (assigned by NOWJC)
+5. ~~**`releaseAndLockNext`** now requires `_targetChainDomain` and `_targetRecipient` params~~ **Fixed in Lite V4** - params removed (payment goes to applicant's stored preferred chain)
+
+---
+
+## 62. LOWJC Lite Verification (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge verify-contract 0x912818b95BF846e0278869a06253F934673EB747 \
+  "src/suites/mainnet-ready/local/local-openwork-job-contract-lite.sol:LocalOpenWorkJobContractLite" \
+  --chain optimism \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --compiler-version 0.8.29 \
+  --optimizer-runs 200 \
+  --via-ir
+```
+
+**Output:**
+```
+GUID: g1s7jxhnqnfc1e7axktdbfy8eb3rhqe2xuztzxp27hrxgpaxsz
+Status: Pass - Verified ✅
+```
+
+**Optimistic Etherscan (Verified):** https://optimistic.etherscan.io/address/0x912818b95bf846e0278869a06253f934673eb747#code
+
+---
+
+# LOWJC LITE V2 - Additional Gas Optimizations - January 26, 2026
+
+## Background
+
+After deploying LOWJC Lite (section 60-62), further gas optimizations were identified for pure forwarding functions that don't modify local state.
+
+## Optimizations Applied
+
+### 1. Removed `nonReentrant` from Pure Forwarding Functions
+
+Functions that only call `bridge.sendToNativeChain` don't need reentrancy protection:
+- `createProfile`
+- `updateProfile`
+- `addPortfolio`
+- `applyToJob`
+- `submitWork`
+- `rate`
+
+**Gas Savings:** ~5,100 gas per call
+
+### 2. Changed `memory` to `calldata` for Pure Forwards
+
+All string/array parameters in pure forwarding functions now use `calldata`:
+```solidity
+// Before
+function applyToJob(string memory _jobId, string memory _appHash, ...)
+
+// After
+function applyToJob(string calldata _jobId, string calldata _appHash, ...)
+```
+
+**Gas Savings:** ~200-600 gas per string parameter
+
+### 3. Simplified Events (No String Parameters)
+
+Removed redundant string parameters from events since data already exists on native chain:
+
+| Event | Before | After |
+|-------|--------|-------|
+| `ProfileCreated` | `(user, ipfsHash, referrer)` | `(user)` |
+| `JobPosted` | `(jobId, jobGiver, detailHash)` | `(jobId, jobGiver)` |
+| `JobApplication` | `(jobId, applicant, appHash)` | `(jobId, applicant)` |
+| `JobStarted` | `(jobId, selectedApplicant)` | `(jobId)` |
+| `WorkSubmitted` | `(jobId, applicant, hash, milestone)` | `(jobId, applicant)` |
+| `PaymentReleased` | `(jobId, giver, recipient, amount, milestone)` | `(jobId, amount, milestone)` |
+
+**Gas Savings:** ~2,000-8,000 gas per event
+
+### 4. Removed Validation from `rate()`
+
+Validation (`job exists`, `rating 1-5`) now happens on native chain only.
+
+**Gas Savings:** ~2,100 gas
+
+## Total Gas Savings for `applyToJob`
+
+| Component | Gas Saved |
+|-----------|-----------|
+| Removed `nonReentrant` | ~5,100 |
+| `calldata` vs `memory` (6 params) | ~2,000 |
+| Simplified event | ~3,000 |
+| **Total** | **~10,000 gas** |
+
+---
+
+## 63. LOWJC Lite V2 Implementation (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  src/suites/mainnet-ready/local/local-openwork-job-contract-lite.sol:LocalOpenWorkJobContractLite
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x53Fd9F3C7816f34e5205519011F0b14a001Ba8Ea
+Transaction hash: 0x3d4a3b58ac35bd5c7708c6f25073186cd8c082447632970ef9abf54ec692749d
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0x53Fd9F3C7816f34e5205519011F0b14a001Ba8Ea
+
+---
+
+## 64. LOWJC Proxy Upgrade to Lite V2
+
+**Command:**
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "upgradeToAndCall(address,bytes)" \
+  0x53Fd9F3C7816f34e5205519011F0b14a001Ba8Ea \
+  0x \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Upgraded
+
+---
+
+## 65. LOWJC Lite V2 Configuration
+
+```bash
+# Set Bridge
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setBridge(address)" 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+
+# Set CCTP Sender (V2)
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setCCTPSender(address)" 0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+
+# Set CCTP Mint Recipient (NOWJC on Arbitrum)
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setCCTPMintRecipient(address)" 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+
+# Set USDC Token
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setUsdcToken(address)" 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+
+# Set Athena Client
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setAthenaClientContract(address)" 0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ All configured
+
+---
+
+## 66. LOWJC Lite V2 Verification
+
+**Command:**
+```bash
+source .env && forge verify-contract 0x53Fd9F3C7816f34e5205519011F0b14a001Ba8Ea \
+  src/suites/mainnet-ready/local/local-openwork-job-contract-lite.sol:LocalOpenWorkJobContractLite \
+  --chain optimism \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+```
+
+**Status:** ✅ Verified
+
+**Optimistic Etherscan (Verified):** https://optimistic.etherscan.io/address/0x53Fd9F3C7816f34e5205519011F0b14a001Ba8Ea#code
+
+---
+
+## LOWJC Version Summary (Updated)
+
+| Version | Implementation | Proxy | Status | Notes |
+|---------|----------------|-------|--------|-------|
+| V1-V3 | Various | Various | ❌ DEPRECATED | Initialization/upgrade issues |
+| V4 | `0xcC09C58e654D92CBaa5184E000275500b32b2117` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | Full storage version |
+| Lite V1 | `0x912818b95BF846e0278869a06253F934673EB747` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | 68% gas reduction |
+| Lite V2 | `0x53Fd9F3C7816f34e5205519011F0b14a001Ba8Ea` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | Additional ~10k gas savings on pure forwards |
+| **Lite V3** | `0xa53d782A082D8c0BAeaF76933dE9668A7E4F41a3` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ✅ **ACTIVE** | Added setChainId function |
+
+---
+
+# LOWJC LITE V3 - setChainId Fix - January 27, 2026
+
+## Issue
+
+After upgrading to Lite V2, the `chainId` storage variable returned `0` instead of `30111`. This was caused by a storage layout incompatibility between the original LOWJC implementation and the Lite version.
+
+**Root Cause:** Storage slot mismatch during UUPS upgrade - the Lite version has a different storage layout.
+
+**Fix:** Added `setChainId(uint32)` function to allow owner to set the chainId post-upgrade.
+
+---
+
+## 67. LOWJC Lite V3 Implementation (Optimism Mainnet)
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  src/suites/mainnet-ready/local/local-openwork-job-contract-lite.sol:LocalOpenWorkJobContractLite
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0xa53d782A082D8c0BAeaF76933dE9668A7E4F41a3
+Transaction hash: 0x731b1de09600f8f6bed4babbec33e0f1ae4c0a7701efd888eb15b57913f77122
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0xa53d782A082D8c0BAeaF76933dE9668A7E4F41a3
+
+**New Function Added:**
+```solidity
+function setChainId(uint32 _chainId) external onlyOwner {
+    require(_chainId != 0, "Zero chainId");
+    chainId = _chainId;
+}
+```
+
+---
+
+## 68. LOWJC Lite V3 - Set Chain ID
+
+**Command:**
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setChainId(uint32)" 30111 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Verification:**
+```bash
+source .env && cast call 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "chainId()(uint32)" \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL
+```
+
+**Result:** `30111` ✅
+
+**Status:** ✅ Chain ID set to Optimism LZ EID (30111)
+
+---
+
+## 69. LOWJC Lite V4 Implementation - releaseAndLockNext Fix (Optimism Mainnet)
+
+**Date:** January 27, 2026
+
+**Issue:** The Lite version's `releaseAndLockNext` function accepted `_targetChainDomain` and `_targetRecipient` parameters that were ignored by the Bridge (which only decoded 5 values). This was a misleading API - payments always went to the applicant's stored preferred chain domain regardless of these parameters.
+
+**Fix:** Removed the unused `_targetChainDomain` and `_targetRecipient` parameters from `releaseAndLockNext` to match the non-Lite version behavior.
+
+**Source:** `src/suites/mainnet-ready/local/local-openwork-job-contract-lite-release-and-lock-fix.sol`
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  src/suites/mainnet-ready/local/local-openwork-job-contract-lite-release-and-lock-fix.sol:LocalOpenWorkJobContractLite
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x6D4352406613841AD188D99757B0F0e1027b2B07
+Transaction hash: 0xb1aa783db54b634bdb75ef739109a2f8101f54fbda33c454209346d6e4b7418b
+```
+
+**Optimistic Etherscan:** https://optimistic.etherscan.io/address/0x6D4352406613841AD188D99757B0F0e1027b2B07
+
+---
+
+## 70. LOWJC Lite V4 Proxy Upgrade
+
+**Command:**
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "upgradeToAndCall(address,bytes)" \
+  0x6D4352406613841AD188D99757B0F0e1027b2B07 \
+  0x \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Output:**
+```
+status               1 (success)
+transactionHash      [executed]
+```
+
+**Verification:**
+```bash
+cast storage 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x0000000000000000000000006d4352406613841ad188d99757b0f0e1027b2b07 ✅
+```
+
+**Status:** ✅ Complete
+
+---
+
+## 71. LOWJC Lite V4 Verification
+
+**Command:**
+```bash
+source .env && forge verify-contract 0x6D4352406613841AD188D99757B0F0e1027b2B07 \
+  src/suites/mainnet-ready/local/local-openwork-job-contract-lite-release-and-lock-fix.sol:LocalOpenWorkJobContractLite \
+  --chain optimism \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+```
+
+**Status:** ⏳ Pending
+
+---
+
+## 72. LOWJC Lite V4 Configuration (Post-Upgrade)
+
+**Date:** January 27, 2026
+
+**Note:** After each LOWJC proxy upgrade, all configuration must be re-applied since UUPS upgrades can reset storage slots.
+
+### 72a. setChainId
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setChainId(uint32)" \
+  30111 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Complete
+
+### 72b. setBridge
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setBridge(address)" \
+  0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Complete
+
+### 72c. setCCTPSender
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setCCTPSender(address)" \
+  0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Complete
+
+### 72d. setCCTPMintRecipient
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setCCTPMintRecipient(address)" \
+  0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Complete
+
+### 72e. setUsdcToken
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setUsdcToken(address)" \
+  0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Complete
+
+### 72f. setAthenaClientContract
+
+```bash
+source .env && cast send 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 \
+  "setAthenaClientContract(address)" \
+  0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d \
+  --rpc-url $OPTIMISM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Complete
+
+### Verification
+
+```bash
+# Chain ID
+cast call 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 "chainId()" --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 30111 ✅
+
+# Bridge
+cast call 0x620205A4Ff0E652fF03a890d2A677de878a1dB63 "bridge()" --rpc-url $OPTIMISM_MAINNET_RPC_URL
+# Result: 0x74566644782e98c87a12E8Fc6f7c4c72e2908a36 ✅
+```
+
+### Configuration Summary
+
+| Setting | Address/Value | Status |
+|---------|---------------|--------|
+| chainId | `30111` (Optimism LZ EID) | ✅ |
+| bridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | ✅ |
+| cctpSender | `0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15` | ✅ |
+| cctpMintRecipient | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | ✅ |
+| usdcToken | `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` | ✅ |
+| athenaClientContract | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | ✅ |
+
+---
+
+## LOWJC Lite Version Summary (Updated)
+
+| Version | Implementation | Proxy | Status | Notes |
+|---------|----------------|-------|--------|-------|
+| V1-V3 | Various | Various | ❌ DEPRECATED | Initialization/upgrade issues |
+| V4 (Original) | `0xcC09C58e654D92CBaa5184E000275500b32b2117` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | Full storage version |
+| Lite V1 | `0x912818b95BF846e0278869a06253F934673EB747` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | 68% gas reduction |
+| Lite V2 | `0xfab6Eb4858f1c9C2445787Ff142582DE291F0dEC` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | calldata optimization |
+| Lite V3 | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | chainId fix |
+| Lite V4 | `0x6D4352406613841AD188D99757B0F0e1027b2B07` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ❌ UPGRADED | releaseAndLockNext fix |
+| **Lite V5** | `0x8255A7fa5409194bbC0c85c2Eaa71Cf2f5763Fd3` | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | ✅ **ACTIVE** | setJobCounter added |
+
+---
+
+# NOWJC Balance Fix - January 27, 2026
+
+## Issue
+
+The `releasePaymentCrossChain` function in NOWJC had a critical bug:
+- It checked and used the **total USDC balance** of the contract instead of the per-job amount
+- With multiple concurrent jobs, this caused "Unexpected balance - possible concurrent job conflict" errors
+- If the check had passed, it would have sent ALL escrowed funds to one recipient
+
+## Fix
+
+Changed `releasePaymentCrossChain` to trust the `_amount` parameter from LOWJC (which correctly tracks per-job escrow) instead of using total contract balance.
+
+**Source:** `src/suites/mainnet-ready/native/native-openwork-job-contract-balance-fix.sol`
+
+---
+
+## 73. NOWJC Implementation V2 - Balance Fix (Arbitrum Mainnet)
+
+**Date:** January 27, 2026
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  src/suites/mainnet-ready/native/native-openwork-job-contract-balance-fix.sol:NativeOpenWorkJobContract
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x8F7f3E9376963691CE568843afad7E1977730fBA
+Transaction hash: 0xde96366798ac3d6e3d96f8a0909227408dd89b4eca23feafbf84d270bd7a2b1b
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x8F7f3E9376963691CE568843afad7E1977730fBA
+
+---
+
+## 74. NOWJC Proxy Upgrade to V2
+
+**Command:**
+```bash
+source .env && cast send 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  "upgradeToAndCall(address,bytes)" \
+  0x8F7f3E9376963691CE568843afad7E1977730fBA \
+  0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ⏳ Pending
+
+---
+
+## 75. NativeAthena V3 - Dynamic EID Mapping + Fee Fix (Arbitrum Mainnet)
+
+**Source:** `src/suites/mainnet-ready/native/native-athena-dynamic-eid-mapping-fee-fix.sol`
+
+**Changes:**
+- Dynamic EID-to-CCTP domain mapping (replaces hardcoded testnet-only EIDs)
+- Admin functions: `mapEid()`, `mapEids()` for adding chain mappings
+- Fee distribution fix: try/catch on USDC transfer to handle CCTP fee deduction
+- Bytecode optimization: internal `_auth()` function replaces 15 inline admin checks
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-ready/native/native-athena-dynamic-eid-mapping-fee-fix.sol:NativeAthena"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x45747a4A5c78F8D480203d1E81b4c9c7AbaDE018
+Transaction hash: 0x7bc5b3ed1c79cf8c2f2964d60a34bbaf575fef17c873216acb5374b3ba18f6c9
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x45747a4A5c78F8D480203d1E81b4c9c7AbaDE018
+
+---
+
+## 76. NativeAthena Proxy Upgrade to V3
+
+**Command:**
+```bash
+source .env && cast send 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf \
+  "upgradeToAndCall(address,bytes)" \
+  0x45747a4A5c78F8D480203d1E81b4c9c7AbaDE018 \
+  0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Confirmed - Implementation updated to `0x45747a4A5c78F8D480203d1E81b4c9c7AbaDE018`
+
+---
+
+## 77. ETHOpenworkDAO Implementation V2 - Production Values (Ethereum Mainnet)
+
+**Date:** February 9, 2026
+
+**Purpose:** Deploy production-ready ETHOpenworkDAO implementation with all test values corrected:
+- Voting delay: `1 days` (was `1 minutes`)
+- Voting period: `7 days` (was `5 minutes`)
+- Unstake delay: `7 days` (was `24 hours`)
+- Stake duration: `1-3 years` (was `1-3 minutes`)
+- Unlock time: `durationYears * 365 days` (was `durationMinutes * 60`)
+
+**Source:** `src/suites/mainnet-production/eth/eth-openwork-dao.sol`
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ETHEREUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/mainnet-production/eth/eth-openwork-dao.sol:ETHOpenworkDAO"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x5854Ab94639aF8D6f524419470d8d0435AD76aFB
+```
+
+**Etherscan:** https://etherscan.io/address/0x5854Ab94639aF8D6f524419470d8d0435AD76aFB
+
+**Next Step:** Upgrade proxy `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` to point to this new implementation:
+```bash
+source .env && cast send 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294 \
+  "upgradeToAndCall(address,bytes)" \
+  0x5854Ab94639aF8D6f524419470d8d0435AD76aFB \
+  0x \
+  --rpc-url $ETHEREUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ⏳ Implementation deployed, proxy upgrade pending (checking unstake function first)
+
+**Note:** Proxy storage still has old init values (60s votingDelay, 300s votingPeriod, 24hr unstakeDelay). The `initialize()` won't re-run on upgrade. Governance calls needed post-upgrade to update stored voting settings.
+
+---

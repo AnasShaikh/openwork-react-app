@@ -81,7 +81,7 @@ source .env && cast send <GENESIS_PROXY> "authorizeContract(address,bool)" <REWA
 
 ### 2. OpenWorkRewardsContract
 
-**Type:** Rewards/payment distribution
+**Type:** Rewards/payment distribution + **Centralized Voting Power Source**
 
 **Init Params Set:**
 - `owner`
@@ -95,7 +95,12 @@ source .env && cast send <REWARDS_PROXY> "setProfileGenesis(address)" <PROFILE_G
 
 # Set NativeDAO
 source .env && cast send <REWARDS_PROXY> "setNativeDAO(address)" <NATIVE_DAO_PROXY> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
+
+# Set Bridge (for cross-chain voting power sync)
+source .env && cast send <REWARDS_PROXY> "setBridge(address)" <NATIVE_BRIDGE> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 ```
+
+**Key Function:** `getRewardBasedVotingPower(address)` - Returns `earnedTokens + teamTokens` as single source of truth for voting power.
 
 **Status:** -
 
@@ -167,6 +172,9 @@ source .env && cast send <NATIVE_BRIDGE> "setProfileManager(address)" <PROFILE_M
 # Authorize NOWJC
 source .env && cast send <NATIVE_BRIDGE> "authorizeContract(address,bool)" <NOWJC_PROXY> true --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 
+# Authorize RewardsContract (for cross-chain voting power sync)
+source .env && cast send <NATIVE_BRIDGE> "authorizeContract(address,bool)" <REWARDS_PROXY> true --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
+
 # Add Local Chain (for each local chain EID)
 source .env && cast send <NATIVE_BRIDGE> "addLocalChain(uint32)" <LOCAL_CHAIN_EID> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 
@@ -214,6 +222,9 @@ source .env && cast send <CCTP_TRANSCEIVER> "setDestinationDomain(uint32,uint32)
 # Set NOWJ Contract
 source .env && cast send <NATIVE_DAO_PROXY> "setNOWJContract(address)" <NOWJC_PROXY> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 
+# Set Rewards Contract (for centralized voting power - includes team tokens)
+source .env && cast send <NATIVE_DAO_PROXY> "setRewardsContract(address)" <REWARDS_PROXY> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
+
 # Set Admin
 source .env && cast send <NATIVE_DAO_PROXY> "setAdmin(address,bool)" <ADMIN_ADDRESS> true --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 
@@ -223,6 +234,8 @@ source .env && cast send <NATIVE_DAO_PROXY> "addAuthorizedContract(address)" <NA
 # Set ActivityTracker
 source .env && cast send <NATIVE_DAO_PROXY> "setActivityTracker(address)" <ACTIVITY_TRACKER_PROXY> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 ```
+
+**Note:** `_getVotes()` now calls `rewardsContract.getRewardBasedVotingPower()` which includes both earned tokens AND team tokens.
 
 **Status:** -
 
@@ -247,12 +260,17 @@ source .env && cast send <NATIVE_ATHENA_PROXY> "setOracleManager(address)" <ORAC
 # Set Bridge
 source .env && cast send <NATIVE_ATHENA_PROXY> "setBridge(address)" <NATIVE_BRIDGE> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 
+# Set Rewards Contract (for centralized voting power - includes team tokens)
+source .env && cast send <NATIVE_ATHENA_PROXY> "setRewardsContract(address)" <REWARDS_PROXY> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
+
 # Set Admin
 source .env && cast send <NATIVE_ATHENA_PROXY> "setAdmin(address,bool)" <ADMIN_ADDRESS> true --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 
 # Set ActivityTracker
 source .env && cast send <NATIVE_ATHENA_PROXY> "setActivityTracker(address)" <ACTIVITY_TRACKER_PROXY> --rpc-url $RPC_URL --private-key $DEPLOYER_KEY
 ```
+
+**Note:** `canVote()` and `getUserVotingPower()` now use `rewardsContract.getRewardBasedVotingPower()` which includes team tokens.
 
 **Status:** -
 
@@ -350,10 +368,13 @@ Recommended order for configuration:
 2. **Set cross-references:**
    - OpenWorkRewardsContract.setProfileGenesis()
    - OpenWorkRewardsContract.setNativeDAO()
+   - OpenWorkRewardsContract.setBridge() *(for cross-chain voting power sync)*
    - NativeDAO.setNOWJContract()
+   - NativeDAO.setRewardsContract() *(CRITICAL: enables team token voting power)*
    - NativeDAO.setActivityTracker()
    - NativeAthena.setOracleManager()
    - NativeAthena.setBridge()
+   - NativeAthena.setRewardsContract() *(CRITICAL: enables team token voting power)*
    - NativeAthena.setActivityTracker()
    - OracleManager.setActivityTracker()
 
@@ -362,6 +383,7 @@ Recommended order for configuration:
    - NativeChainBridge.setNativeAthenaContract()
    - NativeChainBridge.setNativeOpenWorkJobContract()
    - NativeChainBridge.setProfileManager()
+   - NativeChainBridge.authorizeContract(RewardsContract) *(for voting power sync)*
    - NativeChainBridge.addLocalChain()
    - CCTPv2Transceiver.setNOWJC()
 
@@ -390,12 +412,41 @@ cast call <REWARDS_PROXY> "profileGenesis()" --rpc-url $RPC_URL
 # Check RewardsContract nativeDAO
 cast call <REWARDS_PROXY> "nativeDAO()" --rpc-url $RPC_URL
 
+# Check RewardsContract bridge (for voting power sync)
+cast call <REWARDS_PROXY> "bridge()" --rpc-url $RPC_URL
+
+# Check NativeDAO rewardsContract (CRITICAL for team token voting)
+cast call <NATIVE_DAO_PROXY> "rewardsContract()" --rpc-url $RPC_URL
+
 # Check NativeDAO activityTracker
 cast call <NATIVE_DAO_PROXY> "activityTracker()" --rpc-url $RPC_URL
+
+# Check NativeAthena rewardsContract (CRITICAL for team token voting)
+cast call <NATIVE_ATHENA_PROXY> "rewardsContract()" --rpc-url $RPC_URL
 
 # Check NativeAthena activityTracker
 cast call <NATIVE_ATHENA_PROXY> "activityTracker()" --rpc-url $RPC_URL
 
 # Check ActivityTracker authorizedCallers
 cast call <ACTIVITY_TRACKER_PROXY> "authorizedCallers(address)" <NATIVE_ATHENA_PROXY> --rpc-url $RPC_URL
+
+# Verify voting power includes team tokens
+cast call <REWARDS_PROXY> "getRewardBasedVotingPower(address)" <USER_ADDRESS> --rpc-url $RPC_URL
 ```
+
+---
+
+## Voting Power Architecture Note
+
+**IMPORTANT:** The voting power calculation is centralized in `OpenWorkRewardsContract.getRewardBasedVotingPower()`:
+
+```
+Voting Power = userTotalTokensEarned[user] + teamTokensAllocated[user]
+```
+
+Both `NativeDAO._getVotes()` and `NativeAthena.canVote()/getUserVotingPower()` call this single source of truth. This ensures team token allocations are consistently included in all voting power calculations.
+
+**If team tokens don't work in DAO proposals or Athena voting, check:**
+1. `NativeDAO.rewardsContract()` is set
+2. `NativeAthena.rewardsContract()` is set
+3. User has team tokens: `rewardsContract.teamTokensAllocated(user) > 0`
