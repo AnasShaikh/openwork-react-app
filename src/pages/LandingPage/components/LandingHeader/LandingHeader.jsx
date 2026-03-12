@@ -10,10 +10,6 @@ const LandingHeader = ({ onLaunchApp }) => {
     navigate('/home');
   };
 
-  const handleBotClick = () => {
-    window.open('https://chatgpt.com/g/g-6811cd644b1c8191b203796b06deaa4a-openwork-simplified', '_blank');
-  };
-
   return (
     <header className="landing-header">
       <div className="logo-wrapper">
@@ -21,12 +17,6 @@ const LandingHeader = ({ onLaunchApp }) => {
       </div>
       
       <div className="header-actions">
-        <Button 
-          icon="/assets/f424bb301166452f1d2aae2badd19051c2788323.svg"
-          buttonCss="header-icon-btn"
-          onClick={handleBotClick}
-
-        />
         <Button 
           icon="/assets/203519ed928f5759c5c5434e7d71de7598f55b96.svg"
           buttonCss="header-icon-btn"
