@@ -508,7 +508,7 @@ export default function SingleJobDetails() {
               className="buttonImageS"
             />
             <img
-              src="/user.svg"
+              src="/avatar-profile.svg"
               alt="Person Icon"
               className="buttonIconPS"
             />
@@ -580,7 +580,7 @@ export default function SingleJobDetails() {
               className="buttonImageS"
             />
             <img
-              src="/user.svg"
+              src="/avatar-profile.svg"
               alt="Person Icon"
               className="buttonIconPS"
             />

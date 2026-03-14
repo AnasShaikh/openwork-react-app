@@ -573,6 +573,7 @@ export default function ProfileOwnerView() {
                             <input
                                 type="text"
                                 value={username}
+                                placeholder="Username"
                                 onChange={(e) => setUsername(e.target.value)}
                                 readOnly={!isOwner}
                                 style={{

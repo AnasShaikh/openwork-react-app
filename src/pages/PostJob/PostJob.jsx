@@ -673,23 +673,7 @@ export default function PostJob() {
                 ⚠️ {errors.chain}
               </div>
             )}
-            {/* Chain status indicator */}
-            {chainConfig && (
-              <div style={{
-                background: isAllowed ? 'rgba(0,200,100,0.08)' : 'rgba(255,100,0,0.08)',
-                border: `1px solid ${isAllowed ? '#38a169' : '#e53e3e'}`,
-                borderRadius: '8px',
-                padding: '8px 14px',
-                marginBottom: '14px',
-                color: isAllowed ? '#276749' : '#c53030',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}>
-                {isAllowed ? '🟢' : '🔴'} {chainConfig.name} {isAllowed ? '— ready to post' : '— not supported for job posting'}
-              </div>
-            )}
+            {/* Chain status indicator removed */}
             <div className="form-groupDC">
               <input
                 type="text"
