@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { fetchUserPortfolios, deletePortfolioFromBlockchain } from "../../services/portfolioService";
@@ -16,12 +16,18 @@ export default function ProfilePortfolioOwner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const skillOptions = [
-    "All Skills",
-    "UX Design",
-    "Web Development",
-    "Shopify"
-  ];
+  const skillOptions = useMemo(() => {
+    const skills = new Set();
+    portfolioItems.forEach(item => {
+      if (item.skills) item.skills.forEach(s => skills.add(s));
+    });
+    return ["All Skills", ...Array.from(skills)];
+  }, [portfolioItems]);
+
+  const filteredPortfolioItems = useMemo(() => {
+    if (selectedSkill === "All Skills") return portfolioItems;
+    return portfolioItems.filter(item => item.skills && item.skills.includes(selectedSkill));
+  }, [portfolioItems, selectedSkill]);
 
   const handleCopyToClipboard = (address) => {
     navigator.clipboard
@@ -176,7 +182,7 @@ export default function ProfilePortfolioOwner() {
 
         {/* Error State */}
         {error && !loading && (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#dc3545' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>
             {error}
           </div>
         )}
@@ -194,7 +200,7 @@ export default function ProfilePortfolioOwner() {
             </div>
 
             {/* Portfolio Items */}
-            {portfolioItems.map((item) => (
+            {filteredPortfolioItems.map((item) => (
             <div key={item.id} className="portfolio-card">
               <div 
                 className="portfolio-card-image"

@@ -477,6 +477,30 @@ export default function ProfileOwnerView() {
         setSkills(skills.filter((_, i) => i !== index));
     };
 
+    // For non-owners: if loading is done and either no profile exists or all data is empty, show no-data message
+    const hasNoData = !hasProfile || (!username && !firstName && !lastName && !description && skills.length === 0);
+
+    if (!isOwner && !profileLoading && hasNoData) {
+        return (
+            <>
+                <div className="newTitle">
+                    <div className="titleTop">
+                        <div className="goBack" onClick={() => navigate(`/profile`)} style={{ cursor: 'pointer' }}>
+                            <img className="goBackImage" src="/back.svg" alt="Back Button" />
+                        </div>
+                        <div className="titleText">{formatWalletAddress(address)}</div>
+                    </div>
+                    <div className="titleBottom">
+                        <p>Wallet ID: {formatWalletAddress(address)}</p>
+                    </div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#888', fontSize: '16px' }}>
+                    No data available for this profile.
+                </div>
+            </>
+        );
+    }
+
     return (
         <>
             <div className="newTitle">

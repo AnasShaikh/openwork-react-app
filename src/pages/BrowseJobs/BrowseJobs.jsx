@@ -357,10 +357,10 @@ export default function BrowseJobs() {
 
         // Status filters
         if (chainFilter === "Active") {
-            return titled.filter(job => job.status === 0 || job.status === 1); // Open or In Progress
+            return titled.filter(job => Number(job.status) === 0 || Number(job.status) === 1); // Open or In Progress
         }
         if (chainFilter === "Completed") {
-            return titled.filter(job => job.status === 2); // Completed
+            return titled.filter(job => Number(job.status) === 2); // Completed
         }
 
         // Chain filters (OP Sepolia, Ethereum Sepolia)
@@ -463,7 +463,7 @@ export default function BrowseJobs() {
                         <span>{job.budget}</span>
                     </div>
                 ),
-                status: <div>{statusLabels[job.status] || "Unknown"}</div>,
+                status: <div>{statusLabels[Number(job.status)] || "Unknown"}</div>,
                 applicants: <div>{job.applicantCount}</div>,
                 milestones: <div>{job.milestoneCount}</div>,
                 actions: (
