@@ -197,9 +197,12 @@ export async function getAllProposals(forceRefresh = false) {
     const mainDAOContract = new mainChainWeb3.eth.Contract(MainDAOABI, MAIN_DAO_ADDRESS);
 
     // Fetch from both blockchain and database in parallel
+    // Each chain call is individually protected so one failure doesn't kill the other
     const [nativeProposals, mainProposals, dbProposalsResponse] = await Promise.all([
-      nativeDAOContract.methods.getAllProposalIds().call(),
-      mainDAOContract.methods.getAllProposalIds().call(),
+      nativeDAOContract.methods.getAllProposalIds().call()
+        .catch(e => { console.warn('Native DAO getAllProposalIds failed:', e.message); return { ids: [], states: [] }; }),
+      mainDAOContract.methods.getAllProposalIds().call()
+        .catch(e => { console.warn('Main DAO getAllProposalIds failed:', e.message); return { ids: [], states: [] }; }),
       fetch(`${BACKEND_API_URL}/api/proposals`).then(res => res.ok ? res.json() : { proposals: [] }).catch(() => ({ proposals: [] }))
     ]);
 
@@ -250,24 +253,27 @@ export async function getAllProposals(forceRefresh = false) {
     }
 
     // Add Native DAO proposals — all in parallel
-    if (nativeProposals && nativeProposals.ids) {
+    // Web3.js may return named props (ids/states) or positional (0/1) — handle both
+    const nativeIds = nativeProposals?.ids || nativeProposals?.[0] || [];
+    const nativeStates = nativeProposals?.states || nativeProposals?.[1] || [];
+    if (nativeIds.length > 0) {
       const nativeDetails = await Promise.all(
-        nativeProposals.ids.map(id => fetchProposalDetails(nativeDAOContract, id))
+        nativeIds.map(id => fetchProposalDetails(nativeDAOContract, id))
       );
-      nativeProposals.ids.forEach((proposalId, i) => {
+      nativeIds.forEach((proposalId, i) => {
         const { votePercentage, timeLeft } = nativeDetails[i];
         const dbKey = `${proposalId.toString()}-Arbitrum`;
         const dbData = dbProposalsMap.get(dbKey);
         formattedProposals.push({
           id: proposalId.toString(),
           chain: "Arbitrum",
-          state: Number(nativeProposals.states[i]),
+          state: Number(nativeStates[i]),
           title: dbData?.title || `Proposal ${proposalId.toString().substring(0, 8)}...`,
           proposedBy: dbData?.proposer_address ? `${dbData.proposer_address.substring(0, 6)}...${dbData.proposer_address.substring(38)}` : "Native DAO",
           voteSubmissions: votePercentage,
-          type: dbData?.proposal_type || getProposalType(Number(nativeProposals.states[i])),
+          type: dbData?.proposal_type || getProposalType(Number(nativeStates[i])),
           timeLeft,
-          color: getStateColor(Number(nativeProposals.states[i])),
+          color: getStateColor(Number(nativeStates[i])),
           viewUrl: `/proposal-view/${proposalId.toString()}/Arbitrum`,
           hasMetadata: !!dbData
         });
@@ -275,24 +281,26 @@ export async function getAllProposals(forceRefresh = false) {
     }
 
     // Add Main DAO proposals — all in parallel
-    if (mainProposals && mainProposals.ids) {
+    const mainIds = mainProposals?.ids || mainProposals?.[0] || [];
+    const mainStates = mainProposals?.states || mainProposals?.[1] || [];
+    if (mainIds.length > 0) {
       const mainDetails = await Promise.all(
-        mainProposals.ids.map(id => fetchProposalDetails(mainDAOContract, id))
+        mainIds.map(id => fetchProposalDetails(mainDAOContract, id))
       );
-      mainProposals.ids.forEach((proposalId, i) => {
+      mainIds.forEach((proposalId, i) => {
         const { votePercentage, timeLeft } = mainDetails[i];
         const dbKey = `${proposalId.toString()}-${mainChainName}`;
         const dbData = dbProposalsMap.get(dbKey);
         formattedProposals.push({
           id: proposalId.toString(),
           chain: mainChainName,
-          state: Number(mainProposals.states[i]),
+          state: Number(mainStates[i]),
           title: dbData?.title || `Proposal ${proposalId.toString().substring(0, 8)}...`,
           proposedBy: dbData?.proposer_address ? `${dbData.proposer_address.substring(0, 6)}...${dbData.proposer_address.substring(38)}` : "Main DAO",
           voteSubmissions: votePercentage,
-          type: dbData?.proposal_type || getProposalType(Number(mainProposals.states[i])),
+          type: dbData?.proposal_type || getProposalType(Number(mainStates[i])),
           timeLeft,
-          color: getStateColor(Number(mainProposals.states[i])),
+          color: getStateColor(Number(mainStates[i])),
           viewUrl: `/proposal-view/${proposalId.toString()}/${mainChainName}`,
           hasMetadata: !!dbData
         });

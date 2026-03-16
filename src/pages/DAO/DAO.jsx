@@ -76,15 +76,8 @@ export default function DAO() {
             try {
                 setLoading(true);
                 
-                // Get wallet address
-                let userAddr = "";
-                if (window.ethereum) {
-                    const accounts = await window.ethereum.request({ method: "eth_accounts" });
-                    if (accounts.length > 0) {
-                        userAddr = accounts[0];
-                        setWalletAddress(userAddr);
-                    }
-                }
+                // Use walletAddress from hook (already available)
+                const userAddr = walletAddress || "";
                 
                 // Fetch stats and proposals
                 const [stats, proposalData] = await Promise.all([
@@ -104,7 +97,7 @@ export default function DAO() {
         }
         
         loadDAOData();
-    }, []);
+    }, [walletAddress]);
 
     const titleOptions = [
         {
