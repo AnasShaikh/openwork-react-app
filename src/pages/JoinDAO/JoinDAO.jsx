@@ -26,7 +26,7 @@ const MAIN_RPC = mainChain.rpcUrl;
 export default function JoinDAO() {
     const navigate = useNavigate();
     const [walletAddress, setWalletAddress] = useState("");
-    const [stakeAmount, setStakeAmount] = useState("100");
+    const [stakeAmount, setStakeAmount] = useState("1000000");
     const [duration, setDuration] = useState(1);
     const [userBalance, setUserBalance] = useState("0");
     const [isProcessing, setIsProcessing] = useState(false);
@@ -403,7 +403,7 @@ export default function JoinDAO() {
                                     <div className="staking-box-row">
                                         <span className="staking-label">MINIMUM STAKING AMOUNT</span>
                                         <div className="staking-value">
-                                            <span className="value-text">100</span>
+                                            <span className="value-text">1,000,000</span>
                                             <img src="/OWToken.svg" alt="OW Token" className="token-icon" />
                                         </div>
                                     </div>
@@ -424,7 +424,7 @@ export default function JoinDAO() {
                                 <div className="balance-box">
                                     <input
                                         type="number"
-                                        min="100"
+                                        min="1000000"
                                         step="1"
                                         value={stakeAmount}
                                         onChange={(e) => setStakeAmount(e.target.value)}

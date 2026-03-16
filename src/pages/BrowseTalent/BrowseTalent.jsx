@@ -195,7 +195,7 @@ export default function BrowseTalent() {
         if (loading) {
             return [[
                 <div colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>
-                    Loading profiles from blockchain...
+                    Loading Profiles...
                 </div>
             ]];
         }
@@ -211,7 +211,7 @@ export default function BrowseTalent() {
         if (users.length === 0) {
             return [[
                 <div colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>
-                    No profiles found. Be the first to create one!
+                    No Profiles Yet
                 </div>
             ]];
         }

@@ -161,6 +161,13 @@ export default function DAO() {
     }
 
     const tableData = useMemo(() => {
+        if (displayProposals.length === 0) {
+            return [[
+                <div colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#868686' }}>
+                    No proposals found
+                </div>
+            ]];
+        }
         return displayProposals.map((proposal) => {
             // Create all possible column data
             const allColumnData = {
@@ -226,7 +233,7 @@ export default function DAO() {
         {
             icon: '/members.svg',
             title: 'DAO MEMBERS',
-            number: daoStats ? daoStats.totalMembers.toString() : '120'
+            number: daoStats ? daoStats.totalMembers.toString() : '0'
         },
         {
             icon: '/OWToken.svg',

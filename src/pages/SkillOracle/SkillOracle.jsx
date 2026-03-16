@@ -4,19 +4,7 @@ import JobsTable from "../../components/JobsTable/JobsTable";
 import "./SkillOracle.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import DetailButton from "../../components/DetailButton/DetailButton";
-import { fetchAllOracleData, getOracleStatistics, clearCache } from "../../services/oracleService";
-import {
-    formatAddress,
-    formatDaysSinceActivity,
-    formatVotingPower,
-    formatStakeAmount,
-    getActivityStatus,
-    getAccuracyColor,
-    sortMembers,
-    filterMembers,
-    exportToCSV,
-    downloadCSV,
-} from "../../utils/oracleHelpers";
+import { fetchAllOracleData } from "../../services/oracleService";
 
 export default function SkillOracle() {
     const [oracleData, setOracleData] = useState({ oracles: [], members: [] });
@@ -24,79 +12,55 @@ export default function SkillOracle() {
     const [error, setError] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
 
-    const membersPerPage = 5;
+    const oraclesPerPage = 5;
 
-    // Column configuration
+    // Column configuration — oracle-centric view
     const allColumns = [
-        { id: "memberName", label: "Member Address", required: true },
-        { id: "rating", label: "Rating", required: false },
-        { id: "skills", label: "Skills", required: false },
-        { id: "experience", label: "Experience", required: false },
-        { id: "votingPower", label: "Voting Power", required: false },
-        { id: "stake", label: "Stake + Earned", required: false },
-        { id: "votesCast", label: "Votes Cast", required: false },
+        { id: "oracleName", label: "Oracle Name", required: true },
+        { id: "description", label: "Description", required: false },
+        { id: "totalMembers", label: "Members", required: false },
+        { id: "activeMembers", label: "Active Members", required: false },
         { id: "status", label: "Status", required: false },
-        { id: "accuracy", label: "Resolution Accuracy", required: false },
         { id: "actions", label: "", required: true },
     ];
 
-    // Selected columns state - rating and accuracy hidden by default
     const [selectedColumns, setSelectedColumns] = useState([
-        "memberName",
-        "skills",
-        "votingPower",
-        "stake",
+        "oracleName",
+        "description",
+        "totalMembers",
+        "activeMembers",
         "status",
-        "actions"
+        "actions",
     ]);
 
-    // Generate headers based on selected columns
     const headers = selectedColumns.map(colId => {
         const column = allColumns.find(col => col.id === colId);
         return column ? column.label : "";
     });
 
-    // Column toggle handler
     const handleColumnToggle = (columnId) => {
         setSelectedColumns(prev => {
             const isCurrentlySelected = prev.includes(columnId);
             const column = allColumns.find(col => col.id === columnId);
-
-            // Can't toggle required columns
             if (column?.required) return prev;
-
             if (isCurrentlySelected) {
-                // Can't deselect if at minimum (4 columns)
-                if (prev.length <= 4) return prev;
+                if (prev.length <= 3) return prev;
                 return prev.filter(id => id !== columnId);
             } else {
-                // Can't select if at maximum (6 columns)
                 if (prev.length >= 6) return prev;
-
-                // Maintain column order from allColumns
                 const allColumnIds = allColumns.map(col => col.id);
-                return allColumnIds.filter(id =>
-                    prev.includes(id) || id === columnId
-                );
+                return allColumnIds.filter(id => prev.includes(id) || id === columnId);
             }
         });
     };
 
-    // Fetch oracle data from blockchain
     useEffect(() => {
         async function loadOracleData() {
             try {
                 setLoading(true);
                 setError(null);
-
-                console.log("Loading oracle data...");
-                
-                // Fetch all oracle data with member details
                 const data = await fetchAllOracleData();
                 setOracleData(data);
-
-                console.log("Oracle data loaded successfully!");
-
             } catch (err) {
                 console.error("Error loading oracle data:", err);
                 setError(err.message || "Failed to load oracle data. Please check your RPC connection.");
@@ -104,11 +68,9 @@ export default function SkillOracle() {
                 setLoading(false);
             }
         }
-
         loadOracleData();
     }, []);
 
-    // Original titleOptions
     const titleOptions = [
         {
             title: 'Skill Oracle View',
@@ -131,118 +93,80 @@ export default function SkillOracle() {
         }
     ];
 
-    // Generate filter options from actual data
     const filterOptions = useMemo(() => {
-        // Get unique oracle names from the data
-        const oracleNames = [...new Set(
-            oracleData.oracles?.map(oracle => oracle.name) || []
-        )];
-
         return [
             {
                 title: 'Table Columns',
                 items: allColumns
-                    .filter(col => !col.required && col.label) // Exclude required and empty label columns
+                    .filter(col => !col.required && col.label)
                     .map(col => col.label)
             },
             {
                 title: 'Filter',
-                items: oracleNames.length > 0 ? oracleNames : ['All Oracles']
+                items: ['All', 'Active', 'Inactive']
             }
         ];
-    }, [oracleData.oracles, allColumns]);
+    }, []);
 
-    // Generate table data with real blockchain information in original format
+    // Oracle-centric table rows
     const tableData = useMemo(() => {
-        const members = oracleData.members || [];
+        const oracles = oracleData.oracles || [];
 
-        return members.map((member) => {
-            const accuracyColor = getAccuracyColor(member.accuracy);
+        if (oracles.length === 0) {
+            return [[
+                <div colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#868686' }}>
+                    {loading ? 'Loading Oracles...' : 'No oracles found'}
+                </div>
+            ]];
+        }
 
-            // Create all possible column data
+        return oracles.map((oracle) => {
             const allColumnData = {
-                memberName: (
+                oracleName: (
                     <div className="user">
-                        <img src="/user.svg" alt="User Icon" className="userIcon" />
-                        <span title={member.address}>{formatAddress(member.address)}</span>
+                        <span title={oracle.name}>{oracle.name}</span>
                     </div>
                 ),
-                rating: (
-                    <div className="rating">
-                        <span>N/A</span>
-                        <img src="/star.svg" alt="" />
+                description: (
+                    <div className="experience" title={oracle.shortDescription}>
+                        {oracle.shortDescription
+                            ? oracle.shortDescription.length > 60
+                                ? oracle.shortDescription.slice(0, 60) + '…'
+                                : oracle.shortDescription
+                            : '—'}
                     </div>
                 ),
-                skills: (
-                    <div className="skills-required">
-                        <SkillBox title={member.allOracles?.[0] || member.oracle} />
-                        {member.allOracles?.length > 1 && (
-                            <SkillBox title={`+${member.allOracles.length - 1}`} />
-                        )}
-                    </div>
-                ),
-                experience: (
-                    <div className="experience">
-                        {member.daysSinceActivity >= 0 ? `${Math.floor(member.daysSinceActivity / 365)} Years` : "N/A"}
-                    </div>
-                ),
-                votingPower: (
+                totalMembers: (
                     <div className="voting-power">
-                        <span>{formatVotingPower(member.votingPower)}</span>
+                        <span>{oracle.totalMembers ?? 0}</span>
                     </div>
                 ),
-                stake: (
-                    <div className="stake" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <img src="/xdc.svg" alt="OW" style={{ width: "16px", height: "16px" }} />
-                        <span>
-                            {formatStakeAmount(
-                                (BigInt(member.stakeAmount || "0") + BigInt(member.earnedTokens || "0")).toString()
-                            )}
-                        </span>
-                    </div>
-                ),
-                votesCast: (
-                    <div className="votes-cast">
-                        <span>{member.totalVotes || 0}</span>
+                activeMembers: (
+                    <div className="voting-power">
+                        <span>{oracle.activeMemberCount ?? 0}</span>
                     </div>
                 ),
                 status: (
-                    <div className={`status-badge ${member.isActive ? 'active' : 'inactive'}`}>
-                        <span>{member.isActive ? 'Active' : 'Inactive'}</span>
-                    </div>
-                ),
-                accuracy: (
-                    <div className="vote-progress">
-                        <div className="progress-bar-container">
-                            <div
-                                className="progress-bar-fill"
-                                style={{
-                                    width: `${member.accuracy}%`,
-                                    backgroundColor: accuracyColor
-                                }}
-                            />
-                        </div>
-                        <span className="vote-percentage">{member.accuracy}%</span>
+                    <div className={`status-badge ${oracle.isActive ? 'active' : 'inactive'}`}>
+                        <span>{oracle.isActive ? 'Active' : 'Inactive'}</span>
                     </div>
                 ),
                 actions: (
                     <div className="view-detail">
-                        <DetailButton to={`/profile/${member.address}`} imgSrc="/view.svg" alt="detail" />
+                        <DetailButton to={`/skill-oracles/${oracle.name}`} imgSrc="/view.svg" alt="detail" />
                     </div>
                 ),
             };
 
-            // Filter based on selected columns
             return selectedColumns.map(columnId => allColumnData[columnId]);
         });
-    }, [oracleData.members, selectedColumns]);
+    }, [oracleData.oracles, selectedColumns, loading]);
 
-    // Calculate indices for pagination
-    const indexOfLastUser = currentPage * membersPerPage;
-    const indexOfFirstUser = indexOfLastUser - membersPerPage;
-    const currentUsers = tableData.slice(indexOfFirstUser, indexOfLastUser);
+    const indexOfLastOracle = currentPage * oraclesPerPage;
+    const indexOfFirstOracle = indexOfLastOracle - oraclesPerPage;
+    const currentOracles = tableData.slice(indexOfFirstOracle, indexOfLastOracle);
 
-    const totalPages = Math.ceil((oracleData.members?.length || 0) / membersPerPage);
+    const totalPages = Math.ceil((oracleData.oracles?.length || 0) / oraclesPerPage);
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -252,7 +176,7 @@ export default function SkillOracle() {
                 <JobsTable
                     title={`OpenWork Ledger`}
                     backUrl="/governance"
-                    tableData={currentUsers}
+                    tableData={currentOracles}
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={paginate}
