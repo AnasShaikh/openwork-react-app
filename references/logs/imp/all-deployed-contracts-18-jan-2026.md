@@ -30,13 +30,15 @@
 | Contract | Proxy | Latest Implementation | Version |
 |----------|-------|-----------------------|---------|
 | NativeOpenworkGenesis | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | Jan 18 |
-| NativeOpenWorkJobContract (NOWJC) | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | `0x8F7f3E9376963691CE568843afad7E1977730fBA` | V2 - Balance fix (Jan 27) |
+| NativeOpenWorkJobContract (NOWJC) | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | `0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528` | V5 - balanceOf fix + emergencyWithdraw (Feb 28) |
+| NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7` | Redeployed under deployer (Mar 19) |
+| NativeArbAthenaClient | `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x9456989F7B9Cb707451d7179Fc1FC401221DE01a` | Redeployed under deployer (Mar 19) |
 | NativeOpenworkDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | Jan 18 |
-| NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x45747a4A5c78F8D480203d1E81b4c9c7AbaDE018` | V3 - Dynamic EID + fee fix (Feb 9) |
+| NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2` | V5 - localLOWJC + dispute resolves LOWJC (Feb 28) |
 | NativeProfileGenesis | `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` | `0xae31d7be760D92807B013a71bb51f2cBB132166b` | Jan 22 |
 | NativeAthenaActivityTracker | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | Jan 22 |
 | NativeAthenaOracleManager | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | Jan 22 |
-| NativeProfileManager | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | `0xf82D59Cf9339D500C1b35C87D02dE422223812f6` | Jan 22 |
+| NativeProfileManager | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | `0x19E4fBe10C2F2531248e5FfDF150D8c61168702f` | V2 - authorizedContracts pattern (Feb 28) |
 
 ### Non-Upgradeable Contracts
 
@@ -139,8 +141,15 @@
 | NativeRewardsContract V1 | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | Reverts on missing profile |
 | NativeLZOpenworkBridge V1 | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | Refund to non-payable contract |
 | NOWJC Impl V1 | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | Superseded by V2 balance fix |
+| NOWJC Impl V2 | `0x8F7f3E9376963691CE568843afad7E1977730fBA` | Superseded by V3 CCTP fee tolerance |
+| NOWJC Impl V3 | `0xe86eD7b58702f55020c8d473f7b9EA7c59bc479A` | Superseded by V4 Native Arb support |
 | NativeAthena Impl V1 | `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` | Superseded by V3 |
 | NativeAthena Impl V2 | `0x562AbdE9F89018b83a428F5d7daD9087d59D5a67` | Superseded by V3 fee fix |
+| NativeAthena Impl V3 | `0x45747a4A5c78F8D480203d1E81b4c9c7AbaDE018` | Superseded by V4 authorizedContracts |
+| NativeAthena Impl V4 | `0x42908Bc0a5f9e22a25e2D48BbA7D03e0bD091246` | Superseded by V5 localLOWJC |
+| NativeArbLOWJC Impl V2 | `0xC36052F40A02663f114f2e0aFfc6A53D82721139` | Superseded by V3 startJob fix |
+| NativeProfileManager Impl V1 | `0xf82D59Cf9339D500C1b35C87D02dE422223812f6` | Superseded by V2 authorizedContracts |
+| NOWJC Impl V4 | `0x3BA6d1889753b611CA62f859ec3230d2Feb831cb` | Superseded by V5 balanceOf fix |
 
 ### Optimism
 

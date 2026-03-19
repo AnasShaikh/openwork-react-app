@@ -2887,3 +2887,372 @@ source .env && cast send 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294 \
 **Note:** Proxy storage still has old init values (60s votingDelay, 300s votingPeriod, 24hr unstakeDelay). The `initialize()` won't re-run on upgrade. Governance calls needed post-upgrade to update stored voting settings.
 
 ---
+
+# NOWJC V3 - CCTP Fee Tolerance + Double Commission Fix - February 11, 2026
+
+## Issue
+
+Two bugs identified during direct contract testing (job `30111-27`):
+
+1. **CCTP fee tolerance**: `releasePaymentCrossChain` used strict `require(actualBalance >= _amount)` which fails when CCTP fast transfer fee (e.g., 13 units on 100,000) reduces the received amount below the locked amount.
+2. **Double commission**: `accumulatedCommission += commission` was called both in `releasePaymentCrossChain` (line 894) AND in `_finalizePayment` (line 963), double-counting commission.
+3. **Missing balance check**: `releasePaymentAndLockNext` had no balance validation at all.
+
+## Fix
+
+- `releasePaymentCrossChain`: Replaced strict balance check with 0.01% CCTP fee tolerance. Uses `effectiveAmount = min(actualBalance, _amount)` when balance is slightly short. Removed duplicate `accumulatedCommission` (now only in `_finalizePayment`).
+- `releasePaymentAndLockNext`: Added same CCTP fee tolerance check with `effectiveAmount`.
+
+**Source:** `src/suites/current-mainnet/native/native-openwork-job-contract-v2.sol`
+
+---
+
+## 78. NOWJC Implementation V3 - CCTP Fee Tolerance (Arbitrum Mainnet)
+
+**Date:** February 11, 2026
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/current-mainnet/native/native-openwork-job-contract-v2.sol:NativeOpenWorkJobContract"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0xe86eD7b58702f55020c8d473f7b9EA7c59bc479A
+Transaction hash: 0x25c099856c7c2d00ec45e2c0754b0249249583f15c2933f633cb87e11fbd5449
+```
+
+**Arbiscan:** https://arbiscan.io/address/0xe86eD7b58702f55020c8d473f7b9EA7c59bc479A
+
+---
+
+## 79. NOWJC Proxy Upgrade to V3
+
+**Command:**
+```bash
+source .env && cast send 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  "upgradeToAndCall(address,bytes)" \
+  0xe86eD7b58702f55020c8d473f7b9EA7c59bc479A \
+  0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Upgraded
+
+---
+
+---
+
+# NOWJC V4 - Native Arb Support (releasePayment, NativeArbLOWJC integration) - February 27, 2026
+
+## Changes
+
+- Added `releasePayment(string jobId)` — single-param payment release, auto-reads milestone amount from Genesis and routes same-chain or cross-chain via CCTP based on `jobApplicantChainDomain`
+- Removed `createProfile` — profile management offloaded to ProfileManager
+- Added `batchAddAuthorizedContracts` for registering native-arb contracts in one call
+- Fixes to support `NativeArbOpenWorkJobContract` as an authorized caller
+
+**Source:** `src/suites/current-mainnet/native/native-openwork-job-contract-v3.sol`
+
+---
+
+## 80. NOWJC Implementation V4 - Native Arb Support (Arbitrum Mainnet)
+
+**Date:** February 27, 2026
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/current-mainnet/native/native-openwork-job-contract-v3.sol:NativeOpenWorkJobContract"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x3BA6d1889753b611CA62f859ec3230d2Feb831cb
+Transaction hash: 0x5e5207a1bca50322a9d72b4fae93296ac22bad06283c0498b50e2282b6f1df84
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x3BA6d1889753b611CA62f859ec3230d2Feb831cb
+
+---
+
+## 81. NOWJC Proxy Upgrade to V4
+
+**Command:**
+```bash
+source .env && cast send 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  "upgradeToAndCall(address,bytes)" \
+  0x3BA6d1889753b611CA62f859ec3230d2Feb831cb \
+  0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY
+```
+
+**Status:** ✅ Upgraded
+
+---
+
+---
+
+# NativeAthena V4 + ProfileManager V2 - authorizedContracts Pattern - February 28, 2026
+
+## Changes
+
+**NativeAthena V4:**
+- Added `authorizedContracts` mapping — all three handle* functions now accept `bridge || authorizedContracts[msg.sender]`
+- Added `activityTracker` and `rewardsContract` state variables
+- Enables `NativeArbAthenaClient` to call disputes/skill verification directly without going through bridge
+- Note: storage layout collision on upgrade — `admins` mapping shifted; fixed via `setAdmin` + manual re-config
+
+**ProfileManager V2:**
+- Added `authorizedContracts` mapping with `_isAuthorized()` internal gate
+- All write functions now accept `bridge || authorizedContracts[msg.sender]`
+- Enables `NativeArbLOWJC` to call profile functions directly
+
+---
+
+## 82. NativeAthena V4 Implementation (Arbitrum Mainnet)
+
+**Date:** February 28, 2026
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/current-mainnet/native/native-athena-v4.sol:NativeAthena"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x42908Bc0a5f9e22a25e2D48BbA7D03e0bD091246
+Transaction hash: 0x29788faefe57f403e54f79a42a94c8fe2603f19aaec957ac68e5c35bf50ec943
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x42908Bc0a5f9e22a25e2D48BbA7D03e0bD091246
+
+---
+
+## 83. NativeAthena Proxy Upgrade to V4
+
+**Command:**
+```bash
+source .env && cast send 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf \
+  "upgradeToAndCall(address,bytes)" \
+  0x42908Bc0a5f9e22a25e2D48BbA7D03e0bD091246 0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Post-upgrade config:**
+- `setAdmin(deployer, true)` — required due to storage layout shift
+- `setActivityTracker(0x8C04840c3f5b5a8c44F9187F9205ca73509690EA)`
+- `setRewardsContract(0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9)`
+- `addAuthorizedContract(0xEC9446A163E74D2fBF3def75324895204415166D, true)` — NativeArbAthenaClient
+
+**Status:** ✅ Upgraded and configured
+
+---
+
+## 84. NativeProfileManager V2 Implementation (Arbitrum Mainnet)
+
+**Date:** February 28, 2026
+
+**Command:**
+```bash
+source .env && forge create --broadcast \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $PROD_DEPLOYER_KEY \
+  "src/suites/current-mainnet/native/native-profile-manager-v2.sol:NativeProfileManager"
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x19E4fBe10C2F2531248e5FfDF150D8c61168702f
+Transaction hash: 0x8e277c669e2ba1397efba00ff8eb139bbccfaa2b9f8ea59627fbf125a9f19b82
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x19E4fBe10C2F2531248e5FfDF150D8c61168702f
+
+---
+
+## 85. NativeProfileManager Proxy Upgrade to V2
+
+**Command:**
+```bash
+source .env && cast send 0x51285003A01319c2f46BB2954384BCb69AfB1b45 \
+  "upgradeToAndCall(address,bytes)" \
+  0x19E4fBe10C2F2531248e5FfDF150D8c61168702f 0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Post-upgrade config:**
+- `addAuthorizedContract(0xEE57ee10cCAB26f5642d4EbDC15B3881Bb0B5587, true)` — NativeArbLOWJC
+
+**Status:** ✅ Upgraded and configured
+
+---
+
+---
+
+# NativeArbLOWJC V2 - profileManager support - February 28, 2026
+
+## Changes
+- Added `profileManager` state variable and `setProfileManager()` setter
+- `createProfile`, `updateProfile`, `addPortfolio` now route to ProfileManager instead of NOWJC stub
+
+**Source:** `src/suites/current-mainnet/native/native-arb-lowjc-v2.sol` (agent's updated version)
+
+---
+
+## 86. NativeArbLOWJC V2 Implementation (Arbitrum Mainnet)
+
+**Date:** February 28, 2026
+
+**Deployed by:** Agent (service wallet `0xb8dC69937e745Fd02661BC4333f3852166eF2026`)
+
+```
+Deployed to: 0xC36052F40A02663f114f2e0aFfc6A53D82721139
+Transaction hash: 0x33837527c2204a59874f43fa5882554aae789d726ea2a4f72ef98dd361a362d8
+```
+
+**Arbiscan:** https://arbiscan.io/address/0xC36052F40A02663f114f2e0aFfc6A53D82721139
+
+---
+
+## 87. NativeArbLOWJC Proxy Upgrade to V2
+
+```
+Transaction hash: 0xf4c1b96d65d9ac980a1b6c57e0d8e4cb30a02089c67d8d0573df48549caf3330
+```
+
+---
+
+## 88. NativeArbLOWJC setProfileManager
+
+```
+setProfileManager(0x51285003A01319c2f46BB2954384BCb69AfB1b45)
+Transaction hash: 0xc6daea6ab251a0756eafb3cebcef6108cbc19bb8a6e4d432e02c6b25974b6408
+```
+
+**Status:** ✅ Upgraded and configured
+
+---
+
+---
+
+# NativeArbLOWJC V3 + NativeAthena V5 - Dispute Fixes - February 28, 2026
+
+## Changes
+
+**NativeArbLOWJC V3:**
+- `startJob` now validates application exists before locking funds
+- Added `emergencyWithdrawUSDC(address,uint256)` to recover stuck USDC
+
+**NativeAthena V5:**
+- Added `localLOWJC` state variable + `setLocalLOWJC(address)` setter
+- `settleDispute` now calls `localLOWJC.resolveDispute(jobId, winningSide)` to keep LOWJC job state in sync
+
+---
+
+## 89. NativeArbLOWJC V3 Implementation (Arbitrum Mainnet)
+
+**Date:** February 28, 2026
+
+**Deployed by:** Agent (service wallet `0xb8dC...`)
+
+```
+Deployed to: 0xC14310DE9C057FBF54797E7118abcD5C412BFcD2
+```
+
+**Arbiscan:** https://arbiscan.io/address/0xC14310DE9C057FBF54797E7118abcD5C412BFcD2
+
+**Status:** ✅ Proxy upgraded + nativeAthena set by agent
+
+---
+
+## 90. NativeAthena V5 Implementation (Arbitrum Mainnet)
+
+**Date:** February 28, 2026
+
+**Deployed by:** Agent
+
+```
+Deployed to: 0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2
+
+---
+
+## 91. NativeAthena Proxy Upgrade to V5
+
+```bash
+source .env && cast send 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf \
+  "upgradeToAndCall(address,bytes)" \
+  0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2 0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Post-upgrade:**
+- `setLocalLOWJC(0xEE57ee10cCAB26f5642d4EbDC15B3881Bb0B5587)`
+
+**Status:** ✅ Upgraded and configured
+
+---
+
+## 92. NOWJC V5 Implementation - balanceOf Fix + emergencyWithdraw (Arbitrum Mainnet)
+
+**Date:** February 28, 2026
+
+**Changes:**
+- **CRITICAL FIX:** `_validateAndCalculatePayment` now takes explicit `_amount` parameter instead of using `balanceOf(address(this))`
+  - Validates `_amount` against expected milestone (with 0.01% CCTP fee tolerance)
+  - Uses `balanceOf` only as sufficiency check (`contractBalance >= _amount`)
+  - Commission calculated on explicit `_amount`, not total contract balance
+- Added `emergencyWithdrawUSDC(address,uint256)` — `onlyOwner` gated, to recover stuck USDC
+- Fixed `_finalizePayment` parameter naming: `actualBalance` → `grossAmount`
+
+**Source:** `src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol`
+
+**Command:**
+```bash
+forge create --broadcast --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol:NativeOpenWorkJobContract
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528
+Transaction hash: 0xbde15e2af8fc93459ea5cf1d97b63d261cfb432bcaed1312a993714b629191ce
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528
+
+---
+
+## 93. NOWJC Proxy Upgrade to V5
+
+**Command:**
+```bash
+cast send 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
+  "upgradeToAndCall(address,bytes)" \
+  0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528 0x \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Post-upgrade TODO:**
+- `emergencyWithdrawUSDC(deployer, 7210000)` — recover 7.21 USDC stuck from test jobs
+
+**Status:** ⏳ Pending upgrade tx confirmation
+
+---
