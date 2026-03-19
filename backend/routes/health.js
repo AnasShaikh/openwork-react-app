@@ -16,7 +16,7 @@ const OP_RPC   = process.env.OPTIMISM_RPC  || 'https://mainnet.optimism.io';
 const SERVICE_WALLET = '0xb8dC69937e745Fd02661BC4333f3852166eF2026';
 const USDC_ARB = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
 const USDC_OP  = '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85';
-const LOWJC    = '0xEE57ee10cCAB26f5642d4EbDC15B3881Bb0B5587';
+const LOWJC    = '0x5727cA7326032a8644a49dECECB8388BEF122bef';
 const ERC20    = ['function balanceOf(address) view returns (uint256)'];
 const LOWJC_ABI = ['function jobCounter() view returns (uint256)'];
 

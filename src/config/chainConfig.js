@@ -255,7 +255,7 @@ export const MAINNET_CHAIN_CONFIG = {
       // Native Arb job contracts — set after deployment via env vars
       // TODO: populate VITE_NATIVE_ARB_LOWJC_ADDRESS + VITE_NATIVE_ARB_ATHENA_ADDRESS in Cloud Run
       lowjc: import.meta.env.VITE_NATIVE_ARB_LOWJC_ADDRESS || null,
-      athenaClient: import.meta.env.VITE_NATIVE_ARB_ATHENA_ADDRESS || '0xEC9446A163E74D2fBF3def75324895204415166D',
+      athenaClient: import.meta.env.VITE_NATIVE_ARB_ATHENA_ADDRESS || '0xB5d3F406089236ef9d4aB13306187aFCCA81f099',
     },
     layerzero: {
       eid: 30110

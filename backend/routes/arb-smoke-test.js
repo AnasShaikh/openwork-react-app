@@ -17,7 +17,7 @@ const { ethers } = require('ethers');
 const config   = require('../config');
 
 const ARB_RPC      = config.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc';
-const LOWJC_ADDR   = '0xEE57ee10cCAB26f5642d4EbDC15B3881Bb0B5587';
+const LOWJC_ADDR   = '0x5727cA7326032a8644a49dECECB8388BEF122bef';
 const USDC_ADDR    = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
 const SMOKE_AMOUNT = BigInt(10_000); // 0.01 USDC
 const GAS_FUND     = ethers.parseEther('0.0003');
