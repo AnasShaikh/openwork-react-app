@@ -45,22 +45,24 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #21262d; col
 <p class="info">Generated: 19 Mar 2026 10:30 IST | Chains: Arbitrum One, Optimism, Ethereum | Contracts: 23</p>
 
 <div class="summary">
-  <div class="card card-pass"><div class="num">17</div><div class="label">✅ PASS</div></div>
-  <div class="card card-fail"><div class="num">3</div><div class="label">❌ CRITICAL</div></div>
+  <div class="card card-pass"><div class="num">18</div><div class="label">✅ PASS</div></div>
+  <div class="card card-fail"><div class="num">2</div><div class="label">❌ CRITICAL</div></div>
   <div class="card card-warn"><div class="num">3</div><div class="label">⚠️ WARNINGS</div></div>
 </div>
 
 <h2>🚨 Critical Issues</h2>
 
-<div class="critical">
-<strong>❌ CRITICAL #1: OP CCTPTransceiver has WRONG Circle addresses (Arbitrum's instead of Optimism's)</strong><br>
+<div class="card" style="background:#0d1f0d;border-color:#238636;border-left:4px solid #3fb950;padding:12px 16px;border-radius:4px;margin:8px 0;">
+<strong>✅ CORRECTED — #1: OP CCTPTransceiver addresses are CORRECT</strong><br>
 <span class="addr">Contract: 0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15 (Optimism)</span><br><br>
+CCTP V2 uses deterministic CREATE2 deployment — <strong>same addresses on all chains</strong>.<br>
+Verified on-chain: <code>0x81D40F21...localDomain()</code> returns <strong>2</strong> on OP (correct) and <strong>3</strong> on ARB (correct).<br>
+The registry's "expected" addresses (<code>0x2B4069...</code>, <code>0x4D41f2...</code>) are CCTP <strong>V1</strong> addresses, not V2.<br><br>
 <table>
-<tr><th>Field</th><th>On-Chain Value</th><th>Expected (OP Mainnet)</th><th>Actual Chain</th></tr>
-<tr><td>tokenMessenger()</td><td class="addr fail">0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d</td><td class="addr">0x2B4069517957735bE00ceE0fadAE88a26365528f</td><td class="fail">❌ This is ARBITRUM's TokenMessengerV2</td></tr>
-<tr><td>messageTransmitter()</td><td class="addr fail">0x81D40F21F12A8F0E3252Bccb954D722d4c464B64</td><td class="addr">0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8</td><td class="fail">❌ This is ARBITRUM's MessageTransmitterV2</td></tr>
+<tr><th>Field</th><th>On-Chain Value</th><th>Status</th></tr>
+<tr><td>tokenMessenger()</td><td class="addr">0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d</td><td class="pass">✅ CCTP V2 (same address all chains)</td></tr>
+<tr><td>messageTransmitter()</td><td class="addr">0x81D40F21F12A8F0E3252Bccb954D722d4c464B64</td><td class="pass">✅ localDomain=2 (OP) confirmed</td></tr>
 </table>
-<strong>Impact:</strong> Any CCTP USDC transfer originating from Optimism will call non-existent contracts (ARB addresses on OP chain) → transactions will revert. Cross-chain payments from OP are broken.
 </div>
 
 <div class="critical">
@@ -213,8 +215,8 @@ The new proxy at 0x5727cA73... has <code>getJobCount() = 0</code>. This is expec
 <tr><th>Function</th><th>On-Chain Value</th><th>Expected (OP)</th><th>Status</th></tr>
 <tr><td>owner()</td><td class="addr">0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C</td><td>Deployer</td><td class="pass">✅</td></tr>
 <tr><td>usdc()</td><td class="addr">0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85</td><td>OP USDC</td><td class="pass">✅</td></tr>
-<tr><td>tokenMessenger()</td><td class="addr fail">0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d</td><td class="addr">0x2B4069517957735bE00ceE0fadAE88a26365528f</td><td class="fail">❌ WRONG — This is ARB's address!</td></tr>
-<tr><td>messageTransmitter()</td><td class="addr fail">0x81D40F21F12A8F0E3252Bccb954D722d4c464B64</td><td class="addr">0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8</td><td class="fail">❌ WRONG — This is ARB's address!</td></tr>
+<tr><td>tokenMessenger()</td><td class="addr">0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d</td><td>CCTP V2 (deterministic)</td><td class="pass">✅ Same address all chains</td></tr>
+<tr><td>messageTransmitter()</td><td class="addr">0x81D40F21F12A8F0E3252Bccb954D722d4c464B64</td><td>CCTP V2 (deterministic)</td><td class="pass">✅ localDomain=2 confirmed</td></tr>
 </table>
 
 <h2><span class="chain-badge eth">ETHEREUM</span> Contract Configuration</h2>
@@ -264,7 +266,7 @@ The new proxy at 0x5727cA73... has <code>getJobCount() = 0</code>. This is expec
 <h2>📋 Action Items (Priority Order)</h2>
 <table>
 <tr><th>#</th><th>Priority</th><th>Action</th><th>Who</th></tr>
-<tr><td>1</td><td class="fail">CRITICAL</td><td>Redeploy OP CCTPTransceiver with correct OP Circle addresses:<br>TokenMessengerV2: 0x2B4069517957735bE00ceE0fadAE88a26365528f<br>MessageTransmitterV2: 0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8</td><td>Anas</td></tr>
+<tr><td>1</td><td class="pass">RESOLVED</td><td><s>OP CCTPTransceiver addresses</s> — CCTP V2 uses deterministic CREATE2 deployment. Same addresses on all chains. Verified on-chain: localDomain=2 on OP ✅</td><td>—</td></tr>
 <tr><td>2</td><td class="fail">CRITICAL</td><td>Authorize new AthenaClient (0xB5d3F406) on NOWJC:<br><code>NOWJC.addAuthorizedContract(0xB5d3F406089236ef9d4aB13306187aFCCA81f099)</code></td><td>Deployer</td></tr>
 <tr><td>3</td><td class="fail">CRITICAL</td><td>Investigate ETHOpenworkDAO rewardsContract() delegatecall failure — check impl storage layout</td><td>Anas</td></tr>
 <tr><td>4</td><td class="warn">WARN</td><td>Verify NativeAthena has internal job contract reference (no public getter found)</td><td>Anas</td></tr>
