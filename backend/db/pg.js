@@ -3,22 +3,30 @@ const { Pool } = require('pg');
 // Detect Cloud Run environment
 const isCloudRun = !!process.env.K_SERVICE;
 
-// If in Cloud Run but DB_HOST not configured, skip pool entirely
-const dbConfigured = !isCloudRun || !!process.env.DB_HOST;
+// Support DATABASE_URL (Neon, Supabase, etc.) OR individual host/user/pass vars
+const hasDatabaseUrl = !!process.env.DATABASE_URL;
+const dbConfigured = hasDatabaseUrl || !isCloudRun || !!process.env.DB_HOST;
 
 let pool;
 
 if (!dbConfigured) {
   // Return a stub that rejects immediately — startServer catches this gracefully
-  const reject = () => Promise.reject(new Error('DB_HOST not configured in Cloud Run'));
+  const reject = () => Promise.reject(new Error('No DB configured (set DATABASE_URL or DB_HOST in Cloud Run)'));
   pool = { query: reject, connect: reject, on: () => {} };
 } else {
-  const poolConfig = isCloudRun
+  const poolConfig = hasDatabaseUrl
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.DATABASE_URL.includes('neon.tech') || process.env.DATABASE_SSL === 'true'
+          ? { rejectUnauthorized: false }
+          : false,
+      }
+    : isCloudRun
     ? {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
-        host: process.env.DB_HOST, // /cloudsql/openwork-480320:us-central1:openwork-db
+        host: process.env.DB_HOST,
       }
     : {
         user: process.env.DB_USER || 'postgres',

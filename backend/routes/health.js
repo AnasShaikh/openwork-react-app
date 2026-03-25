@@ -24,7 +24,8 @@ const LOWJC    = '0x5727cA7326032a8644a49dECECB8388BEF122bef';
 const ERC20    = ['function balanceOf(address) view returns (uint256)'];
 const LOWJC_ABI = ['function jobCounter() view returns (uint256)'];
 
-const HEALTH_SECRET = process.env.HEALTH_SECRET || 'ow-health-2026';
+const HEALTH_SECRET = process.env.HEALTH_SECRET;
+if (!HEALTH_SECRET) console.warn('⚠️  HEALTH_SECRET not set — health endpoint is open');
 const ETH_WARN  = 0.003;  // yellow below this
 const ETH_CRIT  = 0.001;  // red below this
 
