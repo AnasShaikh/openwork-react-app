@@ -12,9 +12,11 @@ import SkillBox from "../../components/SkillBox/SkillBox";
 import DropDown from "../../components/DropDown/DropDown";
 import BlueButton from "../../components/BlueButton/BlueButton";
 import Warning from "../../components/Warning/Warning";
+import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getChainConfig, getNativeChain } from "../../config/chainConfig";
 import { getAthenaClientContract } from "../../services/localChainService";
+import { monitorLZMessage, monitorCCTPTransfer, STATUS, explorerTxUrl } from "../../utils/crossChainMonitor";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -121,6 +123,7 @@ export default function RaiseDispute() {
   const [loadingT, setLoadingT] = useState(false);
   const [loading, setLoading] = useState(true);
   const [transactionStatus, setTransactionStatus] = useState("Raise dispute requires USDC approval and blockchain transaction fees");
+  const [crossChainSteps, setCrossChainSteps] = useState(null);
   
   // Oracle selection state
   const [oracles, setOracles] = useState([]);
@@ -215,8 +218,9 @@ export default function RaiseDispute() {
         try {
           if (jobData.jobDetailHash) {
             const gateways = [
-              `https://ipfs.io/ipfs/${jobData.jobDetailHash}`,
+              `https://gateway.lighthouse.storage/ipfs/${jobData.jobDetailHash}`,
               `/api/ipfs/content/${jobData.jobDetailHash}`,
+              `https://ipfs.io/ipfs/${jobData.jobDetailHash}`,
               `https://cloudflare-ipfs.com/ipfs/${jobData.jobDetailHash}`,
               `https://dweb.link/ipfs/${jobData.jobDetailHash}`
             ];
@@ -390,36 +394,33 @@ export default function RaiseDispute() {
     }
   };
 
-  // Poll for dispute sync
-  const pollForDisputeSync = async (jobId) => {
-    setTransactionStatus("✅ Dispute raised! Cross-chain sync will take 15-30 seconds...");
-    
-    await new Promise(resolve => setTimeout(resolve, 10000));
-    setTransactionStatus("Checking for cross-chain sync...");
-    
-    const maxAttempts = 8;
-    const pollInterval = 5000;
-    
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      
-      const disputeExists = await checkDisputeExistsOnArbitrum(jobId);
-      
-      if (disputeExists) {
-        setTransactionStatus("Dispute synced! Redirecting...");
-        setTimeout(() => navigate(`/job-details/${jobId}`), 1500);
+  // Poll for dispute sync — non-blocking, called without await
+  const pollForDisputeSync = (jobId) => {
+    setTransactionStatus("✅ Dispute raised! Cross-chain sync in progress...");
+    let attempt = 0;
+    const maxAttempts = 60;
+
+    const poll = async () => {
+      if (attempt >= maxAttempts) {
+        setTransactionStatus("Dispute raised. Sync taking longer than expected — check job details in a few minutes.");
+        setTimeout(() => navigate(`/job-details/${jobId}`), 3000);
         return;
       }
-      
-      const timeRemaining = Math.max(0, 45 - (10 + (attempt * 5)));
-      setTransactionStatus(`Syncing dispute across chains... (~${timeRemaining}s remaining)`);
-      
-      if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      try {
+        const exists = await checkDisputeExistsOnArbitrum(jobId);
+        if (exists) {
+          setTransactionStatus("🎉 Dispute synced to Arbitrum! Redirecting...");
+          setTimeout(() => navigate(`/job-details/${jobId}`), 1500);
+          return;
+        }
+      } catch (e) {
+        console.warn('[dispute poll] attempt', attempt + 1, e.message);
       }
-    }
-    
-    setTransactionStatus("Dispute raised but sync taking longer than expected. Check job details in a few minutes.");
-    setTimeout(() => navigate(`/job-details/${jobId}`), 3000);
+      attempt++;
+      setTimeout(poll, 10000);
+    };
+
+    setTimeout(poll, 8000);
   };
 
   const formatAmount = (amount) => {
@@ -522,68 +523,122 @@ export default function RaiseDispute() {
       setTransactionStatus(`✅ Step 2/3: Evidence uploaded to IPFS`);
 
       // ============ STEP 3: RAISE DISPUTE ON CHAIN ============
-      setTransactionStatus(`🔧 Step 3/3: Raising dispute on ${chainConfig.name} - Please confirm in MetaMask`);
+      setTransactionStatus(`🔧 Step 3/3: Raising dispute on ${chainConfig.name} — Please confirm in MetaMask`);
       const athenaContract = await getAthenaClientContract(chainId);
       const lzOptions = chainConfig.layerzero.options;
-
-      // Get current gas price for EIP-1559
       const gasPrice = await web3.eth.getGasPrice();
 
-      const receipt = await athenaContract.methods
-        .raiseDispute(
-          jobId,
-          disputeHash,
-          selectedOracle,
-          compensationAmount,
-          disputedAmountUnits,
-          lzOptions
-        )
-        .send({
-          from: walletAddress,
-          value: web3.utils.toWei("0.001", "ether"),
-          gas: 800000,
-          maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-          maxFeePerGas: gasPrice
+      // Quote LZ fee from contract, add 20% buffer
+      let lzFee;
+      try {
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'string', 'string', 'uint256', 'uint256'],
+          [jobId, disputeHash, selectedOracle, compensationAmount, disputedAmountUnits]
+        );
+        const quoted = await athenaContract.methods.quoteSingleChain(jobId, payload, lzOptions).call();
+        lzFee = BigInt(quoted) * BigInt(120) / BigInt(100); // +20% buffer
+      } catch (quoteErr) {
+        console.warn('quoteSingleChain failed, falling back to 0.001 ETH:', quoteErr.message);
+        lzFee = BigInt(web3.utils.toWei("0.001", "ether"));
+      }
+
+      // ── Event-based tx: CrossChainStatus appears immediately on sign ──────
+      athenaContract.methods.raiseDispute(
+        jobId,
+        disputeHash,
+        selectedOracle,
+        compensationAmount,
+        disputedAmountUnits,
+        lzOptions
+      ).send({
+        from: walletAddress,
+        value: lzFee.toString(),
+        gas: 800000,
+        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
+        maxFeePerGas: gasPrice
+      })
+      .on('transactionHash', (srcTxHash) => {
+        const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
+        const circleLink = `https://iris-api.circle.com/v2/messages/${chainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
+
+        setLoadingT(false);
+        setTransactionStatus(`✅ Dispute tx submitted! Tracking cross-chain progress...`);
+
+        // Show CrossChainStatus immediately
+        setCrossChainSteps(buildPaymentSteps({
+          sourceChainId: chainId,
+          usdcApproved: true,
+          sourceTxHash: srcTxHash,
+          lzStatus: 'active',
+          lzLink,
+          circleLink,
+        }));
+
+        monitorLZMessage(srcTxHash, (lzUpdate) => {
+          setCrossChainSteps(buildPaymentSteps({
+            sourceChainId: chainId,
+            usdcApproved: true,
+            sourceTxHash: srcTxHash,
+            lzStatus:     lzUpdate.status === STATUS.SUCCESS ? 'delivered'
+                        : lzUpdate.status === STATUS.FAILED  ? 'failed' : 'active',
+            lzLink:       lzUpdate.lzLink || lzLink,
+            lzDstTxHash:  lzUpdate.dstTxHash,
+            lzDstChainId: 42161,
+            cctpBurnTxHash: lzUpdate.dstTxHash,
+            cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
+            circleLink,
+          }));
+          if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
+            monitorCCTPTransfer(lzUpdate.dstTxHash, chainConfig?.cctpDomain ?? 2,
+              (cu) => setCrossChainSteps(buildPaymentSteps({
+                sourceChainId: chainId, usdcApproved: true, sourceTxHash: srcTxHash,
+                lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
+                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
+                lzLink, circleLink,
+                cctpAttestationStatus: cu.status === STATUS.SUCCESS ? 'complete'
+                                     : cu.message?.includes('slow') ? 'slow' : 'pending',
+              })),
+              () => setCrossChainSteps(buildPaymentSteps({
+                sourceChainId: chainId, usdcApproved: true, sourceTxHash: srcTxHash,
+                lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
+                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
+                lzLink, circleLink, cctpAttestationStatus: 'complete',
+              }))
+            );
+          }
         });
 
-      if (!receipt || !receipt.transactionHash) {
-        throw new Error("Dispute transaction failed");
-      }
-
-      setTransactionStatus(`✅ Step 3/3: Dispute raised on ${chainConfig.name}! Syncing to Arbitrum...`);
-      setLoadingT(false);
-
-      // Start polling for cross-chain sync
-      await pollForDisputeSync(jobId);
+        // On-chain ground truth: poll NativeAthena for dispute totalFees > 0
+        pollForDisputeSync(jobId);
+      })
+      .on('receipt', () => {
+        setTransactionStatus(`✅ Dispute confirmed on ${chainConfig.name}. Waiting for cross-chain delivery...`);
+      })
+      .on('error', (error) => {
+        let msg = error.message;
+        if (error.code === 4001) msg = 'Transaction cancelled by user';
+        else if (msg.includes('insufficient funds')) msg = 'Insufficient ETH for gas fees';
+        else if (msg.includes('execution reverted')) msg = 'Transaction failed — contract requirements not met';
+        setTransactionStatus(`❌ Error: ${msg}`);
+        setLoadingT(false);
+      })
+      .catch((error) => {
+        setTransactionStatus(`❌ Transaction rejected: ${error.message}`);
+        setLoadingT(false);
+      });
+      // ──────────────────────────────────────────────────────────────────────
 
     } catch (error) {
+      // Pre-tx errors: balance, allowance, IPFS upload, LZ quote
       console.error("❌ Dispute error:", error);
-
       let errorMessage = error.message;
-      if (error.code === 4001) {
-        errorMessage = "Transaction cancelled by user";
-      } else if (error.message?.includes("insufficient funds")) {
-        errorMessage = "Insufficient ETH for gas fees";
-      } else if (error.message?.includes("execution reverted")) {
-        errorMessage = "Transaction failed - contract requirements not met";
-      }
-
+      if (error.code === 4001) errorMessage = "Transaction cancelled by user";
+      else if (error.message?.includes("insufficient funds")) errorMessage = "Insufficient ETH for gas fees";
+      else if (error.message?.includes("execution reverted")) errorMessage = "Transaction failed — contract requirements not met";
       setTransactionStatus(`❌ Error: ${errorMessage}`);
       setLoadingT(false);
     }
   };
-
-  if (loadingT) {
-    return (
-      <div className="loading-containerT">
-        <div className="loading-icon"><img src="/OWIcon.svg" alt="Loading..."/></div>
-        <div className="loading-message">
-          <h1 id="txText">Processing Dispute</h1>
-          <p id="txSubtext">Your dispute is being submitted to the blockchain...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -776,14 +831,19 @@ export default function RaiseDispute() {
             )}
             
             <BlueButton 
-              label="Raise Dispute" 
-              disabled={!walletAddress || !isAllowed}
+              label={loadingT ? "Submitting..." : "Raise Dispute"}
+              disabled={!walletAddress || !isAllowed || loadingT}
               style={{width: '100%', justifyContent: 'center'}}
               onClick={handleSubmit}
             />
             <div className="warning-form" style={{ marginTop: '16px' }}>
               <Warning content={transactionStatus} />
             </div>
+            {crossChainSteps && (
+              <div style={{ marginTop: '24px' }}>
+                <CrossChainStatus steps={crossChainSteps} />
+              </div>
+            )}
           </form>
         </div>
       </div>
