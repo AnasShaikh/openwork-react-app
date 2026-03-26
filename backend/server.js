@@ -1106,6 +1106,15 @@ async function processSettleDisputeFlow(disputeId, arbitrumTxHash) {
     } else {
       console.log(`✅ USDC transferred to winner: ${result.transactionHash}`);
     }
+
+    // Mark as completed so the frontend poll resolves
+    jobStatuses.set(disputeId, {
+      status: 'completed',
+      message: 'CCTP transfer completed — USDC delivered to winner on Optimism',
+      txHash: arbitrumTxHash,
+      completionTxHash: result.transactionHash || null,
+      alreadyCompleted: result.alreadyCompleted || false
+    });
     
     console.log('\n🎉 ========== SETTLE DISPUTE FLOW COMPLETED ==========\n');
     
