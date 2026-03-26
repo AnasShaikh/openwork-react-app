@@ -72,6 +72,13 @@ const NATIVE_ATHENA_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "string", "name": "", "type": "string"}],
+    "name": "jobDisputeCounters",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
   }
 ];
 
@@ -365,52 +372,53 @@ export default function RaiseDispute() {
     }
   };
 
-  // Check if dispute exists on Arbitrum (native chain)
-  const checkDisputeExistsOnArbitrum = async (jobId) => {
+  // Read current jobDisputeCounters[jobId] on Arbitrum before tx fires
+  const getDisputeCounterOnArbitrum = async (jobId) => {
     try {
-
-      // Get native chain config dynamically
       const nativeChain = getNativeChain();
-      if (!nativeChain) {
-        console.error("Native chain not configured");
-        return false;
-      }
-
+      if (!nativeChain) return 0;
       const arbitrumWeb3 = new Web3(nativeChain.rpcUrl);
       const nativeAthenaContract = new arbitrumWeb3.eth.Contract(
         NATIVE_ATHENA_ABI,
         nativeChain.contracts.nativeAthena
       );
-
-      const disputeInfo = await nativeAthenaContract.methods
-        .getDisputeInfo(jobId)
-        .call();
-
-      // Check if dispute exists (totalFees > 0 means dispute was registered)
-      const disputeExists = disputeInfo && parseFloat(disputeInfo.totalFees) > 0;
-      return disputeExists;
-    } catch (error) {
-      return false;
+      const count = await nativeAthenaContract.methods.jobDisputeCounters(jobId).call();
+      return Number(count);
+    } catch {
+      return 0;
     }
   };
 
-  // Poll for dispute sync — non-blocking, called without await
-  const pollForDisputeSync = (jobId) => {
+  // Poll for dispute sync — waits for counter to exceed baseCount, then redirects
+  // to /review-dispute/${jobId}-${newCount}
+  const pollForDisputeSync = (jobId, baseCount) => {
     setTransactionStatus("✅ Dispute raised! Cross-chain sync in progress...");
     let attempt = 0;
     const maxAttempts = 60;
 
     const poll = async () => {
       if (attempt >= maxAttempts) {
+        // Fallback: best-guess with baseCount+1
+        const disputeId = `${jobId}-${baseCount + 1}`;
         setTransactionStatus("Dispute raised. Sync taking longer than expected — check dispute details in a few minutes.");
-        setTimeout(() => navigate(`/review-dispute/${jobId}`), 3000);
+        setTimeout(() => navigate(`/review-dispute/${disputeId}`), 3000);
         return;
       }
       try {
-        const exists = await checkDisputeExistsOnArbitrum(jobId);
-        if (exists) {
+        const nativeChain = getNativeChain();
+        const arbitrumWeb3 = new Web3(nativeChain.rpcUrl);
+        const nativeAthenaContract = new arbitrumWeb3.eth.Contract(
+          NATIVE_ATHENA_ABI,
+          nativeChain.contracts.nativeAthena
+        );
+        const currentCount = Number(
+          await nativeAthenaContract.methods.jobDisputeCounters(jobId).call()
+        );
+        if (currentCount > baseCount) {
+          // disputeId = "${jobId}-${newCount}" per native-athena.sol line 559
+          const disputeId = `${jobId}-${currentCount}`;
           setTransactionStatus("🎉 Dispute synced to Arbitrum! Redirecting...");
-          setTimeout(() => navigate(`/review-dispute/${jobId}`), 1500);
+          setTimeout(() => navigate(`/review-dispute/${disputeId}`), 1500);
           return;
         }
       } catch (e) {
@@ -528,6 +536,9 @@ export default function RaiseDispute() {
       const lzOptions = chainConfig.layerzero.options;
       const gasPrice = await web3.eth.getGasPrice();
 
+      // Snapshot current counter so poll can detect the new dispute
+      const baseDisputeCount = await getDisputeCounterOnArbitrum(jobId);
+
       // Quote LZ fee from contract, add 20% buffer
       let lzFee;
       try {
@@ -617,8 +628,8 @@ export default function RaiseDispute() {
           });
         });
 
-        // On-chain ground truth: poll NativeAthena for dispute totalFees > 0
-        pollForDisputeSync(jobId);
+        // On-chain ground truth: poll NativeAthena jobDisputeCounters > baseCount
+        pollForDisputeSync(jobId, baseDisputeCount);
       })
       .on('receipt', () => {
         setTransactionStatus(`✅ Dispute confirmed on ${chainConfig.name}. Waiting for cross-chain delivery...`);
