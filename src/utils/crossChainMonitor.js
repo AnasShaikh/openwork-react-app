@@ -385,12 +385,8 @@ export function pollOnChainJobState(web3, contractAddress, contractABI, jobId, b
           return;
         }
       } else if (mode === 'lock_milestone') {
-        // Lock milestone deposits USDC into NOWJC on Arbitrum.
-        // The observable signal is NOWJC's USDC balance increasing.
-        // baselineMilestone is repurposed here as the USDC balance (as string) before the lock.
-        // We need a separate ERC20 balanceOf call — contract here is USDC, not NOWJC.
-        // (handled externally — this branch is a no-op; use pollNowjcBalance instead)
-        break;
+        // Lock milestone completion is tracked via pollNowjcUSDCBalance (USDC balance increase).
+        // This branch is intentionally a no-op — nothing to check here.
       } else {
         // Looking for payment completion (milestone or totalPaid changed)
         const currentMilestone = Number(jobData.currentMilestone || 0);
