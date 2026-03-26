@@ -679,7 +679,7 @@ export default function DirectContractForm() {
           try {
             await usdcContract.methods.approve(
               contractAddress,
-              "115792089237316195423570985008687907853269984665640564039457584007913129639935" // MaxUint256
+              firstMilestoneUSDC.toString()
             ).send({ from: fromAddress, gas: 100000 });
             
           } catch (approvalError) {
