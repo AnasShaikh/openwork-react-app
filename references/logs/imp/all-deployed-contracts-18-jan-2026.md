@@ -34,7 +34,7 @@
 | NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7` | Redeployed under deployer (Mar 19) |
 | NativeArbAthenaClient | `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x9456989F7B9Cb707451d7179Fc1FC401221DE01a` | Redeployed under deployer (Mar 19) |
 | NativeOpenworkDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | Jan 18 |
-| NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2` | V5 - localLOWJC + dispute resolves LOWJC (Feb 28) |
+| NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x461Bd6f9C706c495781392f54C29d23c1871aC15` | V6 - redeployed under deployer (Mar 19) |
 | NativeProfileGenesis | `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` | `0xae31d7be760D92807B013a71bb51f2cBB132166b` | Jan 22 |
 | NativeAthenaActivityTracker | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | Jan 22 |
 | NativeAthenaOracleManager | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | Jan 22 |
@@ -94,7 +94,7 @@
 
 | Contract | Proxy | Latest Implementation | Version |
 |----------|-------|-----------------------|---------|
-| ETHOpenworkDAO | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | Jan 18 |
+| ETHOpenworkDAO | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | V2 - redeployed under deployer (Mar 19) |
 
 ### Non-Upgradeable Contracts
 
@@ -150,6 +150,8 @@
 | NativeArbLOWJC Impl V2 | `0xC36052F40A02663f114f2e0aFfc6A53D82721139` | Superseded by V3 startJob fix |
 | NativeProfileManager Impl V1 | `0xf82D59Cf9339D500C1b35C87D02dE422223812f6` | Superseded by V2 authorizedContracts |
 | NOWJC Impl V4 | `0x3BA6d1889753b611CA62f859ec3230d2Feb831cb` | Superseded by V5 balanceOf fix |
+| NativeAthena Impl V5 | `0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2` | Agent-compiled, superseded by V6 deployer-compiled |
+| ETHOpenworkDAO Impl V1 | `0xAc0D2b744E9A1a347038bEBe6984db6ef47Daa05` | Unknown wallet deploy, superseded by V2 deployer-compiled |
 
 ### Optimism
 

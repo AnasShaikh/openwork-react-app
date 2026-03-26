@@ -17,7 +17,7 @@
 | 3 | NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7` | Redeployed (Mar 19) | [native-arb-lowjc-v3.sol](../../src/suites/current-mainnet/native/native-arb-lowjc-v3.sol) | [proxy](https://arbiscan.io/address/0x5727cA7326032a8644a49dECECB8388BEF122bef) / [impl](https://arbiscan.io/address/0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7) | YES (impl) |
 | 4 | NativeArbAthenaClient | `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x9456989F7B9Cb707451d7179Fc1FC401221DE01a` | Redeployed (Mar 19) | [native-arb-athena-client.sol](../../src/suites/current-mainnet/native/native-arb-athena-client.sol) | [proxy](https://arbiscan.io/address/0xB5d3F406089236ef9d4aB13306187aFCCA81f099) / [impl](https://arbiscan.io/address/0x9456989F7B9Cb707451d7179Fc1FC401221DE01a) | YES (impl) |
 | 5 | NativeOpenworkDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | V1 (Jan 18) | [native-openwork-dao.sol](../../src/suites/current-mainnet/native/native-openwork-dao.sol) | [proxy](https://arbiscan.io/address/0x24af98d763724362DC920507b351cC99170a5aa4) / [impl](https://arbiscan.io/address/0x20Fa268106A3C532cF9F733005Ab48624105c42F) | YES (impl) |
-| 6 | NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2` | V5 (Feb 28) | [native-athena-v4.sol](../../src/suites/current-mainnet/native/native-athena-v4.sol) | [proxy](https://arbiscan.io/address/0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf) / [impl](https://arbiscan.io/address/0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2) | NO (agent-compiled) |
+| 6 | NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4` | V7 (Mar 26) — EID fix | [native-athena-v5.sol](../../src/suites/current-mainnet/native/native-athena-v5.sol) | [proxy](https://arbiscan.io/address/0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf) / [impl](https://arbiscan.io/address/0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4) | YES (impl) |
 | 7 | NativeProfileGenesis | `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` | `0xae31d7be760D92807B013a71bb51f2cBB132166b` | V1 (Jan 22) | [native-profile-genesis.sol](../../src/suites/current-mainnet/native/native-profile-genesis.sol) | [proxy](https://arbiscan.io/address/0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E) / [impl](https://arbiscan.io/address/0xae31d7be760D92807B013a71bb51f2cBB132166b) | YES (impl) |
 | 8 | NativeAthenaActivityTracker | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | V1 (Jan 22) | [native-athena-activity-tracker.sol](../../src/suites/current-mainnet/native/native-athena-activity-tracker.sol) | [proxy](https://arbiscan.io/address/0x8C04840c3f5b5a8c44F9187F9205ca73509690EA) / [impl](https://arbiscan.io/address/0x9588A78748a8bc82295bf44d87C4b9F924d11AE8) | YES (impl) |
 | 9 | NativeAthenaOracleManager | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | V1 (Jan 22) | [native-athena-oracle-manager.sol](../../src/suites/current-mainnet/native/native-athena-oracle-manager.sol) | [proxy](https://arbiscan.io/address/0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15) / [impl](https://arbiscan.io/address/0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59) | YES (impl) |
@@ -77,7 +77,7 @@
 
 | # | Contract | Proxy | Implementation | Version | Source | Etherscan | Verified? |
 |---|----------|-------|----------------|---------|--------|-----------|-----------|
-| 20 | ETHOpenworkDAO | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xAc0D2b744E9A1a347038bEBe6984db6ef47Daa05` | Unknown (agent upgrade) | [eth-openwork-dao.sol](../../src/suites/current-mainnet/eth/eth-openwork-dao.sol) | [proxy](https://etherscan.io/address/0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294) / [impl](https://etherscan.io/address/0xAc0D2b744E9A1a347038bEBe6984db6ef47Daa05) | NO (agent-compiled) |
+| 20 | ETHOpenworkDAO | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | V2 (Mar 19) | [eth-openwork-dao.sol](../../src/suites/current-mainnet/eth/eth-openwork-dao.sol) | [proxy](https://etherscan.io/address/0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294) / [impl](https://etherscan.io/address/0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59) | YES (impl) |
 
 ### Non-Upgradeable Contracts
 
@@ -119,17 +119,13 @@
 
 | Status | Count |
 |--------|-------|
-| Verified on block explorer | 21 |
-| Not verified (agent-compiled bytecode mismatch) | 2 |
+| Verified on block explorer | **23** |
+| Not verified | 0 |
 | **Total** | **23** |
-
-**Unverified contracts (require verification from agent's compilation environment):**
-1. NativeAthena V5 impl `0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2` — deployed by agent Feb 28
-2. ETHOpenworkDAO impl `0xAc0D2b744E9A1a347038bEBe6984db6ef47Daa05` — untracked agent upgrade
 
 ## On-Chain Slot Verification (ERC1967 impl slot)
 
-All 13 upgradeable proxy implementation slots were read on-chain via `cast storage`. 12/13 match this registry. ETHOpenworkDAO (#20) has an untracked agent upgrade — impl on-chain is `0xAc0D2b74...` not the originally logged `0xF78B6888...`.
+All 13 upgradeable proxy implementation slots were read on-chain via `cast storage`. All 13 match this registry. NativeAthena and ETHOpenworkDAO were redeployed + upgraded on Mar 19 to replace agent-compiled impls with deployer-compiled verified impls.
 
 ---
 
@@ -142,12 +138,24 @@ All 13 upgradeable proxy implementation slots were read on-chain via `cast stora
 
 ---
 
+## Changelog
+
+### Mar 26, 2026 — NativeAthena V7 (EID fix)
+- **Bug:** `_parseJobIdForChainDomain` had only testnet EIDs hardcoded. Mainnet EIDs (30101/30111/30110) fell through to `return 0` (Ethereum), causing dispute funds to route to wrong chain.
+- **Fix:** Added mainnet LZ EIDs, changed default from `return 0` to `revert("Unknown EID")`.
+- **New impl:** `0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4` ([tx](https://arbiscan.io/tx/0x44c32a7aac37179c37305146133f96ff1009bdb1b10a731cddf2c67bd4dea06c))
+- **Source:** `native-athena-v5.sol` (copy of v4 with fix)
+- **Previous impl:** `0x461Bd6f9C706c495781392f54C29d23c1871aC15` (V6)
+- **Status:** Deployed, upgraded, verified
+
+---
+
 ## Outstanding Actions
 
-- [x] Verify all contracts on block explorers — 21/23 done, 2 need agent environment
+- [x] Verify all 23 contracts on block explorers — DONE
 - [x] Update webapp with new ArbAthenaClient (`0xB5d3...`) and ArbLOWJC (`0x5727...`) proxy addresses
-- [ ] Investigate ETHOpenworkDAO unknown impl `0xAc0D2b74...` — verify from agent repo
-- [ ] Verify NativeAthena V5 impl from agent compilation environment
+- [x] Redeploy + verify NativeAthena impl under deployer (was agent-compiled)
+- [x] Redeploy + verify ETHOpenworkDAO impl under deployer (was unknown wallet)
 - [ ] Revoke old abandoned proxy addresses from authorizedContracts
 - [ ] Run config value audit on active development contracts
 - [ ] Transfer any remaining USDC from old ArbLOWJC proxy if applicable

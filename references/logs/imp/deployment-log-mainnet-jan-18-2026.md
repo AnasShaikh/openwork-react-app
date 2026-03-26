@@ -3256,3 +3256,75 @@ cast send 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99 \
 **Status:** ⏳ Pending upgrade tx confirmation
 
 ---
+
+## 104. NativeAthena V6 Implementation (Arbitrum Mainnet)
+
+**Reason:** Previous impl `0x80AA520dB868dc234ea852fC23Fa7c03e217Dad2` was deployed by agent wallet `0xb8dC69937e745Fd02661BC4333f3852166eF2026` — couldn't be verified from our environment. Redeployed under deployer.
+
+**Source:** `src/suites/current-mainnet/native/native-athena-v4.sol`
+
+**Command:**
+```bash
+source .env && forge create --broadcast --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY src/suites/current-mainnet/native/native-athena-v4.sol:NativeAthena
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0x461Bd6f9C706c495781392f54C29d23c1871aC15
+Transaction hash: 0xd81cdc605cc52a1c449d0921c0a321c38ebebe75a7781c1bcc9ecc98d57adaa1
+```
+
+**Arbiscan:** https://arbiscan.io/address/0x461Bd6f9C706c495781392f54C29d23c1871aC15
+**Verified:** YES
+
+---
+
+## 105. NativeAthena Proxy Upgrade to V6
+
+**Command:**
+```bash
+source .env && cast send 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf "upgradeToAndCall(address,bytes)" 0x461Bd6f9C706c495781392f54C29d23c1871aC15 0x --rpc-url $ARBITRUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Transaction hash:** `0x89aaf4ee792f00d7029ec5b10c9f056ff33fdc4c67340b572108a11c7abe4581`
+
+**Status:** Success
+
+---
+
+## 106. ETHOpenworkDAO V2 Implementation (Ethereum Mainnet)
+
+**Reason:** Previous impl `0xAc0D2b744E9A1a347038bEBe6984db6ef47Daa05` was deployed by unknown wallet `0x56e1057c5de88890c2ebb5c3ee696f69cf72ddbb` — couldn't be verified. Redeployed under deployer.
+
+**Source:** `src/suites/current-mainnet/eth/eth-openwork-dao.sol`
+
+**Command:**
+```bash
+source .env && forge create --broadcast --rpc-url $ETHEREUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY src/suites/current-mainnet/eth/eth-openwork-dao.sol:ETHOpenworkDAO
+```
+
+**Output:**
+```
+Deployer: 0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C
+Deployed to: 0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59
+Transaction hash: 0x6100a935f5601f4dd83d9aac7a0f41e35668ddc20e10dd9ebf761e5c57ca8ccc
+```
+
+**Etherscan:** https://etherscan.io/address/0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59
+**Verified:** YES
+
+---
+
+## 107. ETHOpenworkDAO Proxy Upgrade to V2
+
+**Command:**
+```bash
+source .env && cast send 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294 "upgradeToAndCall(address,bytes)" 0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59 0x --rpc-url $ETHEREUM_MAINNET_RPC_URL --private-key $PROD_DEPLOYER_KEY
+```
+
+**Transaction hash:** `0x80c9d9ea2c1d91d9fb1b598115488fa5b1c756861e299dd72014f699a35b56ed`
+
+**Status:** Success
+
+---
