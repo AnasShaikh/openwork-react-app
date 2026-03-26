@@ -1,33 +1,34 @@
-/* CrossChainStatus.css */
+/* CrossChainStatus.css — light mode, matches app design (Satoshi, white bg) */
 
 .ccs {
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.03);
-  padding: 16px;
+  border: 1.5px solid #f0f0f0;
+  background: #fafafa;
+  padding: 16px 20px;
+  font-family: 'Satoshi', sans-serif;
   font-size: 13px;
   line-height: 1.5;
-  margin: 12px 0;
+  margin: 8px 0;
 }
 
 .ccs--compact {
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 12px;
 }
 
-.ccs--failed { border-color: rgba(239, 68, 68, 0.3); }
-.ccs--warning { border-color: rgba(251, 191, 36, 0.3); }
-.ccs--success { border-color: rgba(34, 197, 94, 0.3); }
-.ccs--active  { border-color: rgba(99, 179, 237, 0.3); }
+.ccs--failed  { border-color: #fecaca; background: #fff8f8; }
+.ccs--warning { border-color: #fde68a; background: #fffdf0; }
+.ccs--success { border-color: #bbf7d0; background: #f0fdf4; }
+.ccs--active  { border-color: #bfdbfe; background: #f5f9ff; }
 
 /* Title */
 .ccs-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(255,255,255,0.4);
-  margin-bottom: 12px;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin-bottom: 14px;
 }
 
 /* Steps container */
@@ -40,8 +41,8 @@
 /* Individual step */
 .ccs-step {
   display: flex;
-  gap: 10px;
-  padding: 4px 0;
+  gap: 12px;
+  align-items: flex-start;
 }
 
 .ccs-step-left {
@@ -49,15 +50,16 @@
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
-  width: 20px;
+  width: 22px;
+  padding-top: 1px;
 }
 
 .ccs-step-connector {
+  width: 1.5px;
+  background: #e5e7eb;
+  margin: 4px 0;
+  min-height: 12px;
   flex: 1;
-  width: 1px;
-  background: rgba(255,255,255,0.1);
-  margin: 3px 0;
-  min-height: 8px;
 }
 
 .ccs-step:last-child .ccs-step-connector {
@@ -66,8 +68,8 @@
 
 /* Icons */
 .ccs-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -78,85 +80,95 @@
   line-height: 1;
 }
 
-.ccs-success { color: #22c55e; background: rgba(34,197,94,0.12); }
-.ccs-failed  { color: #ef4444; background: rgba(239,68,68,0.12); }
-.ccs-warning { color: #fbbf24; background: rgba(251,191,36,0.12); }
-.ccs-active  { color: #60a5fa; background: rgba(96,165,250,0.12); }
-.ccs-pending { color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+.ccs-success { color: #16a34a; background: #dcfce7; }
+.ccs-failed  { color: #dc2626; background: #fee2e2; }
+.ccs-warning { color: #d97706; background: #fef3c7; }
+.ccs-active  { color: #2563eb; background: #dbeafe; }
+.ccs-pending { color: #d1d5db; background: #f3f4f6; }
 
-/* Spinning animation for active */
+/* Spinning animation */
 @keyframes ccs-rotate {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
 .ccs-spin {
-  animation: ccs-rotate 1.4s linear infinite;
+  animation: ccs-rotate 1.2s linear infinite;
 }
 
 /* Step content */
 .ccs-step-right {
   flex: 1;
   min-width: 0;
-  padding-bottom: 10px;
+  padding-bottom: 14px;
+}
+
+.ccs-step:last-child .ccs-step-right {
+  padding-bottom: 0;
 }
 
 .ccs-step-label {
   font-weight: 500;
-  color: rgba(255,255,255,0.85);
+  color: #111827;
   font-size: 13px;
+  line-height: 22px; /* align with icon height */
 }
 
-.ccs-step--pending .ccs-step-label { color: rgba(255,255,255,0.3); }
-.ccs-step--success .ccs-step-label { color: rgba(255,255,255,0.7); }
+.ccs-step--pending .ccs-step-label { color: #9ca3af; }
+.ccs-step--success .ccs-step-label { color: #374151; }
+.ccs-step--active  .ccs-step-label { color: #1d4ed8; font-weight: 600; }
+.ccs-step--failed  .ccs-step-label { color: #dc2626; }
+.ccs-step--warning .ccs-step-label { color: #92400e; }
 
 .ccs-step-message {
-  font-size: 11px;
-  color: rgba(255,255,255,0.45);
+  font-size: 12px;
+  color: #6b7280;
   margin-top: 2px;
   word-break: break-word;
 }
 
-.ccs-step--failed  .ccs-step-message { color: rgba(239,68,68,0.8); }
-.ccs-step--warning .ccs-step-message { color: rgba(251,191,36,0.8); }
-.ccs-step--active  .ccs-step-message { color: rgba(96,165,250,0.7); }
-.ccs-step--success .ccs-step-message { color: rgba(34,197,94,0.7); }
+.ccs-step--failed  .ccs-step-message { color: #ef4444; }
+.ccs-step--warning .ccs-step-message { color: #b45309; }
+.ccs-step--active  .ccs-step-message { color: #3b82f6; }
+.ccs-step--success .ccs-step-message { color: #16a34a; }
 
 /* Links row */
 .ccs-step-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 5px;
 }
 
 .ccs-link {
   font-size: 11px;
-  color: #60a5fa;
+  font-weight: 500;
+  color: #2563eb;
   text-decoration: none;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(96,165,250,0.08);
-  border: 1px solid rgba(96,165,250,0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   transition: background 0.15s;
 }
 
-.ccs-link:hover { background: rgba(96,165,250,0.16); }
+.ccs-link:hover { background: #dbeafe; }
 
 .ccs-link--subtle {
-  color: rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
+  color: #6b7280;
+  background: #f9fafb;
+  border-color: #e5e7eb;
 }
 
-.ccs-link--subtle:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+.ccs-link--subtle:hover { background: #f3f4f6; color: #374151; }
 
 /* Footer */
 .ccs-footer {
-  margin-top: 10px;
+  margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid #f0f0f0;
   font-size: 12px;
+  font-weight: 500;
 }
 
-.ccs-footer--error   { color: rgba(239,68,68,0.8); }
-.ccs-footer--success { color: rgba(34,197,94,0.7); }
+.ccs-footer--error   { color: #dc2626; }
+.ccs-footer--success { color: #16a34a; }
