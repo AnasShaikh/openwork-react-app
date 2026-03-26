@@ -117,7 +117,7 @@ export default function PostJob() {
             
             // Match EID-jobNumber pattern (e.g., "40161-6", "40232-5")
             // EIDs are 5 digits: 40161 (ETH), 40232 (OP), 40231 (ARB), 40245 (BASE)
-            if (decoded.match(/^40\d{3}-\d+$/)) {
+            if (decoded.match(/^[34]0\d{3}-\d+$/)) { // 30xxx = mainnet, 40xxx = testnet
               return decoded;
             }
             // Also check for any numeric pattern as fallback
@@ -556,55 +556,52 @@ export default function PostJob() {
               }
               
               if (jobId) {
-                setTransactionStatus("✅ Job posted successfully!");
-                setLoadingT(false);
-                
-                // For testing/debugging: log the job ID we're going to use
-
-                // ── Start cross-chain status tracking ──────────────────
-                const sourceTxHash = receipt.transactionHash;
-                const lzLink = `https://layerzeroscan.com/tx/${sourceTxHash}`;
-
-                // Set initial steps immediately
-                setCrossChainSteps(buildLZSteps({
-                  sourceTxHash,
-                  sourceChainId: chainId,
-                  lzStatus: 'active',
-                  lzLink,
-                }));
-
-                // Monitor LZ message delivery
-                monitorLZMessage(sourceTxHash, (update) => {
-                  setCrossChainSteps(prev => buildLZSteps({
-                    sourceTxHash,
-                    sourceChainId: chainId,
-                    lzStatus: update.status === STATUS.SUCCESS ? 'delivered'
-                             : update.status === STATUS.FAILED  ? 'failed'
-                             : 'active',
-                    lzLink: update.lzLink || lzLink,
-                    dstTxHash: update.dstTxHash,
-                    dstChainId: 42161, // Arbitrum One
-                  }));
-                  if (update.status === STATUS.FAILED) {
-                    setTransactionStatus(`❌ LayerZero delivery failed. TX: ${sourceTxHash}`);
-                  }
-                });
-                // ─────────────────────────────────────────────────────────
-                
-                // Start polling for cross-chain sync (job visible in browse)
+                setTransactionStatus("✅ Job posted! Syncing to Arbitrum...");
+                setIsProcessing(false);
+                // pollForJobSync navigates once the job appears on-chain
                 pollForJobSync(jobId);
               } else {
                 setTransactionStatus("✅ Transaction confirmed but job ID extraction failed");
-                setLoadingT(false);
+                setIsProcessing(false);
               }
             })
             .on("error", function (error) {
               console.error("Error sending transaction:", error);
               setTransactionStatus(`❌ Transaction failed: ${error.message}`);
               setLoadingT(false);
+              setIsProcessing(false);
             })
             .on("transactionHash", function (hash) {
-              setTransactionStatus(`Transaction sent! Hash: ${hash.substring(0, 10)}...`);
+              // ── Show CrossChainStatus immediately on sign ──────────────
+              // Don't wait for receipt — user sees the journey from the moment
+              // they confirm in MetaMask, just like release/lock flows.
+              const lzLink = `https://layerzeroscan.com/tx/${hash}`;
+              setLoadingT(false); // dismiss full-screen loading overlay
+              setTransactionStatus(`✅ Job tx submitted! Waiting for confirmation...`);
+              setCrossChainSteps(buildLZSteps({
+                sourceTxHash: hash,
+                sourceChainId: chainId,
+                lzStatus: 'active',
+                lzLink,
+              }));
+
+              // Monitor LZ message delivery
+              monitorLZMessage(hash, (update) => {
+                setCrossChainSteps(buildLZSteps({
+                  sourceTxHash: hash,
+                  sourceChainId: chainId,
+                  lzStatus: update.status === STATUS.SUCCESS ? 'delivered'
+                           : update.status === STATUS.FAILED  ? 'failed'
+                           : 'active',
+                  lzLink: update.lzLink || lzLink,
+                  dstTxHash: update.dstTxHash,
+                  dstChainId: 42161,
+                }));
+                if (update.status === STATUS.FAILED) {
+                  setTransactionStatus(`❌ LayerZero delivery failed. TX: ${hash}`);
+                }
+              });
+              // ──────────────────────────────────────────────────────────
             })
             .catch(function (error) {
               console.error("Transaction was rejected:", error);
