@@ -408,6 +408,7 @@ export default function ReviewDispute() {
 
       // Use Promise-based approach with proper event handling
       // Note: On Arbitrum, let MetaMask handle gas estimation
+      let settleTxHash = '';
       const receipt = await new Promise((resolve, reject) => {
         nativeAthena.methods
           .settleDispute(String(disputeId))
@@ -415,10 +416,11 @@ export default function ReviewDispute() {
             from: fromAddress
           })
           .on('transactionHash', (hash) => {
+            settleTxHash = hash;
+            setTxHash(hash);
             setLoadingT("Transaction submitted - waiting for confirmation...");
           })
           .on('receipt', (receipt) => {
-            
             if (receipt.status == 1 || receipt.status == "1") {
               resolve(receipt);
             } else {
@@ -431,14 +433,18 @@ export default function ReviewDispute() {
           });
       });
 
-      setLoadingT("✅ Dispute settled! Backend processing CCTP transfer...");
+      setLoadingT("✅ Dispute settled! CCTP transfer in progress — funds arriving on Optimism...");
       
-      // Send to backend for CCTP completion (like startJob does)
+      // jobId is the disputeId without the trailing -counter (e.g. "30111-100-1" → "30111-100")
+      const jobId = disputeId.split('-').slice(0, 2).join('-');
+
+      // Send to backend for CCTP completion
       const backendResponse = await fetch(`${BACKEND_URL}/api/settle-dispute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          disputeId, 
+          disputeId,
+          jobId,
           txHash: receipt.transactionHash 
         })
       });

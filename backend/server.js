@@ -1083,7 +1083,7 @@ async function processSettleDisputeFlow(disputeId, arbitrumTxHash) {
     console.log('\n📍 STEP 1/2: Polling Circle API for CCTP attestation...');
     const attestation = await pollCCTPAttestation(
       arbitrumTxHash, 
-      config.DOMAINS.ARBITRUM_SEPOLIA // Domain 3
+      config.DOMAINS.ARBITRUM // Domain 3 (both mainnet and testnet)
     );
     console.log('✅ Attestation received');
     
