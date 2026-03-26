@@ -767,12 +767,12 @@ export default function RaiseDispute() {
             <div className="form-groupDC">
               <ImageUpload onFileSelected={setSelectedFile} selectedFile={selectedFile} />
             </div>
-            <div className="form-groupDC form-platformFee">
+            <div className="form-groupDC" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="platform-fee">
                 <span>SELECT ORACLE FOR DISPUTE RESOLUTION</span>
                 <img src="/fee.svg" alt="" />
               </div>
-              <div className="oracle-dropdown-container">
+              <div className="oracle-dropdown-container" style={{ marginTop: 0 }}>
                 <div 
                   className="oracle-dropdown-button"
                   onClick={() => setIsOracleDropdownOpen(!isOracleDropdownOpen)}
@@ -815,13 +815,13 @@ export default function RaiseDispute() {
               </div>
             </div>
             <div className="form-groupDC compensation">
-              <span>COMPENSATION FOR RESOLUTION</span>
+              <span>COMPENSATION FOR RESOLUTION (USDC)</span>
               <div className="amountDC">
                 <input
                   id="amountInput"
                   type="number"
                   step="0.01"
-                  placeholder="Amount"
+                  placeholder="e.g. 5 — paid to oracle members who resolve this dispute"
                   value={compensation}
                   onChange={(e) => setCompensation(e.target.value)}
                   required
@@ -843,7 +843,7 @@ export default function RaiseDispute() {
               </div>
             )}
             {chainConfig && isAllowed && (
-              <div className="warning-form">
+              <div className="warning-form" style={{ marginBottom: '16px' }}>
                 <Warning content={`Connected to ${chainConfig.name}`} icon="/info.svg" />
               </div>
             )}
