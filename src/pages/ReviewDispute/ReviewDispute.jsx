@@ -8,6 +8,7 @@ import Button from "../../components/Button/Button";
 import BlueButton from "../../components/BlueButton/BlueButton";
 import VoteBar from "../../components/VoteBar/VoteBar";
 import Warning from "../../components/Warning/Warning";
+import CrossChainStatus, { buildSettleSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { formatAddress } from "../../utils/oracleHelpers";
 import { getNativeChain, isMainnet } from "../../config/chainConfig";
 
@@ -69,6 +70,7 @@ export default function ReviewDispute() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [txHash, setTxHash] = useState("");
+  const [settleStepState, setSettleStepState] = useState(null);
 
   function formatWalletAddressH(address) {
     if (!address) return "";
@@ -409,6 +411,12 @@ export default function ReviewDispute() {
       // Use Promise-based approach with proper event handling
       // Note: On Arbitrum, let MetaMask handle gas estimation
       let settleTxHash = '';
+      const sourceChainId = isMainnet() ? 42161 : 421614;
+      const destChainId   = isMainnet() ? 10    : 11155420;
+
+      // Initialise step tracker — show immediately on MetaMask open
+      setSettleStepState({ sourceChainId, destChainId });
+
       const receipt = await new Promise((resolve, reject) => {
         nativeAthena.methods
           .settleDispute(String(disputeId))
@@ -418,7 +426,8 @@ export default function ReviewDispute() {
           .on('transactionHash', (hash) => {
             settleTxHash = hash;
             setTxHash(hash);
-            setLoadingT("Transaction submitted - waiting for confirmation...");
+            setLoadingT("Waiting for confirmation...");
+            setSettleStepState(prev => ({ ...prev, settleTxHash: hash }));
           })
           .on('receipt', (receipt) => {
             if (receipt.status == 1 || receipt.status == "1") {
@@ -433,8 +442,8 @@ export default function ReviewDispute() {
           });
       });
 
-      setLoadingT("✅ Dispute settled! CCTP transfer in progress — funds arriving on Optimism...");
-      
+      setLoadingT("");
+
       // jobId is the disputeId without the trailing -counter (e.g. "30111-100-1" → "30111-100")
       const jobId = disputeId.split('-').slice(0, 2).join('-');
 
@@ -469,12 +478,12 @@ export default function ReviewDispute() {
             
             // Update UI based on status
             if (statusData.status === 'polling_attestation') {
-              setLoadingT("⏳ Backend: Polling Circle API for CCTP attestation...");
+              setSettleStepState(prev => ({ ...prev, cctpAttestationStatus: 'pending' }));
             } else if (statusData.status === 'executing_receive') {
-              setLoadingT("🔗 Backend: Executing receiveMessage() on Optimism...");
+              setSettleStepState(prev => ({ ...prev, cctpAttestationStatus: 'complete' }));
             } else if (statusData.status === 'completed') {
               clearInterval(pollInterval);
-              setLoadingT("");
+              setSettleStepState(prev => ({ ...prev, cctpAttestationStatus: 'complete', cctpMintTxHash: statusData.completionTxHash || 'done' }));
               setSuccessMessage("🎉 Dispute settled and funds delivered to winner!");
               
               setTimeout(() => {
@@ -482,7 +491,6 @@ export default function ReviewDispute() {
               }, 2000);
             } else if (statusData.status === 'failed') {
               clearInterval(pollInterval);
-              setLoadingT("");
               setErrorMessage(statusData.error || 'Backend CCTP processing failed');
             }
           }
@@ -497,7 +505,6 @@ export default function ReviewDispute() {
         setLoadingT("");
         setSuccessMessage("Dispute settled! CCTP processing is taking longer than expected. Funds will arrive soon.");
       }, 300000);
-
     } catch (error) {
       console.error("Error settling dispute:", error);
       setLoadingT("");
@@ -802,6 +809,13 @@ export default function ReviewDispute() {
                      ✅ Dispute has been settled. Winner: {jobData.votesForPercent > 0.5 ? 'FOR' : 'AGAINST'}
                    </p>
                  </div>
+              </div>
+            )}
+
+            {/* CCTP journey tracker — shows from MetaMask sign until OP mint */}
+            {settleStepState && (
+              <div style={{ marginTop: '24px' }}>
+                <CrossChainStatus steps={buildSettleSteps(settleStepState)} />
               </div>
             )}
           </div>

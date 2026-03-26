@@ -251,3 +251,70 @@ export function buildPaymentSteps(state = {}) {
 
   return steps;
 }
+
+/**
+ * buildSettleSteps — CCTP-only journey for settleDispute
+ * Flow: Arbitrum (settle tx + CCTP burn) → Circle attestation → OP (mint to winner)
+ *
+ * state: {
+ *   settleTxHash,          // ARB tx hash from settleDispute call
+ *   cctpAttestationStatus, // 'pending' | 'complete' | 'slow'
+ *   cctpMintTxHash,        // OP mint tx once backend relays
+ *   sourceChainId,         // 42161 (ARB mainnet) or 421614 (ARB Sepolia)
+ *   destChainId,           // 10 (OP mainnet) or 11155420 (OP Sepolia)
+ * }
+ */
+export function buildSettleSteps(state = {}) {
+  const {
+    settleTxHash,
+    cctpAttestationStatus,
+    cctpMintTxHash,
+    sourceChainId,
+    destChainId,
+  } = state;
+
+  return [
+    {
+      id: 'settle_tx',
+      label: 'Dispute settled on Arbitrum',
+      status: settleTxHash ? STATUS.SUCCESS : STATUS.ACTIVE,
+      txHash: settleTxHash,
+      chainId: sourceChainId || 42161,
+    },
+    {
+      id: 'cctp_burn',
+      label: 'USDC burn via Circle CCTP',
+      // Burn happens inside the same settle tx
+      status: settleTxHash ? STATUS.SUCCESS : STATUS.PENDING,
+      txHash: settleTxHash,
+      chainId: sourceChainId || 42161,
+      message: settleTxHash ? 'USDC burn included in settle tx' : undefined,
+    },
+    {
+      id: 'cctp_attestation',
+      label: 'Circle attestation',
+      status: !settleTxHash                            ? STATUS.PENDING
+            : cctpAttestationStatus === 'complete'     ? STATUS.SUCCESS
+            : cctpAttestationStatus === 'slow'         ? STATUS.WARNING
+            : settleTxHash                             ? STATUS.ACTIVE
+            :                                            STATUS.PENDING,
+      message: cctpAttestationStatus === 'slow'
+        ? 'Slow path active (~15-20 min). Monitoring...'
+        : cctpAttestationStatus === 'complete'
+        ? 'Attestation received ✓'
+        : undefined,
+    },
+    {
+      id: 'cctp_mint',
+      label: 'USDC delivered to winner on Optimism',
+      status: cctpMintTxHash              ? STATUS.SUCCESS
+            : cctpAttestationStatus === 'complete' ? STATUS.ACTIVE
+            :                               STATUS.PENDING,
+      txHash: cctpMintTxHash,
+      chainId: destChainId || 10,
+      message: cctpAttestationStatus === 'complete' && !cctpMintTxHash
+        ? 'Executing receiveMessage() on Optimism...'
+        : undefined,
+    },
+  ];
+}
