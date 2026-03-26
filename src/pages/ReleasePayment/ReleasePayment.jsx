@@ -621,9 +621,12 @@ export default function ReleasePayment() {
             resolve();
             return;
           } else if (status.status === 'failed') {
-            setTransactionStatus(`⚠️ Milestone locked but CCTP relay failed: ${status.error || 'Unknown error'}. Lock TX: ${sourceTxHash}. USDC may need manual relay.`);
-            resolve();
-            return;
+              // Backend relay failed — Circle's own relayer may still deliver.
+              // On-chain poller above is the real completion gate; don't scare the user.
+              console.warn('[lock-milestone] Backend relay failed:', status.error);
+              setTransactionStatus(`🔒 Milestone locked. USDC processing via Circle network (backend relay unavailable)...`);
+              resolve();
+              return;
           } else if (status.status === 'polling_attestation') {
             setTransactionStatus(`🔄 Milestone locked. Polling Circle API for CCTP attestation...`);
           } else if (status.status === 'executing_receive') {
@@ -764,6 +767,35 @@ export default function ReleasePayment() {
         circleLink: `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${lockTxHash}`,
       });
 
+      // ── Ground-truth: poll NOWJC on Arbitrum ─────────────────────────────
+      // Watches for milestonePayments array to grow (new milestone funded on-chain).
+      // This is the authoritative signal — backend relay failure doesn't matter.
+      const baselineMilestoneCount = (job.milestonePayments || []).length;
+      const nativeChainLock  = getNativeChain();
+      const arbRpcUrlLock    = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+      const nowjcAddressLock = nativeChainLock.contracts.nowjc;
+      const arbWeb3Lock      = new Web3(arbRpcUrlLock);
+
+      pollOnChainJobState(
+        arbWeb3Lock,
+        nowjcAddressLock,
+        contractABI,
+        jobId,
+        { milestone: baselineMilestoneCount, totalPaid: '0', mode: 'lock_milestone' },
+        (result) => {
+          setPaymentStepState(prev => ({
+            ...prev,
+            lzStatus: prev.lzStatus === 'active' ? 'delivered' : prev.lzStatus,
+            cctpAttestationStatus: 'complete',
+          }));
+          setTransactionStatus(`🔒 Milestone ${job.currentMilestone + 1} locked and confirmed on-chain! Reloading...`);
+          setIsLocking(false);
+          setTimeout(() => window.location.reload(), 2500);
+        },
+        { pollInterval: 10000, maxAttempts: 60 }
+      );
+
+      // ── LZ + CCTP visual steps (UX only) ─────────────────────────────────
       monitorLZMessage(lockTxHash, (lzUpdate) => {
         setPaymentStepState(prev => ({
           ...prev,

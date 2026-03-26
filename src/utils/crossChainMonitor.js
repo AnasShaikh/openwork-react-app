@@ -384,6 +384,17 @@ export function pollOnChainJobState(web3, contractAddress, contractABI, jobId, b
           }
           return;
         }
+      } else if (mode === 'lock_milestone') {
+        // Looking for milestonePayments array to grow (new milestone funded)
+        const currentCount = (jobData.milestonePayments || []).length;
+        const baselineCount = Number(baselineMilestone); // repurposed: baseline = milestonePayments.length before lock
+        if (currentCount > baselineCount) {
+          if (!stopped) {
+            stopped = true;
+            onResult({ type: 'lock_complete', milestoneCount: currentCount, jobData });
+          }
+          return;
+        }
       } else {
         // Looking for payment completion (milestone or totalPaid changed)
         const currentMilestone = Number(jobData.currentMilestone || 0);
