@@ -115,8 +115,9 @@ export default function PostJob() {
           if (cleanChunk.length > 0) {
             const decoded = Web3.utils.hexToUtf8("0x" + cleanChunk);
             
-            // Match EID-jobNumber pattern (e.g., "40161-6", "40232-5")
-            // EIDs are 5 digits: 40161 (ETH), 40232 (OP), 40231 (ARB), 40245 (BASE)
+            // Match EID-jobNumber pattern (e.g., "30111-98", "30110-5")
+            // Mainnet EIDs: 30110 (ARB), 30111 (OP), 30101 (ETH), 30184 (BASE)
+            // Testnet EIDs: 40161 (ETH Sepolia), 40232 (OP Sepolia), 40231 (ARB Sepolia)
             if (decoded.match(/^[34]0\d{3}-\d+$/)) { // 30xxx = mainnet, 40xxx = testnet
               return decoded;
             }
