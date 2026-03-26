@@ -172,14 +172,16 @@ export default function RaiseDispute() {
         // Get all oracle names
         const oracleNames = await genesisContract.methods.getAllOracleNames().call();
 
-        // Check active status for each oracle
+        // Fetch member count + active status for each oracle
         const oracleDataPromises = oracleNames.map(async (name) => {
-          const isActive = await nativeAthenaContract.methods.isOracleActive(name).call();
-          const activeMemberCount = await nativeAthenaContract.methods.getOracleActiveMemberCount(name).call();
+          const [isActive, members] = await Promise.all([
+            nativeAthenaContract.methods.isOracleActive(name).call(),
+            genesisContract.methods.getOracleMembers(name).call()
+          ]);
           return {
             name,
             isActive,
-            activeMemberCount: parseInt(activeMemberCount)
+            memberCount: members.length
           };
         });
 
@@ -187,10 +189,10 @@ export default function RaiseDispute() {
 
         setOracles(oracleData);
 
-        // Auto-select first active oracle
-        const firstActive = oracleData.find(o => o.isActive);
-        if (firstActive) {
-          setSelectedOracle(firstActive.name);
+        // Auto-select first oracle with members (fall back to first if none)
+        const firstWithMembers = oracleData.find(o => o.memberCount > 0) || oracleData[0];
+        if (firstWithMembers) {
+          setSelectedOracle(firstWithMembers.name);
         }
 
         setOraclesLoading(false);
@@ -802,14 +804,10 @@ export default function RaiseDispute() {
                         }}
                       >
                         <span>{oracle.name}</span>
-                        {oracle.isActive && (
-                          <span style={{ fontSize: '12px', color: '#767676' }}>
-                            {oracle.activeMemberCount} active members
-                          </span>
-                        )}
-                        {!oracle.isActive && (
-                          <span style={{ fontSize: '12px', color: '#999' }}>(Inactive)</span>
-                        )}
+                        <span style={{ fontSize: '12px', color: oracle.isActive ? '#767676' : '#999' }}>
+                          {oracle.memberCount} member{oracle.memberCount !== 1 ? 's' : ''}
+                          {!oracle.isActive && ' · inactive'}
+                        </span>
                       </div>
                     ))}
                   </div>
