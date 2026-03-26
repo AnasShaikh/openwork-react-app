@@ -180,3 +180,13 @@
     opacity: 0.4;
     cursor: not-allowed;
 }
+
+/* Input placeholder — lighter gray so it reads as a hint, not a value */
+.form-groupDC input::placeholder,
+.form-groupDC textarea::placeholder,
+.amountDC input::placeholder {
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #ADADAD;
+}
