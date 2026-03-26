@@ -574,38 +574,47 @@ export default function RaiseDispute() {
           circleLink,
         }));
 
-        monitorLZMessage(srcTxHash, (lzUpdate) => {
-          setCrossChainSteps(buildPaymentSteps({
-            sourceChainId: chainId,
-            usdcApproved: true,
-            sourceTxHash: srcTxHash,
-            lzStatus:     lzUpdate.status === STATUS.SUCCESS ? 'delivered'
-                        : lzUpdate.status === STATUS.FAILED  ? 'failed' : 'active',
-            lzLink:       lzUpdate.lzLink || lzLink,
-            lzDstTxHash:  lzUpdate.dstTxHash,
-            lzDstChainId: 42161,
-            cctpBurnTxHash: lzUpdate.dstTxHash,
-            cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
-            circleLink,
-          }));
-          if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
-            monitorCCTPTransfer(lzUpdate.dstTxHash, chainConfig?.cctpDomain ?? 2,
-              (cu) => setCrossChainSteps(buildPaymentSteps({
-                sourceChainId: chainId, usdcApproved: true, sourceTxHash: srcTxHash,
-                lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
-                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
-                lzLink, circleLink,
-                cctpAttestationStatus: cu.status === STATUS.SUCCESS ? 'complete'
-                                     : cu.message?.includes('slow') ? 'slow' : 'pending',
-              })),
-              () => setCrossChainSteps(buildPaymentSteps({
-                sourceChainId: chainId, usdcApproved: true, sourceTxHash: srcTxHash,
-                lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
-                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
-                lzLink, circleLink, cctpAttestationStatus: 'complete',
-              }))
-            );
+        // CCTP burn happened on OP at source tx time — monitor srcTxHash, not dst
+        monitorCCTPTransfer(srcTxHash, chainConfig?.cctpDomain ?? 2,
+          (cu) => {
+            setCrossChainSteps(prev => buildPaymentSteps({
+              sourceChainId: chainId, usdcApproved: true, sourceTxHash: srcTxHash,
+              lzStatus: prev?.[2]?.status === 'complete' ? 'delivered' : 'active',
+              lzLink, circleLink,
+              cctpBurnTxHash: srcTxHash, cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
+              cctpAttestationStatus: cu.status === STATUS.SUCCESS ? 'complete'
+                                   : cu.message?.includes('slow') ? 'slow' : 'pending',
+            }));
+          },
+          () => {
+            setCrossChainSteps(prev => buildPaymentSteps({
+              sourceChainId: chainId, usdcApproved: true, sourceTxHash: srcTxHash,
+              lzStatus: prev?.[2]?.status === 'complete' ? 'delivered' : 'active',
+              lzLink, circleLink,
+              cctpBurnTxHash: srcTxHash, cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
+              cctpAttestationStatus: 'complete',
+            }));
           }
+        );
+
+        monitorLZMessage(srcTxHash, (lzUpdate) => {
+          setCrossChainSteps(prev => {
+            const cctpStatus = prev?.find(s => s.label?.toLowerCase().includes('circle') || s.label?.toLowerCase().includes('cctp'))?.status;
+            return buildPaymentSteps({
+              sourceChainId: chainId,
+              usdcApproved: true,
+              sourceTxHash: srcTxHash,
+              lzStatus:     lzUpdate.status === STATUS.SUCCESS ? 'delivered'
+                          : lzUpdate.status === STATUS.FAILED  ? 'failed' : 'active',
+              lzLink:       lzUpdate.lzLink || lzLink,
+              lzDstTxHash:  lzUpdate.dstTxHash,
+              lzDstChainId: 42161,
+              cctpBurnTxHash: srcTxHash,
+              cctpSourceDomain: chainConfig?.cctpDomain ?? 2,
+              cctpAttestationStatus: cctpStatus === 'complete' ? 'complete' : 'pending',
+              circleLink,
+            });
+          });
         });
 
         // On-chain ground truth: poll NativeAthena for dispute totalFees > 0
