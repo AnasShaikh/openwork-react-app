@@ -565,18 +565,6 @@ export default function ReviewDispute() {
     // }
   };
 
-  if (loadingT) {
-    return (
-      <div className="loading-containerT">
-        <div className="loading-icon"><img src="/OWIcon.svg" alt="Loading..."/></div>
-        <div className="loading-message">
-          <h1 id="txText">{loadingT}</h1>
-          <p id="txSubtext">Please confirm the transaction in MetaMask and wait for blockchain confirmation</p>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="loading-container">
@@ -746,23 +734,52 @@ export default function ReviewDispute() {
               </div>
             )}
             
+            {/* Transaction status */}
+            {loadingT && (
+              <div className="warning-form" style={{ marginBottom: '16px' }}>
+                <Warning content={loadingT} icon="/info.svg" />
+              </div>
+            )}
+
             {jobData.remainingSeconds <= 0 && !jobData.isFinalized && (
               <div className="form-groupDC">
-                 <div className="settle-button-container">
-                   <BlueButton 
-                     label={'Settle Dispute'} 
-                     style={{
-                       width: '100%', 
-                       justifyContent:'center', 
-                       padding: '8px 16px', 
-                       borderRadius: '12px'
-                     }}
-                     onClick={handleSettleDispute}
-                   />
-                 </div>
-                 <div className="warning-form" style={{ marginTop: '16px' }}>
-                   <Warning content="Voting period has ended. Anyone can now settle this dispute." />
-                 </div>
+                {jobData.totalVotes === 0 ? (
+                  <>
+                    <BlueButton 
+                      label={'Settle Dispute'} 
+                      style={{
+                        width: '100%', 
+                        justifyContent:'center', 
+                        padding: '8px 16px', 
+                        borderRadius: '12px',
+                        opacity: 0.4,
+                        cursor: 'not-allowed',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                    <div className="warning-form" style={{ marginTop: '16px' }}>
+                      <Warning content="No votes were cast — this dispute cannot be settled. The disputed funds will be returned to the original parties." icon="/triangle_warning.svg" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="settle-button-container">
+                      <BlueButton 
+                        label={'Settle Dispute'} 
+                        style={{
+                          width: '100%', 
+                          justifyContent:'center', 
+                          padding: '8px 16px', 
+                          borderRadius: '12px'
+                        }}
+                        onClick={handleSettleDispute}
+                      />
+                    </div>
+                    <div className="warning-form" style={{ marginTop: '16px' }}>
+                      <Warning content="Voting period has ended. Anyone can now settle this dispute." />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
