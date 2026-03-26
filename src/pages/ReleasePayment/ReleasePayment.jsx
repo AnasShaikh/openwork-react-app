@@ -14,7 +14,7 @@ import { getChainConfig, extractChainIdFromJobId, getNativeChain, isMainnet, bui
 import { switchToChain } from "../../utils/switchNetwork";
 import { getLOWJCContract } from "../../services/localChainService";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
-import { monitorLZMessage, monitorCCTPTransfer, STATUS, pollOnChainJobState } from "../../utils/crossChainMonitor";
+import { monitorLZMessage, monitorCCTPTransfer, STATUS, pollOnChainJobState, pollNowjcUSDCBalance } from "../../utils/crossChainMonitor";
 
 const OPTIONS = [
   'Milestone 1','Milestone 2','Milestone 3'
@@ -767,21 +767,33 @@ export default function ReleasePayment() {
         circleLink: `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${lockTxHash}`,
       });
 
-      // ── Ground-truth: poll NOWJC on Arbitrum ─────────────────────────────
-      // Watches for milestonePayments array to grow (new milestone funded on-chain).
-      // This is the authoritative signal — backend relay failure doesn't matter.
-      const baselineMilestoneCount = (job.milestonePayments || []).length;
+      // ── Ground-truth: poll NOWJC USDC balance on Arbitrum ────────────────
+      // lockNextMilestone deposits USDC into NOWJC via CCTP.
+      // When NOWJC's USDC balance increases, the lock is confirmed — regardless
+      // of which relay path delivered it.
       const nativeChainLock  = getNativeChain();
       const arbRpcUrlLock    = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
       const nowjcAddressLock = nativeChainLock.contracts.nowjc;
+      const usdcAddressLock  = nativeChainLock.contracts.usdc;
       const arbWeb3Lock      = new Web3(arbRpcUrlLock);
 
-      pollOnChainJobState(
+      // Snapshot NOWJC USDC balance before the lock lands
+      let baselineUSDCBalance = '0';
+      try {
+        const erc20 = new arbWeb3Lock.eth.Contract(
+          [{ "inputs": [{ "name": "account", "type": "address" }], "name": "balanceOf", "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }],
+          usdcAddressLock
+        );
+        baselineUSDCBalance = String(await erc20.methods.balanceOf(nowjcAddressLock).call());
+      } catch (e) {
+        console.warn('[lock] Could not snapshot NOWJC USDC balance:', e.message);
+      }
+
+      pollNowjcUSDCBalance(
         arbWeb3Lock,
+        usdcAddressLock,
         nowjcAddressLock,
-        contractABI,
-        jobId,
-        { milestone: baselineMilestoneCount, totalPaid: '0', mode: 'lock_milestone' },
+        baselineUSDCBalance,
         (result) => {
           setPaymentStepState(prev => ({
             ...prev,

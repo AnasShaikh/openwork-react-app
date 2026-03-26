@@ -385,16 +385,12 @@ export function pollOnChainJobState(web3, contractAddress, contractABI, jobId, b
           return;
         }
       } else if (mode === 'lock_milestone') {
-        // Looking for milestonePayments array to grow (new milestone funded)
-        const currentCount = (jobData.milestonePayments || []).length;
-        const baselineCount = Number(baselineMilestone); // repurposed: baseline = milestonePayments.length before lock
-        if (currentCount > baselineCount) {
-          if (!stopped) {
-            stopped = true;
-            onResult({ type: 'lock_complete', milestoneCount: currentCount, jobData });
-          }
-          return;
-        }
+        // Lock milestone deposits USDC into NOWJC on Arbitrum.
+        // The observable signal is NOWJC's USDC balance increasing.
+        // baselineMilestone is repurposed here as the USDC balance (as string) before the lock.
+        // We need a separate ERC20 balanceOf call — contract here is USDC, not NOWJC.
+        // (handled externally — this branch is a no-op; use pollNowjcBalance instead)
+        break;
       } else {
         // Looking for payment completion (milestone or totalPaid changed)
         const currentMilestone = Number(jobData.currentMilestone || 0);
@@ -428,5 +424,68 @@ export function pollOnChainJobState(web3, contractAddress, contractABI, jobId, b
   // Small initial delay to let the tx propagate
   setTimeout(poll, mode === 'sync' ? 8000 : 5000);
 
+  return () => { stopped = true; };
+}
+
+/**
+ * Poll the USDC balance of NOWJC on Arbitrum until it exceeds a baseline.
+ * Used as ground truth for lockNextMilestone — CCTP deposits USDC into NOWJC,
+ * so a balance increase = lock confirmed regardless of which relay delivered it.
+ *
+ * @param {object} web3             - Web3 instance connected to Arbitrum RPC
+ * @param {string} usdcAddress      - USDC contract address on Arbitrum
+ * @param {string} nowjcAddress     - NOWJC contract address on Arbitrum
+ * @param {string} baselineBalance  - USDC balance (string, raw 6-decimal) before the lock tx
+ * @param {Function} onComplete     - Called with { type: 'lock_complete', balance }
+ * @param {object}  [options]
+ * @returns {Function} stop
+ */
+export function pollNowjcUSDCBalance(web3, usdcAddress, nowjcAddress, baselineBalance, onComplete, options = {}) {
+  const { pollInterval = 10000, maxAttempts = 60 } = options;
+  const erc20ABI = [{
+    "inputs": [{ "name": "account", "type": "address" }],
+    "name": "balanceOf",
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  }];
+
+  let attempts = 0;
+  let stopped = false;
+  let usdc;
+
+  try {
+    usdc = new web3.eth.Contract(erc20ABI, usdcAddress);
+  } catch (e) {
+    console.error('[pollNowjcUSDCBalance] Contract init failed:', e);
+    return () => {};
+  }
+
+  const poll = async () => {
+    if (stopped) return;
+    if (attempts >= maxAttempts) {
+      console.warn('[pollNowjcUSDCBalance] Gave up after', maxAttempts, 'attempts');
+      return;
+    }
+
+    try {
+      const balance = await usdc.methods.balanceOf(nowjcAddress).call();
+      if (BigInt(String(balance)) > BigInt(baselineBalance)) {
+        if (!stopped) {
+          stopped = true;
+          onComplete({ type: 'lock_complete', balance: String(balance) });
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('[pollNowjcUSDCBalance] Attempt', attempts + 1, 'error:', e.message);
+    }
+
+    attempts++;
+    setTimeout(poll, pollInterval);
+  };
+
+  // Delay to let CCTP propagate (CCTP is typically slower than LZ)
+  setTimeout(poll, 8000);
   return () => { stopped = true; };
 }
