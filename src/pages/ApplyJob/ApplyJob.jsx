@@ -319,14 +319,14 @@ export default function ApplyJob() {
       const lzLink    = `https://layerzeroscan.com/tx/${srcTxHash}`;
       setCrossChainSteps(buildLZSteps({
         sourceTxHash: srcTxHash,
-        sourceChainId: chainConfig?.chainId,
+        sourceChainId: chainId,
         lzStatus: 'active',
         lzLink,
       }));
       monitorLZMessage(srcTxHash, (update) => {
         setCrossChainSteps(buildLZSteps({
           sourceTxHash: srcTxHash,
-          sourceChainId: chainConfig?.chainId,
+          sourceChainId: chainId,
           lzStatus: update.status === STATUS.SUCCESS ? 'delivered'
                   : update.status === STATUS.FAILED  ? 'failed' : 'active',
           lzLink:   update.lzLink || lzLink,
