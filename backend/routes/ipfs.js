@@ -114,8 +114,9 @@ router.get('/content/:hash', async (req, res) => {
     return res.status(400).json({ error: 'Invalid hash' });
   }
 
-  // Only use public IPFS gateways for reads — uploads go to Pinata
+  // Only use public IPFS gateways for reads — uploads go to Lighthouse/Pinata
   const gateways = [
+    `https://gateway.lighthouse.storage/ipfs/${hash}`,
     `https://ipfs.io/ipfs/${hash}`,
     `https://cloudflare-ipfs.com/ipfs/${hash}`,
   ];

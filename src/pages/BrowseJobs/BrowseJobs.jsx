@@ -32,6 +32,7 @@ const fetchFromIPFS = async (hash, timeout = 5000) => {
     }
 
     const gateways = [
+        `https://gateway.lighthouse.storage/ipfs/${hash}`,
         `https://ipfs.io/ipfs/${hash}`,
         `/api/ipfs/content/${hash}`,
         `https://dweb.link/ipfs/${hash}`,
