@@ -14,7 +14,7 @@ import { getChainConfig, extractChainIdFromJobId, getNativeChain, isMainnet, bui
 import { switchToChain } from "../../utils/switchNetwork";
 import { getLOWJCContract } from "../../services/localChainService";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
-import { monitorLZMessage, monitorCCTPTransfer, STATUS } from "../../utils/crossChainMonitor";
+import { monitorLZMessage, monitorCCTPTransfer, STATUS, pollOnChainJobState } from "../../utils/crossChainMonitor";
 
 const OPTIONS = [
   'Milestone 1','Milestone 2','Milestone 3'
@@ -413,9 +413,12 @@ export default function ReleasePayment() {
       // ── Client-side cross-chain monitoring (no backend needed) ────────────
       const srcTxHash    = releasePaymentTx.transactionHash;
       const srcChainId   = jobChainId;
-      const destDomain   = job.applicantChainDomain || 2;
       const lzLink       = `https://layerzeroscan.com/tx/${srcTxHash}`;
       const circleLink   = `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
+
+      // Snapshot baseline BEFORE the tx (we already have job state loaded)
+      const baselineMilestone = job.currentMilestone || 0;
+      const baselinePaid      = job.totalPaid || '0';
 
       // Initialise steps immediately so the UI renders right away
       setPaymentStepState({
@@ -426,7 +429,35 @@ export default function ReleasePayment() {
         circleLink,
       });
 
-      // Monitor LayerZero message → when delivered, start CCTP monitor
+      // ── Ground-truth: poll NOWJC on Arbitrum ────────────────────────────
+      // This is the authoritative signal. When currentMilestone advances,
+      // payment is done — regardless of which relay path delivered it.
+      const nativeChain    = getNativeChain();
+      const arbRpcUrl      = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+      const nowjcAddress   = nativeChain.contracts.nowjc;
+      const arbWeb3        = new Web3(arbRpcUrl);
+
+      const stopOnChainPoll = pollOnChainJobState(
+        arbWeb3,
+        nowjcAddress,
+        contractABI,
+        jobId,
+        { milestone: baselineMilestone, totalPaid: baselinePaid, mode: 'payment' },
+        (result) => {
+          // Chain confirmed — override whatever LZ/CCTP showed
+          setPaymentStepState(prev => ({
+            ...prev,
+            lzStatus: prev.lzStatus === 'active' ? 'delivered' : prev.lzStatus,
+            cctpAttestationStatus: 'complete',
+          }));
+          setTransactionStatus('🎉 Milestone payment confirmed on-chain! Reloading...');
+          setIsProcessing(false);
+          setTimeout(() => window.location.reload(), 2500);
+        },
+        { pollInterval: 10000, maxAttempts: 60 }
+      );
+
+      // ── LZ + CCTP visual steps (UX only — ground truth is above) ────────
       monitorLZMessage(srcTxHash, (lzUpdate) => {
         setPaymentStepState(prev => ({
           ...prev,
@@ -436,16 +467,17 @@ export default function ReleasePayment() {
           lzLink:     lzUpdate.lzLink || lzLink,
           lzDstTxHash: lzUpdate.dstTxHash,
           lzDstChainId: 42161,
-          // Once LZ delivers, the CCTP burn happens on Arbitrum
           cctpBurnTxHash: lzUpdate.dstTxHash || prev?.cctpBurnTxHash,
-          cctpSourceDomain: 3, // Arbitrum CCTP domain
+          cctpSourceDomain: 3,
         }));
 
-        // When LZ delivers, start watching the CCTP burn on Arbitrum
+        // When LZ delivers, start CCTP visual monitor
+        // Note: if dstTxHash is wrong/null this may not resolve — that's OK,
+        // the on-chain poller above is the real completion signal.
         if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
           monitorCCTPTransfer(
             lzUpdate.dstTxHash,
-            3, // Arbitrum is the CCTP source for the payment leg
+            3,
             (cctpUpdate) => {
               setPaymentStepState(prev => ({
                 ...prev,
@@ -455,10 +487,8 @@ export default function ReleasePayment() {
                 circleLink: cctpUpdate.circleLink || circleLink,
               }));
             },
-            (attestation) => {
-              // Attestation ready — update final step
+            () => {
               setPaymentStepState(prev => ({ ...prev, cctpAttestationStatus: 'complete' }));
-              setTransactionStatus('✅ CCTP attestation complete. USDC being minted on recipient chain...');
             }
           );
         }

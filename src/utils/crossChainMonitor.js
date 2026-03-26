@@ -17,6 +17,14 @@
  *   const stop = monitorCCTPTransfer(txHash, sourceDomain, destChainConfig, (update) => {
  *     ...
  *   });
+ *
+ *   // Poll on-chain job state as ground truth (overrides LZ/CCTP signals)
+ *   const stop = pollOnChainJobState(web3, contractAddress, contractABI, jobId, {
+ *     baselineMilestone: 0, baselinePaid: '0'
+ *   }, (result) => {
+ *     if (result.type === 'payment_complete') { ... }
+ *     if (result.type === 'job_synced')        { ... }
+ *   });
  */
 
 // ─── Status values ──────────────────────────────────────────────────────────
@@ -317,4 +325,97 @@ export function explorerTxUrl(txHash, chainId) {
 export function shortHash(hash, chars = 6) {
   if (!hash) return '';
   return `${hash.slice(0, chars + 2)}...${hash.slice(-4)}`;
+}
+
+// ─── On-chain ground-truth poller ────────────────────────────────────────────
+
+/**
+ * Poll a job contract on Arbitrum and fire onResult when the chain confirms
+ * that either:
+ *   - A payment was completed  (currentMilestone or totalPaid changed)
+ *   - A job was synced         (job.id is non-empty and matches jobId)
+ *
+ * This is the authoritative completion signal — it supersedes LZ scan API
+ * and Circle API results, and works regardless of which relay path delivered.
+ *
+ * @param {object}   web3            - Web3 instance connected to Arbitrum RPC
+ * @param {string}   contractAddress - NOWJC or Genesis contract address on Arbitrum
+ * @param {Array}    contractABI     - ABI for the contract
+ * @param {string}   jobId           - Job ID to watch
+ * @param {object}   baseline        - Snapshot taken before the tx:
+ *                                     { milestone: number, totalPaid: string, mode: 'payment'|'sync' }
+ * @param {Function} onResult        - Called with { type, milestone, totalPaid } on completion
+ * @param {object}   [options]
+ * @param {number}   [options.pollInterval=10000]  - Poll every N ms (default 10s)
+ * @param {number}   [options.maxAttempts=60]       - Give up after N attempts (~10 min)
+ * @returns {Function} stop - Call to stop polling
+ */
+export function pollOnChainJobState(web3, contractAddress, contractABI, jobId, baseline, onResult, options = {}) {
+  const { pollInterval = 10000, maxAttempts = 60 } = options;
+  const { milestone: baselineMilestone = 0, totalPaid: baselinePaid = '0', mode = 'payment' } = baseline;
+
+  let attempts = 0;
+  let stopped = false;
+  let contract;
+
+  try {
+    contract = new web3.eth.Contract(contractABI, contractAddress);
+  } catch (e) {
+    console.error('[pollOnChainJobState] Failed to create contract:', e);
+    return () => {};
+  }
+
+  const poll = async () => {
+    if (stopped) return;
+    if (attempts >= maxAttempts) {
+      console.warn(`[pollOnChainJobState] Gave up after ${maxAttempts} attempts for job ${jobId}`);
+      return;
+    }
+
+    try {
+      const jobData = await contract.methods.getJob(jobId).call();
+
+      if (mode === 'sync') {
+        // Looking for the job to appear on-chain
+        if (jobData && jobData.id && jobData.id === jobId) {
+          if (!stopped) {
+            stopped = true;
+            onResult({ type: 'job_synced', jobData });
+          }
+          return;
+        }
+      } else {
+        // Looking for payment completion (milestone or totalPaid changed)
+        const currentMilestone = Number(jobData.currentMilestone || 0);
+        const currentPaid      = String(jobData.totalPaid || '0');
+
+        const milestoneAdvanced = currentMilestone > Number(baselineMilestone);
+        const paidIncreased     = BigInt(currentPaid) > BigInt(baselinePaid);
+
+        if (milestoneAdvanced || paidIncreased) {
+          if (!stopped) {
+            stopped = true;
+            onResult({
+              type: 'payment_complete',
+              milestone: currentMilestone,
+              totalPaid: currentPaid,
+              jobData,
+            });
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      // RPC hiccup — not fatal, keep polling
+      console.warn(`[pollOnChainJobState] Attempt ${attempts + 1} error:`, e.message);
+    }
+
+    attempts++;
+    setTimeout(poll, pollInterval);
+  };
+
+  // Small initial delay to let the tx propagate
+  setTimeout(poll, mode === 'sync' ? 8000 : 5000);
+
+  return () => { stopped = true; };
 }

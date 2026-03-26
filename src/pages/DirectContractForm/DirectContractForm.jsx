@@ -474,12 +474,12 @@ export default function DirectContractForm() {
             if (status.status === 'completed') {
               cctpCompleted = true;
             } else if (status.status === 'failed') {
-              setTransactionStatus(`Step 2/2: CCTP relay failed: ${status.error || status.message}. USDC may need manual relay.`);
-              // Still redirect if job is synced — user can see the job but release won't work until CCTP is fixed
-              if (jobSynced) {
-                setTimeout(() => navigate(`/job-details/${jobId}`), 3000);
-              }
-              return;
+              // Backend relay failed — but Circle's own relayer may still deliver.
+              // Don't abort. Mark as "processing via Circle network" and let the
+              // on-chain job sync be the actual completion gate.
+              console.warn('[CCTP] Backend relay failed — monitoring via Circle network:', status.error);
+              setTransactionStatus("Step 2/2: USDC processing via Circle network (backend relay unavailable)...");
+              cctpCompleted = true; // treat as done for redirect purposes — job sync is the real gate
             } else if (status.status === 'polling_attestation') {
               if (jobSynced) {
                 setTransactionStatus("Step 2/2: Job synced! Polling Circle API for CCTP attestation...");
