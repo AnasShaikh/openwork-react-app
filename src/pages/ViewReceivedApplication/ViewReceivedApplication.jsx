@@ -68,8 +68,9 @@ const fetchFromIPFS = async (hash, timeout = 5000) => {
   }
 
   const gateways = [
-    `https://ipfs.io/ipfs/${hash}`,
+    `https://gateway.lighthouse.storage/ipfs/${hash}`,
     `/api/ipfs/content/${hash}`,
+    `https://ipfs.io/ipfs/${hash}`,
     `https://dweb.link/ipfs/${hash}`,
     `https://w3s.link/ipfs/${hash}`
   ];
@@ -498,13 +499,11 @@ export default function ViewReceivedApplication() {
       const currentAllowance = await usdcContract.methods.allowance(walletAddress, lowjcAddress).call();
 
       if (BigInt(currentAllowance) < BigInt(amountInUSDCUnits)) {
-        setTransactionStatus(`💰 Step 1/3: Approving USDC spending (MaxUint256) - Please confirm in MetaMask`);
+        setTransactionStatus(`💰 Step 1/3: Approving ${firstMilestoneAmount} USDC — Please confirm in MetaMask`);
 
-        // Approve MaxUint256 so the contract never needs re-approval
-        const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
         const approveTx = await usdcContract.methods.approve(
           lowjcAddress,
-          MAX_UINT256
+          amountInUSDCUnits.toString()
         ).send({ from: walletAddress, gas: 100000 });
 
         if (!approveTx || !approveTx.transactionHash) {
@@ -560,7 +559,8 @@ export default function ViewReceivedApplication() {
 
       setTransactionStatus(`🔧 Step 2/3: Network fee ~${parseFloat(web3.utils.fromWei(totalFee.toString(), 'ether')).toFixed(5)} ETH — Please confirm in MetaMask`);
 
-      const startJobTx = await lowjcContract.methods.startJob(
+      // ── Event-based tx: CrossChainStatus shows immediately on sign ────────
+      lowjcContract.methods.startJob(
         jobId,
         parseInt(applicationId),
         useAppMilestones,
@@ -568,130 +568,146 @@ export default function ViewReceivedApplication() {
       ).send({
         from: walletAddress,
         value: totalFee.toString(),
-        gas: 1000000, // Higher gas for USDC transfer + LZ + CCTP
+        gas: 1000000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      });
-      
-      if (!startJobTx || !startJobTx.transactionHash) {
-        throw new Error("Start job transaction failed");
-      }
-      setTransactionStatus(`✅ Job started on ${jobChainConfig.name}. Tracking cross-chain progress...`);
+      })
+      .on('transactionHash', (srcTxHash) => {
+        const srcChainId = jobChainId;
+        const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
+        const circleLink = `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
 
-      // ── Client-side cross-chain monitoring (works even if backend is down) ──
-      const srcTxHash  = startJobTx.transactionHash;
-      const srcChainId = jobChainId;
-      const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
-      const circleLink = `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
+        setTransactionStatus(`✅ Job started on ${jobChainConfig.name}. Tracking cross-chain progress...`);
 
-      setCrossChainSteps(buildPaymentSteps({
-        sourceChainId: srcChainId,
-        usdcApproved: true,
-        sourceTxHash: srcTxHash,
-        lzStatus: 'active',
-        lzLink,
-        circleLink,
-      }));
-
-      monitorLZMessage(srcTxHash, (lzUpdate) => {
-        setCrossChainSteps(() => buildPaymentSteps({
+        // Show CrossChainStatus immediately
+        setCrossChainSteps(buildPaymentSteps({
           sourceChainId: srcChainId,
           usdcApproved: true,
           sourceTxHash: srcTxHash,
-          lzStatus:     lzUpdate.status === STATUS.SUCCESS ? 'delivered'
-                      : lzUpdate.status === STATUS.FAILED  ? 'failed' : 'active',
-          lzLink:       lzUpdate.lzLink || lzLink,
-          lzDstTxHash:  lzUpdate.dstTxHash,
-          lzDstChainId: 42161,
-          cctpBurnTxHash: lzUpdate.dstTxHash,
-          cctpSourceDomain: 3,
+          lzStatus: 'active',
+          lzLink,
           circleLink,
         }));
-        if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
-          monitorCCTPTransfer(lzUpdate.dstTxHash, 3,
-            (cu) => setCrossChainSteps(() => buildPaymentSteps({
-              sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
-              lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
-              cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: 3, lzLink, circleLink,
-              cctpAttestationStatus: cu.status === STATUS.SUCCESS ? 'complete'
-                                   : cu.message?.includes('slow') ? 'slow' : 'pending',
-            })),
-            () => setCrossChainSteps(() => buildPaymentSteps({
-              sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
-              lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
-              cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: 3, lzLink, circleLink,
-              cctpAttestationStatus: 'complete',
-            }))
-          );
-        }
-      });
-      // ──────────────────────────────────────────────────────────────────────
 
-      // Also notify backend for server-side relay (belt + suspenders)
-      setTransactionStatus("📡 Monitoring CCTP transfer to Arbitrum...");
-      try {
-        const backendResponse = await fetch(`${BACKEND_URL}/api/start-job`, {
+        // ── LZ + CCTP visual monitoring ──────────────────────────────────
+        monitorLZMessage(srcTxHash, (lzUpdate) => {
+          setCrossChainSteps(buildPaymentSteps({
+            sourceChainId: srcChainId,
+            usdcApproved: true,
+            sourceTxHash: srcTxHash,
+            lzStatus:     lzUpdate.status === STATUS.SUCCESS ? 'delivered'
+                        : lzUpdate.status === STATUS.FAILED  ? 'failed' : 'active',
+            lzLink:       lzUpdate.lzLink || lzLink,
+            lzDstTxHash:  lzUpdate.dstTxHash,
+            lzDstChainId: 42161,
+            cctpBurnTxHash: lzUpdate.dstTxHash,
+            cctpSourceDomain: 3,
+            circleLink,
+          }));
+          if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
+            monitorCCTPTransfer(lzUpdate.dstTxHash, 3,
+              (cu) => setCrossChainSteps(buildPaymentSteps({
+                sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
+                lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
+                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: 3, lzLink, circleLink,
+                cctpAttestationStatus: cu.status === STATUS.SUCCESS ? 'complete'
+                                     : cu.message?.includes('slow') ? 'slow' : 'pending',
+              })),
+              () => setCrossChainSteps(buildPaymentSteps({
+                sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
+                lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
+                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: 3, lzLink, circleLink,
+                cctpAttestationStatus: 'complete',
+              }))
+            );
+          }
+        });
+
+        // ── Ground-truth: poll Genesis on Arbitrum for selectedApplicant ──
+        // When Genesis reflects a non-zero selectedApplicant, startJob is done.
+        // This fires regardless of which relay path completed the delivery.
+        const nativeChain = getNativeChain();
+        const arbRpc      = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+        const genesisAddr = nativeChain?.contracts?.genesis;
+        const arbWeb3     = new Web3(arbRpc);
+        const genesisContract = new arbWeb3.eth.Contract([{
+          "inputs": [{"name": "_jobId", "type": "string"}],
+          "name": "getJob",
+          "outputs": [{"type": "tuple", "components": [
+            {"name": "id", "type": "string"},
+            {"name": "jobGiver", "type": "address"},
+            {"name": "applicants", "type": "address[]"},
+            {"name": "jobDetailHash", "type": "string"},
+            {"name": "status", "type": "uint8"},
+            {"name": "workSubmissions", "type": "string[]"},
+            {"name": "milestonePayments", "type": "tuple[]", "components": [{"name": "descriptionHash", "type": "string"}, {"name": "amount", "type": "uint256"}]},
+            {"name": "finalMilestones", "type": "tuple[]", "components": [{"name": "descriptionHash", "type": "string"}, {"name": "amount", "type": "uint256"}]},
+            {"name": "totalPaid", "type": "uint256"},
+            {"name": "currentLockedAmount", "type": "uint256"},
+            {"name": "currentMilestone", "type": "uint256"},
+            {"name": "selectedApplicant", "type": "address"},
+            {"name": "selectedApplicationId", "type": "uint256"},
+            {"name": "totalEscrowed", "type": "uint256"},
+            {"name": "totalReleased", "type": "uint256"}
+          ]}],
+          "stateMutability": "view", "type": "function"
+        }], genesisAddr);
+
+        let pollAttempts = 0;
+        const maxPollAttempts = 60;
+        const pollStartJob = async () => {
+          if (pollAttempts >= maxPollAttempts) return;
+          try {
+            const freshJob = await genesisContract.methods.getJob(jobId).call();
+            const ZERO = '0x0000000000000000000000000000000000000000';
+            if (freshJob?.selectedApplicant && freshJob.selectedApplicant !== ZERO) {
+              setCrossChainSteps(prev => prev ? prev.map(s =>
+                s.id === 'cctp-receive' ? { ...s, status: STATUS.SUCCESS } : s
+              ) : prev);
+              setTransactionStatus(`🎉 Job started and confirmed on-chain! Redirecting...`);
+              setIsProcessing(false);
+              setTimeout(() => { window.location.href = `/job-deep-view/${jobId}`; }, 2000);
+              return;
+            }
+          } catch (e) {
+            console.warn('[startJob poll] attempt', pollAttempts + 1, e.message);
+          }
+          pollAttempts++;
+          setTimeout(pollStartJob, 10000);
+        };
+        setTimeout(pollStartJob, 8000);
+        // ─────────────────────────────────────────────────────────────────
+
+        // Also notify backend (belt + suspenders — non-blocking)
+        fetch(`${BACKEND_URL}/api/start-job`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jobId, txHash: srcTxHash })
-        });
-        if (backendResponse.ok) {
-          const backendData = await backendResponse.json();
-        }
-      } catch (backendErr) {
-        console.warn("⚠️ Backend unavailable, relying on client-side monitoring:", backendErr.message);
-        setTransactionStatus("⚠️ Backend offline — tracking via LayerZero & Circle APIs directly. See progress below.");
-      }
-      
-      // Poll backend for status updates
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusResponse = await fetch(`${BACKEND_URL}/api/start-job-status/${jobId}`);
-          
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            
-            // Update UI based on status
-            if (statusData.status === 'polling_attestation') {
-              setTransactionStatus("⏳ Backend: Polling Circle API for CCTP attestation...");
-            } else if (statusData.status === 'executing_receive') {
-              setTransactionStatus("🔗 Backend: Executing receive() on Arbitrum...");
-            } else if (statusData.status === 'completed') {
-              clearInterval(pollInterval);
-              setTransactionStatus("🎉 Cross-chain transfer completed! Redirecting...");
-              
-              setTimeout(() => {
-                window.location.href = `/job-deep-view/${jobId}`;
-              }, 2000);
-            } else if (statusData.status === 'failed') {
-              clearInterval(pollInterval);
-              throw new Error(statusData.error || 'Backend processing failed');
-            }
-          }
-        } catch (pollError) {
-          console.warn("Status poll error:", pollError);
-        }
-      }, 3000); // Poll every 3 seconds
-      
-      // Set a timeout to stop polling after 10 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        setTransactionStatus("⏰ Backend processing is taking longer than expected. You can check the job status later.");
+        }).catch(err => console.warn('Backend notify failed (non-fatal):', err.message));
+      })
+      .on('receipt', () => {
+        setTransactionStatus(`✅ Step 2/3: Transaction confirmed. Waiting for cross-chain delivery...`);
+      })
+      .on('error', (error) => {
+        let msg = error.message;
+        if (error.code === 4001) msg = 'Transaction cancelled by user';
+        else if (msg.includes('insufficient funds')) msg = 'Insufficient ETH for gas fees';
+        else if (msg.includes('execution reverted')) msg = 'Transaction failed — contract requirements not met';
+        setTransactionStatus(`❌ Error: ${msg}`);
         setIsProcessing(false);
-      }, 600000);
-      
+      })
+      .catch((error) => {
+        setTransactionStatus(`❌ Transaction rejected: ${error.message}`);
+        setIsProcessing(false);
+      });
+      // ─────────────────────────────────────────────────────────────────────
     } catch (error) {
-      console.error("❌ Start job error:", error);
-      
+      // Pre-tx errors: balance check, approve failure, LZ quote, etc.
+      console.error("❌ Start job pre-tx error:", error);
       let errorMessage = error.message;
-      if (error.code === 4001) {
-        errorMessage = "Transaction cancelled by user";
-      } else if (error.message.includes("insufficient funds")) {
-        errorMessage = "Insufficient ETH for gas fees";
-      } else if (error.message.includes("execution reverted")) {
-        errorMessage = "Transaction failed - contract requirements not met";
-      }
-      
+      if (error.code === 4001) errorMessage = "Transaction cancelled by user";
+      else if (error.message.includes("insufficient funds")) errorMessage = "Insufficient ETH for gas fees";
+      else if (error.message.includes("execution reverted")) errorMessage = "Transaction failed — contract requirements not met";
       setTransactionStatus(`❌ Error: ${errorMessage}`);
       setIsProcessing(false);
     }

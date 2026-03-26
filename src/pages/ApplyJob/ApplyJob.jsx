@@ -289,15 +289,13 @@ export default function ApplyJob() {
       const currentAppCount = await getApplicationCountOnArbitrum(jobId);
       const expectedAppCount = currentAppCount + 1;
 
-      // Submit application
-      setTransactionStatus(`Submitting application on ${chainConfig?.name}...`);
-
-      // Log all transaction parameters for debugging
-
-      // Get current gas price from network (Optimism L2 is extremely cheap)
+      // Get current gas price from network
       const gasPrice = await web3.eth.getGasPrice();
 
-      const tx = await contract.methods.applyToJob(
+      setTransactionStatus(`Submitting application on ${chainConfig?.name}...`);
+
+      // Submit application — event-based so CrossChainStatus shows on sign, not on mine
+      contract.methods.applyToJob(
         jobId,
         applicationHash,
         milestoneHashes,
@@ -310,33 +308,44 @@ export default function ApplyJob() {
         gas: 600000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      });
-
-      setTransactionStatus(`✅ Application submitted on ${chainConfig?.name}. Tracking cross-chain sync...`);
-
-      // ── Client-side LZ monitoring ─────────────────────────────────────────
-      const srcTxHash = tx.transactionHash;
-      const lzLink    = `https://layerzeroscan.com/tx/${srcTxHash}`;
-      setCrossChainSteps(buildLZSteps({
-        sourceTxHash: srcTxHash,
-        sourceChainId: chainId,
-        lzStatus: 'active',
-        lzLink,
-      }));
-      monitorLZMessage(srcTxHash, (update) => {
+      })
+      .on('transactionHash', (hash) => {
+        // ── Show CrossChainStatus immediately on sign ──────────────
+        const lzLink = `https://layerzeroscan.com/tx/${hash}`;
+        setLoadingT(false);
+        setTransactionStatus(`✅ Application tx submitted! Waiting for confirmation...`);
         setCrossChainSteps(buildLZSteps({
-          sourceTxHash: srcTxHash,
+          sourceTxHash: hash,
           sourceChainId: chainId,
-          lzStatus: update.status === STATUS.SUCCESS ? 'delivered'
-                  : update.status === STATUS.FAILED  ? 'failed' : 'active',
-          lzLink:   update.lzLink || lzLink,
-          dstTxHash: update.dstTxHash,
-          dstChainId: 42161,
+          lzStatus: 'active',
+          lzLink,
         }));
+        monitorLZMessage(hash, (update) => {
+          setCrossChainSteps(buildLZSteps({
+            sourceTxHash: hash,
+            sourceChainId: chainId,
+            lzStatus: update.status === STATUS.SUCCESS ? 'delivered'
+                    : update.status === STATUS.FAILED  ? 'failed' : 'active',
+            lzLink:    update.lzLink || lzLink,
+            dstTxHash: update.dstTxHash,
+            dstChainId: 42161,
+          }));
+        });
+        // ──────────────────────────────────────────────────────────
+      })
+      .on('receipt', () => {
+        setTransactionStatus(`✅ Application confirmed! Syncing to Arbitrum...`);
+        // Detached — navigates once application count increases on Genesis
+        pollForApplicationSync(jobId, expectedAppCount);
+      })
+      .on('error', (error) => {
+        setTransactionStatus(`❌ Transaction failed: ${error.message}`);
+        setLoadingT(false);
+      })
+      .catch((error) => {
+        setTransactionStatus(`❌ Transaction rejected: ${error.message}`);
+        setLoadingT(false);
       });
-      // ─────────────────────────────────────────────────────────────────────
-
-      await pollForApplicationSync(jobId, expectedAppCount);
       
     } catch (error) {
       console.error("Error applying to job:", error);
