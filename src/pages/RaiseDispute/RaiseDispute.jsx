@@ -746,7 +746,7 @@ export default function RaiseDispute() {
                 id="amountInput"
                 type="number"
                 step="0.01"
-                placeholder="Amount"
+                placeholder="Disputed Amount"
                 value={disputeAmount}
                 onChange={(e) => setDisputeAmount(e.target.value)}
                 required
@@ -821,7 +821,7 @@ export default function RaiseDispute() {
                   id="amountInput"
                   type="number"
                   step="0.01"
-                  placeholder="e.g. 5 — paid to oracle members who resolve this dispute"
+                  placeholder="Amount to Pay Dispute Voters"
                   value={compensation}
                   onChange={(e) => setCompensation(e.target.value)}
                   required
