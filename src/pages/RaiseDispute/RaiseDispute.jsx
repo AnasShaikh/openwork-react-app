@@ -402,15 +402,15 @@ export default function RaiseDispute() {
 
     const poll = async () => {
       if (attempt >= maxAttempts) {
-        setTransactionStatus("Dispute raised. Sync taking longer than expected — check job details in a few minutes.");
-        setTimeout(() => navigate(`/job-details/${jobId}`), 3000);
+        setTransactionStatus("Dispute raised. Sync taking longer than expected — check dispute details in a few minutes.");
+        setTimeout(() => navigate(`/review-dispute/${jobId}`), 3000);
         return;
       }
       try {
         const exists = await checkDisputeExistsOnArbitrum(jobId);
         if (exists) {
           setTransactionStatus("🎉 Dispute synced to Arbitrum! Redirecting...");
-          setTimeout(() => navigate(`/job-details/${jobId}`), 1500);
+          setTimeout(() => navigate(`/review-dispute/${jobId}`), 1500);
           return;
         }
       } catch (e) {
