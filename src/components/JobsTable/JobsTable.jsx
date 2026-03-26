@@ -51,7 +51,7 @@ function Box({icon, title, number, showJoinButton, onJoinClick, subtitle}) {
     )
 }
 
-export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, applyNowUrl, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, hideBackButton, hidePostJob, selectedColumns, onColumnToggle, allColumns, selectedFilter, onFilterChange }) {
+export default function JobsTable({ title, tableData, currentPage, totalPages, onPageChange, headers, titleOptions, filterOptions, applyNow, applyNowUrl, addMember, backUrl='/work', boxSection, customBoxItems, customButtonLabel, customButtonIcon, onCustomButtonClick, ledgerTitle, onReferEarnClick, hideBackButton, hidePostJob, selectedColumns, onColumnToggle, allColumns, selectedFilter, onFilterChange, onRefresh }) {
     const truncateAddress = (address) => {
         if (!address) return "";
         const start = address.substring(0, 6);
@@ -138,6 +138,7 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                     {addMember && !customButtonLabel && <BlueButton label="Add Member" icon={'/plus.svg'} onClick={() => {
                         location.pathname = '/add-member'
                     }}/>}
+                    {onRefresh && <button onClick={onRefresh} title="Refresh jobs" style={{background:'none',border:'1px solid #e5e7eb',borderRadius:'8px',padding:'6px 10px',cursor:'pointer',fontSize:'16px',lineHeight:'1',color:'#6b7280'}} aria-label="Refresh">↺</button>}
                     </div>
                 </div>
                 <div style={{ overflowX: 'auto', width: '100%' }}>

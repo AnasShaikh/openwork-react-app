@@ -186,7 +186,62 @@ export default function BrowseJobs() {
     // Handle chain filter change
     const handleChainFilterChange = (filter) => {
         setChainFilter(filter);
-        setCurrentPage(1); // Reset to first page when filter changes
+        setCurrentPage(1);
+    };
+
+    const handleRefresh = () => {
+        hasFetchedRef.current = false;
+        setJobs([]);
+        setCurrentPage(1);
+        if (contract) {
+            // Re-trigger the fetch effect
+            setLoading(true);
+            hasFetchedRef.current = false;
+            // Force re-run by setting contract to trigger useEffect
+            const fetchJobs = async () => {
+                try {
+                    const jobIds = await contract.methods.getAllJobIds().call();
+                    if (jobIds.length === 0) { setJobs([]); setLoading(false); return; }
+                    const jobPromises = jobIds.map(async (jobId) => {
+                        try {
+                            const jobData = await contract.methods.getJob(jobId).call();
+                            let posterProfile = null;
+                            try { posterProfile = await contract.methods.getProfile(jobData.jobGiver).call(); } catch {}
+                            let jobDetails = null;
+                            try { if (jobData.jobDetailHash) jobDetails = await fetchFromIPFS(jobData.jobDetailHash); } catch {}
+                            const totalBudget = jobData.milestonePayments.reduce((sum, m) => sum + parseFloat(m.amount), 0);
+                            const formattedBudget = (totalBudget / 1000000).toFixed(2);
+                            let posterName = jobData.jobGiver.slice(0, 6) + "..." + jobData.jobGiver.slice(-4);
+                            if (posterProfile?.ipfsHash) {
+                                try { const pd = await fetchFromIPFS(posterProfile.ipfsHash); if (pd) posterName = pd.name || posterName; } catch {}
+                            }
+                            return {
+                                id: jobId,
+                                title: jobDetails?.title || `Job ${jobId}`,
+                                postedBy: posterName,
+                                jobGiver: jobData.jobGiver,
+                                skills: Array.isArray(jobDetails?.skills) ? jobDetails.skills : [jobDetails?.skills || "General"],
+                                timeline: jobDetails?.timeline || "TBD",
+                                budget: formattedBudget,
+                                status: jobData.status,
+                                milestoneCount: jobData.milestonePayments.length,
+                                applicantCount: jobData.applicants.length,
+                                rawJobData: jobData,
+                                jobDetails,
+                            };
+                        } catch { return null; }
+                    });
+                    const resolved = (await Promise.all(jobPromises)).filter(j => j !== null);
+                    resolved.sort((a, b) => b.id.localeCompare(a.id));
+                    setJobs(resolved);
+                } catch (e) {
+                    console.error("Refresh error:", e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchJobs();
+        }
     };
 
     // Initialize Web3 and contract
@@ -307,7 +362,7 @@ export default function BrowseJobs() {
 
                         return {
                             id: jobId,
-                            title: jobDetails?.title || "Untitled Job",
+                            title: jobDetails?.title || `Job ${jobId}`,
                             postedBy: posterName,
                             jobGiver: jobData.jobGiver,
                             skills: Array.isArray(skills) ? skills : [skills],
@@ -346,25 +401,25 @@ export default function BrowseJobs() {
         }
     }, [contract]);
 
-    // Filter jobs by status OR chain (always exclude untitled jobs)
+    // Filter jobs by status OR chain
     const filteredJobs = useMemo(() => {
-        const titled = jobs.filter(job => job.title && job.title !== "Untitled Job");
+        const validJobs = jobs.filter(job => job.title);
 
         // No filter or "All" selected
         if (chainFilter === "All" || chainFilter === "All Chains") {
-            return titled;
+            return validJobs;
         }
 
         // Status filters
         if (chainFilter === "Active") {
-            return titled.filter(job => Number(job.status) === 0 || Number(job.status) === 1); // Open or In Progress
+            return validJobs.filter(job => Number(job.status) === 0 || Number(job.status) === 1);
         }
         if (chainFilter === "Completed") {
-            return titled.filter(job => Number(job.status) === 2); // Completed
+            return validJobs.filter(job => Number(job.status) === 2);
         }
 
-        // Chain filters (OP Sepolia, Ethereum Sepolia)
-        return titled.filter(job => {
+        // Chain filters
+        return validJobs.filter(job => {
             const jobChainId = extractChainIdFromJobId(job.id);
             const chainName = getChainConfig(jobChainId)?.name;
             return chainName === chainFilter;
@@ -564,6 +619,7 @@ export default function BrowseJobs() {
                     allColumns={allColumns}
                     selectedFilter={chainFilter}
                     onFilterChange={handleChainFilterChange}
+                    onRefresh={handleRefresh}
                 />
             </div>
         </div>
