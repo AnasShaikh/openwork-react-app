@@ -68,7 +68,7 @@ const CONTRACT_ADDRESSES = {
     LOWJC_OP: '0x620205A4Ff0E652fF03a890d2A677de878a1dB63', // V4 Proxy with impl V3 (Jan 23)
     LOCAL_ATHENA_OP: '0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d',
     LOCAL_BRIDGE_OP: '0x74566644782e98c87a12E8Fc6f7c4c72e2908a36',
-    CCTP_OP: '0xb9da845151Af28D4e71b525a8a656e50F1ba069e', // V3 (Mar 26 2026) - redeployed with correct OP Circle addresses (old 0x586C700A had ARB addresses — broken)
+    CCTP_OP: '0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15', // V2 (Jan 23) - CCTP V2
     // Ethereum Mainnet (Main Chain - governance only)
     MAIN_DAO: '0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294',
     MAIN_REWARDS: '0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d',
