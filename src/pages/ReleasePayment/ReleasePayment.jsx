@@ -416,9 +416,24 @@ export default function ReleasePayment() {
       const lzLink       = `https://layerzeroscan.com/tx/${srcTxHash}`;
       const circleLink   = `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
 
-      // Snapshot baseline BEFORE the tx (we already have job state loaded)
-      const baselineMilestone = job.currentMilestone || 0;
-      const baselinePaid      = job.totalPaid || '0';
+      // ── Fetch FRESH baseline from chain (never trust stale in-memory job state) ──
+      // If a previous flow (lock, release) happened without a page reload,
+      // job.currentMilestone may be stale and would cause the poller to fire instantly.
+      const nativeChain    = getNativeChain();
+      const arbRpcUrl      = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+      const nowjcAddress   = nativeChain.contracts.nowjc;
+      const arbWeb3        = new Web3(arbRpcUrl);
+
+      let baselineMilestone = job.currentMilestone || 0;
+      let baselinePaid      = job.totalPaid || '0';
+      try {
+        const freshContract = new arbWeb3.eth.Contract(contractABI, nowjcAddress);
+        const freshJob = await freshContract.methods.getJob(jobId).call();
+        baselineMilestone = Number(freshJob.currentMilestone || 0);
+        baselinePaid      = String(freshJob.totalPaid || '0');
+      } catch (e) {
+        console.warn('[release] Could not fetch fresh baseline, using in-memory job state:', e.message);
+      }
 
       // Initialise steps immediately so the UI renders right away
       setPaymentStepState({
@@ -430,13 +445,7 @@ export default function ReleasePayment() {
       });
 
       // ── Ground-truth: poll NOWJC on Arbitrum ────────────────────────────
-      // This is the authoritative signal. When currentMilestone advances,
-      // payment is done — regardless of which relay path delivered it.
-      const nativeChain    = getNativeChain();
-      const arbRpcUrl      = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
-      const nowjcAddress   = nativeChain.contracts.nowjc;
-      const arbWeb3        = new Web3(arbRpcUrl);
-
+      // When currentMilestone advances past the fresh baseline, payment is done.
       const stopOnChainPoll = pollOnChainJobState(
         arbWeb3,
         nowjcAddress,
