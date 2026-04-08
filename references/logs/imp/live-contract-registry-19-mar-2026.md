@@ -14,7 +14,7 @@
 |---|----------|-------|----------------|---------|--------|----------|-----------|
 | 1 | NativeOpenworkGenesis | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | V1 (Jan 18) | [native-openwork-genesis.sol](../../src/suites/current-mainnet/native/native-openwork-genesis.sol) | [proxy](https://arbiscan.io/address/0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294) / [impl](https://arbiscan.io/address/0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d) | YES (impl) |
 | 2 | NativeOpenWorkJobContract (NOWJC) | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | `0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528` | V5 (Mar 19) | [native-openwork-job-contract-v4.sol](../../src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol) | [proxy](https://arbiscan.io/address/0x8EfbF240240613803B9c9e716d4b5AD1388aFd99) / [impl](https://arbiscan.io/address/0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528) | YES (impl) |
-| 3 | NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7` | Redeployed (Mar 19) | [native-arb-lowjc-v3.sol](../../src/suites/current-mainnet/native/native-arb-lowjc-v3.sol) | [proxy](https://arbiscan.io/address/0x5727cA7326032a8644a49dECECB8388BEF122bef) / [impl](https://arbiscan.io/address/0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7) | YES (impl) |
+| 3 | NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0x309f02301c641627A114D4E5Fb840bAA5C2809D3` | V4 (Apr 8) | [native-arb-lowjc-v4.sol](../../src/suites/current-mainnet/native/native-arb-lowjc-v4.sol) | [proxy](https://arbiscan.io/address/0x5727cA7326032a8644a49dECECB8388BEF122bef) / [impl](https://arbiscan.io/address/0x309f02301c641627A114D4E5Fb840bAA5C2809D3) | NO (pending verify) |
 | 4 | NativeArbAthenaClient | `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x9456989F7B9Cb707451d7179Fc1FC401221DE01a` | Redeployed (Mar 19) | [native-arb-athena-client.sol](../../src/suites/current-mainnet/native/native-arb-athena-client.sol) | [proxy](https://arbiscan.io/address/0xB5d3F406089236ef9d4aB13306187aFCCA81f099) / [impl](https://arbiscan.io/address/0x9456989F7B9Cb707451d7179Fc1FC401221DE01a) | YES (impl) |
 | 5 | NativeOpenworkDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | V1 (Jan 18) | [native-openwork-dao.sol](../../src/suites/current-mainnet/native/native-openwork-dao.sol) | [proxy](https://arbiscan.io/address/0x24af98d763724362DC920507b351cC99170a5aa4) / [impl](https://arbiscan.io/address/0x20Fa268106A3C532cF9F733005Ab48624105c42F) | YES (impl) |
 | 6 | NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4` | V7 (Mar 26) — EID fix | [native-athena-v5.sol](../../src/suites/current-mainnet/native/native-athena-v5.sol) | [proxy](https://arbiscan.io/address/0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf) / [impl](https://arbiscan.io/address/0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4) | YES (impl) |
@@ -147,6 +147,16 @@ All 13 upgradeable proxy implementation slots were read on-chain via `cast stora
 - **Source:** `native-athena-v5.sol` (copy of v4 with fix)
 - **Previous impl:** `0x461Bd6f9C706c495781392f54C29d23c1871aC15` (V6)
 - **Status:** Deployed, upgraded, verified
+
+---
+
+### Apr 8, 2026 — ArbLOWJC V4 (jobCounter fix)
+- **Bug:** `jobCounter` was `0` after Mar 19 redeployment. `postJob()` tried `42161-1` which already exists in Genesis → revert `"Job exists"`.
+- **Fix:** Added `setJobCounter()` admin function. Set counter to `4` (old ArbLOWJC had posted 4 jobs).
+- **New impl:** `0x309f02301c641627A114D4E5Fb840bAA5C2809D3` ([tx](https://arbiscan.io/tx/0x8e257588e869fd7796cc05a63c09230056e3079d91a9f57683264336369f4eb5))
+- **Source:** `native-arb-lowjc-v4.sol`
+- **Previous impl:** `0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7` (V3)
+- **Status:** Deployed, upgraded, jobCounter set to 4, pending verification
 
 ---
 
