@@ -234,7 +234,7 @@ export const MAINNET_CHAIN_CONFIG = {
       symbol: "XDC",
       decimals: 18
     },
-    rpcUrl: import.meta.env.VITE_XDC_MAINNET_RPC_URL || 'https://rpc.xdc.network',
+    rpcUrl: import.meta.env.VITE_XDC_MAINNET_RPC_URL || 'https://erpc.xinfin.network',
     blockExplorer: "https://xdcscan.com",
     contracts: {
       lowjc: "0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7",

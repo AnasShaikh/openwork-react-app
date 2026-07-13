@@ -62,6 +62,16 @@ function isNativeArbChain(chainId) {
 }
 
 /**
+ * Use the configured HTTP RPC for read-only calls. Some wallet-injected XDC
+ * providers return an internal JSON-RPC error for nested LayerZero quote calls
+ * even though the same eth_call succeeds on a public XDC endpoint.
+ */
+export function getReadOnlyWeb3(chainId) {
+  const config = getChainConfig(chainId);
+  return new Web3(config?.rpcUrl || window.ethereum);
+}
+
+/**
  * Get LOWJC contract instance for a specific chain.
  * Uses native-arb ABI for LOCAL_NATIVE chains (no _nativeOptions params).
  */
@@ -103,12 +113,12 @@ export async function getAthenaClientContract(chainId) {
 
 /**
  * Estimate LayerZero fee by calling quoteNativeChain() on the LocalBridge.
- * Adds a 30% buffer on top of the quote for safety.
+ * Uses the exact on-chain quote so any excess is not stranded in LOWJC.
  *
  * @param {number} chainId       - Source chain ID
  * @param {string} operationKey  - Key from DESTINATION_GAS_ESTIMATES (e.g. "POST_JOB")
  * @param {object} [extraPayload] - Optional extra params to encode into the quote payload
- * @returns {Promise<string>} Fee in wei (with 30% buffer)
+ * @returns {Promise<string>} Exact quoted fee in wei
  */
 export async function estimateLayerZeroFee(chainId, operationKey, extraPayload = {}) {
   // Native Arb chain — no LayerZero, no fee
@@ -118,9 +128,10 @@ export async function estimateLayerZeroFee(chainId, operationKey, extraPayload =
   const FALLBACK_FEE = Web3.utils.toWei("0.001", "ether");
 
   try {
-    const contract  = await getLOWJCContract(chainId);
     const config    = getChainConfig(chainId);
-    const web3      = new Web3(window.ethereum);
+    const web3      = getReadOnlyWeb3(chainId);
+    const abi       = isNativeArbChain(chainId) ? NATIVE_ARB_LOWJC_ABI : LOWJC_ABI;
+    const contract  = new web3.eth.Contract(abi, config.contracts.lowjc);
 
     // Pick destination gas for this operation
     const destGasKey = operationKey?.toUpperCase().replace(/-/g, '_');
@@ -149,15 +160,12 @@ export async function estimateLayerZeroFee(chainId, operationKey, extraPayload =
 
     const rawFee = await bridgeContract.methods.quoteNativeChain(encodedPayload, nativeOptions).call();
 
-    // +30% safety buffer
-    const feeWithBuffer = (BigInt(rawFee) * BigInt(130)) / BigInt(100);
     const nativeSymbol = config.nativeCurrency?.symbol || "ETH";
     console.log(
-      `[LZ quote] ${operationKey}: ${web3.utils.fromWei(rawFee.toString(), "ether")} ${nativeSymbol} → ` +
-      `+30% buffer = ${web3.utils.fromWei(feeWithBuffer.toString(), "ether")} ${nativeSymbol}`
+      `[LZ quote] ${operationKey}: ${web3.utils.fromWei(rawFee.toString(), "ether")} ${nativeSymbol}`
     );
 
-    return feeWithBuffer.toString();
+    return rawFee.toString();
   } catch (err) {
     if (Number(chainId) === 50) {
       throw new Error(`Unable to quote the XDC LayerZero fee: ${err.message}`);
