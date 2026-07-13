@@ -3,7 +3,7 @@
 **Deployer:** `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
 **Snapshot:** `src/suites/snapshot-19-mar-2026/`
 **Remote source:** `github.com/botopenwork-ui/openwork-react-app` → `contracts/src/`
-**Last audited:** `13 July 2026` — XDC launch, NativeAthena V8, and XDC/Arbitrum delivery test
+**Last audited:** `13 July 2026` — XDC launch, NativeAthena V8, and production-webapp XDC/Arbitrum delivery test
 
 This file is the canonical live address-to-source registry. Its historical filename is retained for stable links; use the last-audited date and changelog to determine freshness.
 
@@ -124,7 +124,7 @@ This file is the canonical live address-to-source registry. Its historical filen
 
 ## XDC Mainnet — Chain ID: 50 | LZ EID: 30365 | CCTP Domain: 18
 
-**Status:** XDC/Arbitrum four-DVN pathway operational and test job delivered 13 July 2026; direct XDC/Ethereum DVN configuration pending
+**Status:** XDC/Arbitrum four-DVN pathway operational; contract test `30365-1` and production-webapp job `30365-2` delivered 13 July 2026; direct XDC/Ethereum DVN configuration pending
 
 ### Deployed Contracts
 
@@ -179,7 +179,6 @@ This file is the canonical live address-to-source registry. Its historical filen
 ### Pending pathway configuration
 
 - Direct XDC/Ethereum LayerZero pathway still inherits `LZDeadDVN`; configure matching send/receive stacks if direct messaging will be used
-- Live-app chain configuration
 
 ---
 
@@ -225,6 +224,17 @@ All 15 live upgradeable proxy implementation slots were read on-chain via `cast 
 - **Destination tx:** `0x36c8d34d4ae92f091a936dadaff5d1fe0282eceb770c9af800974f6b347c42bf`
 - **LayerZero status:** `DELIVERED`
 - **Status:** End-to-end XDC to Arbitrum job posting passed
+
+### Jul 13, 2026 — Production webapp XDC job test
+- **Test job:** `30365-2`
+- **Source tx:** `0xf9b88e09488de62bbb92572492c74268dccf445bea6279d672fc458963a57d09`
+- **LayerZero GUID:** `0x6e75481de82c9527faab41f47b5899058906ab1ddd3d05594968b3ac6299aeff`
+- **Destination tx:** `0xcf5f406e94942db276958e2828c8e5ce9f8271d32209a84610fc24e1202ad6a0`
+- **LayerZero status:** `DELIVERED`
+- **Application state:** Arbitrum Genesis contains the correct job giver, IPFS hashes, `0.5 USDC` nominal milestone, and `Open` status
+- **Wallet spend:** `4.803234084721259807 XDC` including gas
+- **Evidence:** [production webapp test log](../xdc-mainnet-webapp-job-post-test-13-jul-2026.md)
+- **Status:** Production app XDC job posting passed end to end
 
 ---
 

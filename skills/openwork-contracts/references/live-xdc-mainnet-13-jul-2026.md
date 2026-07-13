@@ -7,9 +7,9 @@ Use this as a quick handoff, then confirm against the repository XDC logs and li
 - Six XDC contracts are deployed, configured, and verified.
 - Arbitrum NativeAthena is V8 with XDC EID `30365` mapped to CCTP domain `18`.
 - XDC and Arbitrum peers, authorization, and matching four-DVN LayerZero pathway are configured.
-- Test job `30365-1` was delivered and stored in Arbitrum Genesis.
+- Contract test job `30365-1` and production-webapp job `30365-2` were delivered and stored in Arbitrum Genesis.
 - XDC and Ethereum reciprocal peers exist, but their direct DVN/executor pathway is not configured and must not be called operational.
-- Separate live-application chain configuration remains external work.
+- The production webapp is configured for XDC and passed job posting through the supported XDC → Arbitrum route.
 
 ## Public addresses
 
@@ -69,9 +69,21 @@ Deployer: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
 - Final recorded XDC nonce: `18`.
 - Final recorded XDC balance: `55.187160237477815133 XDC`.
 
+### Production webapp proof
+
+- Job: `30365-2`.
+- LayerZero GUID: `0x6e75481de82c9527faab41f47b5899058906ab1ddd3d05594968b3ac6299aeff`.
+- XDC source tx: `0xf9b88e09488de62bbb92572492c74268dccf445bea6279d672fc458963a57d09`.
+- Arbitrum destination tx: `0xcf5f406e94942db276958e2828c8e5ce9f8271d32209a84610fc24e1202ad6a0`.
+- LayerZero status: `DELIVERED`.
+- Genesis status: job exists with the correct wallet, IPFS hashes, `500,000` milestone units, and `Open` status.
+- Total wallet spend: `4.803234084721259807 XDC` including source gas.
+- Final recorded XDC balance: `50.383926152756555326 XDC`.
+
 ## Canonical detailed evidence
 
 - `references/logs/xdc-mainnet-deployment-preparation-12-jul-2026.md`
 - `references/logs/xdc-mainnet-job-post-test-13-jul-2026.md`
+- `references/logs/xdc-mainnet-webapp-job-post-test-13-jul-2026.md`
 - `references/logs/imp/live-contract-registry-19-mar-2026.md`
 - `references/logs/imp/mainnet-verification-tracker.md`
