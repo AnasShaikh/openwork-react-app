@@ -84,4 +84,16 @@ Before publishing:
 
 ## Status
 
-Code integration and deployment results are recorded in the commit and AWS deployment record associated with this change. A full paid application test is deliberately a separate approved step and is currently gated by relay-wallet XDC funding.
+Deployed and verified on 13 July 2026:
+
+| Item | Result |
+|---|---|
+| Application commit | `a5bf66e21d763d5fb1b31484af5e657873c448d1` |
+| GitHub review | [PR #4](https://github.com/AnasShaikh/openwork-react-app/pull/4) |
+| Production image | `prod-20260713044118` |
+| ECR digest | `sha256:7f6714ee24830a3c656899929cf64701f502ad9d7c9221e556417be824b15076` |
+| CodeBuild | `openwork-react-app-prod-build:725799af-45b9-47b3-a98a-660d3f61971a` — succeeded |
+| App Runner update | `5eb58c00f8ef4e7085a3e5f1959a5536` — succeeded |
+| Public verification | production domain HTTP 200; XDC contracts API and compiled bundle checks passed |
+
+A full paid application test is deliberately a separate approved step and is currently gated by relay-wallet XDC funding.
