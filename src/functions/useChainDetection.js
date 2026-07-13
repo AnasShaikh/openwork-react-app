@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { isMainnet } from '../config/chainConfig';
+import {
+  getActiveChainConfig,
+  getChainConfig as getConfiguredChain,
+  getChainLogo,
+  isMainnet,
+} from '../config/chainConfig';
 
 /**
  * Custom hook for reliable chain detection and switching
@@ -13,83 +18,30 @@ export function useChainDetection(walletAddress) {
 
   // Supported chains configuration - varies by network mode
   const SUPPORTED_CHAINS = useMemo(() => {
-    if (isMainnet()) {
-      return {
-        42161: { name: 'Arbitrum', icon: '/arbitrum-chain.png', fullName: 'Arbitrum One' },
-        10: { name: 'Optimism', icon: '/optimism-chain.png', fullName: 'Optimism' },
-        1: { name: 'Ethereum', icon: '/ethereum-chain.png', fullName: 'Ethereum' }
-      };
-    }
-    // Testnet
-    return {
-      421614: { name: 'Arbitrum', icon: '/arbitrum-chain.png', fullName: 'Arbitrum Sepolia' },
-      11155111: { name: 'Ethereum', icon: '/ethereum-chain.png', fullName: 'Ethereum Sepolia' },
-      11155420: { name: 'Optimism', icon: '/optimism-chain.png', fullName: 'OP Sepolia' },
-      84532: { name: 'Base', icon: '/base-chain.png', fullName: 'Base Sepolia' }
-    };
+    return Object.fromEntries(
+      Object.entries(getActiveChainConfig()).map(([chainId, config]) => [
+        Number(chainId),
+        {
+          name: config.shortName || config.name,
+          icon: getChainLogo(Number(chainId)),
+          fullName: config.name,
+        },
+      ])
+    );
   }, []);
 
   // Get chain config for adding to MetaMask
-  const getChainConfig = useCallback((chainId) => {
-    // Mainnet configs
-    const mainnetConfigs = {
-      42161: {
-        chainId: `0x${(42161).toString(16)}`,
-        chainName: 'Arbitrum One',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-        blockExplorerUrls: ['https://arbiscan.io']
-      },
-      10: {
-        chainId: `0x${(10).toString(16)}`,
-        chainName: 'Optimism',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://mainnet.optimism.io'],
-        blockExplorerUrls: ['https://optimistic.etherscan.io']
-      },
-      1: {
-        chainId: `0x${(1).toString(16)}`,
-        chainName: 'Ethereum',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://eth.llamarpc.com'],
-        blockExplorerUrls: ['https://etherscan.io']
-      }
-    };
+  const getWalletChainConfig = useCallback((chainId) => {
+    const config = getConfiguredChain(chainId);
+    if (!config) return null;
 
-    // Testnet configs
-    const testnetConfigs = {
-      421614: {
-        chainId: `0x${(421614).toString(16)}`,
-        chainName: 'Arbitrum Sepolia',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
-        blockExplorerUrls: ['https://sepolia.arbiscan.io']
-      },
-      11155111: {
-        chainId: `0x${(11155111).toString(16)}`,
-        chainName: 'Ethereum Sepolia',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://rpc.sepolia.org'],
-        blockExplorerUrls: ['https://sepolia.etherscan.io']
-      },
-      11155420: {
-        chainId: `0x${(11155420).toString(16)}`,
-        chainName: 'OP Sepolia',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://sepolia.optimism.io'],
-        blockExplorerUrls: ['https://sepolia-optimism.etherscan.io']
-      },
-      84532: {
-        chainId: `0x${(84532).toString(16)}`,
-        chainName: 'Base Sepolia',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://sepolia.base.org'],
-        blockExplorerUrls: ['https://sepolia.basescan.org']
-      }
+    return {
+      chainId: `0x${Number(chainId).toString(16)}`,
+      chainName: config.name,
+      nativeCurrency: config.nativeCurrency,
+      rpcUrls: [config.rpcUrl],
+      blockExplorerUrls: [config.blockExplorer],
     };
-
-    const configs = isMainnet() ? mainnetConfigs : testnetConfigs;
-    return configs[chainId];
   }, []);
 
   // Core detection function
@@ -170,7 +122,7 @@ export function useChainDetection(walletAddress) {
         console.log('📝 Chain not found, adding...');
 
         try {
-          const config = getChainConfig(targetChainId);
+          const config = getWalletChainConfig(targetChainId);
           if (!config) {
             alert('Chain configuration not found');
             setIsSwitching(false);
@@ -206,7 +158,7 @@ export function useChainDetection(walletAddress) {
         return false;
       }
     }
-  }, [getChainConfig]);
+  }, [getWalletChainConfig]);
 
   // Effect: Detect chain when wallet connects
   useEffect(() => {

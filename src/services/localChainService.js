@@ -132,6 +132,9 @@ export async function estimateLayerZeroFee(chainId, operationKey, extraPayload =
     try {
       bridgeAddress = await contract.methods.bridge().call();
     } catch {
+      if (Number(chainId) === 50) {
+        throw new Error("Could not read the XDC bridge address for a safe LayerZero quote");
+      }
       console.warn("[LZ quote] Could not read bridge address — using fallback fee");
       return FALLBACK_FEE;
     }
@@ -146,15 +149,19 @@ export async function estimateLayerZeroFee(chainId, operationKey, extraPayload =
 
     const rawFee = await bridgeContract.methods.quoteNativeChain(encodedPayload, nativeOptions).call();
 
-    // +20% safety buffer
-    const feeWithBuffer = (BigInt(rawFee) * BigInt(130)) / BigInt(100); // +30% buffer (not 20%)
+    // +30% safety buffer
+    const feeWithBuffer = (BigInt(rawFee) * BigInt(130)) / BigInt(100);
+    const nativeSymbol = config.nativeCurrency?.symbol || "ETH";
     console.log(
-      `[LZ quote] ${operationKey}: ${web3.utils.fromWei(rawFee.toString(), "ether")} ETH → ` +
-      `+30% buffer = ${web3.utils.fromWei(feeWithBuffer.toString(), "ether")} ETH`
+      `[LZ quote] ${operationKey}: ${web3.utils.fromWei(rawFee.toString(), "ether")} ${nativeSymbol} → ` +
+      `+30% buffer = ${web3.utils.fromWei(feeWithBuffer.toString(), "ether")} ${nativeSymbol}`
     );
 
     return feeWithBuffer.toString();
   } catch (err) {
+    if (Number(chainId) === 50) {
+      throw new Error(`Unable to quote the XDC LayerZero fee: ${err.message}`);
+    }
     console.warn(`[LZ quote] Estimation failed for ${operationKey}, using fallback:`, err.message);
     return FALLBACK_FEE;
   }
@@ -233,7 +240,6 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
           applicationData.descriptions,
           applicationData.amounts,
           applicationData.preferredChainDomain || 3,
-          applicationData.preferredPaymentAddress || userAddress,
           nativeOptions
         );
 

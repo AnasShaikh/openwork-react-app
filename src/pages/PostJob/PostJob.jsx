@@ -116,7 +116,7 @@ export default function PostJob() {
             const decoded = Web3.utils.hexToUtf8("0x" + cleanChunk);
             
             // Match EID-jobNumber pattern (e.g., "40161-6", "40232-5")
-            // EIDs are 5 digits: 40161 (ETH), 40232 (OP), 40231 (ARB), 40245 (BASE)
+            // EIDs are 5 digits: 40161 (ETH), 40232 (OP), 40231 (ARB), 40245 (BASE), 30365 (XDC)
             if (decoded.match(/^40\d{3}-\d+$/)) {
               return decoded;
             }
@@ -498,7 +498,8 @@ export default function PostJob() {
           
           // Show fee estimate before MetaMask opens
           const feeEth = parseFloat(web3.utils.fromWei(feeToUse, 'ether')).toFixed(5);
-          setTransactionStatus(`💰 Network fee: ~${feeEth} ETH — Please confirm in MetaMask`);
+          const nativeSymbol = chainConfig.nativeCurrency?.symbol || 'ETH';
+          setTransactionStatus(`💰 Network fee: ~${feeEth} ${nativeSymbol} — Please confirm in MetaMask`);
           
           contract.methods
             .postJob(
