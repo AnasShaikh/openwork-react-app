@@ -38,6 +38,14 @@ The XDC ↔ Arbitrum pathway is configured with matching four-DVN send/receive s
 - Arbitrum destination transaction: `0x36c8d34d4ae92f091a936dadaff5d1fe0282eceb770c9af800974f6b347c42bf`
 - LayerZero GUID: `0xc8a64f1d2bfa3da302459ffa3f2c2a248b468019852ced4ddbb9f03b11db1055`
 
+The production webapp then passed the same route with job `30365-2`:
+
+- XDC source transaction: `0xf9b88e09488de62bbb92572492c74268dccf445bea6279d672fc458963a57d09`
+- Arbitrum destination transaction: `0xcf5f406e94942db276958e2828c8e5ce9f8271d32209a84610fc24e1202ad6a0`
+- LayerZero GUID: `0x6e75481de82c9527faab41f47b5899058906ab1ddd3d05594968b3ac6299aeff`
+- Final LayerZero status: `DELIVERED`
+- Arbitrum Genesis state: job exists with the correct wallet, IPFS hashes, `0.5 USDC` nominal milestone, and `Open` status
+
 Direct XDC ↔ Ethereum application messaging is intentionally not enabled. Reciprocal peers exist, but the direct DVN/executor pathway is not operational.
 
 ## Application behavior
@@ -96,7 +104,7 @@ Deployed and verified on 13 July 2026:
 | App Runner update | `10700ebdd9c14244a7d289188d72e5cd` — succeeded |
 | Public verification | production domain and health HTTP 200; live bundle `/assets/index-Cymi4yTy.js`; XDC RPC and secret-absence checks passed |
 
-A paid job-post test is deliberately a separate approved step and now requires fresh approval for the quoted XDC fee. Relay-wallet XDC funding is a separate prerequisite only for automated CCTP completion into XDC.
+The paid production job-post test subsequently passed as job `30365-2`. Relay-wallet XDC funding remains a separate prerequisite only for automated CCTP completion into XDC.
 
 ### Production follow-up repairs
 
@@ -118,4 +126,22 @@ Destination execution gas: 500,000
 Quoted LayerZero fee: 3.689440924669622025 XDC
 ```
 
-No XDC transaction was submitted by either failed browser attempt. The production app now uses the exact quote because the bridge passes LOWJC as the LayerZero refund address; an application-added buffer would not reliably return to the user's wallet. The quote exceeds the earlier `2 XDC` cap, so the paid job test requires a new explicit plan and approval before MetaMask confirmation.
+No XDC transaction was submitted by either failed browser attempt. The production app uses the exact quote because the bridge passes LOWJC as the LayerZero refund address; an application-added buffer would not reliably return to the user's wallet.
+
+### Production webapp transaction result
+
+The user later confirmed the freshly quoted transaction directly in MetaMask. The live LayerZero fee had risen by submission time, demonstrating that the earlier read-only quote was not a durable price commitment.
+
+| Field | Result |
+|---|---|
+| Job | `30365-2` |
+| XDC source transaction | `0xf9b88e09488de62bbb92572492c74268dccf445bea6279d672fc458963a57d09` |
+| LayerZero GUID | `0x6e75481de82c9527faab41f47b5899058906ab1ddd3d05594968b3ac6299aeff` |
+| Arbitrum destination transaction | `0xcf5f406e94942db276958e2828c8e5ce9f8271d32209a84610fc24e1202ad6a0` |
+| Delivery | `DELIVERED` in about 60 seconds |
+| LayerZero message value | `4.797152596971259807 XDC` |
+| XDC gas | `0.006081487750000000 XDC` |
+| Total wallet spend | `4.803234084721259807 XDC` |
+| Final XDC wallet balance | `50.383926152756555326 XDC` |
+
+Both Pinata CIDs resolve over the public gateway, and Arbitrum Genesis contains the exact job giver, job CID, milestone CID, `500,000` milestone units, and `Open` status. The screenshot showing “Syncing” was captured about 18 seconds after the source block; LayerZero delivered approximately 42 seconds later, so that screen represented a normal in-flight state.
