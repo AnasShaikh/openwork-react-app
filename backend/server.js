@@ -1291,7 +1291,9 @@ process.on('SIGINT', async () => {
   if (eventListenerInterval) {
     clearInterval(eventListenerInterval);
   }
-  await pool.end();
+  if (typeof pool.end === 'function') {
+    await pool.end();
+  }
   process.exit(0);
 });
 
@@ -1300,7 +1302,9 @@ process.on('SIGTERM', async () => {
   if (eventListenerInterval) {
     clearInterval(eventListenerInterval);
   }
-  await pool.end();
+  if (typeof pool.end === 'function') {
+    await pool.end();
+  }
   process.exit(0);
 });
 // build-stamp: 2026-02-27
