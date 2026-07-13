@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openwork Contracts"
+  short_description: "Safely deploy and operate Openwork contracts"
+  default_prompt: "Use $openwork-contracts to audit or execute an Openwork contract deployment."

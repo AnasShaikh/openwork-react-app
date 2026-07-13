@@ -14,6 +14,8 @@ remappings = [
 [rpc_endpoints]
 arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
 optimism_sepolia = "https://sepolia.optimism.io"
+xdc_mainnet = "https://rpc.xdc.network"
+xdc_apothem = "https://rpc.apothem.network"
 
 [etherscan]
 arbitrum_sepolia = { key = "${ARBISCAN_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }

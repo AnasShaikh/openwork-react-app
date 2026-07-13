@@ -2,6 +2,7 @@
 
 **Started:** January 22, 2026
 **Completed:** January 22, 2026
+**Updated:** July 13, 2026 — XDC Mainnet and NativeAthena V8
 **Commands Reference:** [mainnet-verification-commands.md](mainnet-verification-commands.md)
 
 ---
@@ -10,16 +11,17 @@
 
 | Chain | Total | Verified | Pending | Status |
 |-------|-------|----------|---------|--------|
-| Arbitrum One | 21 | 21 | 0 | Complete |
+| Arbitrum One | 22 | 22 | 0 | Complete |
 | Optimism | 6 | 6 | 0 | Complete |
 | Ethereum Mainnet | 5 | 5 | 0 | Complete |
-| **TOTAL** | **32** | **32** | **0** | **100%** |
+| XDC Mainnet | 6 | 6 | 0 | Complete |
+| **TOTAL** | **39** | **39** | **0** | **100%** |
 
 ---
 
 # ARBITRUM ONE (Chain ID: 42161)
 
-## Implementations (4)
+## Implementations (5)
 
 | # | Contract | Address | Status | Link |
 |---|----------|---------|--------|------|
@@ -27,6 +29,7 @@
 | 2 | NativeAthena Impl | `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` | [x] Verified | [Arbiscan](https://arbiscan.io/address/0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510) |
 | 3 | NativeOpenworkDAO Impl | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | [x] Verified | [Arbiscan](https://arbiscan.io/address/0x20Fa268106A3C532cF9F733005Ab48624105c42F) |
 | 4 | NativeOpenworkGenesis Impl | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | [x] Verified | [Arbiscan](https://arbiscan.io/address/0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d) |
+| 5 | NativeAthena V8 XDC Domain Impl | `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31` | [x] Verified | [Arbiscan](https://arbiscan.io/address/0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31) |
 
 ## Proxies (4)
 
@@ -114,7 +117,29 @@
 
 ---
 
+# XDC MAINNET (Chain ID: 50)
+
+| # | Contract | Address | Status | Link |
+|---|---|---|---|---|
+| 1 | LocalLZOpenworkBridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | [x] Verified | [XDCScan](https://xdcscan.com/address/0x74566644782e98c87a12E8Fc6f7c4c72e2908a36#code) |
+| 2 | CCTPTransceiverXdcStandard12Jul2026 | `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` | [x] Verified | [XDCScan](https://xdcscan.com/address/0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510#code) |
+| 3 | LOWJC implementation | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | [x] Verified | [XDCScan](https://xdcscan.com/address/0x20Fa268106A3C532cF9F733005Ab48624105c42F#code) |
+| 4 | LocalAthena implementation | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | [x] Verified | [XDCScan](https://xdcscan.com/address/0xF78B688846673C3f6b93184BeC230d982c0db0c9#code) |
+| 5 | LOWJC proxy | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | [x] Verified + linked | [XDCScan](https://xdcscan.com/address/0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7#code) |
+| 6 | LocalAthena proxy | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | [x] Verified + linked | [XDCScan](https://xdcscan.com/address/0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d#code) |
+
+---
+
 # Verification Log
+
+## Session 2 - July 13, 2026
+
+| Action | Result |
+|---|---|
+| XDC non-upgradeable contracts (2) | Verified |
+| XDC implementations (2) | Verified |
+| XDC proxies (2) | Verified and linked to implementations |
+| Published compiler settings | Solidity 0.8.23, optimizer 200, viaIR, Shanghai EVM |
 
 ## Session 1 - January 22, 2026
 
@@ -137,6 +162,7 @@
 # Verification GUIDs (for status checks)
 
 ## Arbitrum
+- NativeAthena V8 XDC Domain Impl: `lkdszcc4wdhenvxmmziezuwm8s95jnd5l4uhf1tlqcebt6e9ft`
 - NOWJC Impl: `ticqbvyzvs6rrb7iskgnrteqderbwduve4jjdeguhwnddt227k`
 - Athena Impl: `bhldtrfldwexvhyacnrnwd4mfw5rdkdqwasdk2bifs2kfks6f4`
 - DAO Impl: `geajqydzxymfztintkqlqbcy84cixv3za94qfbjuak4dxrszst`
@@ -163,9 +189,9 @@
 
 # Post-Verification Checklist
 
-- [x] All 23 contracts submitted for verification
-- [x] Arbitrum: 12/12 contracts verified
+- [x] All 39 tracked contracts verified
+- [x] Arbitrum: 22/22 contracts verified
 - [x] Optimism: 6/6 contracts verified
 - [x] Ethereum: 5/5 contracts verified
 - [x] Verification tracker updated with links
-- [ ] Spot check a few contracts on block explorers to confirm source code visible
+- [x] Spot checked ArbLOWJC V4, NativeAthena V8, and all six XDC contracts through the explorer API on July 13, 2026
