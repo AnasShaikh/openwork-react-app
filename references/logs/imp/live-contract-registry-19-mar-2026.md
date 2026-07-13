@@ -3,7 +3,7 @@
 **Deployer:** `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
 **Snapshot:** `src/suites/snapshot-19-mar-2026/`
 **Remote source:** `github.com/botopenwork-ui/openwork-react-app` → `contracts/src/`
-**Last audited:** `13 July 2026` — XDC launch, NativeAthena V8, and production-webapp XDC/Arbitrum delivery test
+**Last audited:** `13 July 2026` — XDC launch, NativeAthena V8, production-webapp delivery test, and NOWJC commission readback
 
 This file is the canonical live address-to-source registry. Its historical filename is retained for stable links; use the last-audited date and changelog to determine freshness.
 
@@ -44,6 +44,18 @@ This file is the canonical live address-to-source registry. Its historical filen
 | LZ Endpoint V2 | `0x1a44076050125825900e736c501f859c50fE728c` |
 | TokenMessengerV2 | `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` |
 | MessageTransmitterV2 | `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` |
+
+### Live NOWJC commission configuration
+
+Read back from proxy `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` on 13 July 2026:
+
+| Setting | Live value |
+|---|---:|
+| `commissionPercentage()` | `0` basis points |
+| `minCommission()` | `0` USDC units |
+| `calculateCommission(500000)` | `0` USDC units |
+
+The V5 implementation source declares defaults of `100` basis points and `1e6` minimum units, but those declaration-time values did not populate the existing proxy storage. The production webapp reads `calculateCommission(...)` live and therefore displays `0 USDC`. If a nonzero fee is intended, treat `setCommissionPercentage(...)` and `setMinCommission(...)` as separate paid Arbitrum configuration writes requiring an explicit target and approval.
 
 ---
 
