@@ -96,25 +96,26 @@ Deployed and verified on 13 July 2026:
 
 | Item | Result |
 |---|---|
-| Application commit | `9ee391972b30db8093bc38842ecd02259de8fc47` |
+| Application commit | `0a063e9c660f6b7f430100758184c290a2e411d7` |
 | GitHub review | [PR #4](https://github.com/AnasShaikh/openwork-react-app/pull/4) |
-| Production image | `prod-20260713053540` |
-| ECR digest | `sha256:fff808de749982f01201e83347271b6d17eec3584cfda0e58f4a3d6b6ffdbf98` |
-| CodeBuild | `openwork-react-app-prod-build:555e64de-4341-484a-a7da-a4fcc02bf0a6` — succeeded |
-| App Runner update | `10700ebdd9c14244a7d289188d72e5cd` — succeeded |
-| Public verification | production domain and health HTTP 200; live bundle `/assets/index-Cymi4yTy.js`; XDC RPC and secret-absence checks passed |
+| Production image | `prod-20260713115621` |
+| ECR digest | `sha256:679574170ec92317f9c6e2bb47906d293c4b482467925275e02ca905736cce11` |
+| CodeBuild | `openwork-react-app-prod-build:1aa82a35-53ae-4ddc-9d37-ed4991df9e87` — succeeded |
+| App Runner update | `56e9783742a44435a4688e235df45c22` — succeeded |
+| Public verification | production root, `/health`, and job route HTTP 200; live bundle `/assets/index-Bxw5PiP6.js`; XDC RPC, job display, and secret-absence checks passed |
 
 The paid production job-post test subsequently passed as job `30365-2`. Relay-wallet XDC funding remains a separate prerequisite only for automated CCTP completion into XDC.
 
 ### Production follow-up repairs
 
-Three follow-up commits were included after the initial XDC application rollout:
+Four follow-up commits were included after the initial XDC application rollout:
 
 | Commit | Change |
 |---|---|
 | `d671e2fc1414093a52c8bd7398fd1ccdc1e891a5` | Added bounded MetaMask add/switch requests, visible approval status, and recovery from pending wallet requests. |
 | `3618ccbdfa9c40fb2b69638d3dca93944269a265` | Guarded managed-runtime database shutdown when the no-database stub has no `end()` method. |
 | `9ee391972b30db8093bc38842ecd02259de8fc47` | Routed read-only LayerZero quotes through the configured HTTP RPC, selected XDC's official `https://erpc.xinfin.network` endpoint, and removed the unsafe 30% fee overpayment. |
+| `0a063e9c660f6b7f430100758184c290a2e411d7` | Replaced the hard-coded job fee with live NOWJC commission reads and showed remaining job compensation when no milestone is locked. |
 
 The first browser job attempt proved that XDC network addition and switching worked. It then stopped before any blockchain transaction because Pinata was at `503/500` files. The user removed unused pins, reducing the account to `491/500`; the next attempt successfully uploaded the milestone and job metadata, leaving `493/500`, before the wallet-injected provider returned an internal JSON-RPC error during `quoteNativeChain`.
 
@@ -145,3 +146,14 @@ The user later confirmed the freshly quoted transaction directly in MetaMask. Th
 | Final XDC wallet balance | `50.383926152756555326 XDC` |
 
 Both Pinata CIDs resolve over the public gateway, and Arbitrum Genesis contains the exact job giver, job CID, milestone CID, `500,000` milestone units, and `Open` status. The screenshot showing “Syncing” was captured about 18 seconds after the source block; LayerZero delivered approximately 42 seconds later, so that screen represented a normal in-flight state.
+
+### Job-details fee and payable-amount correction
+
+The job-details page previously displayed a hard-coded `Fees: 5` and showed only the currently locked milestone amount. The production page now:
+
+- sums `calculateCommission(milestoneAmount)` from live Arbitrum NOWJC for the applicable milestones;
+- uses final milestones after a job starts and the original posted milestones before that;
+- shows the locked milestone when a positive amount is locked;
+- otherwise shows the remaining unpaid milestone budget as `AMOUNT TO BE PAID`.
+
+For job `30365-2`, production renders `0.50 USDC — AMOUNT TO BE PAID`. Live NOWJC readback currently returns `commissionPercentage() == 0`, `minCommission() == 0`, and `calculateCommission(500000) == 0`, so the accurate fee display is `0 USDC`. If a nonzero platform fee is intended, the contract configuration must be changed separately on Arbitrum; the frontend deliberately does not invent a fee that the live payment contract will not charge.
