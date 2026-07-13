@@ -6,6 +6,31 @@ import {
   isMainnet,
 } from '../config/chainConfig';
 
+const WALLET_REQUEST_TIMEOUT_MS = 45_000;
+
+function getWalletErrorCode(error) {
+  const code = error?.code ?? error?.data?.originalError?.code;
+  return code === undefined || code === null ? null : Number(code);
+}
+
+function isPendingWalletRequest(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return getWalletErrorCode(error) === -32002 || message.includes('already pending');
+}
+
+function requestWithTimeout(request, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(message);
+      error.code = 'WALLET_REQUEST_TIMEOUT';
+      reject(error);
+    }, WALLET_REQUEST_TIMEOUT_MS);
+  });
+
+  return Promise.race([request, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
 /**
  * Custom hook for reliable chain detection and switching
  * Single source of truth for all chain-related state and operations
@@ -15,6 +40,7 @@ export function useChainDetection(walletAddress) {
   const [currentChainId, setCurrentChainId] = useState(null);
   const [isDetecting, setIsDetecting] = useState(true);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [switchStatus, setSwitchStatus] = useState('');
 
   // Supported chains configuration - varies by network mode
   const SUPPORTED_CHAINS = useMemo(() => {
@@ -102,61 +128,94 @@ export function useChainDetection(walletAddress) {
 
     setIsSwitching(true);
     const chainIdHex = `0x${targetChainId.toString(16)}`;
+    const walletConfig = getWalletChainConfig(targetChainId);
+    const chainName = walletConfig?.chainName || `chain ${targetChainId}`;
+    setSwitchStatus(`Switching to ${chainName}…`);
 
     try {
       console.log('🔄 Switching to chain:', targetChainId);
 
       // Try to switch
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: chainIdHex }]
-      });
+      await requestWithTimeout(
+        window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: chainIdHex }]
+        }),
+        `MetaMask did not finish switching to ${chainName}.`
+      );
 
       console.log('✅ Successfully switched to chain:', targetChainId);
-      setIsSwitching(false);
+      setCurrentChainId(Number(targetChainId));
       return true;
 
     } catch (switchError) {
       // Chain not added to MetaMask
-      if (switchError.code === 4902) {
+      if (getWalletErrorCode(switchError) === 4902) {
         console.log('📝 Chain not found, adding...');
+        setSwitchStatus(`Approve ${chainName} in MetaMask…`);
 
         try {
-          const config = getWalletChainConfig(targetChainId);
-          if (!config) {
+          if (!walletConfig) {
             alert('Chain configuration not found');
-            setIsSwitching(false);
             return false;
           }
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [config]
-          });
+
+          await requestWithTimeout(
+            window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [walletConfig]
+            }),
+            `MetaMask is waiting for approval to add ${chainName}.`
+          );
+
+          // Some wallets add a chain without selecting it. Verify the final
+          // state explicitly instead of leaving the selector optimistic.
+          setSwitchStatus(`Switching to ${chainName}…`);
+          await requestWithTimeout(
+            window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: chainIdHex }]
+            }),
+            `MetaMask added ${chainName} but did not finish switching to it.`
+          );
 
           console.log('✅ Successfully added and switched to chain:', targetChainId);
-          setIsSwitching(false);
+          setCurrentChainId(Number(targetChainId));
           return true;
 
         } catch (addError) {
           console.error('🔴 Error adding chain:', addError);
-          alert(`Failed to add network. Please add it manually in MetaMask.`);
-          setIsSwitching(false);
+          if (addError?.code === 'WALLET_REQUEST_TIMEOUT' || isPendingWalletRequest(addError)) {
+            alert(`Open MetaMask and approve the pending ${chainName} network request. The page has stopped waiting and will update automatically after approval.`);
+          } else if (getWalletErrorCode(addError) !== 4001) {
+            alert(`Failed to add ${chainName}. Please add it manually in MetaMask.`);
+          }
           return false;
         }
       }
       // User rejected
-      else if (switchError.code === 4001) {
+      else if (getWalletErrorCode(switchError) === 4001) {
         console.log('❌ User rejected network switch');
-        setIsSwitching(false);
+        return false;
+      }
+      // MetaMask already has an unanswered request open.
+      else if (isPendingWalletRequest(switchError)) {
+        alert(`A MetaMask network request is already pending. Open MetaMask and approve or reject it, then try again.`);
+        return false;
+      }
+      else if (switchError?.code === 'WALLET_REQUEST_TIMEOUT') {
+        alert(`Open MetaMask and finish the pending switch to ${chainName}. The page has stopped waiting.`);
         return false;
       }
       // Other errors
       else {
         console.error('🔴 Error switching chain:', switchError);
         alert(`Failed to switch network: ${switchError.message}`);
-        setIsSwitching(false);
         return false;
       }
+    } finally {
+      setIsSwitching(false);
+      setSwitchStatus('');
     }
   }, [getWalletChainConfig]);
 
@@ -188,6 +247,7 @@ export function useChainDetection(walletAddress) {
       console.log('🔄 Chain changed to:', chainId);
       setCurrentChainId(chainId);
       setIsSwitching(false);
+      setSwitchStatus('');
     };
 
     const handleAccountsChanged = (accounts) => {
@@ -228,6 +288,7 @@ export function useChainDetection(walletAddress) {
     currentChainId,
     isDetecting,
     isSwitching,
+    switchStatus,
     switchToChain,
     supportedChains: SUPPORTED_CHAINS,
     isMainnetMode: isMainnet()
