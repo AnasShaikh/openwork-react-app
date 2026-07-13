@@ -88,12 +88,34 @@ Deployed and verified on 13 July 2026:
 
 | Item | Result |
 |---|---|
-| Application commit | `a5bf66e21d763d5fb1b31484af5e657873c448d1` |
+| Application commit | `9ee391972b30db8093bc38842ecd02259de8fc47` |
 | GitHub review | [PR #4](https://github.com/AnasShaikh/openwork-react-app/pull/4) |
-| Production image | `prod-20260713044118` |
-| ECR digest | `sha256:7f6714ee24830a3c656899929cf64701f502ad9d7c9221e556417be824b15076` |
-| CodeBuild | `openwork-react-app-prod-build:725799af-45b9-47b3-a98a-660d3f61971a` — succeeded |
-| App Runner update | `5eb58c00f8ef4e7085a3e5f1959a5536` — succeeded |
-| Public verification | production domain HTTP 200; XDC contracts API and compiled bundle checks passed |
+| Production image | `prod-20260713053540` |
+| ECR digest | `sha256:fff808de749982f01201e83347271b6d17eec3584cfda0e58f4a3d6b6ffdbf98` |
+| CodeBuild | `openwork-react-app-prod-build:555e64de-4341-484a-a7da-a4fcc02bf0a6` — succeeded |
+| App Runner update | `10700ebdd9c14244a7d289188d72e5cd` — succeeded |
+| Public verification | production domain and health HTTP 200; live bundle `/assets/index-Cymi4yTy.js`; XDC RPC and secret-absence checks passed |
 
-A full paid application test is deliberately a separate approved step and is currently gated by relay-wallet XDC funding.
+A paid job-post test is deliberately a separate approved step and now requires fresh approval for the quoted XDC fee. Relay-wallet XDC funding is a separate prerequisite only for automated CCTP completion into XDC.
+
+### Production follow-up repairs
+
+Three follow-up commits were included after the initial XDC application rollout:
+
+| Commit | Change |
+|---|---|
+| `d671e2fc1414093a52c8bd7398fd1ccdc1e891a5` | Added bounded MetaMask add/switch requests, visible approval status, and recovery from pending wallet requests. |
+| `3618ccbdfa9c40fb2b69638d3dca93944269a265` | Guarded managed-runtime database shutdown when the no-database stub has no `end()` method. |
+| `9ee391972b30db8093bc38842ecd02259de8fc47` | Routed read-only LayerZero quotes through the configured HTTP RPC, selected XDC's official `https://erpc.xinfin.network` endpoint, and removed the unsafe 30% fee overpayment. |
+
+The first browser job attempt proved that XDC network addition and switching worked. It then stopped before any blockchain transaction because Pinata was at `503/500` files. The user removed unused pins, reducing the account to `491/500`; the next attempt successfully uploaded the milestone and job metadata, leaving `493/500`, before the wallet-injected provider returned an internal JSON-RPC error during `quoteNativeChain`.
+
+The same read-only LayerZero quote was replayed successfully against the official XDC HTTP RPC:
+
+```text
+Destination job ID: 30365-2
+Destination execution gas: 500,000
+Quoted LayerZero fee: 3.689440924669622025 XDC
+```
+
+No XDC transaction was submitted by either failed browser attempt. The production app now uses the exact quote because the bridge passes LOWJC as the LayerZero refund address; an application-added buffer would not reliably return to the user's wallet. The quote exceeds the earlier `2 XDC` cap, so the paid job test requires a new explicit plan and approval before MetaMask confirmation.
