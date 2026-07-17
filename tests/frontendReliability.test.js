@@ -31,13 +31,18 @@ test('job creation order is reversed without lexicographic ID sorting', () => {
   assert.match(contents, /validJobs\.reverse\(\)/);
 });
 
-test('job listings read profiles from Profile Genesis, not Job Genesis', () => {
-  const contents = source('src/pages/BrowseJobs/BrowseJobs.jsx');
-
-  assert.match(contents, /profile-genesis_ABI\.json/);
-  assert.match(contents, /nativeChain\?\.contracts\?\.profileGenesis/);
-  assert.match(contents, /profileContract\.methods\s*\.getProfile/);
-  assert.doesNotMatch(contents, /contract\.methods\s*\.getProfile/);
+test('job views read profiles from Profile Genesis, not Job Genesis', () => {
+  for (const filename of [
+    'src/pages/BrowseJobs/BrowseJobs.jsx',
+    'src/pages/JobDeepView/JobDeepView.jsx',
+    'src/pages/SingleJobDetails/SingleJobDetails.jsx',
+  ]) {
+    const contents = source(filename);
+    assert.match(contents, /profile-genesis_ABI\.json/);
+    assert.match(contents, /nativeChain\?\.contracts\?\.profileGenesis/);
+    assert.match(contents, /profileContract\.methods\s*\.getProfile/);
+    assert.doesNotMatch(contents, /contract\.methods\s*\.getProfile/);
+  }
 });
 
 test('radial navigation cores are keyboard accessible', () => {

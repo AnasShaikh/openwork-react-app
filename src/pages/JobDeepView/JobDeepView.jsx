@@ -3,6 +3,7 @@ import { useWalletConnection } from "../../functions/useWalletConnection";
 import { useParams, Link } from "react-router-dom";
 import Web3 from "web3";
 import contractABI from "../../ABIs/genesis_ABI.json"; // Use Genesis ABI for job data
+import profileGenesisABI from "../../ABIs/profile-genesis_ABI.json";
 import "./JobDeepView.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import Milestone from "../../components/Milestone/Milestone";
@@ -13,6 +14,11 @@ import { getNativeChain, isMainnet } from "../../config/chainConfig";
 function getGenesisAddress() {
   const nativeChain = getNativeChain();
   return nativeChain?.contracts?.genesis;
+}
+
+function getProfileGenesisAddress() {
+  const nativeChain = getNativeChain();
+  return nativeChain?.contracts?.profileGenesis;
 }
 
 function getArbitrumRpc() {
@@ -176,6 +182,10 @@ export default function JobInfo() {
 
         const web3 = new Web3(rpcUrl);
         const contract = new web3.eth.Contract(contractABI, genesisAddress);
+        const profileContract = new web3.eth.Contract(
+          profileGenesisABI,
+          getProfileGenesisAddress(),
+        );
 
         // Add delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -222,7 +232,7 @@ export default function JobInfo() {
         let jobTakerProfile = null;
 
         try {
-          jobGiverProfile = await contract.methods
+          jobGiverProfile = await profileContract.methods
             .getProfile(jobData.jobGiver)
             .call();
         } catch (error) {
@@ -235,7 +245,7 @@ export default function JobInfo() {
             "0x0000000000000000000000000000000000000000"
         ) {
           try {
-            jobTakerProfile = await contract.methods
+            jobTakerProfile = await profileContract.methods
               .getProfile(jobData.selectedApplicant)
               .call();
           } catch (error) {

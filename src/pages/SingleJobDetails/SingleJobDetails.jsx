@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import Web3 from "web3";
 import contractABI from "../../ABIs/genesis_ABI.json"; // Use Genesis ABI for job data
+import profileGenesisABI from "../../ABIs/profile-genesis_ABI.json";
 import "./SingleJobDetails.css";
 import MenuItem from "../../components/MenuItem";
 import ToolTipContent from "../../components/ToolTipContent/ToolTipContent";
@@ -32,6 +33,11 @@ function formatUsdcUnits(units) {
 function getGenesisAddress() {
   const nativeChain = getNativeChain();
   return nativeChain?.contracts?.genesis;
+}
+
+function getProfileGenesisAddress() {
+  const nativeChain = getNativeChain();
+  return nativeChain?.contracts?.profileGenesis;
 }
 
 function getArbitrumRpc() {
@@ -150,6 +156,10 @@ export default function SingleJobDetails() {
 
         const web3 = new Web3(rpcUrl);
         const contract = new web3.eth.Contract(contractABI, genesisAddress);
+        const profileContract = new web3.eth.Contract(
+          profileGenesisABI,
+          getProfileGenesisAddress(),
+        );
 
         // Fetch job details from the contract
         const jobData = await contract.methods.getJob(jobId).call();
@@ -190,7 +200,7 @@ export default function SingleJobDetails() {
         let jobTakerProfile = null;
 
         try {
-          jobGiverProfile = await contract.methods
+          jobGiverProfile = await profileContract.methods
             .getProfile(jobData.jobGiver)
             .call();
         } catch (error) {
@@ -203,7 +213,7 @@ export default function SingleJobDetails() {
             "0x0000000000000000000000000000000000000000"
         ) {
           try {
-            jobTakerProfile = await contract.methods
+            jobTakerProfile = await profileContract.methods
               .getProfile(jobData.selectedApplicant)
               .call();
           } catch (error) {
