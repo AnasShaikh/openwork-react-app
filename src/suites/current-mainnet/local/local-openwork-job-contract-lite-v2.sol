@@ -205,6 +205,9 @@ contract LocalOpenWorkJobContractLite is
         uint256[] memory _amounts,
         bytes calldata _nativeOptions
     ) external payable nonReentrant {
+        require(_descriptions.length > 0, "Must have milestones");
+        require(_descriptions.length == _amounts.length, "Length mismatch");
+
         string memory jobId = string(abi.encodePacked(Strings.toString(chainId), "-", Strings.toString(++jobCounter)));
 
         // Store minimal local state
@@ -214,6 +217,7 @@ contract LocalOpenWorkJobContractLite is
 
         // Only store amounts (not descriptions - those live on native chain)
         for (uint i = 0; i < _amounts.length; i++) {
+            require(_amounts[i] > 0, "Invalid milestone amount");
             job.milestoneAmounts.push(_amounts[i]);
         }
 
@@ -237,6 +241,12 @@ contract LocalOpenWorkJobContractLite is
         uint32 _preferredChainDomain,
         bytes calldata _nativeOptions
     ) external payable {
+        require(_descriptions.length > 0, "Must have milestones");
+        require(_descriptions.length == _amounts.length, "Length mismatch");
+        for (uint i = 0; i < _amounts.length; i++) {
+            require(_amounts[i] > 0, "Invalid milestone amount");
+        }
+
         bytes memory payload = abi.encode(
             "applyToJob", msg.sender, _jobId, _appHash, _descriptions, _amounts, _preferredChainDomain
         );
@@ -256,6 +266,8 @@ contract LocalOpenWorkJobContractLite is
         bytes calldata _nativeOptions
     ) external payable nonReentrant {
         require(_jobTaker != address(0), "Invalid job taker");
+        require(_descriptions.length > 0, "Must have milestones");
+        require(_descriptions.length == _amounts.length, "Length mismatch");
 
         string memory jobId = string(abi.encodePacked(Strings.toString(chainId), "-", Strings.toString(++jobCounter)));
 
@@ -266,6 +278,7 @@ contract LocalOpenWorkJobContractLite is
         job.currentMilestone = 1;
 
         for (uint i = 0; i < _amounts.length; i++) {
+            require(_amounts[i] > 0, "Invalid milestone amount");
             job.milestoneAmounts.push(_amounts[i]);
         }
 
@@ -303,6 +316,7 @@ contract LocalOpenWorkJobContractLite is
         Job storage job = jobs[_jobId];
         require(job.jobGiver == msg.sender, "Not job giver");
         require(job.status == JobStatus.Open, "Not open");
+        require(!_useAppMilestones, "Applicant milestones unsupported on local chain");
 
         job.status = JobStatus.InProgress;
         job.currentMilestone = 1;
@@ -411,23 +425,17 @@ contract LocalOpenWorkJobContractLite is
         require(job.jobGiver == msg.sender, "Not job giver");
         require(job.status == JobStatus.InProgress, "Not in progress");
         require(job.currentLockedAmount > 0, "No funds locked");
+        require(job.currentMilestone < job.milestoneAmounts.length, "No next milestone");
 
         uint256 releaseAmount = job.currentLockedAmount;
         job.totalReleased += releaseAmount;
 
         job.currentMilestone++;
 
-        uint256 nextAmount = 0;
-        if (job.currentMilestone <= job.milestoneAmounts.length) {
-            nextAmount = job.milestoneAmounts[job.currentMilestone - 1];
-            _sendFunds(_jobId, nextAmount);
-            job.currentLockedAmount = nextAmount;
-            job.totalEscrowed += nextAmount;
-        } else {
-            job.currentLockedAmount = 0;
-            job.status = JobStatus.Completed;
-            emit JobStatusChanged(_jobId, JobStatus.Completed);
-        }
+        uint256 nextAmount = job.milestoneAmounts[job.currentMilestone - 1];
+        _sendFunds(_jobId, nextAmount);
+        job.currentLockedAmount = nextAmount;
+        job.totalEscrowed += nextAmount;
 
         bytes memory payload = abi.encode(
             "releasePaymentAndLockNext",
@@ -439,9 +447,7 @@ contract LocalOpenWorkJobContractLite is
         bridge.sendToNativeChain{value: msg.value}("releaseAndLockNext", payload, _nativeOptions);
 
         emit PaymentReleased(_jobId, releaseAmount, job.currentMilestone - 1);
-        if (nextAmount > 0) {
-            emit MilestoneLocked(_jobId, job.currentMilestone, nextAmount);
-        }
+        emit MilestoneLocked(_jobId, job.currentMilestone, nextAmount);
     }
 
     // ==================== RATING (NO LOCAL STORAGE) ====================

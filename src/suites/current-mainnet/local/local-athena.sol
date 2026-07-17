@@ -328,8 +328,9 @@ contract LocalAthena is
         uint256 _disputedAmount,
         bytes calldata _nativeOptions
     ) external payable nonReentrant {
-        require(_feeAmount > 0, "Fee amount must be greater than 0");
+        require(_feeAmount >= minDisputeFee, "Fee below minimum");
         require(address(jobContract) != address(0), "Job contract not set");
+        require(!jobDisputeExists[_jobId], "Dispute already exists");
 
         // Transfer USDC from caller to this contract
         require(

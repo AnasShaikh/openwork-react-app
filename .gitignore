@@ -12,4 +12,7 @@ docs/
 
 # Dotenv file
 .env
+
+# macOS metadata
+.DS_Store
 .env

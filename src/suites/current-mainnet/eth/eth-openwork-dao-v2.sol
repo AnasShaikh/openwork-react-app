@@ -258,7 +258,7 @@ contract ETHOpenworkDAO is
         require(durationYears >= 1 && durationYears <= 3, "Duration must be 1-3 years");
         require(stakes[msg.sender].amount == 0, "Already staking");
 
-        openworkToken.transferFrom(msg.sender, address(this), amount);
+        require(openworkToken.transferFrom(msg.sender, address(this), amount), "Token transfer failed");
 
         stakes[msg.sender] = Stake({
             amount: amount,
@@ -296,7 +296,7 @@ contract ETHOpenworkDAO is
             delete unstakeRequestTime[msg.sender];
             isStaker[msg.sender] = false;
 
-            openworkToken.transfer(msg.sender, stakeAmount);
+            require(openworkToken.transfer(msg.sender, stakeAmount), "Token transfer failed");
 
             emit UnstakeCompleted(msg.sender, stakeAmount);
 

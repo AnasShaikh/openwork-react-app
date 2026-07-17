@@ -347,7 +347,7 @@ contract NativeAthena is
 
     /// @dev Internal admin check to reduce bytecode (called ~15 times)
     function _auth() internal view {
-        _auth();
+        require(admins[msg.sender], "Auth");
     }
 
     /// @dev Authorize upgrade to new implementation (admin or bridge only)

@@ -342,6 +342,7 @@ contract NativeArbOpenWorkJobContract is
 
         uint256 calculatedTotal = 0;
         for (uint i = 0; i < _amounts.length; i++) {
+            require(_amounts[i] > 0, "Milestone amount must be > 0");
             calculatedTotal += _amounts[i];
         }
         require(calculatedTotal > 0, "Total must be > 0");
@@ -389,6 +390,11 @@ contract NativeArbOpenWorkJobContract is
         require(_descriptions.length > 0, "Must propose at least one milestone");
         require(_descriptions.length == _amounts.length, "Length mismatch");
 
+        Job storage job = jobs[_jobId];
+        require(bytes(job.id).length != 0, "Job does not exist");
+        require(job.status == JobStatus.Open, "Job is not open");
+        require(job.jobGiver != msg.sender, "Cannot apply to own job");
+
         uint256 appId = ++jobApplicationCounter[_jobId];
 
         Application storage newApp = jobApplications[_jobId][appId];
@@ -398,6 +404,7 @@ contract NativeArbOpenWorkJobContract is
         newApp.applicationHash = _appHash;
 
         for (uint i = 0; i < _descriptions.length; i++) {
+            require(_amounts[i] > 0, "Milestone amount must be > 0");
             newApp.proposedMilestones.push(MilestonePayment({
                 descriptionHash: _descriptions[i],
                 amount: _amounts[i]
@@ -429,6 +436,7 @@ contract NativeArbOpenWorkJobContract is
 
         uint256 calculatedTotal = 0;
         for (uint i = 0; i < _amounts.length; i++) {
+            require(_amounts[i] > 0, "Milestone amount must be > 0");
             calculatedTotal += _amounts[i];
         }
         require(calculatedTotal > 0, "Total must be > 0");
@@ -444,7 +452,7 @@ contract NativeArbOpenWorkJobContract is
         newJob.status = JobStatus.InProgress;
         newJob.selectedApplicant = _jobTaker;
         newJob.selectedApplicationId = 1;
-        newJob.currentMilestone = 0;
+        newJob.currentMilestone = 1;
 
         for (uint i = 0; i < _descriptions.length; i++) {
             newJob.milestonePayments.push(MilestonePayment({ descriptionHash: _descriptions[i], amount: _amounts[i] }));
@@ -499,10 +507,17 @@ contract NativeArbOpenWorkJobContract is
         job.selectedApplicationId = _appId;
         job.selectedApplicant = jobApplications[_jobId][_appId].applicant;
         job.status = JobStatus.InProgress;
-        job.currentMilestone = 0;
+        job.currentMilestone = 1;
 
-        for (uint i = 0; i < job.milestonePayments.length; i++) {
-            job.finalMilestones.push(job.milestonePayments[i]);
+        if (_useAppMilestones) {
+            Application storage application = jobApplications[_jobId][_appId];
+            for (uint i = 0; i < application.proposedMilestones.length; i++) {
+                job.finalMilestones.push(application.proposedMilestones[i]);
+            }
+        } else {
+            for (uint i = 0; i < job.milestonePayments.length; i++) {
+                job.finalMilestones.push(job.milestonePayments[i]);
+            }
         }
 
         uint256 firstAmount = job.finalMilestones[0].amount;
@@ -512,7 +527,7 @@ contract NativeArbOpenWorkJobContract is
 
         nowjc.startJob(msg.sender, _jobId, _appId, _useAppMilestones);
 
-        emit JobStarted(_jobId, _appId, address(0), _useAppMilestones);
+        emit JobStarted(_jobId, _appId, job.selectedApplicant, _useAppMilestones);
         emit JobStatusChanged(_jobId, JobStatus.InProgress);
     }
 
@@ -522,15 +537,16 @@ contract NativeArbOpenWorkJobContract is
         string memory _jobId,
         string memory _submissionHash
     ) external nonReentrant {
-        require(
-            jobs[_jobId].currentMilestone <= jobs[_jobId].finalMilestones.length,
-            "All milestones completed"
-        );
+        Job storage job = jobs[_jobId];
+        require(bytes(job.id).length != 0, "Job does not exist");
+        require(job.status == JobStatus.InProgress, "Job must be in progress");
+        require(job.selectedApplicant == msg.sender, "Only selected applicant");
+        require(job.currentMilestone > 0 && job.currentMilestone <= job.finalMilestones.length, "Invalid milestone");
 
-        jobs[_jobId].workSubmissions.push(_submissionHash);
+        job.workSubmissions.push(_submissionHash);
         nowjc.submitWork(msg.sender, _jobId, _submissionHash);
 
-        emit WorkSubmitted(_jobId, msg.sender, _submissionHash, jobs[_jobId].currentMilestone);
+        emit WorkSubmitted(_jobId, msg.sender, _submissionHash, job.currentMilestone);
     }
 
     // ==================== PAYMENT FUNCTIONS ====================
@@ -602,7 +618,7 @@ contract NativeArbOpenWorkJobContract is
         require(job.jobGiver == msg.sender, "Only job giver");
         require(job.status == JobStatus.InProgress, "Job must be in progress");
         require(job.currentLockedAmount > 0, "No payment locked");
-        require(job.currentMilestone <= job.finalMilestones.length, "All milestones completed");
+        require(job.currentMilestone < job.finalMilestones.length, "No next milestone");
 
         uint256 releaseAmount = job.currentLockedAmount;
         job.totalPaid += releaseAmount;
@@ -611,17 +627,10 @@ contract NativeArbOpenWorkJobContract is
 
         job.currentMilestone += 1;
 
-        uint256 nextAmount = 0;
-        if (job.currentMilestone <= job.finalMilestones.length) {
-            nextAmount = job.finalMilestones[job.currentMilestone - 1].amount;
-            _sendFundsToNOWJC(_jobId, nextAmount);
-            job.currentLockedAmount = nextAmount;
-            job.totalEscrowed += nextAmount;
-        } else {
-            job.currentLockedAmount = 0;
-            job.status = JobStatus.Completed;
-            emit JobStatusChanged(_jobId, JobStatus.Completed);
-        }
+        uint256 nextAmount = job.finalMilestones[job.currentMilestone - 1].amount;
+        _sendFundsToNOWJC(_jobId, nextAmount);
+        job.currentLockedAmount = nextAmount;
+        job.totalEscrowed += nextAmount;
 
         nowjc.releasePaymentAndLockNext(msg.sender, _jobId, releaseAmount, nextAmount);
 

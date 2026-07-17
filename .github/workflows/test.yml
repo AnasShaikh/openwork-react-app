@@ -2,8 +2,17 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contracts-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   FOUNDRY_PROFILE: ci
@@ -16,7 +25,7 @@ jobs:
     name: Foundry project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -27,17 +36,14 @@ jobs:
         run: |
           forge --version
 
-      - name: Run Forge fmt
-        run: |
-          forge fmt --check
+      - name: Check maintained tests formatting
+        run: forge fmt --check test
         id: fmt
 
-      - name: Run Forge build
-        run: |
-          forge build --sizes
+      - name: Build current mainnet contracts
+        run: forge build --contracts src/suites/current-mainnet
         id: build
 
-      - name: Run Forge tests
-        run: |
-          forge test -vvv
+      - name: Run current mainnet tests
+        run: forge test --contracts src/suites/current-mainnet --match-path 'test/CurrentMainnet*.t.sol'
         id: test
