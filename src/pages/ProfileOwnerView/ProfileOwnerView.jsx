@@ -10,8 +10,13 @@ import Warning from "../../components/Warning/Warning";
 import ProfileGenesisABI from "../../ABIs/profile-genesis_ABI.json";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { useWalletConnection } from "../../functions/useWalletConnection";
-import { getLOWJCContract } from "../../services/localChainService";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import { getNativeChain, isMainnet } from "../../config/chainConfig";
+import {
+    LOWJC_OPERATIONS,
+    buildWriteSendOptions,
+    createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, STATUS } from "../../utils/crossChainMonitor";
 
@@ -243,94 +248,72 @@ export default function ProfileOwnerView() {
             setTransactionStatus(`Connecting to ${chainConfig.name}...`);
             const web3 = new Web3(window.ethereum);
             const lowjcContract = await getLOWJCContract(chainId);
+            const isNativeArbitrum = isNativeArbChain(chainId);
             const lzOptions = chainConfig?.layerzero?.options;
 
-            if (!lzOptions) {
+            if (!isNativeArbitrum && !lzOptions) {
                 throw new Error("LayerZero options not configured for this chain");
             }
 
-            // Step 3: Get LayerZero fee quote
-            setTransactionStatus(`💰 Getting LayerZero fee quote on ${chainConfig.name}...`);
-            const bridgeAddress = await lowjcContract.methods.bridge().call();
-            console.log("Bridge address:", bridgeAddress);
-
-            const bridgeABI = [{
-                "inputs": [
-                    {"name": "_payload", "type": "bytes"},
-                    {"name": "_options", "type": "bytes"}
-                ],
-                "name": "quoteNativeChain",
-                "outputs": [{"name": "fee", "type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function"
-            }];
-
-            const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-
-            // Encode payload
-            let payload;
             // Use referrer from URL param/state, or zero address if not provided
             const referrerForProfile = referrerAddress && web3.utils.isAddress(referrerAddress)
                 ? referrerAddress
                 : "0x0000000000000000000000000000000000000000";
-
-            if (hasProfile) {
-                payload = web3.eth.abi.encodeParameters(
-                    ['string', 'address', 'string'],
-                    ['updateProfile', walletAddress, ipfsHash]
-                );
-            } else {
-                payload = web3.eth.abi.encodeParameters(
-                    ['string', 'address', 'string', 'address'],
-                    ['createProfile', walletAddress, ipfsHash, referrerForProfile]
-                );
+            let layerZeroFee;
+            if (!isNativeArbitrum) {
+                setTransactionStatus(`💰 Getting LayerZero fee quote on ${chainConfig.name}...`);
+                const bridgeAddress = await lowjcContract.methods.bridge().call();
+                const bridgeABI = [{
+                    "inputs": [
+                        {"name": "_payload", "type": "bytes"},
+                        {"name": "_options", "type": "bytes"}
+                    ],
+                    "name": "quoteNativeChain",
+                    "outputs": [{"name": "fee", "type": "uint256"}],
+                    "stateMutability": "view",
+                    "type": "function"
+                }];
+                const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+                const payload = hasProfile
+                    ? web3.eth.abi.encodeParameters(
+                        ['string', 'address', 'string'],
+                        ['updateProfile', walletAddress, ipfsHash]
+                    )
+                    : web3.eth.abi.encodeParameters(
+                        ['string', 'address', 'string', 'address'],
+                        ['createProfile', walletAddress, ipfsHash, referrerForProfile]
+                    );
+                layerZeroFee = (await bridgeContract.methods
+                    .quoteNativeChain(payload, lzOptions)
+                    .call()).toString();
             }
-
-            console.log("Payload:", payload);
-            console.log("LZ Options:", lzOptions);
-
-            const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call();
-            // Add 20% buffer to LZ fee (matching release/direct contract pattern)
-            const feeWithBuffer = (BigInt(quotedFee) * BigInt(120) / BigInt(100)).toString();
-            console.log(`💰 LayerZero fee: ${web3.utils.fromWei(quotedFee.toString(), 'ether')} ETH (with 20% buffer: ${web3.utils.fromWei(feeWithBuffer, 'ether')} ETH)`);
 
             // Get gas price for EIP-1559 pricing (low priority fee to reduce displayed cost)
             const gasPrice = await web3.eth.getGasPrice();
 
-            // Step 4: Call contract function
-            if (hasProfile) {
-                setTransactionStatus(`Updating profile on ${chainConfig.name}...`);
-                await lowjcContract.methods
-                    .updateProfile(ipfsHash, lzOptions)
-                    .send({
-                        from: walletAddress,
-                        value: feeWithBuffer,
-                        gas: 500000,
-                        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-                        maxFeePerGas: gasPrice
-                    });
-                setTransactionStatus(`✅ Profile updated on ${chainConfig.name}!`);
-                const srcTx = receipt.transactionHash;
-                const lzLink = `https://layerzeroscan.com/tx/${srcTx}`;
-                setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: 'active', lzLink }));
-                monitorLZMessage(srcTx, (u) => setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: u.status === STATUS.SUCCESS ? 'delivered' : u.status === STATUS.FAILED ? 'failed' : 'active', lzLink: u.lzLink || lzLink, dstTxHash: u.dstTxHash, dstChainId: 42161 })));
+            const operation = hasProfile
+                ? LOWJC_OPERATIONS.UPDATE_PROFILE
+                : LOWJC_OPERATIONS.CREATE_PROFILE;
+            const args = hasProfile ? [ipfsHash] : [ipfsHash, referrerForProfile];
+            setTransactionStatus(`${hasProfile ? 'Updating' : 'Creating'} profile on ${chainConfig.name}...`);
+            const writeMethod = createLOWJCWrite(lowjcContract, chainConfig, operation, args, lzOptions);
+            const receipt = await writeMethod.send(buildWriteSendOptions(chainConfig, {
+                from: walletAddress,
+                value: layerZeroFee,
+                gas: 500000,
+                gasPrice: gasPrice.toString()
+            }));
+            setTransactionStatus(`✅ Profile ${hasProfile ? 'updated' : 'created'} on ${chainConfig.name}!`);
+
+            if (isNativeArbitrum) {
+                setCrossChainSteps(null);
             } else {
-                setTransactionStatus(`Creating profile on ${chainConfig.name}...`);
-                console.log("Creating profile with referrer:", referrerForProfile);
-                await lowjcContract.methods
-                    .createProfile(ipfsHash, referrerForProfile, lzOptions)
-                    .send({
-                        from: walletAddress,
-                        value: feeWithBuffer,
-                        gas: 500000,
-                        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-                        maxFeePerGas: gasPrice
-                    });
-                setTransactionStatus(`✅ Profile created on ${chainConfig.name}!`);
                 const srcTx = receipt.transactionHash;
                 const lzLink = `https://layerzeroscan.com/tx/${srcTx}`;
                 setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: 'active', lzLink }));
                 monitorLZMessage(srcTx, (u) => setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: u.status === STATUS.SUCCESS ? 'delivered' : u.status === STATUS.FAILED ? 'failed' : 'active', lzLink: u.lzLink || lzLink, dstTxHash: u.dstTxHash, dstChainId: 42161 })));
+            }
+            if (!hasProfile) {
                 setHasProfile(true);
             }
 

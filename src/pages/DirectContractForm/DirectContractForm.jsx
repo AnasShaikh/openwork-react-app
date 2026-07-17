@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
-import JobContractABI from "../../ABIs/lowjc_ABI.json";
 import BrowseJobsABI from "../../ABIs/nowjc_ABI.json";
 import "./DirectContractForm.css";
 import { useWalletConnection } from "../../functions/useWalletConnection";
@@ -15,14 +14,18 @@ import Milestone from "../../components/Milestone/Milestone";
 import RadioButton from "../../components/RadioButton/RadioButton";
 import Warning from "../../components/Warning/Warning";
 import { getLocalChains, getChainConfig, getNativeChain, isMainnet } from "../../config/chainConfig";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS } from "../../utils/crossChainMonitor";
 
 const SKILLOPTIONS = [
   'UX/UI Skill Oracle','Full Stack development','UX/UI Skill Oracle',
 ]
-
-const LAYERZERO_OPTIONS_VALUE = import.meta.env.VITE_LAYERZERO_OPTIONS_VALUE;
 
 // Dynamic network-aware functions for cross-chain polling
 function getGenesisAddress() {
@@ -647,10 +650,8 @@ export default function DirectContractForm() {
           const jobDetailHash = jobResponse.IpfsHash;
 
           // Step 4: Prepare contract call
-          const contract = new web3.eth.Contract(
-            JobContractABI,
-            contractAddress,
-          );
+          const contract = await getLOWJCContract(Number(chainId));
+          const isNativeArbitrum = isNativeArbChain(Number(chainId));
 
           // Job taker chain domain - use CCTP domain (not chain ID)
           // CCTP domains: 0=Ethereum, 2=Optimism, 3=Arbitrum, 6=Base
@@ -689,60 +690,57 @@ export default function DirectContractForm() {
             return;
           }
 
-          // Step 6: Get dynamic LayerZero quote
-          setTransactionStatus("Getting LayerZero quote...");
-
-          // DirectContract needs more destination gas than PostJob due to extra parameters
-          const DIRECT_CONTRACT_OPTIONS = '0x00030100110100000000000000000000000000186A00';
-
-          // Get bridge contract for quoting
-          const bridgeAddress = await contract.methods.bridge().call();
-          const bridgeABI = [{
-            "inputs": [
-              {"type": "bytes", "name": "_payload"},
-              {"type": "bytes", "name": "_options"}
-            ],
-            "name": "quoteNativeChain",
-            "outputs": [{"type": "uint256", "name": "fee"}],
-            "stateMutability": "view",
-            "type": "function"
-          }];
-          const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-
-          // Encode payload matching the contract's abi.encode for startDirectContract
-          const quotePayload = web3.eth.abi.encodeParameters(
-            ['string', 'address', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
-            ['startDirectContract', fromAddress, jobTaker, jobDetailHash, jobDetailHash, milestoneHashes, milestoneAmounts, jobTakerChainDomain]
-          );
-
-          // Get quote and add 20% buffer
-          const quotedFee = await bridgeContract.methods.quoteNativeChain(quotePayload, DIRECT_CONTRACT_OPTIONS).call();
-          const feeToUse = (BigInt(quotedFee) * BigInt(130) / BigInt(100)).toString();
-
           // Get current job count to predict next jobId
           const jobCounter = await contract.methods.getJobCount().call();
-          const layerZeroEid = currentChainConfig.layerzero.eid;
-          const predictedJobId = `${layerZeroEid}-${Number(jobCounter) + 1}`;
+          const jobIdPrefix = isNativeArbitrum ? Number(chainId) : currentChainConfig.layerzero.eid;
+          const predictedJobId = `${jobIdPrefix}-${Number(jobCounter) + 1}`;
+
+          // DirectContract needs more destination gas than PostJob due to extra parameters.
+          const DIRECT_CONTRACT_OPTIONS = isNativeArbitrum
+            ? null
+            : '0x00030100110100000000000000000000000000186A00';
+          let layerZeroFee;
+          if (!isNativeArbitrum) {
+            setTransactionStatus("Getting LayerZero quote...");
+            const bridgeAddress = await contract.methods.bridge().call();
+            const bridgeABI = [{
+              "inputs": [
+                {"type": "bytes", "name": "_payload"},
+                {"type": "bytes", "name": "_options"}
+              ],
+              "name": "quoteNativeChain",
+              "outputs": [{"type": "uint256", "name": "fee"}],
+              "stateMutability": "view",
+              "type": "function"
+            }];
+            const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+            const quotePayload = web3.eth.abi.encodeParameters(
+              ['string', 'address', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
+              ['startDirectContract', fromAddress, jobTaker, predictedJobId, jobDetailHash, milestoneHashes, milestoneAmounts, jobTakerChainDomain]
+            );
+            layerZeroFee = (await bridgeContract.methods
+              .quoteNativeChain(quotePayload, DIRECT_CONTRACT_OPTIONS)
+              .call()).toString();
+          }
 
 
           // Step 6: Call startDirectContract with higher gas options
           setTransactionStatus("Sending transaction to blockchain...");
 
-          contract.methods
-            .startDirectContract(
-              jobTaker,
-              jobDetailHash,
-              milestoneHashes,
-              milestoneAmounts,
-              jobTakerChainDomain,
-              DIRECT_CONTRACT_OPTIONS
-            )
-            .send({
+          const directContractMethod = createLOWJCWrite(
+            contract,
+            currentChainConfig,
+            LOWJC_OPERATIONS.START_DIRECT_CONTRACT,
+            [jobTaker, jobDetailHash, milestoneHashes, milestoneAmounts, jobTakerChainDomain],
+            DIRECT_CONTRACT_OPTIONS
+          );
+          directContractMethod
+            .send(buildWriteSendOptions(currentChainConfig, {
               from: fromAddress,
-              value: feeToUse,
+              value: layerZeroFee,
               gas: 1000000, // startDirectContract calls CCTP sendFast internally — needs ~507k
               gasPrice: await web3.eth.getGasPrice(),
-            })
+            }))
             .on("receipt", function (receipt) {
 
               // Try to extract job ID from LayerZero logs first
@@ -754,63 +752,58 @@ export default function DirectContractForm() {
               }
 
               if (jobId) {
-                setTransactionStatus("✅ Contract created! Tracking cross-chain progress...");
+                setTransactionStatus(isNativeArbitrum
+                  ? "✅ Direct contract created on Arbitrum! Confirming indexed data..."
+                  : "✅ Contract created! Tracking cross-chain progress...");
                 setLoadingT(false);
 
-                // ── Client-side cross-chain monitoring ────────────────────
                 const srcTxHash  = receipt.transactionHash;
-                const srcChainId = Number(chainId);
-                const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
-                const circleLink = `https://iris-api.circle.com/v2/messages/${currentChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
-
-                setCrossChainSteps(buildPaymentSteps({
-                  sourceChainId: srcChainId,
-                  usdcApproved: true,
-                  sourceTxHash: srcTxHash,
-                  lzStatus: 'active',
-                  lzLink,
-                  circleLink,
-                }));
-
-                monitorLZMessage(srcTxHash, (lzUpdate) => {
-                  setCrossChainSteps(prev => buildPaymentSteps({
-                    ...prev,
-                    lzStatus:    lzUpdate.status === STATUS.SUCCESS ? 'delivered'
-                               : lzUpdate.status === STATUS.FAILED  ? 'failed' : 'active',
-                    lzLink:      lzUpdate.lzLink || lzLink,
-                    lzDstTxHash: lzUpdate.dstTxHash,
-                    lzDstChainId: 42161,
-                    cctpBurnTxHash: lzUpdate.dstTxHash,
-                    cctpSourceDomain: 3,
-                    sourceChainId: srcChainId,
-                    usdcApproved: true,
-                    sourceTxHash: srcTxHash,
-                    circleLink,
-                  }));
-                  if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
-                    monitorCCTPTransfer(lzUpdate.dstTxHash, 3,
-                      (cctpUpdate) => setCrossChainSteps(prev => buildPaymentSteps({
-                        ...prev,
-                        cctpAttestationStatus: cctpUpdate.status === STATUS.SUCCESS ? 'complete'
-                                             : cctpUpdate.message?.includes('slow') ? 'slow' : 'pending',
-                      })),
-                      () => setCrossChainSteps(prev => buildPaymentSteps({ ...prev, cctpAttestationStatus: 'complete' }))
-                    );
-                  }
-                });
-                // ─────────────────────────────────────────────────────────
-
-                // Trigger backend CCTP relay (belt + suspenders)
                 const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-                fetch(`${backendUrl}/api/start-job`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ jobId, txHash: srcTxHash })
-                }).then(res => res.json()).then(result => {
-                }).catch(err => {
-                  console.warn("⚠️ Backend unavailable, client-side monitor handling:", err.message);
-                  setTransactionStatus("⚠️ Backend offline — tracking cross-chain status directly. Check progress below.");
-                });
+                if (isNativeArbitrum) {
+                  setCrossChainSteps(null);
+                } else {
+                  const srcChainId = Number(chainId);
+                  const lzLink = `https://layerzeroscan.com/tx/${srcTxHash}`;
+                  const circleLink = `https://iris-api.circle.com/v2/messages/${currentChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
+                  setCrossChainSteps(buildPaymentSteps({
+                    sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
+                    lzStatus: 'active', lzLink, circleLink,
+                  }));
+                  monitorLZMessage(srcTxHash, (lzUpdate) => {
+                    setCrossChainSteps(prev => buildPaymentSteps({
+                      ...prev,
+                      lzStatus: lzUpdate.status === STATUS.SUCCESS ? 'delivered'
+                              : lzUpdate.status === STATUS.FAILED ? 'failed' : 'active',
+                      lzLink: lzUpdate.lzLink || lzLink,
+                      lzDstTxHash: lzUpdate.dstTxHash,
+                      lzDstChainId: 42161,
+                      cctpBurnTxHash: lzUpdate.dstTxHash,
+                      cctpSourceDomain: 3,
+                      sourceChainId: srcChainId,
+                      usdcApproved: true,
+                      sourceTxHash: srcTxHash,
+                      circleLink,
+                    }));
+                    if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
+                      monitorCCTPTransfer(lzUpdate.dstTxHash, 3,
+                        (cctpUpdate) => setCrossChainSteps(prev => buildPaymentSteps({
+                          ...prev,
+                          cctpAttestationStatus: cctpUpdate.status === STATUS.SUCCESS ? 'complete'
+                                               : cctpUpdate.message?.includes('slow') ? 'slow' : 'pending',
+                        })),
+                        () => setCrossChainSteps(prev => buildPaymentSteps({ ...prev, cctpAttestationStatus: 'complete' }))
+                      );
+                    }
+                  });
+                  fetch(`${backendUrl}/api/start-job`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jobId, txHash: srcTxHash })
+                  }).then(res => res.json()).catch(err => {
+                    console.warn("⚠️ Backend unavailable, client-side monitor handling:", err.message);
+                    setTransactionStatus("⚠️ Backend offline — tracking cross-chain status directly. Check progress below.");
+                  });
+                }
 
                 // Persist tx hash for user history
                 fetch(`${backendUrl}/api/jobs/tx`, {

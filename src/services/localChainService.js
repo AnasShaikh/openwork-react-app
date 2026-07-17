@@ -20,6 +20,14 @@ import { getChainConfig, isChainAllowed, getLocalChains, buildLzOptions, DESTINA
 import LOWJC_ABI from "../ABIs/lowjc-lite_ABI.json";
 import NATIVE_ARB_LOWJC_ABI from "../ABIs/native-arb-lowjc_ABI.json";
 import ATHENA_CLIENT_ABI from "../ABIs/athena-client_ABI.json";
+import NATIVE_ARB_ATHENA_CLIENT_ABI from "../ABIs/native-arb-athena-client_ABI.json";
+import {
+  ATHENA_OPERATIONS,
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createAthenaWrite,
+  createLOWJCWrite,
+} from "./contractWriteRouter";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -56,9 +64,19 @@ const BRIDGE_QUOTE_ABI = [
 /**
  * Returns true if this chain uses the native Arb LOWJC (no LZ, no CCTP, no msg.value).
  */
-function isNativeArbChain(chainId) {
+export function isNativeArbChain(chainId) {
   const config = getChainConfig(chainId);
   return config?.type === CHAIN_TYPES.LOCAL_NATIVE;
+}
+
+/**
+ * Use the configured HTTP RPC for read-only calls. Some wallet-injected XDC
+ * providers return an internal JSON-RPC error for nested LayerZero quote calls
+ * even though the same eth_call succeeds on a public XDC endpoint.
+ */
+export function getReadOnlyWeb3(chainId) {
+  const config = getChainConfig(chainId);
+  return new Web3(config?.rpcUrl || window.ethereum);
 }
 
 /**
@@ -98,65 +116,49 @@ export async function getAthenaClientContract(chainId) {
   }
   
   const web3 = new Web3(window.ethereum);
-  return new web3.eth.Contract(ATHENA_CLIENT_ABI, config.contracts.athenaClient);
+  const abi = isNativeArbChain(chainId) ? NATIVE_ARB_ATHENA_CLIENT_ABI : ATHENA_CLIENT_ABI;
+  return new web3.eth.Contract(abi, config.contracts.athenaClient);
 }
 
 /**
  * Estimate LayerZero fee by calling quoteNativeChain() on the LocalBridge.
- * Adds a 30% buffer on top of the quote for safety.
+ * Uses the exact on-chain quote so any excess is not stranded in LOWJC.
  *
  * @param {number} chainId       - Source chain ID
  * @param {string} operationKey  - Key from DESTINATION_GAS_ESTIMATES (e.g. "POST_JOB")
- * @param {object} [extraPayload] - Optional extra params to encode into the quote payload
- * @returns {Promise<string>} Fee in wei (with 30% buffer)
+ * @param {object} quoteData - { encodedPayload, nativeOptions }
+ * @returns {Promise<string>} Exact quoted fee in wei
  */
-export async function estimateLayerZeroFee(chainId, operationKey, extraPayload = {}) {
+export async function estimateLayerZeroFee(chainId, operationKey, quoteData = {}) {
   // Native Arb chain — no LayerZero, no fee
   if (isNativeArbChain(chainId)) return "0";
 
-  // Safe fallback — never let a quote failure block the user
-  const FALLBACK_FEE = Web3.utils.toWei("0.001", "ether");
-
   try {
-    const contract  = await getLOWJCContract(chainId);
     const config    = getChainConfig(chainId);
-    const web3      = new Web3(window.ethereum);
+    const web3      = getReadOnlyWeb3(chainId);
+    const contract  = new web3.eth.Contract(LOWJC_ABI, config.contracts.lowjc);
 
-    // Pick destination gas for this operation
     const destGasKey = operationKey?.toUpperCase().replace(/-/g, '_');
     const destGas    = DESTINATION_GAS_ESTIMATES[destGasKey] ?? DESTINATION_GAS_ESTIMATES.DEFAULT;
-    const nativeOptions = buildLzOptions(destGas);
-
-    // Resolve bridge address from LOWJC
-    let bridgeAddress;
-    try {
-      bridgeAddress = await contract.methods.bridge().call();
-    } catch {
-      console.warn("[LZ quote] Could not read bridge address — using fallback fee");
-      return FALLBACK_FEE;
+    const nativeOptions = quoteData.nativeOptions || buildLzOptions(destGas);
+    if (!quoteData.encodedPayload) {
+      throw new Error(`Exact payload is required to quote ${operationKey}`);
     }
 
+    const bridgeAddress = await contract.methods.bridge().call();
     const bridgeContract = new web3.eth.Contract(BRIDGE_QUOTE_ABI, bridgeAddress);
+    const rawFee = await bridgeContract.methods
+      .quoteNativeChain(quoteData.encodedPayload, nativeOptions)
+      .call();
 
-    // Generic payload — enough to get an accurate quote
-    const encodedPayload = web3.eth.abi.encodeParameters(
-      ["string", "address"],
-      [operationKey || "generic", extraPayload.userAddress || "0x0000000000000000000000000000000000000000"]
-    );
-
-    const rawFee = await bridgeContract.methods.quoteNativeChain(encodedPayload, nativeOptions).call();
-
-    // +20% safety buffer
-    const feeWithBuffer = (BigInt(rawFee) * BigInt(130)) / BigInt(100); // +30% buffer (not 20%)
+    const nativeSymbol = config.nativeCurrency?.symbol || "ETH";
     console.log(
-      `[LZ quote] ${operationKey}: ${web3.utils.fromWei(rawFee.toString(), "ether")} ETH → ` +
-      `+30% buffer = ${web3.utils.fromWei(feeWithBuffer.toString(), "ether")} ETH`
+      `[LZ quote] ${operationKey}: ${web3.utils.fromWei(rawFee.toString(), "ether")} ${nativeSymbol}`
     );
 
-    return feeWithBuffer.toString();
+    return rawFee.toString();
   } catch (err) {
-    console.warn(`[LZ quote] Estimation failed for ${operationKey}, using fallback:`, err.message);
-    return FALLBACK_FEE;
+    throw new Error(`Unable to quote ${operationKey} on chain ${chainId}: ${err.message}`);
   }
 }
 
@@ -177,17 +179,36 @@ export async function postJob(chainId, userAddress, jobData, onStatus) {
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    if (!native) emit("Estimating LayerZero fee...");
-    const lzFee         = await estimateLayerZeroFee(chainId, "POST_JOB", { userAddress });
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.POST_JOB);
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const readContract = new quoteWeb3.eth.Contract(LOWJC_ABI, config.contracts.lowjc);
+      const jobCounter = await readContract.methods.getJobCount().call();
+      const predictedJobId = `${config.layerzero.eid}-${Number(jobCounter) + 1}`;
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'string', 'address', 'string', 'string[]', 'uint256[]'],
+        ['postJob', predictedJobId, userAddress, jobData.jobDetailHash, jobData.descriptions, jobData.amounts]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "POST_JOB", { encodedPayload, nativeOptions });
+    }
 
     emit(`Submitting job post on ${config.name} — confirm in wallet...`);
 
-    const method = native
-      ? contract.methods.postJob(jobData.jobDetailHash, jobData.descriptions, jobData.amounts)
-      : contract.methods.postJob(jobData.jobDetailHash, jobData.descriptions, jobData.amounts, nativeOptions);
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.POST_JOB,
+      [jobData.jobDetailHash, jobData.descriptions, jobData.amounts],
+      nativeOptions
+    );
 
-    const tx = await method.send({ from: userAddress, value: lzFee, gas: 600000 });
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 600000,
+    }));
 
     emit(`Transaction confirmed: ${tx.transactionHash}`);
     saveTxHash('postJob', tx.transactionHash, null, chainId, userAddress);
@@ -213,31 +234,41 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    if (!native) emit("Estimating LayerZero fee...");
-    const lzFee         = await estimateLayerZeroFee(chainId, "APPLY_JOB", { userAddress });
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.APPLY_JOB);
+    const preferredChainDomain = applicationData.preferredChainDomain ?? 3;
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
+        ['applyToJob', userAddress, applicationData.jobId, applicationData.applicationHash,
+          applicationData.descriptions, applicationData.amounts, preferredChainDomain]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "APPLY_JOB", { encodedPayload, nativeOptions });
+    }
 
     emit(`Submitting application on ${config.name} — confirm in wallet...`);
 
-    const method = native
-      ? contract.methods.applyToJob(
-          applicationData.jobId,
-          applicationData.applicationHash,
-          applicationData.descriptions,
-          applicationData.amounts,
-          applicationData.preferredChainDomain || 3
-        )
-      : contract.methods.applyToJob(
-          applicationData.jobId,
-          applicationData.applicationHash,
-          applicationData.descriptions,
-          applicationData.amounts,
-          applicationData.preferredChainDomain || 3,
-          applicationData.preferredPaymentAddress || userAddress,
-          nativeOptions
-        );
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.APPLY_TO_JOB,
+      [
+        applicationData.jobId,
+        applicationData.applicationHash,
+        applicationData.descriptions,
+        applicationData.amounts,
+        preferredChainDomain,
+      ],
+      nativeOptions
+    );
 
-    const tx = await method.send({ from: userAddress, value: lzFee, gas: 600000 });
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 600000,
+    }));
     emit(`Application submitted: ${tx.transactionHash}`);
     saveTxHash('applyToJob', tx.transactionHash, applicationData.jobId, chainId, userAddress);
     console.log(`[applyToJob] confirmed on ${config.name}:`, tx.transactionHash);
@@ -262,17 +293,34 @@ export async function startJob(chainId, userAddress, startData, onStatus) {
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    if (!native) emit("Estimating LayerZero fee...");
-    const lzFee         = await estimateLayerZeroFee(chainId, "START_JOB", { userAddress });
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.START_JOB);
+    const useAppMilestones = startData.useAppMilestones || false;
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'uint256', 'bool'],
+        ['startJob', userAddress, startData.jobId, startData.applicationId, useAppMilestones]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "START_JOB", { encodedPayload, nativeOptions });
+    }
 
     emit(`Starting job on ${config.name} — confirm in wallet...`);
 
-    const method = native
-      ? contract.methods.startJob(startData.jobId, startData.applicationId, startData.useAppMilestones || false)
-      : contract.methods.startJob(startData.jobId, startData.applicationId, startData.useAppMilestones || false, nativeOptions);
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.START_JOB,
+      [startData.jobId, startData.applicationId, useAppMilestones],
+      nativeOptions
+    );
 
-    const tx = await method.send({ from: userAddress, value: lzFee, gas: 1000000 });
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 1000000,
+    }));
     emit(`Job started: ${tx.transactionHash}`);
     saveTxHash('startJob', tx.transactionHash, startData.jobId, chainId, userAddress);
     console.log(`[startJob] confirmed on ${config.name}:`, tx.transactionHash);
@@ -297,17 +345,33 @@ export async function submitWork(chainId, userAddress, workData, onStatus) {
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    if (!native) emit("Estimating LayerZero fee...");
-    const lzFee         = await estimateLayerZeroFee(chainId, "DEFAULT", { userAddress });
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'string'],
+        ['submitWork', userAddress, workData.jobId, workData.submissionHash]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "DEFAULT", { encodedPayload, nativeOptions });
+    }
 
     emit(`Submitting work on ${config.name} — confirm in wallet...`);
 
-    const method = native
-      ? contract.methods.submitWork(workData.jobId, workData.submissionHash)
-      : contract.methods.submitWork(workData.jobId, workData.submissionHash, nativeOptions);
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.SUBMIT_WORK,
+      [workData.jobId, workData.submissionHash],
+      nativeOptions
+    );
 
-    const tx = await method.send({ from: userAddress, value: lzFee, gas: 600000 });
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 600000,
+    }));
     emit(`Work submitted: ${tx.transactionHash}`);
     saveTxHash('submitWork', tx.transactionHash, workData.jobId, chainId, userAddress);
     console.log(`[submitWork] confirmed on ${config.name}:`, tx.transactionHash);
@@ -332,24 +396,41 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    if (!native) emit("Estimating LayerZero fee...");
-    const lzFee         = await estimateLayerZeroFee(chainId, "RELEASE_PAYMENT", { userAddress });
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.RELEASE_PAYMENT);
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      if (!paymentData.targetChainDomain || !paymentData.targetRecipient) {
+        throw new Error("Target chain domain and recipient are required for a cross-chain release");
+      }
+      const localJob = await contract.methods.getJob(paymentData.jobId).call();
+      const amount = localJob.currentLockedAmount?.toString();
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'uint256', 'uint32', 'address'],
+        ['releasePaymentCrossChain', userAddress, paymentData.jobId, amount,
+          paymentData.targetChainDomain, paymentData.targetRecipient]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "RELEASE_PAYMENT", { encodedPayload, nativeOptions });
+    }
 
     emit(`Releasing payment on ${config.name} — confirm in wallet...`);
 
     // Native Arb: call unified releasePayment(jobId) — NOWJC auto-routes to applicant
     // Cross-chain: call releasePaymentCrossChain with target domain + recipient
-    const method = native
-      ? contract.methods.releasePayment(paymentData.jobId)
-      : contract.methods.releasePaymentCrossChain(
-          paymentData.jobId,
-          paymentData.targetChainDomain,
-          paymentData.targetRecipient,
-          nativeOptions
-        );
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.RELEASE_PAYMENT,
+      [paymentData.jobId, paymentData.targetChainDomain, paymentData.targetRecipient],
+      nativeOptions
+    );
 
-    const tx = await method.send({ from: userAddress, value: lzFee, gas: 800000 });
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 800000,
+    }));
     emit(`Payment release confirmed: ${tx.transactionHash}`);
     saveTxHash('releasePayment', tx.transactionHash, paymentData.jobId, chainId, userAddress);
     console.log(`[releasePayment] confirmed on ${config.name}:`, tx.transactionHash);
@@ -376,30 +457,43 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus) 
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    if (!native) emit("Estimating LayerZero fee...");
-    const lzFee         = await estimateLayerZeroFee(chainId, "DEFAULT", { userAddress });
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'string', 'string', 'string', 'uint256', 'uint256', 'address'],
+        ['raiseDispute', disputeData.jobId, disputeData.disputeHash, disputeData.oracleName,
+          disputeData.feeAmount, disputeData.disputedAmount, userAddress]
+      );
+      const readContract = new quoteWeb3.eth.Contract(ATHENA_CLIENT_ABI, config.contracts.athenaClient);
+      lzFee = (await readContract.methods
+        .quoteSingleChain('raiseDispute', encodedPayload, nativeOptions)
+        .call()).toString();
+    }
 
     emit(`Raising dispute on ${config.name} — confirm in wallet...`);
 
-    const method = native
-      ? contract.methods.raiseDispute(
-          disputeData.jobId,
-          disputeData.disputeHash,
-          disputeData.oracleName,
-          disputeData.feeAmount,
-          disputeData.disputedAmount
-        )
-      : contract.methods.raiseDispute(
-          disputeData.jobId,
-          disputeData.disputeHash,
-          disputeData.oracleName,
-          disputeData.feeAmount,
-          disputeData.disputedAmount,
-          nativeOptions
-        );
+    const method = createAthenaWrite(
+      contract,
+      config,
+      ATHENA_OPERATIONS.RAISE_DISPUTE,
+      [
+        disputeData.jobId,
+        disputeData.disputeHash,
+        disputeData.oracleName,
+        disputeData.feeAmount,
+        disputeData.disputedAmount,
+      ],
+      nativeOptions
+    );
 
-    const tx = await method.send({ from: userAddress, value: lzFee, gas: 600000 });
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 600000,
+    }));
     emit(`Dispute submitted: ${tx.transactionHash}`);
     saveTxHash('raiseDispute', tx.transactionHash, disputeData.jobId, chainId, userAddress);
     console.log(`[raiseDispute] confirmed on ${config.name}:`, tx.transactionHash);
@@ -422,18 +516,39 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus) 
 export async function createProfile(chainId, userAddress, profileData, onStatus) {
   const emit = onStatus || (() => {});
   try {
-    emit("Estimating LayerZero fee...");
     const contract = await getLOWJCContract(chainId);
     const config   = getChainConfig(chainId);
-    const lzFee    = await estimateLayerZeroFee(chainId, "DEFAULT", { userAddress });
-    const nativeOptions = buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
+    const native   = isNativeArbChain(chainId);
+    const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
+    const referrerAddress = profileData.referrerAddress || "0x0000000000000000000000000000000000000000";
+    if (!profileData.ipfsHash) throw new Error("Profile IPFS hash is required");
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'address', 'string', 'address'],
+        ['createProfile', userAddress, profileData.ipfsHash, referrerAddress]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "DEFAULT", { encodedPayload, nativeOptions });
+    }
 
     emit(`Creating profile on ${config.name} — confirm in wallet...`);
-    const tx = await contract.methods.createProfile(
-      profileData.ipfsHash,
-      profileData.referrerAddress || "0x0000000000000000000000000000000000000000",
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.CREATE_PROFILE,
+      [
+        profileData.ipfsHash,
+        referrerAddress,
+      ],
       nativeOptions
-    ).send({ from: userAddress, value: lzFee, gas: 400000 });
+    );
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 400000,
+    }));
 
     emit(`Profile created: ${tx.transactionHash}`);
     console.log(`[createProfile] confirmed on ${config.name}:`, tx.transactionHash);
@@ -454,17 +569,34 @@ export async function createProfile(chainId, userAddress, profileData, onStatus)
 export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus) {
   const emit = onStatus || (() => {});
   try {
-    emit("Estimating LayerZero fee...");
     const contract = await getLOWJCContract(chainId);
     const config   = getChainConfig(chainId);
-    const lzFee    = await estimateLayerZeroFee(chainId, "DEFAULT", { userAddress });
-    const nativeOptions = buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
+    const native   = isNativeArbChain(chainId);
+    const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
+    let lzFee = "0";
+    if (!native) {
+      emit("Estimating LayerZero fee...");
+      const quoteWeb3 = getReadOnlyWeb3(chainId);
+      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+        ['string', 'address', 'string'],
+        ['addPortfolio', userAddress, portfolioHash]
+      );
+      lzFee = await estimateLayerZeroFee(chainId, "DEFAULT", { encodedPayload, nativeOptions });
+    }
 
     emit(`Adding portfolio on ${config.name} — confirm in wallet...`);
-    const tx = await contract.methods.addPortfolio(
-      portfolioHash,
+    const method = createLOWJCWrite(
+      contract,
+      config,
+      LOWJC_OPERATIONS.ADD_PORTFOLIO,
+      [portfolioHash],
       nativeOptions
-    ).send({ from: userAddress, value: lzFee, gas: 400000 });
+    );
+    const tx = await method.send(buildWriteSendOptions(config, {
+      from: userAddress,
+      value: lzFee,
+      gas: 400000,
+    }));
 
     emit(`Portfolio added: ${tx.transactionHash}`);
     console.log(`[addPortfolio] confirmed on ${config.name}:`, tx.transactionHash);

@@ -12,7 +12,12 @@ import FileUpload from "../../components/FileUpload/FileUpload";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getChainConfig, extractChainIdFromJobId } from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
-import { getLOWJCContract } from "../../services/localChainService";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, STATUS } from "../../utils/crossChainMonitor";
 import genesisABI from "../../ABIs/genesis_ABI.json";
@@ -29,6 +34,7 @@ const LZ_EID_TO_CHAIN_ID = {
   30110: 42161,    // ARB Mainnet
   30101: 1,        // ETH Mainnet
   30184: 8453,     // Base Mainnet
+  30365: 50,       // XDC Mainnet
 };
 
 export default function AddUpdate() {
@@ -156,57 +162,59 @@ export default function AddUpdate() {
 
       const submissionHash = ipfsData.IpfsHash;
 
-      // Get contract and LayerZero fee
-      setTransactionStatus(`💰 Getting LayerZero fee quote on ${requiredChainConfig.name}...`);
       const web3 = new Web3(window.ethereum);
       const lowjcContract = await getLOWJCContract(requiredChainId);
+      const isNativeArbitrum = isNativeArbChain(requiredChainId);
+      let quotedFee;
       
-      // Validate LayerZero configuration
       const lzOptions = requiredChainConfig.layerzero?.options;
-      if (!lzOptions) {
-        throw new Error(`LayerZero options not configured for ${requiredChainConfig.name}`);
+      if (!isNativeArbitrum) {
+        setTransactionStatus(`💰 Getting LayerZero fee quote on ${requiredChainConfig.name}...`);
+        if (!lzOptions) throw new Error(`LayerZero options not configured for ${requiredChainConfig.name}`);
+        const bridgeAddress = await lowjcContract.methods.bridge().call();
+        if (!bridgeAddress || bridgeAddress === '0x0000000000000000000000000000000000000000') {
+          throw new Error("Bridge contract not configured on LOWJC");
+        }
+        const bridgeABI = [{
+          "inputs": [
+            {"type": "bytes", "name": "_payload"},
+            {"type": "bytes", "name": "_options"}
+          ],
+          "name": "quoteNativeChain",
+          "outputs": [{"type": "uint256", "name": "fee"}],
+          "stateMutability": "view",
+          "type": "function"
+        }];
+        const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'string'],
+          ['submitWork', walletAddress, jobId, submissionHash]
+        );
+        quotedFee = (await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call()).toString();
       }
-      
-      // Get bridge address and validate
-      const bridgeAddress = await lowjcContract.methods.bridge().call();
-      if (!bridgeAddress || bridgeAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error("Bridge contract not configured on LOWJC");
-      }
-      
-      // Bridge ABI for quoteNativeChain function
-      const bridgeABI = [{
-        "inputs": [
-          {"type": "bytes", "name": "_payload"},
-          {"type": "bytes", "name": "_options"}
-        ],
-        "name": "quoteNativeChain",
-        "outputs": [{"type": "uint256", "name": "fee"}],
-        "stateMutability": "view",
-        "type": "function"
-      }];
-      
-      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-      
-      // Encode payload matching LOWJC's internal encoding for submitWork
-      const payload = web3.eth.abi.encodeParameters(
-        ['string', 'address', 'string', 'string'],
-        ['submitWork', walletAddress, jobId, submissionHash]
-      );
-      
-      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call();
 
       // Submit work
       setTransactionStatus(`📝 Submitting work on ${requiredChainConfig.name} - Please confirm in MetaMask`);
       
-      const tx = await lowjcContract.methods.submitWork(
-        jobId,
-        submissionHash,
+      const writeMethod = createLOWJCWrite(
+        lowjcContract,
+        requiredChainConfig,
+        LOWJC_OPERATIONS.SUBMIT_WORK,
+        [jobId, submissionHash],
         lzOptions
-      ).send({
+      );
+      const tx = await writeMethod.send(buildWriteSendOptions(requiredChainConfig, {
         from: walletAddress,
-        value: quotedFee, // Use the exact LayerZero quoted fee
+        value: quotedFee,
         gas: 5000000  // Explicit gas limit
-      });
+      }));
+
+      if (isNativeArbitrum) {
+        setCrossChainSteps(null);
+        setTransactionStatus(`✅ Work submitted directly on Arbitrum! Redirecting...`);
+        setTimeout(() => navigate(`/job-update/${jobId}`), 1500);
+        return;
+      }
 
       setTransactionStatus(`✅ Work submitted! Tracking sync to Arbitrum...`);
 

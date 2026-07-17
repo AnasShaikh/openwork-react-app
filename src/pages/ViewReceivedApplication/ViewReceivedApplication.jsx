@@ -16,7 +16,12 @@ import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetecti
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { getChainConfig, extractChainIdFromJobId, getNativeChain, isMainnet, buildLzOptions, DESTINATION_GAS_ESTIMATES } from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
-import { getLOWJCContract } from "../../services/localChainService";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS } from "../../utils/crossChainMonitor";
 
@@ -481,6 +486,7 @@ export default function ViewReceivedApplication() {
       // Initialize contracts
       const usdcContract = new web3.eth.Contract(ERC20_ABI, usdcTokenAddress);
       const lowjcContract = await getLOWJCContract(jobChainId);
+      const isNativeArbitrum = isNativeArbChain(jobChainId);
       
       // Calculate amount in USDC units (6 decimals)
       const amountInUSDCUnits = Math.floor(firstMilestoneAmount * 1000000);
@@ -518,61 +524,64 @@ export default function ViewReceivedApplication() {
       }
       
       // ============ STEP 2: START JOB ON POSTING CHAIN ============
-      setTransactionStatus(`🔧 Step 2/3: Getting LayerZero fee quote on ${jobChainConfig.name}...`);
-      
-      // Get LayerZero fee quote from bridge
-      const bridgeAddress = await lowjcContract.methods.bridge().call();
-      
-      // Bridge ABI for quoteNativeChain function
-      const bridgeABI = [{
-        "inputs": [
-          {"type": "bytes", "name": "_payload"},
-          {"type": "bytes", "name": "_options"}
-        ],
-        "name": "quoteNativeChain",
-        "outputs": [{"type": "uint256", "name": "fee"}],
-        "stateMutability": "view",
-        "type": "function"
-      }];
-      
-      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-
-      // Build LZ options with appropriate destination gas for START_JOB
-      const destGas = DESTINATION_GAS_ESTIMATES.START_JOB;
-      const lzOptions = buildLzOptions(destGas);
-
-      // Encode payload matching LOWJC's internal encoding for startJob
-      // LOWJC sends: abi.encode("startJob", msg.sender, _jobId, _applicationId, _useAppMilestones)
-      const payload = web3.eth.abi.encodeParameters(
-        ['string', 'address', 'string', 'uint256', 'bool'],
-        ['startJob', walletAddress, jobId, parseInt(applicationId), useAppMilestones]
-      );
-
-      // Get quote from bridge and add 30% buffer + CCTP buffer
-      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call();
-      const lzFee = BigInt(quotedFee) * BigInt(130) / BigInt(100); // +30% buffer
-      const cctpBuffer = BigInt(web3.utils.toWei('0.0003', 'ether')); // safety buffer for CCTP relay
-      const totalFee = lzFee + cctpBuffer;
+      const lzOptions = isNativeArbitrum
+        ? null
+        : buildLzOptions(DESTINATION_GAS_ESTIMATES.START_JOB);
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        setTransactionStatus(`🔧 Step 2/3: Getting LayerZero fee quote on ${jobChainConfig.name}...`);
+        const bridgeAddress = await lowjcContract.methods.bridge().call();
+        const bridgeABI = [{
+          "inputs": [
+            {"type": "bytes", "name": "_payload"},
+            {"type": "bytes", "name": "_options"}
+          ],
+          "name": "quoteNativeChain",
+          "outputs": [{"type": "uint256", "name": "fee"}],
+          "stateMutability": "view",
+          "type": "function"
+        }];
+        const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'uint256', 'bool'],
+          ['startJob', walletAddress, jobId, parseInt(applicationId), useAppMilestones]
+        );
+        layerZeroFee = (await bridgeContract.methods
+          .quoteNativeChain(payload, lzOptions)
+          .call()).toString();
+      }
 
       // Get current gas price for EIP-1559
       const gasPrice = await web3.eth.getGasPrice();
 
-      setTransactionStatus(`🔧 Step 2/3: Network fee ~${parseFloat(web3.utils.fromWei(totalFee.toString(), 'ether')).toFixed(5)} ETH — Please confirm in MetaMask`);
+      if (isNativeArbitrum) {
+        setTransactionStatus(`🔧 Step 2/3: Starting job directly on Arbitrum — Please confirm in MetaMask`);
+      } else {
+        const nativeSymbol = jobChainConfig.nativeCurrency?.symbol || 'ETH';
+        setTransactionStatus(`🔧 Step 2/3: Network fee ~${parseFloat(web3.utils.fromWei(layerZeroFee, 'ether')).toFixed(5)} ${nativeSymbol} — Please confirm in MetaMask`);
+      }
 
       // ── Event-based tx: CrossChainStatus shows immediately on sign ────────
-      lowjcContract.methods.startJob(
-        jobId,
-        parseInt(applicationId),
-        useAppMilestones,
+      const startMethod = createLOWJCWrite(
+        lowjcContract,
+        jobChainConfig,
+        LOWJC_OPERATIONS.START_JOB,
+        [jobId, parseInt(applicationId), useAppMilestones],
         lzOptions
-      ).send({
+      );
+      startMethod.send(buildWriteSendOptions(jobChainConfig, {
         from: walletAddress,
-        value: totalFee.toString(),
+        value: layerZeroFee,
         gas: 1000000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      })
+      }))
       .on('transactionHash', (srcTxHash) => {
+        if (isNativeArbitrum) {
+          setCrossChainSteps(null);
+          setTransactionStatus(`✅ Arbitrum start-job transaction submitted: ${srcTxHash}`);
+          return;
+        }
         const srcChainId = jobChainId;
         const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
         const circleLink = `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
@@ -686,7 +695,13 @@ export default function ViewReceivedApplication() {
         }).catch(err => console.warn('Backend notify failed (non-fatal):', err.message));
       })
       .on('receipt', () => {
-        setTransactionStatus(`✅ Step 2/3: Transaction confirmed. Waiting for cross-chain delivery...`);
+        if (isNativeArbitrum) {
+          setTransactionStatus(`🎉 Job started directly on Arbitrum! Redirecting...`);
+          setIsProcessing(false);
+          setTimeout(() => { window.location.href = `/job-deep-view/${jobId}`; }, 2000);
+        } else {
+          setTransactionStatus(`✅ Step 2/3: Transaction confirmed. Waiting for cross-chain delivery...`);
+        }
       })
       .on('error', (error) => {
         let msg = error.message;

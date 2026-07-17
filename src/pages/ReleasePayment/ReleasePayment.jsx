@@ -12,7 +12,12 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getChainConfig, extractChainIdFromJobId, getNativeChain, isMainnet, buildLzOptions, DESTINATION_GAS_ESTIMATES } from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
-import { getLOWJCContract } from "../../services/localChainService";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS, pollOnChainJobState, pollNowjcUSDCBalance } from "../../utils/crossChainMonitor";
 
@@ -351,6 +356,7 @@ export default function ReleasePayment() {
       
       const web3 = new Web3(window.ethereum);
       const lowjcContract = await getLOWJCContract(jobChainId);
+      const isNativeArbitrum = isNativeArbChain(jobChainId);
       
       // Get the amount to release - it's the current milestone amount
       let amount = "0";
@@ -358,56 +364,65 @@ export default function ReleasePayment() {
         amount = job.milestonePayments[job.currentMilestone - 1].amount.toString();
       }
       
-      // Build LZ options with appropriate destination gas for RELEASE_PAYMENT
-      const destGas = DESTINATION_GAS_ESTIMATES.RELEASE_PAYMENT;
-      const nativeOptions = buildLzOptions(destGas);
+      const nativeOptions = isNativeArbitrum
+        ? null
+        : buildLzOptions(DESTINATION_GAS_ESTIMATES.RELEASE_PAYMENT);
 
       // Get the applicant's preferred chain domain (fetched from NOWJC)
       const destinationDomain = job.applicantChainDomain || 2; // Default to Optimism if not set
 
-      // Get bridge contract for quoting
-      setTransactionStatus("💰 Getting LayerZero quote...");
-      const bridgeAddress = await lowjcContract.methods.bridge().call();
-      const bridgeABI = [{
-        "inputs": [
-          {"type": "bytes", "name": "_payload"},
-          {"type": "bytes", "name": "_options"}
-        ],
-        "name": "quoteNativeChain",
-        "outputs": [{"type": "uint256", "name": "fee"}],
-        "stateMutability": "view",
-        "type": "function"
-      }];
-      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        setTransactionStatus("💰 Getting LayerZero quote...");
+        const bridgeAddress = await lowjcContract.methods.bridge().call();
+        const bridgeABI = [{
+          "inputs": [
+            {"type": "bytes", "name": "_payload"},
+            {"type": "bytes", "name": "_options"}
+          ],
+          "name": "quoteNativeChain",
+          "outputs": [{"type": "uint256", "name": "fee"}],
+          "stateMutability": "view",
+          "type": "function"
+        }];
+        const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'uint256', 'uint32', 'address'],
+          ['releasePaymentCrossChain', walletAddress, jobId, amount, destinationDomain, job.selectedApplicant]
+        );
+        layerZeroFee = (await bridgeContract.methods
+          .quoteNativeChain(payload, nativeOptions)
+          .call()).toString();
 
-      // Encode payload for accurate quote
-      const payload = web3.eth.abi.encodeParameters(
-        ['string', 'string', 'address', 'uint32', 'address'],
-        ['releasePaymentCrossChain', jobId, walletAddress, destinationDomain, job.selectedApplicant]
-      );
-
-      // Get quote and add 30% buffer + 0.0003 ETH for CCTP fast-path fee
-      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, nativeOptions).call();
-      const lzFee = BigInt(quotedFee) * BigInt(130) / BigInt(100); // +30% buffer
-      const cctpBuffer = BigInt(web3.utils.toWei('0.0003', 'ether')); // CCTP sendFast fee
-      const totalFee = lzFee + cctpBuffer;
-
-      setTransactionStatus(`💰 Network fee: ~${parseFloat(web3.utils.fromWei(totalFee.toString(), 'ether')).toFixed(5)} ETH — Please confirm in MetaMask`);
+        const nativeSymbol = jobChainConfig.nativeCurrency?.symbol || 'ETH';
+        setTransactionStatus(`💰 Network fee: ~${parseFloat(web3.utils.fromWei(layerZeroFee, 'ether')).toFixed(5)} ${nativeSymbol} — Please confirm in MetaMask`);
+      } else {
+        setTransactionStatus(`Releasing payment directly through Arbitrum — Please confirm in MetaMask`);
+      }
 
       const gasPrice = await web3.eth.getGasPrice();
 
-      const releasePaymentTx = await lowjcContract.methods.releasePaymentCrossChain(
-        jobId,
-        destinationDomain,
-        job.selectedApplicant,
+      const releaseMethod = createLOWJCWrite(
+        lowjcContract,
+        jobChainConfig,
+        LOWJC_OPERATIONS.RELEASE_PAYMENT,
+        [jobId, destinationDomain, job.selectedApplicant],
         nativeOptions
-      ).send({
+      );
+      const releasePaymentTx = await releaseMethod.send(buildWriteSendOptions(jobChainConfig, {
         from: walletAddress,
-        value: totalFee.toString(),
+        value: layerZeroFee,
         gas: 800000,
-        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-        maxFeePerGas: gasPrice
-      });
+        gasPrice: gasPrice.toString()
+      }));
+
+      if (isNativeArbitrum) {
+        setPaymentStepState(null);
+        setTransactionStatus('🎉 Milestone release confirmed directly on Arbitrum! Reloading...');
+        setIsProcessing(false);
+        setTimeout(() => window.location.reload(), 2500);
+        return;
+      }
 
 
       // ── Client-side cross-chain monitoring (no backend needed) ────────────
@@ -691,6 +706,7 @@ export default function ReleasePayment() {
       const USDC_ADDRESS = jobChainConfig.contracts.usdc;
       const LOWJC_ADDRESS = jobChainConfig.contracts.lowjc;
       const web3 = new Web3(window.ethereum);
+      const isNativeArbitrum = isNativeArbChain(jobChainId);
 
       // Get next milestone amount from job data
       const nextMilestoneIndex = job.currentMilestone; // Already 0-indexed from contract
@@ -715,53 +731,61 @@ export default function ReleasePayment() {
       });
 
       
-      // Prepare LayerZero options and fee for lockNextMilestone
-      setTransactionStatus("🔒 Getting LayerZero quote...");
       const lowjcContract = await getLOWJCContract(jobChainId);
 
-      // Build LZ options with appropriate destination gas for LOCK_MILESTONE
-      const destGasLock = DESTINATION_GAS_ESTIMATES.LOCK_MILESTONE;
-      const nativeOptions = buildLzOptions(destGasLock);
-
-      // Get bridge contract for quoting
-      const bridgeAddressLock = await lowjcContract.methods.bridge().call();
-      const bridgeABILock = [{
-        "inputs": [
-          {"type": "bytes", "name": "_payload"},
-          {"type": "bytes", "name": "_options"}
-        ],
-        "name": "quoteNativeChain",
-        "outputs": [{"type": "uint256", "name": "fee"}],
-        "stateMutability": "view",
-        "type": "function"
-      }];
-      const bridgeContractLock = new web3.eth.Contract(bridgeABILock, bridgeAddressLock);
-
-      // Encode payload for accurate quote
-      const payloadLock = web3.eth.abi.encodeParameters(
-        ['string', 'string', 'address', 'uint256'],
-        ['lockNextMilestone', jobId, walletAddress, nextMilestoneAmount]
-      );
-
-      // Get quote and add 20% buffer
-      const quotedFeeLock = await bridgeContractLock.methods.quoteNativeChain(payloadLock, nativeOptions).call();
-      const lzFeeLock = BigInt(quotedFeeLock) * BigInt(130) / BigInt(100); // +30% buffer
+      const nativeOptions = isNativeArbitrum
+        ? null
+        : buildLzOptions(DESTINATION_GAS_ESTIMATES.LOCK_MILESTONE);
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        setTransactionStatus("🔒 Getting LayerZero quote...");
+        const bridgeAddressLock = await lowjcContract.methods.bridge().call();
+        const bridgeABILock = [{
+          "inputs": [
+            {"type": "bytes", "name": "_payload"},
+            {"type": "bytes", "name": "_options"}
+          ],
+          "name": "quoteNativeChain",
+          "outputs": [{"type": "uint256", "name": "fee"}],
+          "stateMutability": "view",
+          "type": "function"
+        }];
+        const bridgeContractLock = new web3.eth.Contract(bridgeABILock, bridgeAddressLock);
+        const payloadLock = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'uint256'],
+          ['lockNextMilestone', walletAddress, jobId, nextMilestoneAmount]
+        );
+        layerZeroFee = (await bridgeContractLock.methods
+          .quoteNativeChain(payloadLock, nativeOptions)
+          .call()).toString();
+      }
 
       setTransactionStatus("🔒 Locking milestone - Please confirm in MetaMask");
 
       // Get current gas price from network
       const gasPriceLock = await web3.eth.getGasPrice();
 
-      const lockTx = await lowjcContract.methods.lockNextMilestone(
-        jobId,
+      const lockMethod = createLOWJCWrite(
+        lowjcContract,
+        jobChainConfig,
+        LOWJC_OPERATIONS.LOCK_NEXT_MILESTONE,
+        [jobId],
         nativeOptions
-      ).send({
+      );
+      const lockTx = await lockMethod.send(buildWriteSendOptions(jobChainConfig, {
         from: walletAddress,
-        value: lzFeeLock.toString(),
+        value: layerZeroFee,
         gas: 600000,
-        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-        maxFeePerGas: gasPriceLock
-      });
+        gasPrice: gasPriceLock.toString()
+      }));
+
+      if (isNativeArbitrum) {
+        setPaymentStepState(null);
+        setTransactionStatus(`🔒 Milestone ${job.currentMilestone + 1} locked directly on Arbitrum! Reloading...`);
+        setIsLocking(false);
+        setTimeout(() => window.location.reload(), 2500);
+        return;
+      }
 
 
       // ── Client-side monitoring for lock milestone ─────────────────────────

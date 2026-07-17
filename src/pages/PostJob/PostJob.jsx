@@ -18,8 +18,13 @@ import FileUpload from "../../components/FileUpload/FileUpload";
 
 // Multi-chain support
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
-import { postJob as postJobMultiChain } from "../../services/localChainService";
+import { getLOWJCContract, getReadOnlyWeb3, isNativeArbChain } from "../../services/localChainService";
 import { getLocalChains, getNativeChain, isMainnet } from "../../config/chainConfig";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 
 // Cross-chain monitoring
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -115,8 +120,8 @@ export default function PostJob() {
           if (cleanChunk.length > 0) {
             const decoded = Web3.utils.hexToUtf8("0x" + cleanChunk);
             
-            // Match EID-jobNumber pattern (e.g., "30111-98", "30110-5")
-            // Mainnet EIDs: 30110 (ARB), 30111 (OP), 30101 (ETH), 30184 (BASE)
+            // Match EID-jobNumber pattern (e.g., "30111-98", "30365-5")
+            // Mainnet EIDs: 30110 (ARB), 30111 (OP), 30101 (ETH), 30184 (BASE), 30365 (XDC)
             // Testnet EIDs: 40161 (ETH Sepolia), 40232 (OP Sepolia), 40231 (ARB Sepolia)
             if (decoded.match(/^[34]0\d{3}-\d+$/)) { // 30xxx = mainnet, 40xxx = testnet
               return decoded;
@@ -457,63 +462,65 @@ export default function PostJob() {
           // Step 4: Prepare contract parameters - USE DETECTED CHAIN CONFIG
           const lowjcAddress = chainConfig.contracts.lowjc;
           const layerzeroOptions = chainConfig.layerzero.options;
+          const quoteWeb3 = getReadOnlyWeb3(chainId);
+          const isNativeArbitrum = isNativeArbChain(chainId);
           
-          const contract = new web3.eth.Contract(
-            JobContractABI,
-            lowjcAddress,
+          const contract = await getLOWJCContract(chainId);
+          const readContract = isNativeArbitrum
+            ? contract
+            : new quoteWeb3.eth.Contract(JobContractABI, lowjcAddress);
+          
+          // Native Arb IDs use chain ID; cross-chain IDs use the source LZ EID.
+          const jobCounter = await readContract.methods.getJobCount().call();
+          const jobIdPrefix = isNativeArbitrum ? chainId : chainConfig.layerzero.eid;
+          const predictedJobId = `${jobIdPrefix}-${Number(jobCounter) + 1}`;
+
+          let layerZeroFee;
+          if (isNativeArbitrum) {
+            setTransactionStatus("Posting directly on Arbitrum — Please confirm in MetaMask");
+          } else {
+            // Step 5: quote the exact cross-chain payload.
+            setTransactionStatus("Getting LayerZero fee quote...");
+            const bridgeAddress = await readContract.methods.bridge().call();
+            const bridgeABI = [{
+              "inputs": [
+                {"type": "bytes", "name": "_payload"},
+                {"type": "bytes", "name": "_options"}
+              ],
+              "name": "quoteNativeChain",
+              "outputs": [{"type": "uint256", "name": "fee"}],
+              "stateMutability": "view",
+              "type": "function"
+            }];
+            const bridgeContract = new quoteWeb3.eth.Contract(bridgeABI, bridgeAddress);
+            const payload = quoteWeb3.eth.abi.encodeParameters(
+              ['string', 'string', 'address', 'string', 'string[]', 'uint256[]'],
+              ['postJob', predictedJobId, fromAddress, jobDetailHash, milestoneHashes, milestoneAmounts]
+            );
+            layerZeroFee = (await bridgeContract.methods
+              .quoteNativeChain(payload, layerzeroOptions)
+              .call()).toString();
+
+            const feeNative = parseFloat(web3.utils.fromWei(layerZeroFee, 'ether')).toFixed(5);
+            const nativeSymbol = chainConfig.nativeCurrency?.symbol || 'ETH';
+            setTransactionStatus(`💰 Network fee: ~${feeNative} ${nativeSymbol} — Please confirm in MetaMask`);
+          }
+
+          const writeMethod = createLOWJCWrite(
+            contract,
+            chainConfig,
+            LOWJC_OPERATIONS.POST_JOB,
+            [jobDetailHash, milestoneHashes, milestoneAmounts],
+            layerzeroOptions
           );
 
-          // Step 5: Get LayerZero fee quote
-          setTransactionStatus("Getting LayerZero fee quote...");
-
-          const bridgeAddress = await contract.methods.bridge().call();
-
-          const bridgeABI = [{
-            "inputs": [
-              {"type": "bytes", "name": "_payload"},
-              {"type": "bytes", "name": "_options"}
-            ],
-            "name": "quoteNativeChain",
-            "outputs": [{"type": "uint256", "name": "fee"}],
-            "stateMutability": "view",
-            "type": "function"
-          }];
-          
-          const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-          
-          // Get current job count to predict next jobId - MUST USE LAYERZERO EID
-          const jobCounter = await contract.methods.getJobCount().call();
-          const layerZeroEid = chainConfig.layerzero.eid; // Get EID from chain config
-          const predictedJobId = `${layerZeroEid}-${Number(jobCounter) + 1}`; // Use LayerZero EID, not chain ID
-          
-          // Encode payload with predicted jobId
-          const payload = web3.eth.abi.encodeParameters(
-            ['string', 'string', 'address', 'string', 'string[]', 'uint256[]'],
-            ['postJob', predictedJobId, fromAddress, jobDetailHash, milestoneHashes, milestoneAmounts]
-          );
-          
-          const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, layerzeroOptions).call();
-          
-          // Dynamic fee from LayerZero quote — add +30% buffer for safety
-          const feeToUse = (BigInt(quotedFee) * BigInt(130) / BigInt(100)).toString();
-          
-          // Show fee estimate before MetaMask opens
-          const feeEth = parseFloat(web3.utils.fromWei(feeToUse, 'ether')).toFixed(5);
-          setTransactionStatus(`💰 Network fee: ~${feeEth} ETH — Please confirm in MetaMask`);
-          
-          contract.methods
-            .postJob(
-              jobDetailHash,
-              milestoneHashes,
-              milestoneAmounts,
-              layerzeroOptions,
-            )
-            .send({
+          writeMethod
+            .send(buildWriteSendOptions(chainConfig, {
               from: fromAddress,
-              value: feeToUse, // LZ quote + 30% buffer
+              value: layerZeroFee,
               gas: 600000,
-              gasPrice: await web3.eth.getGasPrice(),
-            })
+              gasPrice: await quoteWeb3.eth.getGasPrice(),
+            }))
             .on("receipt", function (receipt) {
               
               // First, try to extract job ID from JobPosted event
@@ -557,7 +564,9 @@ export default function PostJob() {
               }
               
               if (jobId) {
-                setTransactionStatus("✅ Job posted! Syncing to Arbitrum...");
+                setTransactionStatus(isNativeArbitrum
+                  ? "✅ Job posted directly on Arbitrum. Confirming indexed data..."
+                  : "✅ Job posted! Syncing to Arbitrum...");
                 setIsProcessing(false);
                 // pollForJobSync navigates once the job appears on-chain
                 pollForJobSync(jobId);
@@ -573,6 +582,12 @@ export default function PostJob() {
               setIsProcessing(false);
             })
             .on("transactionHash", function (hash) {
+              if (isNativeArbitrum) {
+                setLoadingT(false);
+                setCrossChainSteps(null);
+                setTransactionStatus(`✅ Arbitrum transaction submitted: ${hash}`);
+                return;
+              }
               // ── Show CrossChainStatus immediately on sign ──────────────
               // Don't wait for receipt — user sees the journey from the moment
               // they confirm in MetaMask, just like release/lock flows.
@@ -617,6 +632,7 @@ export default function PostJob() {
         }
       } catch (error) {
         console.error("Error in handleSubmit:", error);
+        setTransactionStatus(`❌ ${error?.message || "Unable to prepare the job transaction"}`);
         setLoadingT(false);
         setIsProcessing(false);
       }

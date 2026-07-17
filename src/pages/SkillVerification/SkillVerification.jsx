@@ -10,7 +10,12 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 import Warning from "../../components/Warning/Warning";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getNativeChain } from "../../config/chainConfig";
-import { getAthenaClientContract } from "../../services/localChainService";
+import { getAthenaClientContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  ATHENA_OPERATIONS,
+  buildWriteSendOptions,
+  createAthenaWrite,
+} from "../../services/contractWriteRouter";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -452,47 +457,48 @@ export default function SkillVerification() {
       );
 
       const athenaContract = await getAthenaClientContract(chainId);
-      const lzOptions = chainConfig.layerzero.options;
+      const isNativeArbitrum = isNativeArbChain(chainId);
+      const lzOptions = isNativeArbitrum ? null : chainConfig.layerzero.options;
       const gasPrice = await web3.eth.getGasPrice();
 
-      // Quote actual LayerZero fee from the contract
-      setTransactionStatus("Step 3/3: Getting LayerZero fee quote...");
-      const payload = web3.eth.abi.encodeParameters(
-        ['string', 'address', 'string', 'uint256', 'string'],
-        ['submitSkillVerification', walletAddress, applicationHash, feeInUnits, selectedOracle]
-      );
-      let lzFee;
-      try {
-        const quotedFee = await athenaContract.methods
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        setTransactionStatus("Step 3/3: Getting LayerZero fee quote...");
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'uint256', 'string'],
+          ['submitSkillVerification', walletAddress, applicationHash, feeInUnits, selectedOracle]
+        );
+        layerZeroFee = (await athenaContract.methods
           .quoteSingleChain("submitSkillVerification", payload, lzOptions)
-          .call();
-        // Add 20% buffer to quoted fee
-        lzFee = (BigInt(quotedFee) * BigInt(120) / BigInt(100)).toString();
-      } catch (quoteErr) {
-        console.warn("Fee quote failed, using fallback:", quoteErr.message);
-        lzFee = web3.utils.toWei("0.0005", "ether");
+          .call()).toString();
       }
 
       setTransactionStatus(
         `Step 3/3: Submitting skill verification on ${chainConfig.name} - Please confirm in MetaMask`
       );
 
-      const receipt = await athenaContract.methods
-        .submitSkillVerification(applicationHash, feeInUnits, selectedOracle, lzOptions)
-        .send({
+      const verificationMethod = createAthenaWrite(
+        athenaContract,
+        chainConfig,
+        ATHENA_OPERATIONS.SUBMIT_SKILL_VERIFICATION,
+        [applicationHash, feeInUnits, selectedOracle],
+        lzOptions
+      );
+      const receipt = await verificationMethod.send(buildWriteSendOptions(chainConfig, {
           from: walletAddress,
-          value: lzFee,
+          value: layerZeroFee,
           gas: 800000,
-          maxPriorityFeePerGas: web3.utils.toWei("0.001", "gwei"),
-          maxFeePerGas: gasPrice,
-        });
+          gasPrice: gasPrice.toString(),
+        }));
 
       if (!receipt || !receipt.transactionHash) {
         throw new Error("Skill verification transaction failed");
       }
 
       setTransactionStatus(
-        `Step 3/3: Skill verification submitted on ${chainConfig.name}! Syncing to Arbitrum...`
+        isNativeArbitrum
+          ? `Step 3/3: Skill verification confirmed directly on Arbitrum!`
+          : `Step 3/3: Skill verification submitted on ${chainConfig.name}! Syncing to Arbitrum...`
       );
       setLoadingT(false);
 

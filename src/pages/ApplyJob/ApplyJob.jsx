@@ -8,8 +8,13 @@ import RadioButton from "../../components/RadioButton/RadioButton";
 import Warning from "../../components/Warning/Warning";
 import FileUpload from "../../components/FileUpload/FileUpload";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
-import { getLOWJCContract } from "../../services/localChainService";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import { buildLzOptions, DESTINATION_GAS_ESTIMATES, getNativeChain, isMainnet } from "../../config/chainConfig";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import GenesisABI from "../../ABIs/genesis_ABI.json";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, STATUS } from "../../utils/crossChainMonitor";
@@ -251,38 +256,34 @@ export default function ApplyJob() {
       // Convert to USDC units (6 decimals)
       const amounts = milestones.map(m => Math.floor(m.amount * 1000000));
       
-      // Prepare LayerZero options and fee dynamically
-      setTransactionStatus("Getting LayerZero quote...");
       const web3 = new Web3(window.ethereum);
       const contract = await getLOWJCContract(chainId);
+      const isNativeArbitrum = isNativeArbChain(chainId);
 
-      // Build LZ options with appropriate destination gas for this operation
-      const destGas = DESTINATION_GAS_ESTIMATES.APPLY_JOB;
-      const lzOptions = buildLzOptions(destGas);
-
-      // Get bridge contract for quoting
-      const bridgeAddress = await contract.methods.bridge().call();
-      const bridgeABI = [{
-        "inputs": [
-          {"type": "bytes", "name": "_payload"},
-          {"type": "bytes", "name": "_options"}
-        ],
-        "name": "quoteNativeChain",
-        "outputs": [{"type": "uint256", "name": "fee"}],
-        "stateMutability": "view",
-        "type": "function"
-      }];
-      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-
-      // Encode payload for accurate quote
-      const payload = web3.eth.abi.encodeParameters(
-        ['string', 'string', 'address', 'string', 'string[]', 'uint256[]', 'uint32'],
-        ['applyToJob', jobId, walletAddress, applicationHash, milestoneHashes, amounts, chainConfig.cctpDomain]
-      );
-
-      // Get quote and add 20% buffer
-      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call();
-      const lzFee = BigInt(quotedFee) * BigInt(130) / BigInt(100); // +30% buffer
+      const lzOptions = isNativeArbitrum
+        ? null
+        : buildLzOptions(DESTINATION_GAS_ESTIMATES.APPLY_JOB);
+      let lzFee;
+      if (!isNativeArbitrum) {
+        setTransactionStatus("Getting LayerZero quote...");
+        const bridgeAddress = await contract.methods.bridge().call();
+        const bridgeABI = [{
+          "inputs": [
+            {"type": "bytes", "name": "_payload"},
+            {"type": "bytes", "name": "_options"}
+          ],
+          "name": "quoteNativeChain",
+          "outputs": [{"type": "uint256", "name": "fee"}],
+          "stateMutability": "view",
+          "type": "function"
+        }];
+        const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
+          ['applyToJob', walletAddress, jobId, applicationHash, milestoneHashes, amounts, chainConfig.cctpDomain]
+        );
+        lzFee = (await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call()).toString();
+      }
 
       // Get current application count before submitting (to detect when new one syncs)
       setTransactionStatus(`Checking current application count...`);
@@ -295,21 +296,27 @@ export default function ApplyJob() {
       setTransactionStatus(`Submitting application on ${chainConfig?.name}...`);
 
       // Submit application — event-based so CrossChainStatus shows on sign, not on mine
-      contract.methods.applyToJob(
-        jobId,
-        applicationHash,
-        milestoneHashes,
-        amounts,
-        chainConfig.cctpDomain,
+      const writeMethod = createLOWJCWrite(
+        contract,
+        chainConfig,
+        LOWJC_OPERATIONS.APPLY_TO_JOB,
+        [jobId, applicationHash, milestoneHashes, amounts, chainConfig.cctpDomain],
         lzOptions
-      ).send({
+      );
+      writeMethod.send(buildWriteSendOptions(chainConfig, {
         from: walletAddress,
-        value: lzFee.toString(),
+        value: lzFee,
         gas: 600000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      })
+      }))
       .on('transactionHash', (hash) => {
+        if (isNativeArbitrum) {
+          setLoadingT(false);
+          setCrossChainSteps(null);
+          setTransactionStatus(`✅ Arbitrum application submitted: ${hash}`);
+          return;
+        }
         // ── Show CrossChainStatus immediately on sign ──────────────
         const lzLink = `https://layerzeroscan.com/tx/${hash}`;
         setLoadingT(false);
@@ -334,7 +341,9 @@ export default function ApplyJob() {
         // ──────────────────────────────────────────────────────────
       })
       .on('receipt', () => {
-        setTransactionStatus(`✅ Application confirmed! Syncing to Arbitrum...`);
+        setTransactionStatus(isNativeArbitrum
+          ? `✅ Application confirmed directly on Arbitrum.`
+          : `✅ Application confirmed! Syncing to Arbitrum...`);
         // Detached — navigates once application count increases on Genesis
         pollForApplicationSync(jobId, expectedAppCount);
       })
