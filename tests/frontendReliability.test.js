@@ -11,6 +11,11 @@ function source(filename) {
   return fs.readFileSync(path.join(root, filename), 'utf8');
 }
 
+test('production preview has a default port and uses supported serve options', () => {
+  const packageJson = JSON.parse(source('package.json'));
+  assert.equal(packageJson.scripts.preview, 'serve -s dist -l ${PORT:-4173}');
+});
+
 test('legacy job views read from the active native-chain configuration', () => {
   for (const filename of [
     'src/pages/JobUpdate/JobUpdate.jsx',
@@ -28,7 +33,19 @@ test('legacy job views read from the active native-chain configuration', () => {
 test('job creation order is reversed without lexicographic ID sorting', () => {
   const contents = source('src/pages/BrowseJobs/BrowseJobs.jsx');
   assert.doesNotMatch(contents, /localeCompare/);
-  assert.match(contents, /validJobs\.reverse\(\)/);
+  assert.match(contents, /fallbackJobs\.reverse\(\)/);
+  assert.match(contents, /enrichedJobs\.reverse\(\)/);
+});
+
+test('job listings reject malformed IPFS identifiers without gateway retries', () => {
+  const contents = source('src/pages/BrowseJobs/BrowseJobs.jsx');
+
+  assert.match(contents, /isValidIPFSCid/);
+  assert.match(contents, /\^Qm\[1-9A-HJ-NP-Za-km-z\]\{44\}\$/);
+  assert.match(contents, /new AbortController\(\)/);
+  assert.match(contents, /if \(!isValidIPFSCid\(hash\)\) \{/);
+  assert.match(contents, /setJobs\(fallbackJobs\);\s*setLoading\(false\);/);
+  assert.match(contents, /ipfsRequests\.has\(hash\)/);
 });
 
 test('job views read profiles from Profile Genesis, not Job Genesis', () => {

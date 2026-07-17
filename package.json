@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node --test tests/*.test.js",
-    "preview": "serve ./dist -l $PORT --gzip -s"
+    "preview": "serve -s dist -l ${PORT:-4173}"
   },
   "keywords": [],
   "author": "",

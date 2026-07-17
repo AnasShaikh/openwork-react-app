@@ -27,53 +27,104 @@ function getArbitrumRpc() {
 
 // IPFS cache with 1-hour TTL
 const ipfsCache = new Map();
+const ipfsRequests = new Map();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
+const normalizeIPFSCid = (value) => String(value || "")
+    .trim()
+    .replace(/^ipfs:\/\//i, "")
+    .replace(/^\/?ipfs\//i, "");
+
+const isValidIPFSCid = (value) => (
+    /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(value)
+    || /^b[a-z2-7]{20,}$/.test(value)
+);
+
 // Multi-gateway IPFS fetch function with caching
-const fetchFromIPFS = async (hash, timeout = 5000) => {
+const fetchFromIPFS = async (rawHash, timeout = 5000) => {
+    const hash = normalizeIPFSCid(rawHash);
+    if (!isValidIPFSCid(hash)) {
+        return null;
+    }
+
     // Check cache first
     const cached = ipfsCache.get(hash);
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
         return cached.data;
     }
 
-    const gateways = [
-        `https://gateway.lighthouse.storage/ipfs/${hash}`,
-        `https://ipfs.io/ipfs/${hash}`,
-        `/api/ipfs/content/${hash}`,
-        `https://dweb.link/ipfs/${hash}`,
-        `https://w3s.link/ipfs/${hash}`
-    ];
-
-    const fetchWithTimeout = (url, timeout) => {
-        return Promise.race([
-            fetch(url),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout')), timeout)
-            )
-        ]);
-    };
-
-    for (const gateway of gateways) {
-        try {
-            const response = await fetchWithTimeout(gateway, timeout);
-            if (response.ok) {
-                const data = await response.json();
-                // Cache the result
-                ipfsCache.set(hash, {
-                    data,
-                    timestamp: Date.now()
-                });
-                console.log(`📦 Cached IPFS data for ${hash}`);
-                return data;
-            }
-        } catch (error) {
-            console.warn(`Failed to fetch from ${gateway}:`, error.message);
-            continue;
-        }
+    if (ipfsRequests.has(hash)) {
+        return ipfsRequests.get(hash);
     }
-    
-    throw new Error(`Failed to fetch ${hash} from all gateways`);
+
+    const request = (async () => {
+        const gateways = [
+            `https://gateway.lighthouse.storage/ipfs/${hash}`,
+            `https://ipfs.io/ipfs/${hash}`,
+            `/api/ipfs/content/${hash}`,
+            `https://dweb.link/ipfs/${hash}`,
+            `https://w3s.link/ipfs/${hash}`
+        ];
+
+        const fetchWithTimeout = async (url, requestTimeout) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), requestTimeout);
+            try {
+                return await fetch(url, { signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        };
+
+        for (const gateway of gateways) {
+            try {
+                const response = await fetchWithTimeout(gateway, timeout);
+                if (response.ok) {
+                    const data = await response.json();
+                    ipfsCache.set(hash, {
+                        data,
+                        timestamp: Date.now()
+                    });
+                    return data;
+                }
+            } catch (error) {
+                continue;
+            }
+        }
+
+        return null;
+    })();
+
+    ipfsRequests.set(hash, request);
+    try {
+        return await request;
+    } finally {
+        ipfsRequests.delete(hash);
+    }
+};
+
+const formatJob = (jobId, jobData, jobDetails = null, posterName = null) => {
+    const totalBudget = jobData.milestonePayments.reduce(
+        (sum, milestone) => sum + parseFloat(milestone.amount),
+        0,
+    );
+    const fallbackPosterName = `${jobData.jobGiver.slice(0, 6)}...${jobData.jobGiver.slice(-4)}`;
+    const skills = jobDetails?.skills || ["General"];
+
+    return {
+        id: jobId,
+        title: jobDetails?.title || `Job ${jobId}`,
+        postedBy: posterName || fallbackPosterName,
+        jobGiver: jobData.jobGiver,
+        skills: Array.isArray(skills) ? skills : [skills],
+        timeline: jobDetails?.timeline || "TBD",
+        budget: (totalBudget / 1000000).toFixed(2),
+        status: jobData.status,
+        milestoneCount: jobData.milestonePayments.length,
+        applicantCount: jobData.applicants.length,
+        rawJobData: jobData,
+        jobDetails,
+    };
 };
 
 export default function BrowseJobs() {
@@ -307,103 +358,51 @@ export default function BrowseJobs() {
                     return;
                 }
 
-                // Fetch detailed data for each job
-                const jobPromises = jobIds.map(async (jobId) => {
+                // Fetch authoritative on-chain data first so slow metadata gateways
+                // never block the ledger from rendering.
+                const jobRecords = (await Promise.all(jobIds.map(async (jobId) => {
                     try {
                         const jobData = await contract.methods
                             .getJob(jobId)
                             .call();
-
-                        // Fetch job poster profile
-                        let posterProfile = null;
-                        try {
-                            posterProfile = await profileContract.methods
-                                .getProfile(jobData.jobGiver)
-                                .call();
-                        } catch (profileError) {
-                            console.warn(
-                                `Profile not found for ${jobData.jobGiver}:`,
-                                profileError,
-                            );
-                        }
-
-                        // Fetch and parse IPFS data for job details with multi-gateway support
-                        let jobDetails = null;
-                        try {
-                            if (jobData.jobDetailHash) {
-                                jobDetails = await fetchFromIPFS(jobData.jobDetailHash);
-                            }
-                        } catch (ipfsError) {
-                            console.warn(
-                                `Failed to fetch IPFS data for job ${jobId}:`,
-                                ipfsError,
-                            );
-                        }
-
-                        // Calculate total budget from milestones
-                        const totalBudget = jobData.milestonePayments.reduce(
-                            (sum, milestone) => {
-                                return sum + parseFloat(milestone.amount);
-                            },
-                            0,
-                        );
-
-                        // Format budget (assuming USDT with 6 decimals)
-                        const formattedBudget = (totalBudget / 1000000).toFixed(
-                            2,
-                        );
-
-                        // Extract poster name (truncate address if no profile)
-                        let posterName =
-                            jobData.jobGiver.slice(0, 6) +
-                            "..." +
-                            jobData.jobGiver.slice(-4);
-                        if (posterProfile && posterProfile.ipfsHash) {
-                            try {
-                                const profileData = await fetchFromIPFS(posterProfile.ipfsHash);
-                                if (profileData) {
-                                    posterName = profileData.name || posterName;
-                                }
-                            } catch (profileError) {
-                                console.warn(
-                                    "Failed to fetch profile IPFS data:",
-                                    profileError,
-                                );
-                            }
-                        }
-
-                        // Extract skills and timeline from job details
-                        const skills = jobDetails?.skills || ["General"];
-                        const timeline = jobDetails?.timeline || "TBD";
-
-                        return {
-                            id: jobId,
-                            title: jobDetails?.title || `Job ${jobId}`,
-                            postedBy: posterName,
-                            jobGiver: jobData.jobGiver,
-                            skills: Array.isArray(skills) ? skills : [skills],
-                            timeline: timeline,
-                            budget: formattedBudget,
-                            status: jobData.status,
-                            milestoneCount: jobData.milestonePayments.length,
-                            applicantCount: jobData.applicants.length,
-                            rawJobData: jobData,
-                            jobDetails: jobDetails,
-                        };
+                        return { jobId, jobData };
                     } catch (jobError) {
                         console.error(`Error fetching job ${jobId}:`, jobError);
                         return null;
                     }
-                });
+                }))).filter((record) => record !== null);
 
-                const resolvedJobs = await Promise.all(jobPromises);
-                // Show all jobs that loaded successfully, even if IPFS data is unavailable
-                const validJobs = resolvedJobs.filter((job) => job !== null);
+                const fallbackJobs = jobRecords.map(({ jobId, jobData }) => formatJob(jobId, jobData));
+                fallbackJobs.reverse();
+                setJobs(fallbackJobs);
+                setLoading(false);
+
+                const profileRequests = new Map();
+                const getProfile = (address) => {
+                    const key = address.toLowerCase();
+                    if (!profileRequests.has(key)) {
+                        profileRequests.set(
+                            key,
+                            profileContract.methods.getProfile(address).call().catch(() => null),
+                        );
+                    }
+                    return profileRequests.get(key);
+                };
+
+                const enrichedJobs = await Promise.all(jobRecords.map(async ({ jobId, jobData }) => {
+                    const [jobDetails, posterProfile] = await Promise.all([
+                        fetchFromIPFS(jobData.jobDetailHash),
+                        getProfile(jobData.jobGiver),
+                    ]);
+                    const profileData = posterProfile?.ipfsHash
+                        ? await fetchFromIPFS(posterProfile.ipfsHash)
+                        : null;
+                    return formatJob(jobId, jobData, jobDetails, profileData?.name);
+                }));
 
                 // Promise.all preserves the Genesis creation order.
-                validJobs.reverse();
-
-                setJobs(validJobs);
+                enrichedJobs.reverse();
+                setJobs(enrichedJobs);
             } catch (error) {
                 console.error("Error fetching jobs:", error);
                 hasFetchedRef.current = false; // Allow retry on error
