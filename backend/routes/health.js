@@ -12,8 +12,8 @@ const fetch    = require('node-fetch');
 const { ethers } = require('ethers');
 const { requireConfiguredToken } = require('../middleware/security');
 
-const ARB_RPC  = process.env.ARBITRUM_RPC  || 'https://arb1.arbitrum.io/rpc';
-const OP_RPC   = process.env.OPTIMISM_RPC  || 'https://mainnet.optimism.io';
+const ARB_RPC  = process.env.ARBITRUM_RPC || process.env.ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+const OP_RPC   = process.env.OPTIMISM_RPC || process.env.OPTIMISM_MAINNET_RPC_URL || 'https://mainnet.optimism.io';
 // Derive service wallet address from private key so health always reflects actual signing wallet
 const _healthKey = process.env.WALL2_PRIVATE_KEY;
 const SERVICE_WALLET = _healthKey

@@ -1,6 +1,6 @@
 # OpenWork CCTP Backend Server
 
-Automated backend service for completing CCTP (Circle Cross-Chain Transfer Protocol) transfers in OpenWork's cross-chain job and payment flows.
+Automated backend service for completing CCTP (Circle Cross-Chain Transfer Protocol) transfers in OpenWork's cross-chain job and payment flows. Node.js 22.12 or newer is required.
 
 ## 🎯 Purpose
 
@@ -51,22 +51,25 @@ cp .env.example .env
 2. Edit `.env` and configure:
 
 ```env
-# RPC URLs (required)
-OP_SEPOLIA_RPC_URL=https://optimism-sepolia.infura.io/v3/YOUR_KEY
-ARBITRUM_SEPOLIA_RPC_URL=https://arbitrum-sepolia.infura.io/v3/YOUR_KEY
+# Runtime and RPC URLs (required)
+NETWORK_MODE=mainnet
+OPTIMISM_MAINNET_RPC_URL=https://mainnet.optimism.io
+ARBITRUM_MAINNET_RPC_URL=https://arb1.arbitrum.io/rpc
 
 # Service Wallet Private Key (required) - WITHOUT 0x prefix
 WALL2_PRIVATE_KEY=your_private_key_here
 
-# Contract addresses are pre-configured but can be overridden
-# LOWJC_CONTRACT_ADDRESS=0x896a3Bc6ED01f549Fe20bD1F25067951913b793C
-# NOWJC_CONTRACT_ADDRESS=0x9E39B37275854449782F1a2a4524405cE79d6C1e
-# CCTP_TRANSCEIVER_ADDRESS=0xB64f20A20F55D77bbe708Db107AA5E53a9e39063
-# MESSAGE_TRANSMITTER_ADDRESS=0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275
+# Independent operator secrets (required in production)
+OPS_API_TOKEN=replace_with_a_long_random_operator_token
+HEALTH_SECRET=replace_with_a_long_random_health_token
+ALLOWED_ORIGINS=https://app.openwork.technology
+ENABLE_MAINNET_TEST_ROUTES=false
+
+# Contract addresses and Circle endpoints are selected by NETWORK_MODE.
 ```
 
 ### Important Notes:
-- **Service Wallet (WALL2)**: Must have ETH on both OP Sepolia and Arbitrum Sepolia for gas fees
+- **Service Wallet (WALL2)**: Must have gas on every chain where the relayer submits transactions
 - **RPC URLs**: Use reliable providers (Infura, Alchemy, etc.) with high rate limits
 - **Private Key**: NEVER commit your `.env` file to git
 
@@ -89,25 +92,20 @@ The server will:
 
 ## 📊 Monitoring
 
-### Health Check
+### Lightweight liveness check
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:3001/healthz
 ```
 
-Returns:
-```json
-{
-  "status": "running",
-  "uptime": 3600,
-  "processingJobs": 2,
-  "completedJobs": 15,
-  "timestamp": "2025-10-12T10:30:00.000Z"
-}
+### Protected infrastructure health
+
+```bash
+curl -H "x-health-token: $HEALTH_SECRET" http://localhost:3001/api/health
 ```
 
 ### Stats
 ```bash
-curl http://localhost:3001/stats
+curl -H "x-ops-token: $OPS_API_TOKEN" http://localhost:3001/stats
 ```
 
 Returns current processing jobs and recent completions.
@@ -118,9 +116,7 @@ Returns current processing jobs and recent completions.
 
 1. **Setup server:**
 ```bash
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# Install Node.js 22.12 or newer using your platform's supported method
 
 # Clone and setup
 git clone <your-repo>
@@ -185,7 +181,7 @@ Deploy as a container or Node.js application. Minimum requirements:
 node -e "require('dotenv').config(); console.log(process.env.WALL2_PRIVATE_KEY ? 'OK' : 'MISSING')"
 
 # Test RPC connections
-curl -X POST $OP_SEPOLIA_RPC_URL \
+curl -X POST $OPTIMISM_MAINNET_RPC_URL \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
 ```

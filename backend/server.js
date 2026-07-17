@@ -167,8 +167,8 @@ app.get('/stats', requireOpsToken, (req, res) => {
     eventListenerActive,
     config: {
       nowjcAddress: config.NOWJC_ADDRESS,
-      cctpTransceiver: config.CCTP_TRANSCEIVER_ADDRESS,
-      messageTransmitter: config.MESSAGE_TRANSMITTER_ADDRESS
+      cctpTransceiver: config.CCTP_ARB_ADDRESS,
+      messageTransmitter: config.MESSAGE_TRANSMITTER_ARB
     }
   });
 });
