@@ -119,23 +119,28 @@ interface IOpenworkGenesis {
         uint256 fees;
     }
 
-    // NEW: Job struct support (Genesis struct fix)
+    struct MilestonePayment {
+        string descriptionHash;
+        uint256 amount;
+    }
+
+    // Must exactly match NativeOpenworkGenesis.Job for ABI decoding.
     struct Job {
         string id;
         address jobGiver;
         address[] applicants;
         string jobDetailHash;
-        uint8 status;
+        JobStatus status;
         string[] workSubmissions;
+        MilestonePayment[] milestonePayments;
+        MilestonePayment[] finalMilestones;
         uint256 totalPaid;
         uint256 currentMilestone;
         address selectedApplicant;
         uint256 selectedApplicationId;
-    }
-
-    struct MilestonePayment {
-        string descriptionHash;
-        uint256 amount;
+        uint32 paymentTargetChainDomain;
+        address paymentTargetAddress;
+        uint32 applierOriginChainDomain;
     }
 
     struct Application {
@@ -559,6 +564,13 @@ contract NativeAthena is
     /// @param disputeRaiser Address of the party raising the dispute
     function handleRaiseDispute(string memory jobId, string memory disputeHash, string memory oracleName, uint256 fee, uint256 disputedAmount, address disputeRaiser) external {
         require(msg.sender == bridge || authorizedContracts[msg.sender], "Not authorized");
+
+        IOpenworkGenesis.Job memory job = genesis.getJob(jobId);
+        require(bytes(job.id).length != 0, "Job not found");
+        require(job.status == IOpenworkGenesis.JobStatus.InProgress, "Job not in progress");
+        require(disputeRaiser == job.jobGiver || disputeRaiser == job.selectedApplicant, "Not a job party");
+        require(fee > 0, "Invalid fee");
+        require(disputedAmount > 0, "Invalid disputed amount");
 
         // NEW: Check if oracle is active before accepting dispute
         require(isOracleActive(oracleName), "Oracle inactive");
