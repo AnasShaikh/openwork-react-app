@@ -1,17 +1,40 @@
-## Running React on Replit
+# OpenWork Web App
 
-[React](https://reactjs.org/) is a popular JavaScript library for building user interfaces.
+Production web application and managed backend for the OpenWork multichain protocol.
 
-[Vite](https://vitejs.dev/) is a blazing fast frontend build tool that includes features like Hot Module Reloading (HMR), optimized builds, and TypeScript support out of the box.
+## Source of truth
 
-Using the two in conjunction is one of the fastest ways to build a web app.
+- `main` is the consolidated production branch.
+- [Current production release](docs/production-release-current.md) records the exact source commit, immutable image, deployment operation, verification, and rollback target.
+- [Chain configuration](src/config/chainConfig.js) is the frontend runtime manifest for Arbitrum, Optimism, XDC, and supported test networks.
+- Canonical smart-contract sources and deployment records live in [`openwork-contracts-final`](https://github.com/AnasShaikh/openwork-contracts-final).
 
-### Getting Started
-- Hit run
-- Edit [App.jsx](#src/App.jsx) and watch it live update!
+## Local verification
 
-By default, Replit runs the `dev` script, but you can configure it by changing the `run` field in the [configuration file](#.replit). Here are the vite docs for [serving production websites](https://vitejs.dev/guide/build.html)
+```sh
+npm ci
+npm test
+VITE_NETWORK_MODE=mainnet npm run build
+npm run preview
+```
 
-### Typescript
+The backend is verified separately:
 
-Just rename any file from `.jsx` to `.tsx`. You can also try our [TypeScript Template](https://replit.com/@replit/React-TypeScript)
+```sh
+cd backend
+npm ci
+npm test
+```
+
+Copy the relevant example environment files for local development. Never place service credentials, private keys, or backend secrets in `VITE_*` variables because Vite embeds those values in the browser bundle.
+
+## Production delivery
+
+Production uses an immutable CodeBuild → ECR → App Runner release flow. Each release must:
+
+1. Build a specific commit from `main`.
+2. Push a unique image tag to the `openwork-app` ECR repository.
+3. Update the existing `openwork-react-app-prod` App Runner service to that exact tag.
+4. Wait for the App Runner operation and `/health` check to succeed.
+5. Verify the public application without submitting wallet transactions.
+6. Update [the current release manifest](docs/production-release-current.md), preserving the previous image as the rollback target.
