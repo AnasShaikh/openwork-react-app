@@ -1,5 +1,12 @@
 import Web3 from 'web3';
 import ProfileGenesisABI from '../ABIs/profile-genesis_ABI.json';
+import { getLOWJCContract, isNativeArbChain } from './localChainService';
+import { getChainConfig } from '../config/chainConfig';
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from './contractWriteRouter';
 
 /**
  * Portfolio Service for blockchain and IPFS operations
@@ -168,119 +175,89 @@ export const fetchUserPortfolios = async (userAddress) => {
   }
 };
 
-/**
- * Add a new portfolio item to blockchain
- */
+async function sendPortfolioWrite(walletAddress, operation, args, payloadTypes, payloadValues) {
+  const web3 = new Web3(window.ethereum);
+  const chainId = Number(await web3.eth.getChainId());
+  const chainConfig = getChainConfig(chainId);
+  if (!chainConfig?.allowed) {
+    throw new Error(`Portfolio writes are not available on chain ${chainId}`);
+  }
+
+  const lowjcContract = await getLOWJCContract(chainId);
+  const isNativeArbitrum = isNativeArbChain(chainId);
+  const lzOptions = isNativeArbitrum ? null : chainConfig.layerzero?.options;
+  let layerZeroFee;
+
+  if (!isNativeArbitrum) {
+    if (!lzOptions) throw new Error(`LayerZero options are not configured for ${chainConfig.name}`);
+    const bridgeAddress = await lowjcContract.methods.bridge().call();
+    const bridgeContract = new web3.eth.Contract([{
+      inputs: [{ type: 'bytes' }, { type: 'bytes' }],
+      name: 'quoteNativeChain',
+      outputs: [{ type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function'
+    }], bridgeAddress);
+    const payload = web3.eth.abi.encodeParameters(payloadTypes, payloadValues);
+    layerZeroFee = (await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call()).toString();
+  }
+
+  const gasPrice = await web3.eth.getGasPrice();
+  const method = createLOWJCWrite(lowjcContract, chainConfig, operation, args, lzOptions);
+  const estimateOptions = buildWriteSendOptions(chainConfig, {
+    from: walletAddress,
+    value: layerZeroFee,
+    gasPrice,
+  });
+  const gasEstimate = await method.estimateGas(estimateOptions);
+  return method.send({
+    ...estimateOptions,
+    gas: Math.floor(Number(gasEstimate) * 1.2),
+  });
+}
+
+/** Add a new portfolio item to the connected write chain. */
 export const addPortfolioToBlockchain = async (walletAddress, portfolioHash) => {
   try {
-    const web3 = new Web3(window.ethereum);
-
-    // Get LOWJC contract
-    const lowjcAddress = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS;
-    const LOWJCABI = (await import('../ABIs/lowjc_ABI.json')).default;
-    const lowjcContract = new web3.eth.Contract(LOWJCABI, lowjcAddress);
-
-    // Get LayerZero options from env
-    const lzOptions = import.meta.env.VITE_LAYERZERO_OPTIONS_VALUE || '0x000301001101000000000000000000000000000F4240';
-
-    // Estimate gas for the transaction
-    const gasEstimate = await lowjcContract.methods.addPortfolio(
-      portfolioHash,
-      lzOptions
-    ).estimateGas({ from: walletAddress, value: web3.utils.toWei('0.01', 'ether') });
-
-    // Send transaction with estimated gas (convert BigInt properly)
-    const gasWithBuffer = Math.floor(Number(gasEstimate) * 1.2);
-    const tx = await lowjcContract.methods.addPortfolio(
-      portfolioHash,
-      lzOptions
-    ).send({
-      from: walletAddress,
-      value: web3.utils.toWei('0.01', 'ether'), // LayerZero fee
-      gas: gasWithBuffer
-    });
-
-    return tx;
+    return await sendPortfolioWrite(
+      walletAddress,
+      LOWJC_OPERATIONS.ADD_PORTFOLIO,
+      [portfolioHash],
+      ['string', 'address', 'string'],
+      ['addPortfolio', walletAddress, portfolioHash]
+    );
   } catch (error) {
     console.error('Error adding portfolio to blockchain:', error);
     throw error;
   }
 };
 
-/**
- * Update an existing portfolio item on blockchain
- */
+/** Update an existing portfolio item on the connected write chain. */
 export const updatePortfolioOnBlockchain = async (walletAddress, index, newPortfolioHash) => {
   try {
-    const web3 = new Web3(window.ethereum);
-
-    // Get LOWJC contract
-    const lowjcAddress = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS;
-    const LOWJCABI = (await import('../ABIs/lowjc_ABI.json')).default;
-    const lowjcContract = new web3.eth.Contract(LOWJCABI, lowjcAddress);
-
-    // Get LayerZero options from env
-    const lzOptions = import.meta.env.VITE_LAYERZERO_OPTIONS_VALUE || '0x000301001101000000000000000000000000000F4240';
-
-    // Estimate gas for the transaction
-    const gasEstimate = await lowjcContract.methods.updatePortfolioItem(
-      index,
-      newPortfolioHash,
-      lzOptions
-    ).estimateGas({ from: walletAddress, value: web3.utils.toWei('0.01', 'ether') });
-
-    // Send transaction (convert BigInt properly)
-    const gasWithBuffer = Math.floor(Number(gasEstimate) * 1.2);
-    const tx = await lowjcContract.methods.updatePortfolioItem(
-      index,
-      newPortfolioHash,
-      lzOptions
-    ).send({
-      from: walletAddress,
-      value: web3.utils.toWei('0.01', 'ether'), // LayerZero fee
-      gas: gasWithBuffer
-    });
-
-    return tx;
+    return await sendPortfolioWrite(
+      walletAddress,
+      LOWJC_OPERATIONS.UPDATE_PORTFOLIO,
+      [index, newPortfolioHash],
+      ['string', 'address', 'uint256', 'string'],
+      ['updatePortfolioItem', walletAddress, index, newPortfolioHash]
+    );
   } catch (error) {
     console.error('Error updating portfolio on blockchain:', error);
     throw error;
   }
 };
 
-/**
- * Delete a portfolio item from blockchain
- */
+/** Delete a portfolio item from the connected write chain. */
 export const deletePortfolioFromBlockchain = async (walletAddress, index) => {
   try {
-    const web3 = new Web3(window.ethereum);
-
-    // Get LOWJC contract
-    const lowjcAddress = import.meta.env.VITE_LOWJC_CONTRACT_ADDRESS;
-    const LOWJCABI = (await import('../ABIs/lowjc_ABI.json')).default;
-    const lowjcContract = new web3.eth.Contract(LOWJCABI, lowjcAddress);
-
-    // Get LayerZero options from env
-    const lzOptions = import.meta.env.VITE_LAYERZERO_OPTIONS_VALUE || '0x000301001101000000000000000000000000000F4240';
-
-    // Estimate gas for the transaction
-    const gasEstimate = await lowjcContract.methods.removePortfolioItem(
-      index,
-      lzOptions
-    ).estimateGas({ from: walletAddress, value: web3.utils.toWei('0.01', 'ether') });
-
-    // Send transaction (convert BigInt properly)
-    const gasWithBuffer = Math.floor(Number(gasEstimate) * 1.2);
-    const tx = await lowjcContract.methods.removePortfolioItem(
-      index,
-      lzOptions
-    ).send({
-      from: walletAddress,
-      value: web3.utils.toWei('0.01', 'ether'), // LayerZero fee
-      gas: gasWithBuffer
-    });
-
-    return tx;
+    return await sendPortfolioWrite(
+      walletAddress,
+      LOWJC_OPERATIONS.REMOVE_PORTFOLIO,
+      [index],
+      ['string', 'address', 'uint256'],
+      ['removePortfolioItem', walletAddress, index]
+    );
   } catch (error) {
     console.error('Error deleting portfolio from blockchain:', error);
     throw error;

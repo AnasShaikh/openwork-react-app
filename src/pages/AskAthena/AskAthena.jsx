@@ -10,7 +10,12 @@ import Warning from "../../components/Warning/Warning";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { getNativeChain } from "../../config/chainConfig";
-import { getAthenaClientContract } from "../../services/localChainService";
+import { getAthenaClientContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  ATHENA_OPERATIONS,
+  buildWriteSendOptions,
+  createAthenaWrite,
+} from "../../services/contractWriteRouter";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -414,41 +419,39 @@ export default function AskAthena() {
       );
 
       const athenaContract = await getAthenaClientContract(chainId);
-      const lzOptions = chainConfig.layerzero.options;
+      const isNativeArbitrum = isNativeArbChain(chainId);
+      const lzOptions = isNativeArbitrum ? null : chainConfig.layerzero.options;
       const gasPrice = await web3.eth.getGasPrice();
 
-      // Quote actual LayerZero fee
-      setTransactionStatus("Step 3/3: Getting LayerZero fee quote...");
-      const payload = web3.eth.abi.encodeParameters(
-        ['string', 'address', 'string', 'string', 'uint256', 'string'],
-        ['askAthena', walletAddress, description, applicationHash, feeInUnits, selectedOracle]
-      );
-      let lzFee;
-      try {
-        const quotedFee = await athenaContract.methods
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        setTransactionStatus("Step 3/3: Getting LayerZero fee quote...");
+        const payload = web3.eth.abi.encodeParameters(
+          ['string', 'address', 'string', 'string', 'string', 'string'],
+          ['askAthena', walletAddress, description, applicationHash, selectedOracle, feeInUnits.toString()]
+        );
+        layerZeroFee = (await athenaContract.methods
           .quoteSingleChain("askAthena", payload, lzOptions)
-          .call();
-        lzFee = (BigInt(quotedFee) * BigInt(120) / BigInt(100)).toString();
-        console.log(`LayerZero quoted fee: ${web3.utils.fromWei(quotedFee, 'ether')} ETH (+20% buffer)`);
-      } catch (quoteErr) {
-        console.warn("Fee quote failed, using fallback:", quoteErr.message);
-        lzFee = web3.utils.toWei("0.0005", "ether");
+          .call()).toString();
       }
 
       setTransactionStatus(
         `Step 3/3: Submitting Ask Athena on ${chainConfig.name} - Please confirm in MetaMask`
       );
 
-      // askAthena(string description, string hash, string targetOracle, uint256 feeAmount, bytes nativeOptions)
-      const receipt = await athenaContract.methods
-        .askAthena(description, applicationHash, selectedOracle, feeInUnits, lzOptions)
-        .send({
+      const askMethod = createAthenaWrite(
+        athenaContract,
+        chainConfig,
+        ATHENA_OPERATIONS.ASK_ATHENA,
+        [description, applicationHash, selectedOracle, feeInUnits],
+        lzOptions
+      );
+      const receipt = await askMethod.send(buildWriteSendOptions(chainConfig, {
           from: walletAddress,
-          value: lzFee,
+          value: layerZeroFee,
           gas: 800000,
-          maxPriorityFeePerGas: web3.utils.toWei("0.001", "gwei"),
-          maxFeePerGas: gasPrice,
-        });
+          gasPrice: gasPrice.toString(),
+        }));
 
       if (!receipt || !receipt.transactionHash) {
         throw new Error("Ask Athena transaction failed");
@@ -456,7 +459,9 @@ export default function AskAthena() {
 
       console.log(`Ask Athena submitted on ${chainConfig.name}!`, receipt.transactionHash);
       setTransactionStatus(
-        `Step 3/3: Ask Athena submitted on ${chainConfig.name}! Syncing to Arbitrum...`
+        isNativeArbitrum
+          ? `Step 3/3: Ask Athena confirmed directly on Arbitrum!`
+          : `Step 3/3: Ask Athena submitted on ${chainConfig.name}! Syncing to Arbitrum...`
       );
       setLoadingT(false);
 

@@ -15,7 +15,12 @@ import Warning from "../../components/Warning/Warning";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getChainConfig, getNativeChain } from "../../config/chainConfig";
-import { getAthenaClientContract } from "../../services/localChainService";
+import { getAthenaClientContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  ATHENA_OPERATIONS,
+  buildWriteSendOptions,
+  createAthenaWrite,
+} from "../../services/contractWriteRouter";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS, explorerTxUrl } from "../../utils/crossChainMonitor";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -535,42 +540,49 @@ export default function RaiseDispute() {
       // ============ STEP 3: RAISE DISPUTE ON CHAIN ============
       setTransactionStatus(`🔧 Step 3/3: Raising dispute on ${chainConfig.name} — Please confirm in MetaMask`);
       const athenaContract = await getAthenaClientContract(chainId);
-      const lzOptions = chainConfig.layerzero.options;
+      const isNativeArbitrum = isNativeArbChain(chainId);
+      const lzOptions = isNativeArbitrum ? null : chainConfig.layerzero.options;
       const gasPrice = await web3.eth.getGasPrice();
 
       // Snapshot current counter so poll can detect the new dispute
       const baseDisputeCount = await getDisputeCounterOnArbitrum(jobId);
 
-      // Quote LZ fee from contract, add 20% buffer
-      let lzFee;
-      try {
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        // Quote the exact payload used by AthenaClient. This is important on XDC,
+        // where the native fee is denominated in XDC rather than ETH.
+        setTransactionStatus(`🔧 Step 3/3: Getting LayerZero fee quote on ${chainConfig.name}...`);
         const payload = web3.eth.abi.encodeParameters(
-          ['string', 'string', 'string', 'uint256', 'uint256'],
-          [jobId, disputeHash, selectedOracle, compensationAmount, disputedAmountUnits]
+          ['string', 'string', 'string', 'string', 'uint256', 'uint256', 'address'],
+          ['raiseDispute', jobId, disputeHash, selectedOracle, compensationAmount, disputedAmountUnits, walletAddress]
         );
-        const quoted = await athenaContract.methods.quoteSingleChain(jobId, payload, lzOptions).call();
-        lzFee = BigInt(quoted) * BigInt(120) / BigInt(100); // +20% buffer
-      } catch (quoteErr) {
-        console.warn('quoteSingleChain failed, falling back to 0.001 ETH:', quoteErr.message);
-        lzFee = BigInt(web3.utils.toWei("0.001", "ether"));
+        layerZeroFee = (await athenaContract.methods
+          .quoteSingleChain('raiseDispute', payload, lzOptions)
+          .call()).toString();
       }
 
       // ── Event-based tx: CrossChainStatus appears immediately on sign ──────
-      athenaContract.methods.raiseDispute(
-        jobId,
-        disputeHash,
-        selectedOracle,
-        compensationAmount,
-        disputedAmountUnits,
+      const disputeMethod = createAthenaWrite(
+        athenaContract,
+        chainConfig,
+        ATHENA_OPERATIONS.RAISE_DISPUTE,
+        [jobId, disputeHash, selectedOracle, compensationAmount, disputedAmountUnits],
         lzOptions
-      ).send({
+      );
+      disputeMethod.send(buildWriteSendOptions(chainConfig, {
         from: walletAddress,
-        value: lzFee.toString(),
+        value: layerZeroFee,
         gas: 800000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      })
+      }))
       .on('transactionHash', (srcTxHash) => {
+        if (isNativeArbitrum) {
+          setLoadingT(false);
+          setCrossChainSteps(null);
+          setTransactionStatus(`✅ Arbitrum dispute transaction submitted: ${srcTxHash}`);
+          return;
+        }
         const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
         const circleLink = `https://iris-api.circle.com/v2/messages/${chainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
 
@@ -634,7 +646,13 @@ export default function RaiseDispute() {
         pollForDisputeSync(jobId, baseDisputeCount);
       })
       .on('receipt', () => {
-        setTransactionStatus(`✅ Dispute confirmed on ${chainConfig.name}. Waiting for cross-chain delivery...`);
+        if (isNativeArbitrum) {
+          setTransactionStatus(`✅ Dispute confirmed directly on Arbitrum.`);
+          setLoadingT(false);
+          pollForDisputeSync(jobId, baseDisputeCount);
+        } else {
+          setTransactionStatus(`✅ Dispute confirmed on ${chainConfig.name}. Waiting for cross-chain delivery...`);
+        }
       })
       .on('error', (error) => {
         let msg = error.message;

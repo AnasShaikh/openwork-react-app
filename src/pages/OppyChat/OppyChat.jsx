@@ -10,7 +10,6 @@ import {
   startJob,
   submitWork,
   releasePaymentCrossChain,
-  raiseDispute,
   createProfile,
   approveUSDC,
   getContractAddress,
@@ -50,6 +49,7 @@ function TransactionCard({ tool, onConfirm, onCancel }) {
     if (!window.ethereum) return `https://arbiscan.io/tx/${hash}`;
     const chainId = parseInt(window.ethereum.chainId, 16);
     const base = chainId === 10 ? 'https://optimistic.etherscan.io/tx/' :
+                 chainId === 50 ? 'https://xdcscan.com/tx/' :
                  chainId === 8453 ? 'https://basescan.org/tx/' :
                  chainId === 1 ? 'https://etherscan.io/tx/' :
                  'https://arbiscan.io/tx/';
@@ -343,6 +343,7 @@ const OppyChat = () => {
       const explorerBase =
         chainIdDecimal === 42161 ? 'https://arbiscan.io/tx/' :
         chainIdDecimal === 10    ? 'https://optimistic.etherscan.io/tx/' :
+        chainIdDecimal === 50    ? 'https://xdcscan.com/tx/' :
         chainIdDecimal === 8453  ? 'https://basescan.org/tx/' :
                                    'https://etherscan.io/tx/';
 
@@ -516,21 +517,21 @@ const OppyChat = () => {
         }
 
         case 'raiseDispute': {
-          addBotMessage('Uploading dispute details to IPFS…');
-          const disputeHash = await uploadToIPFS({ reason: tool.params.reason, jobId: tool.params.jobId });
-          result = await raiseDispute(chainIdDecimal, userAddress, {
-            jobId: tool.params.jobId,
-            disputeHash,
-            reason: tool.params.reason,
-          }, onStatus);
-          break;
+          addBotMessage('Opening the dispute form so you can choose the oracle, fee, amount, and evidence…');
+          setTimeout(() => navigate(`/raise-dispute/${tool.params.jobId}`), 1200);
+          return;
         }
 
         case 'createProfile': {
-          result = await createProfile(chainIdDecimal, userAddress, {
+          addBotMessage('Uploading your profile to IPFS…');
+          const ipfsHash = await uploadToIPFS({
             name: tool.params.name,
             skills: tool.params.skills,
             hourlyRate: tool.params.hourlyRate,
+            walletAddress: userAddress,
+          });
+          result = await createProfile(chainIdDecimal, userAddress, {
+            ipfsHash,
           }, onStatus);
           break;
         }

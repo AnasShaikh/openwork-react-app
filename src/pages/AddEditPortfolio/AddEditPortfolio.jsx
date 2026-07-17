@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import Web3 from "web3";
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { 
@@ -10,7 +11,12 @@ import Button from "../../components/Button/Button";
 import Warning from "../../components/Warning/Warning";
 import "./AddEditPortfolio.css";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
-import { getLOWJCContract } from "../../services/localChainService";
+import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  LOWJC_OPERATIONS,
+  buildWriteSendOptions,
+  createLOWJCWrite,
+} from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, STATUS } from "../../utils/crossChainMonitor";
 
@@ -147,59 +153,49 @@ export default function AddEditPortfolio() {
       // Get contract and LayerZero options
       const web3 = new Web3(window.ethereum);
       const lowjcContract = await getLOWJCContract(chainId);
+      const isNativeArbitrum = isNativeArbChain(chainId);
       const lzOptions = chainConfig.layerzero.options;
+      let quotedFee;
 
-      // Get LayerZero fee
-      setTransactionStatus(`💰 Getting LayerZero fee quote on ${chainConfig.name}...`);
-      const bridgeAddress = await lowjcContract.methods.bridge().call();
-      const bridgeABI = [{
-        "inputs": [{"type": "bytes"}, {"type": "bytes"}],
-        "name": "quoteNativeChain",
-        "outputs": [{"type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-      }];
-      
-      const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-      
-      const payload = isEditMode
-        ? web3.eth.abi.encodeParameters(
-            ['string', 'address', 'uint256', 'string'],
-            ['updatePortfolioItem', walletAddress, parseInt(id), portfolioHash]
-          )
-        : web3.eth.abi.encodeParameters(
-            ['string', 'address', 'string'],
-            ['addPortfolio', walletAddress, portfolioHash]
-          );
-      
-      const quotedFee = await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call();
-      console.log(`💰 LayerZero fee: ${web3.utils.fromWei(quotedFee, 'ether')} ETH`);
+      if (!isNativeArbitrum) {
+        setTransactionStatus(`💰 Getting LayerZero fee quote on ${chainConfig.name}...`);
+        const bridgeAddress = await lowjcContract.methods.bridge().call();
+        const bridgeABI = [{
+          "inputs": [{"type": "bytes"}, {"type": "bytes"}],
+          "name": "quoteNativeChain",
+          "outputs": [{"type": "uint256"}],
+          "stateMutability": "view",
+          "type": "function"
+        }];
+        const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
+        const payload = isEditMode
+          ? web3.eth.abi.encodeParameters(
+              ['string', 'address', 'uint256', 'string'],
+              ['updatePortfolioItem', walletAddress, parseInt(id), portfolioHash]
+            )
+          : web3.eth.abi.encodeParameters(
+              ['string', 'address', 'string'],
+              ['addPortfolio', walletAddress, portfolioHash]
+            );
+        quotedFee = (await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call()).toString();
+      }
 
-      // Call contract
-      if (isEditMode) {
-        setTransactionStatus(`Updating portfolio on ${chainConfig.name}...`);
-        await lowjcContract.methods
-          .updatePortfolioItem(parseInt(id), portfolioHash, lzOptions)
-          .send({ 
-            from: walletAddress,
-            value: quotedFee,
-            gas: 5000000
-          });
-        setTransactionStatus(`✅ Portfolio updated on ${chainConfig.name}!`);
-        const srcTx = receipt.transactionHash;
-        const lzLink = `https://layerzeroscan.com/tx/${srcTx}`;
-        setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: 'active', lzLink }));
-        monitorLZMessage(srcTx, (u) => setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: u.status === STATUS.SUCCESS ? 'delivered' : u.status === STATUS.FAILED ? 'failed' : 'active', lzLink: u.lzLink || lzLink, dstTxHash: u.dstTxHash, dstChainId: 42161 })));
+      const operation = isEditMode
+        ? LOWJC_OPERATIONS.UPDATE_PORTFOLIO
+        : LOWJC_OPERATIONS.ADD_PORTFOLIO;
+      const args = isEditMode ? [parseInt(id), portfolioHash] : [portfolioHash];
+      setTransactionStatus(`${isEditMode ? 'Updating' : 'Adding'} portfolio on ${chainConfig.name}...`);
+      const writeMethod = createLOWJCWrite(lowjcContract, chainConfig, operation, args, lzOptions);
+      const receipt = await writeMethod.send(buildWriteSendOptions(chainConfig, {
+        from: walletAddress,
+        value: quotedFee,
+        gas: 5000000
+      }));
+      setTransactionStatus(`✅ Portfolio ${isEditMode ? 'updated' : 'added'} on ${chainConfig.name}!`);
+
+      if (isNativeArbitrum) {
+        setCrossChainSteps(null);
       } else {
-        setTransactionStatus(`Adding portfolio on ${chainConfig.name}...`);
-        await lowjcContract.methods
-          .addPortfolio(portfolioHash, lzOptions)
-          .send({ 
-            from: walletAddress,
-            value: quotedFee,
-            gas: 5000000
-          });
-        setTransactionStatus(`✅ Portfolio added on ${chainConfig.name}!`);
         const srcTx = receipt.transactionHash;
         const lzLink = `https://layerzeroscan.com/tx/${srcTx}`;
         setCrossChainSteps(buildLZSteps({ sourceTxHash: srcTx, sourceChainId: chainConfig?.chainId, lzStatus: 'active', lzLink }));

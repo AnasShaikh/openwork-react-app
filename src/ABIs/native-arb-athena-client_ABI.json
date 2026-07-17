@@ -1,0 +1,83 @@
+[
+  {
+    "type": "function",
+    "name": "askAthena",
+    "inputs": [
+      { "name": "_description", "type": "string", "internalType": "string" },
+      { "name": "_hash", "type": "string", "internalType": "string" },
+      { "name": "_targetOracle", "type": "string", "internalType": "string" },
+      { "name": "_feeAmount", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isCallerInvolvedInJob",
+    "inputs": [
+      { "name": "_jobId", "type": "string", "internalType": "string" },
+      { "name": "_caller", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "jobContract",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract ILocalOpenWorkJobContract" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "jobDisputeExists",
+    "inputs": [{ "name": "", "type": "string", "internalType": "string" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minDisputeFee",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "nativeAthena",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract INativeAthena" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "raiseDispute",
+    "inputs": [
+      { "name": "_jobId", "type": "string", "internalType": "string" },
+      { "name": "_disputeHash", "type": "string", "internalType": "string" },
+      { "name": "_oracleName", "type": "string", "internalType": "string" },
+      { "name": "_feeAmount", "type": "uint256", "internalType": "uint256" },
+      { "name": "_disputedAmount", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "submitSkillVerification",
+    "inputs": [
+      { "name": "_applicationHash", "type": "string", "internalType": "string" },
+      { "name": "_feeAmount", "type": "uint256", "internalType": "uint256" },
+      { "name": "_targetOracleName", "type": "string", "internalType": "string" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "usdcToken",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract IERC20" }],
+    "stateMutability": "view"
+  }
+]

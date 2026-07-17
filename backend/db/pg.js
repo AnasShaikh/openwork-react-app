@@ -1,18 +1,22 @@
 const { Pool } = require('pg');
 
-// Detect Cloud Run environment
-const isCloudRun = !!process.env.K_SERVICE;
+const LOCAL_DB_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 
-// Support DATABASE_URL (Neon, Supabase, etc.) OR individual host/user/pass vars
+// Support DATABASE_URL (Neon, Supabase, etc.) or individual host/user/password vars.
+// In managed runtimes, localhost is the app container rather than a database.
+const isCloudRun = !!process.env.K_SERVICE;
+const isAppRunner = !!process.env.AWS_APPRUNNER_SERVICE_ID || process.env.OPENWORK_MANAGED_RUNTIME === 'true';
+const isManagedRuntime = isCloudRun || isAppRunner;
+const dbHost = process.env.DB_HOST;
 const hasDatabaseUrl = !!process.env.DATABASE_URL;
-const dbConfigured = hasDatabaseUrl || !isCloudRun || !!process.env.DB_HOST;
+const dbConfigured = hasDatabaseUrl || !isManagedRuntime || (!!dbHost && !LOCAL_DB_HOSTS.has(dbHost));
 
 let pool;
 
 if (!dbConfigured) {
   // Return a stub that rejects immediately — startServer catches this gracefully
-  const reject = () => Promise.reject(new Error('No DB configured (set DATABASE_URL or DB_HOST in Cloud Run)'));
-  pool = { query: reject, connect: reject, on: () => {} };
+  const reject = () => Promise.reject(new Error('No external database configured for managed runtime'));
+  pool = { query: reject, connect: reject, end: () => Promise.resolve(), on: () => {} };
 } else {
   const poolConfig = hasDatabaseUrl
     ? {
@@ -21,12 +25,12 @@ if (!dbConfigured) {
           ? { rejectUnauthorized: false }
           : false,
       }
-    : isCloudRun
+    : isManagedRuntime
     ? {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
-        host: process.env.DB_HOST,
+        host: dbHost,
       }
     : {
         user: process.env.DB_USER || 'postgres',
