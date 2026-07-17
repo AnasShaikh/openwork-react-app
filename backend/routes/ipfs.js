@@ -3,9 +3,29 @@ const router = express.Router();
 const multer = require('multer');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
+const { createRateLimiter } = require('../middleware/security');
 
 // Configure multer for memory storage
-const upload = multer({ storage: multer.memoryStorage() });
+const MAX_IPFS_BYTES = 10 * 1024 * 1024;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IPFS_BYTES, files: 1 },
+});
+const uploadRateLimit = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many IPFS uploads',
+});
+
+function receiveSingleFile(req, res, next) {
+  upload.single('file')(req, res, (error) => {
+    if (error?.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ success: false, error: 'File exceeds the 10 MB limit' });
+    }
+    if (error) return next(error);
+    return next();
+  });
+}
 
 /**
  * Upload a file to IPFS.
@@ -78,7 +98,7 @@ async function uploadTextToIPFS(content, name) {
 }
 
 // ── POST /api/ipfs/upload-file ────────────────────────────────────────────────
-router.post('/upload-file', upload.single('file'), async (req, res) => {
+router.post('/upload-file', uploadRateLimit, receiveSingleFile, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
     const result = await uploadToIPFS(req.file.buffer, req.file.originalname);
@@ -91,7 +111,7 @@ router.post('/upload-file', upload.single('file'), async (req, res) => {
 
 // ── POST /api/ipfs/upload-json ────────────────────────────────────────────────
 // Accepts Pinata-format body for backwards compatibility
-router.post('/upload-json', async (req, res) => {
+router.post('/upload-json', uploadRateLimit, async (req, res) => {
   try {
     const content  = req.body.pinataContent || req.body;
     const metadata = req.body.pinataMetadata || {};
@@ -104,13 +124,11 @@ router.post('/upload-json', async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // ── GET /api/ipfs/content/:hash ───────────────────────────────────────────────
 // Proxy IPFS reads through the local node. Returns 404 cleanly if not found.
 router.get('/content/:hash', async (req, res) => {
   const { hash } = req.params;
-  if (!hash || hash.includes('<') || hash.length < 10) {
+  if (!hash || !/^[A-Za-z0-9]{10,100}$/.test(hash)) {
     return res.status(400).json({ error: 'Invalid hash' });
   }
 
@@ -129,12 +147,23 @@ router.get('/content/:hash', async (req, res) => {
       clearTimeout(timeout);
       if (response.ok) {
         const ct = response.headers.get('content-type') || 'application/json';
-        const text = await response.text();
+        const contentLength = Number(response.headers.get('content-length') || 0);
+        if (contentLength > MAX_IPFS_BYTES) continue;
+        const content = await response.buffer();
+        if (content.length > MAX_IPFS_BYTES) continue;
         res.setHeader('Content-Type', ct);
         res.setHeader('Cache-Control', 'public, max-age=86400');
-        return res.send(text);
+        return res.send(content);
       }
     } catch (e) { /* try next */ }
   }
   res.status(404).json({ error: 'Content not found on IPFS', hash });
 });
+
+router.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  console.error('IPFS route error:', error.message);
+  return res.status(500).json({ success: false, error: 'IPFS request failed' });
+});
+
+module.exports = router;

@@ -138,7 +138,7 @@ async function refresh() {
   document.getElementById('err').textContent = '';
   document.getElementById('meta').textContent = 'Loading...';
   try {
-    const resp = await fetch('/api/health?token=' + encodeURIComponent(token));
+    const resp = await fetch('/api/health', { headers: { 'x-health-token': token } });
     if (resp.status === 401) { document.getElementById('err').textContent = '401 Unauthorized — wrong token'; return; }
     const d = await resp.json();
     render(d);

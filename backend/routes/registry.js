@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/db');
+const { requireAdmin } = require('../utils/auth');
 
 // GET /api/registry - Get all deployments grouped by contract
 router.get('/', async (req, res) => {
@@ -153,7 +154,7 @@ router.get('/:contractId/history', async (req, res) => {
 });
 
 // POST /api/registry/import - Manually add a deployment (for existing contracts)
-router.post('/import', async (req, res) => {
+router.post('/import', requireAdmin, async (req, res) => {
   try {
     const {
       contractId,
@@ -239,7 +240,7 @@ router.post('/import', async (req, res) => {
 });
 
 // POST /api/registry/bulk-import - Bulk import multiple deployments
-router.post('/bulk-import', async (req, res) => {
+router.post('/bulk-import', requireAdmin, async (req, res) => {
   try {
     const { deployments } = req.body;
 
@@ -319,7 +320,7 @@ router.post('/bulk-import', async (req, res) => {
 });
 
 // PUT /api/registry/:id - Update deployment info
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const {

@@ -1,24 +1,28 @@
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const { safeEqual } = require('../middleware/security');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'openwork_default_secret_change_in_production';
 const SESSION_EXPIRY_HOURS = parseInt(process.env.SESSION_EXPIRY_HOURS) || 24;
+
+function isAdminAuthConfigured() {
+  return Boolean(process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD && process.env.JWT_SECRET);
+}
 
 /**
  * Verify admin credentials
  */
 function verifyAdminCredentials(username, password) {
-  const adminUsername = process.env.ADMIN_USERNAME || 'openwork';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'openwork123';
-  
-  return username === adminUsername && password === adminPassword;
+  if (!isAdminAuthConfigured()) return false;
+  return safeEqual(username, process.env.ADMIN_USERNAME)
+    && safeEqual(password, process.env.ADMIN_PASSWORD);
 }
 
 /**
  * Generate JWT token for admin session
  */
 function generateAdminToken(username) {
+  if (!isAdminAuthConfigured()) throw new Error('Admin authentication is not configured');
   const payload = {
     username,
     role: 'admin',
@@ -29,15 +33,18 @@ function generateAdminToken(username) {
     expiresIn: `${SESSION_EXPIRY_HOURS}h`
   };
   
-  return jwt.sign(payload, JWT_SECRET, options);
+  return jwt.sign(payload, process.env.JWT_SECRET, options);
 }
 
 /**
  * Verify JWT token
  */
 function verifyToken(token) {
+  if (!isAdminAuthConfigured()) {
+    return { valid: false, error: 'Admin authentication is not configured' };
+  }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     return { valid: true, decoded };
   } catch (error) {
     return { valid: false, error: error.message };
@@ -48,6 +55,12 @@ function verifyToken(token) {
  * Express middleware to require admin authentication
  */
 function requireAdmin(req, res, next) {
+  if (!isAdminAuthConfigured()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Admin authentication is not configured'
+    });
+  }
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -85,5 +98,6 @@ module.exports = {
   verifyAdminCredentials,
   generateAdminToken,
   verifyToken,
-  requireAdmin
+  requireAdmin,
+  isAdminAuthConfigured
 };

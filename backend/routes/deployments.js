@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/db');
+const { requireAdmin } = require('../utils/auth');
 
 // POST /api/deployments - Save a new deployment
-router.post('/', async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const {
       contractId,
@@ -169,7 +170,7 @@ router.get('/:contractId/current', async (req, res) => {
 });
 
 // DELETE /api/deployments/:id - Delete a deployment (optional cleanup feature)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 

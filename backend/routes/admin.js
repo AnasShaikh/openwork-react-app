@@ -1,11 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/db');
-const { verifyAdminCredentials, generateAdminToken, requireAdmin } = require('../utils/auth');
+const { verifyAdminCredentials, generateAdminToken, requireAdmin, isAdminAuthConfigured } = require('../utils/auth');
 
 // POST /api/admin/login - Admin login
 router.post('/login', (req, res) => {
   try {
+    if (!isAdminAuthConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Admin authentication is not configured'
+      });
+    }
     const { username, password } = req.body;
 
     if (!username || !password) {

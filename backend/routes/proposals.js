@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/db');
+const { requireAdmin } = require('../utils/auth');
 
 /**
  * Save a new proposal to the database
@@ -180,7 +181,7 @@ router.get('/', async (req, res) => {
  * Update proposal metadata
  * PATCH /api/proposals/:proposalId/:chain
  */
-router.patch('/:proposalId/:chain', async (req, res) => {
+router.patch('/:proposalId/:chain', requireAdmin, async (req, res) => {
   try {
     const { proposalId, chain } = req.params;
     const updates = req.body;

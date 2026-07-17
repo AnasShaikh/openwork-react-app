@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Web3 } = require('web3');
 const config = require('./config');
 const { processStartJob } = require('./flows/start-job');
@@ -19,6 +20,11 @@ const arbSmokeRoute = require('./routes/arb-smoke-test');
 const jobTxRoutes  = require('./routes/job-transactions');
 const healthRoute  = require('./routes/health');
 const {
+  createCorsOptions,
+  createRateLimiter,
+  requireConfiguredToken,
+} = require('./middleware/security');
+const {
   getCCTPStatus,
   getCCTPStatusByTxHash,
   getPendingTransfers,
@@ -27,8 +33,28 @@ const {
 
 // Initialize Express
 const app = express();
-app.use(express.json());
-app.use(cors()); // Enable CORS for frontend communication
+app.set('trust proxy', 1);
+app.use(express.json({ limit: '1mb' }));
+app.use(cors(createCorsOptions()));
+
+const relayRateLimit = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Too many relay requests',
+});
+const requireOpsToken = requireConfiguredToken({
+  envName: 'OPS_API_TOKEN',
+  headerName: 'x-ops-token',
+});
+
+app.use(
+  ['/api/start-job', '/api/release-payment', '/api/lock-milestone', '/api/settle-dispute'],
+  relayRateLimit
+);
+app.use(
+  ['/api/start-listener', '/api/stop-listener', '/api/cctp-retry', '/api/compile'],
+  requireOpsToken
+);
 
 // Mount deployment routes
 app.use('/api/deployments', deploymentRoutes);
@@ -51,9 +77,12 @@ app.use('/api/chat', chatRoutes);
 // Mount docs routes (machine-readable documentation for AI agents)
 app.use('/api/docs', docsRoutes);
 
-// Mount E2E test route (server-side full cycle test)
-app.use('/api/e2e-test', e2eTestRoute);
-app.use('/api/arb-smoke', arbSmokeRoute);
+// Production-key test routes are off unless explicitly enabled and always
+// require a separate operator token.
+if (process.env.ENABLE_MAINNET_TEST_ROUTES === 'true') {
+  app.use('/api/e2e-test', requireOpsToken, e2eTestRoute);
+  app.use('/api/arb-smoke', requireOpsToken, arbSmokeRoute);
+}
 app.use('/api/jobs', jobTxRoutes);
 app.use('/api/health', healthRoute);
 
@@ -65,6 +94,7 @@ app.get('/design-review', (req, res) => res.sendFile(require('path').join(__dirn
 // Health dashboard UI
 app.get('/health', (req, res) => res.sendFile(path.join(__dirname, 'public/health.html')));
 app.get('/mission-control', (req, res) => res.sendFile(path.join(__dirname, 'public/mission-control.html')));
+app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 
 // Track processing jobs to avoid duplicates
 const processingJobs = new Set();
@@ -129,20 +159,8 @@ function normalizeDbStatus(row) {
 let eventListenerActive = false;
 let eventListenerInterval = null;
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'running',
-    uptime: process.uptime(),
-    processingJobs: processingJobs.size,
-    completedJobs: completedJobs.size,
-    eventListenerActive,
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Stats endpoint
-app.get('/stats', (req, res) => {
+app.get('/stats', requireOpsToken, (req, res) => {
   res.json({
     processingJobs: Array.from(processingJobs),
     recentCompletions: Array.from(completedJobs.entries()).slice(-10),
@@ -1154,7 +1172,6 @@ async function processSettleDisputeFlow(disputeId, arbitrumTxHash) {
 }
 
 // Serve React frontend static files
-const path = require("path");
 app.use(express.static(path.join(__dirname, "../dist")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../dist/index.html"));

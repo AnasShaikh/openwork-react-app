@@ -10,6 +10,7 @@ const express  = require('express');
 const router   = express.Router();
 const fetch    = require('node-fetch');
 const { ethers } = require('ethers');
+const { requireConfiguredToken } = require('../middleware/security');
 
 const ARB_RPC  = process.env.ARBITRUM_RPC  || 'https://arb1.arbitrum.io/rpc';
 const OP_RPC   = process.env.OPTIMISM_RPC  || 'https://mainnet.optimism.io';
@@ -24,8 +25,6 @@ const LOWJC    = '0x5727cA7326032a8644a49dECECB8388BEF122bef';
 const ERC20    = ['function balanceOf(address) view returns (uint256)'];
 const LOWJC_ABI = ['function jobCounter() view returns (uint256)'];
 
-const HEALTH_SECRET = process.env.HEALTH_SECRET;
-if (!HEALTH_SECRET) console.warn('⚠️  HEALTH_SECRET not set — health endpoint is open');
 const ETH_WARN  = 0.003;  // yellow below this
 const ETH_CRIT  = 0.001;  // red below this
 
@@ -128,11 +127,10 @@ async function checkRelayer(db) {
 }
 
 // ── Auth middleware ────────────────────────────────────────────────────────────
-router.use((req, res, next) => {
-  const token = req.headers['x-health-token'] || req.query.token;
-  if (token !== HEALTH_SECRET) return res.status(401).json({ error: 'Unauthorized' });
-  next();
-});
+router.use(requireConfiguredToken({
+  envName: 'HEALTH_SECRET',
+  headerName: 'x-health-token',
+}));
 
 // ── GET /api/health ────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
