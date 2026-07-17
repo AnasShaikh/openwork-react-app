@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Web3 from "web3";
 import contractABI from "../../ABIs/genesis_ABI.json";
+import profileGenesisABI from "../../ABIs/profile-genesis_ABI.json";
 import JobsTable from "../../components/JobsTable/JobsTable";
 import "./BrowseJobs.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
@@ -12,6 +13,11 @@ import { extractChainIdFromJobId, getChainLogo, getChainConfig, getNativeChain, 
 function getGenesisAddress() {
     const nativeChain = getNativeChain();
     return nativeChain?.contracts?.genesis;
+}
+
+function getProfileGenesisAddress() {
+    const nativeChain = getNativeChain();
+    return nativeChain?.contracts?.profileGenesis;
 }
 
 function getArbitrumRpc() {
@@ -79,6 +85,7 @@ export default function BrowseJobs() {
     const [loading, setLoading] = useState(true);
     const [web3, setWeb3] = useState(null);
     const [contract, setContract] = useState(null);
+    const [profileContract, setProfileContract] = useState(null);
     const hasFetchedRef = React.useRef(false);
     const navigate = useNavigate();
     const [chainFilter, setChainFilter] = useState("All Chains");
@@ -194,7 +201,7 @@ export default function BrowseJobs() {
         hasFetchedRef.current = false;
         setJobs([]);
         setCurrentPage(1);
-        if (contract) {
+        if (contract && profileContract) {
             // Re-trigger the fetch effect
             setLoading(true);
             hasFetchedRef.current = false;
@@ -207,7 +214,7 @@ export default function BrowseJobs() {
                         try {
                             const jobData = await contract.methods.getJob(jobId).call();
                             let posterProfile = null;
-                            try { posterProfile = await contract.methods.getProfile(jobData.jobGiver).call(); } catch {}
+                            try { posterProfile = await profileContract.methods.getProfile(jobData.jobGiver).call(); } catch {}
                             let jobDetails = null;
                             try { if (jobData.jobDetailHash) jobDetails = await fetchFromIPFS(jobData.jobDetailHash); } catch {}
                             const totalBudget = jobData.milestonePayments.reduce((sum, m) => sum + parseFloat(m.amount), 0);
@@ -253,15 +260,21 @@ export default function BrowseJobs() {
             try {
                 const rpcUrl = getArbitrumRpc();
                 const contractAddress = getGenesisAddress();
+                const profileContractAddress = getProfileGenesisAddress();
 
                 const web3Instance = new Web3(rpcUrl);
                 const contractInstance = new web3Instance.eth.Contract(
                     contractABI,
                     contractAddress,
                 );
+                const profileContractInstance = new web3Instance.eth.Contract(
+                    profileGenesisABI,
+                    profileContractAddress,
+                );
 
                 setWeb3(web3Instance);
                 setContract(contractInstance);
+                setProfileContract(profileContractInstance);
             } catch (error) {
                 console.error("Error initializing Web3:", error);
                 setLoading(false);
@@ -274,7 +287,7 @@ export default function BrowseJobs() {
     // Fetch job data from contract
     useEffect(() => {
         const fetchJobs = async () => {
-            if (!contract) return;
+            if (!contract || !profileContract) return;
             
             // Prevent duplicate fetches
             if (hasFetchedRef.current) {
@@ -304,7 +317,7 @@ export default function BrowseJobs() {
                         // Fetch job poster profile
                         let posterProfile = null;
                         try {
-                            posterProfile = await contract.methods
+                            posterProfile = await profileContract.methods
                                 .getProfile(jobData.jobGiver)
                                 .call();
                         } catch (profileError) {
@@ -402,7 +415,7 @@ export default function BrowseJobs() {
         if (contract && !hasFetchedRef.current) {
             fetchJobs();
         }
-    }, [contract]);
+    }, [contract, profileContract]);
 
     // Filter jobs by status OR chain
     const filteredJobs = useMemo(() => {

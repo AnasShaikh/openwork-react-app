@@ -161,6 +161,14 @@ export default function ViewReceivedApplication() {
   // Get job posting chain from jobId
   const jobChainId = jobId ? extractChainIdFromJobId(jobId) : null;
   const jobChainConfig = jobChainId ? getChainConfig(jobChainId) : null;
+  const supportsApplicantMilestones = jobChainId ? isNativeArbChain(jobChainId) : false;
+  const effectiveUseAppMilestones = supportsApplicantMilestones && useAppMilestones;
+
+  useEffect(() => {
+    if (!supportsApplicantMilestones && useAppMilestones) {
+      setUseAppMilestones(false);
+    }
+  }, [supportsApplicantMilestones, useAppMilestones]);
 
   // Check if job is already started (selectedApplicant is non-zero address)
   const isJobStarted = job?.selectedApplicant && job.selectedApplicant !== '0x0000000000000000000000000000000000000000';
@@ -439,7 +447,7 @@ export default function ViewReceivedApplication() {
 
     // Get first milestone amount based on whether we're using applicant's milestones
     let firstMilestoneAmount;
-    if (useAppMilestones && milestoneDetails.length > 0) {
+    if (effectiveUseAppMilestones && milestoneDetails.length > 0) {
       // Use applicant's proposed milestone amount (already in USDC format from IPFS fetch)
       firstMilestoneAmount = parseFloat(milestoneDetails[0].amount);
     } else {
@@ -544,7 +552,7 @@ export default function ViewReceivedApplication() {
         const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
         const payload = web3.eth.abi.encodeParameters(
           ['string', 'address', 'string', 'uint256', 'bool'],
-          ['startJob', walletAddress, jobId, parseInt(applicationId), useAppMilestones]
+          ['startJob', walletAddress, jobId, parseInt(applicationId), effectiveUseAppMilestones]
         );
         layerZeroFee = (await bridgeContract.methods
           .quoteNativeChain(payload, lzOptions)
@@ -566,7 +574,7 @@ export default function ViewReceivedApplication() {
         lowjcContract,
         jobChainConfig,
         LOWJC_OPERATIONS.START_JOB,
-        [jobId, parseInt(applicationId), useAppMilestones],
+        [jobId, parseInt(applicationId), effectiveUseAppMilestones],
         lzOptions
       );
       const sendOptions = await buildEstimatedWriteSendOptions(startMethod, jobChainConfig, {
@@ -857,12 +865,17 @@ export default function ViewReceivedApplication() {
                 <div className="milestone-toggle-container">
                     <div className="milestone-toggle-label">
                         <span className="milestone-toggle-title">Accept applicant's milestones</span>
-                        <span className="milestone-toggle-desc">Use applicant's proposed milestones instead of original job milestones</span>
+                        <span className="milestone-toggle-desc">
+                          {supportsApplicantMilestones
+                            ? "Use applicant's proposed milestones instead of original job milestones"
+                            : "Applicant milestones are unavailable for cross-chain jobs because their escrow amounts are not stored locally"}
+                        </span>
                     </div>
                     <label className="milestone-toggle-switch">
                         <input
                             type="checkbox"
-                            checked={useAppMilestones}
+                            checked={effectiveUseAppMilestones}
+                            disabled={!supportsApplicantMilestones}
                             onChange={(e) => setUseAppMilestones(e.target.checked)}
                         />
                         <span className="milestone-toggle-slider"></span>

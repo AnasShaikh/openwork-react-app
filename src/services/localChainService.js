@@ -292,7 +292,11 @@ export async function startJob(chainId, userAddress, startData, onStatus) {
     const native   = isNativeArbChain(chainId);
 
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.START_JOB);
-    const useAppMilestones = startData.useAppMilestones || false;
+    const requestedApplicantMilestones = Boolean(startData.useAppMilestones);
+    const useAppMilestones = native && requestedApplicantMilestones;
+    if (!native && requestedApplicantMilestones) {
+      emit("Applicant milestones are only available for native Arbitrum jobs; using the original job milestones.");
+    }
     let lzFee = "0";
     if (!native) {
       emit("Estimating LayerZero fee...");

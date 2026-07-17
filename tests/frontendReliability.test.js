@@ -31,6 +31,15 @@ test('job creation order is reversed without lexicographic ID sorting', () => {
   assert.match(contents, /validJobs\.reverse\(\)/);
 });
 
+test('job listings read profiles from Profile Genesis, not Job Genesis', () => {
+  const contents = source('src/pages/BrowseJobs/BrowseJobs.jsx');
+
+  assert.match(contents, /profile-genesis_ABI\.json/);
+  assert.match(contents, /nativeChain\?\.contracts\?\.profileGenesis/);
+  assert.match(contents, /profileContract\.methods\s*\.getProfile/);
+  assert.doesNotMatch(contents, /contract\.methods\s*\.getProfile/);
+});
+
 test('radial navigation cores are keyboard accessible', () => {
   for (const filename of [
     'src/App.jsx',
@@ -42,4 +51,13 @@ test('radial navigation cores are keyboard accessible', () => {
     assert.match(contents, /aria-expanded=\{buttonsVisible\}/);
     assert.match(contents, /event\.key === "Enter"/);
   }
+});
+
+test('applicant milestones cannot produce mismatched cross-chain escrow', () => {
+  const service = source('src/services/localChainService.js');
+  const applicationView = source('src/pages/ViewReceivedApplication/ViewReceivedApplication.jsx');
+
+  assert.match(service, /const useAppMilestones = native && requestedApplicantMilestones/);
+  assert.match(applicationView, /effectiveUseAppMilestones = supportsApplicantMilestones && useAppMilestones/);
+  assert.match(applicationView, /disabled=\{!supportsApplicantMilestones\}/);
 });
