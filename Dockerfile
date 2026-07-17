@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:20-alpine AS frontend-builder
+FROM public.ecr.aws/docker/library/node:22-alpine AS frontend-builder
 
 WORKDIR /app
 

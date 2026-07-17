@@ -139,7 +139,7 @@ body {
   border-size: 2px;
 }
 
-#update-text:placeholder {
+#update-text::placeholder {
  
   font-family: 'Satoshi', sans-serif;
   font-style: normal;
