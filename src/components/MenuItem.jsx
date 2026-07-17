@@ -18,10 +18,10 @@ const MenuItem = ({
     className={`buttonContainer-home ${buttonsVisible ? "visible-home" : ""}`}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
-    style={{ display: buttonFlex ? "flex" : undefined }}
+    style={{ display: (buttonFlex || buttonsVisible) ? "flex" : undefined }}
   >
-    <img src={imgSrc} alt="Button Right" className="buttonImage-home" />
-    <img src={iconSrc} alt="Icon" className="buttonIcon-home" />
+    <img src={imgSrc} alt="" className="buttonImage-home" />
+    <img src={iconSrc} alt="" className="buttonIcon-home" />
     <span className="buttonText-home2">{text}</span>
   </Link>
 );

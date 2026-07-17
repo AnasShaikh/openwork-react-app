@@ -17,7 +17,7 @@ import { getLocalChains, getChainConfig, getNativeChain, isMainnet } from "../..
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -734,13 +734,13 @@ export default function DirectContractForm() {
             [jobTaker, jobDetailHash, milestoneHashes, milestoneAmounts, jobTakerChainDomain],
             DIRECT_CONTRACT_OPTIONS
           );
-          directContractMethod
-            .send(buildWriteSendOptions(currentChainConfig, {
+          const sendOptions = await buildEstimatedWriteSendOptions(directContractMethod, currentChainConfig, {
               from: fromAddress,
               value: layerZeroFee,
-              gas: 1000000, // startDirectContract calls CCTP sendFast internally — needs ~507k
               gasPrice: await web3.eth.getGasPrice(),
-            }))
+            });
+          directContractMethod
+            .send(sendOptions)
             .on("receipt", function (receipt) {
 
               // Try to extract job ID from LayerZero logs first

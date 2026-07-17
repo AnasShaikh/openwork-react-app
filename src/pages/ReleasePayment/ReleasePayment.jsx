@@ -15,7 +15,7 @@ import { switchToChain } from "../../utils/switchNetwork";
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -409,10 +409,9 @@ export default function ReleasePayment() {
         [jobId, destinationDomain, job.selectedApplicant],
         nativeOptions
       );
-      const releasePaymentTx = await releaseMethod.send(buildWriteSendOptions(jobChainConfig, {
+      const releasePaymentTx = await releaseMethod.send(await buildEstimatedWriteSendOptions(releaseMethod, jobChainConfig, {
         from: walletAddress,
         value: layerZeroFee,
-        gas: 800000,
         gasPrice: gasPrice.toString()
       }));
 
@@ -772,10 +771,9 @@ export default function ReleasePayment() {
         [jobId],
         nativeOptions
       );
-      const lockTx = await lockMethod.send(buildWriteSendOptions(jobChainConfig, {
+      const lockTx = await lockMethod.send(await buildEstimatedWriteSendOptions(lockMethod, jobChainConfig, {
         from: walletAddress,
         value: layerZeroFee,
-        gas: 600000,
         gasPrice: gasPriceLock.toString()
       }));
 

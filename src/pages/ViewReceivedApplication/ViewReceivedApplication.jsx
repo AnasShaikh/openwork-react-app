@@ -19,7 +19,7 @@ import { switchToChain } from "../../utils/switchNetwork";
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -569,13 +569,13 @@ export default function ViewReceivedApplication() {
         [jobId, parseInt(applicationId), useAppMilestones],
         lzOptions
       );
-      startMethod.send(buildWriteSendOptions(jobChainConfig, {
+      const sendOptions = await buildEstimatedWriteSendOptions(startMethod, jobChainConfig, {
         from: walletAddress,
         value: layerZeroFee,
-        gas: 1000000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      }))
+      });
+      startMethod.send(sendOptions)
       .on('transactionHash', (srcTxHash) => {
         if (isNativeArbitrum) {
           setCrossChainSteps(null);

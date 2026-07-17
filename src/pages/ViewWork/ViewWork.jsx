@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Web3 from "web3";
 import nowjcABI from "../../ABIs/nowjc_ABI.json";
+import { getNativeChain } from "../../config/chainConfig";
 import "./ViewWork.css";
 import WorkSubmission from "../../components/WorkSubmission/WorkSubmission";
 
@@ -27,17 +28,12 @@ export default function ViewWork () {
     useEffect(() => {
       async function fetchJobDetails() {
         try {
-          // Get RPC URL from environment or use default Arbitrum Sepolia
-          const rpcUrl = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc";
-          const web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
-
-          // Get NOWJC contract address from environment
-          const nowjcAddress = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
-          if (!nowjcAddress) {
-            throw new Error("NOWJC contract address not configured");
+          const nativeChain = getNativeChain();
+          if (!nativeChain?.rpcUrl || !nativeChain?.contracts?.nowjc) {
+            throw new Error("Native chain read configuration is incomplete");
           }
-
-          const contract = new web3.eth.Contract(nowjcABI, nowjcAddress);
+          const web3 = new Web3(new Web3.providers.HttpProvider(nativeChain.rpcUrl));
+          const contract = new web3.eth.Contract(nowjcABI, nativeChain.contracts.nowjc);
 
           // Fetch job details from nowjc contract
           const jobDetails = await contract.methods.getJob(jobId).call();

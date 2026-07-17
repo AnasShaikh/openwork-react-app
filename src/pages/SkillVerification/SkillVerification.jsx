@@ -13,7 +13,7 @@ import { getNativeChain } from "../../config/chainConfig";
 import { getAthenaClientContract, isNativeArbChain } from "../../services/localChainService";
 import {
   ATHENA_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createAthenaWrite,
 } from "../../services/contractWriteRouter";
 
@@ -484,10 +484,9 @@ export default function SkillVerification() {
         [applicationHash, feeInUnits, selectedOracle],
         lzOptions
       );
-      const receipt = await verificationMethod.send(buildWriteSendOptions(chainConfig, {
+      const receipt = await verificationMethod.send(await buildEstimatedWriteSendOptions(verificationMethod, chainConfig, {
           from: walletAddress,
           value: layerZeroFee,
-          gas: 800000,
           gasPrice: gasPrice.toString(),
         }));
 

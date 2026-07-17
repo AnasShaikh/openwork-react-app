@@ -233,7 +233,9 @@ export default function BrowseJobs() {
                         } catch { return null; }
                     });
                     const resolved = (await Promise.all(jobPromises)).filter(j => j !== null);
-                    resolved.sort((a, b) => b.id.localeCompare(a.id));
+                    // Genesis returns jobs in creation order; reverse that order
+                    // instead of lexicographically sorting numeric IDs ("9" > "21").
+                    resolved.reverse();
                     setJobs(resolved);
                 } catch (e) {
                     console.error("Refresh error:", e);
@@ -385,8 +387,8 @@ export default function BrowseJobs() {
                 // Show all jobs that loaded successfully, even if IPFS data is unavailable
                 const validJobs = resolvedJobs.filter((job) => job !== null);
 
-                // Sort by newest first (assuming job IDs are sequential)
-                validJobs.sort((a, b) => b.id.localeCompare(a.id));
+                // Promise.all preserves the Genesis creation order.
+                validJobs.reverse();
 
                 setJobs(validJobs);
             } catch (error) {

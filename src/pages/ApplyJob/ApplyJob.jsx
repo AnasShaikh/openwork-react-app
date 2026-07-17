@@ -12,7 +12,7 @@ import { getLOWJCContract, isNativeArbChain } from "../../services/localChainSer
 import { buildLzOptions, DESTINATION_GAS_ESTIMATES, getNativeChain, isMainnet } from "../../config/chainConfig";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import GenesisABI from "../../ABIs/genesis_ABI.json";
@@ -303,13 +303,13 @@ export default function ApplyJob() {
         [jobId, applicationHash, milestoneHashes, amounts, chainConfig.cctpDomain],
         lzOptions
       );
-      writeMethod.send(buildWriteSendOptions(chainConfig, {
+      const sendOptions = await buildEstimatedWriteSendOptions(writeMethod, chainConfig, {
         from: walletAddress,
         value: lzFee,
-        gas: 600000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      }))
+      });
+      writeMethod.send(sendOptions)
       .on('transactionHash', (hash) => {
         if (isNativeArbitrum) {
           setLoadingT(false);

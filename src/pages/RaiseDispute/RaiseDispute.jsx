@@ -18,7 +18,7 @@ import { getChainConfig, getNativeChain } from "../../config/chainConfig";
 import { getAthenaClientContract, isNativeArbChain } from "../../services/localChainService";
 import {
   ATHENA_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createAthenaWrite,
 } from "../../services/contractWriteRouter";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS, explorerTxUrl } from "../../utils/crossChainMonitor";
@@ -569,13 +569,13 @@ export default function RaiseDispute() {
         [jobId, disputeHash, selectedOracle, compensationAmount, disputedAmountUnits],
         lzOptions
       );
-      disputeMethod.send(buildWriteSendOptions(chainConfig, {
+      const sendOptions = await buildEstimatedWriteSendOptions(disputeMethod, chainConfig, {
         from: walletAddress,
         value: layerZeroFee,
-        gas: 800000,
         maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
         maxFeePerGas: gasPrice
-      }))
+      });
+      disputeMethod.send(sendOptions)
       .on('transactionHash', (srcTxHash) => {
         if (isNativeArbitrum) {
           setLoadingT(false);

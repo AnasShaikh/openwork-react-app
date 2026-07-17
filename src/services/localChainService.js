@@ -24,7 +24,7 @@ import NATIVE_ARB_ATHENA_CLIENT_ABI from "../ABIs/native-arb-athena-client_ABI.j
 import {
   ATHENA_OPERATIONS,
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createAthenaWrite,
   createLOWJCWrite,
 } from "./contractWriteRouter";
@@ -204,10 +204,9 @@ export async function postJob(chainId, userAddress, jobData, onStatus) {
       nativeOptions
     );
 
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 600000,
     }));
 
     emit(`Transaction confirmed: ${tx.transactionHash}`);
@@ -264,10 +263,9 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
       nativeOptions
     );
 
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 600000,
     }));
     emit(`Application submitted: ${tx.transactionHash}`);
     saveTxHash('applyToJob', tx.transactionHash, applicationData.jobId, chainId, userAddress);
@@ -316,10 +314,9 @@ export async function startJob(chainId, userAddress, startData, onStatus) {
       nativeOptions
     );
 
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 1000000,
     }));
     emit(`Job started: ${tx.transactionHash}`);
     saveTxHash('startJob', tx.transactionHash, startData.jobId, chainId, userAddress);
@@ -367,10 +364,9 @@ export async function submitWork(chainId, userAddress, workData, onStatus) {
       nativeOptions
     );
 
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 600000,
     }));
     emit(`Work submitted: ${tx.transactionHash}`);
     saveTxHash('submitWork', tx.transactionHash, workData.jobId, chainId, userAddress);
@@ -426,10 +422,9 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
       nativeOptions
     );
 
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 800000,
     }));
     emit(`Payment release confirmed: ${tx.transactionHash}`);
     saveTxHash('releasePayment', tx.transactionHash, paymentData.jobId, chainId, userAddress);
@@ -489,10 +484,9 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus) 
       nativeOptions
     );
 
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 600000,
     }));
     emit(`Dispute submitted: ${tx.transactionHash}`);
     saveTxHash('raiseDispute', tx.transactionHash, disputeData.jobId, chainId, userAddress);
@@ -544,10 +538,9 @@ export async function createProfile(chainId, userAddress, profileData, onStatus)
       ],
       nativeOptions
     );
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 400000,
     }));
 
     emit(`Profile created: ${tx.transactionHash}`);
@@ -592,10 +585,9 @@ export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus
       [portfolioHash],
       nativeOptions
     );
-    const tx = await method.send(buildWriteSendOptions(config, {
+    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-      gas: 400000,
     }));
 
     emit(`Portfolio added: ${tx.transactionHash}`);

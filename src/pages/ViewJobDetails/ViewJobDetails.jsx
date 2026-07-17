@@ -2,16 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
 import NOWJCABI from "../../ABIs/nowjc_ABI.json";
+import { getNativeChain } from "../../config/chainConfig";
 import "./ViewJobDetails.css";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import Milestone from "../../components/Milestone/Milestone";
 import Button from "../../components/Button/Button";
 import BlueButton from "../../components/BlueButton/BlueButton";
 import BackButton from "../../components/BackButton/BackButton";
-
-// NOWJC contract on Arbitrum Sepolia
-const NOWJC_ADDRESS = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS;
-const ARBITRUM_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 
 function FileUpload() {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -65,8 +62,12 @@ export default function ViewJobDetails() {
       try {
         console.log("📍 Fetching job:", jobId);
         
-        const web3 = new Web3(ARBITRUM_RPC);
-        const nowjc = new web3.eth.Contract(NOWJCABI, NOWJC_ADDRESS);
+        const nativeChain = getNativeChain();
+        if (!nativeChain?.rpcUrl || !nativeChain?.contracts?.nowjc) {
+          throw new Error("Native chain read configuration is incomplete");
+        }
+        const web3 = new Web3(nativeChain.rpcUrl);
+        const nowjc = new web3.eth.Contract(NOWJCABI, nativeChain.contracts.nowjc);
 
         // Fetch job from NOWJC contract
         const jobData = await nowjc.methods.getJob(jobId).call();

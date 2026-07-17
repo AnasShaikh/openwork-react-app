@@ -126,6 +126,7 @@ function MainPage() {
     buttonsVisible,
     setButtonsVisible,
     buttonFlex,
+    setButtonFlex,
   } = useHoverEffect();
 
   // Detects if the user is on a mobile device
@@ -198,11 +199,33 @@ function MainPage() {
         {/* Core element with hover effects */}
         <div
           id="core-home"
+          role="button"
+          tabIndex={0}
+          aria-label="Show main navigation"
+          aria-expanded={buttonsVisible}
           onMouseEnter={() => {
+            setButtonFlex(true);
             setButtonsVisible(true);
           }}
           onMouseLeave={() => {
             setButtonsVisible(false);
+          }}
+          onFocus={() => {
+            setButtonFlex(true);
+            setButtonsVisible(true);
+          }}
+          onClick={() => {
+            setButtonFlex(true);
+            setButtonsVisible(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setButtonFlex(true);
+              setButtonsVisible(true);
+            } else if (event.key === "Escape") {
+              setButtonsVisible(false);
+            }
           }}
         >
           <img src="/core.svg" alt="The Core" className="core-image" />

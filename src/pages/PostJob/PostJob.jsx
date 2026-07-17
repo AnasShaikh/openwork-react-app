@@ -22,7 +22,7 @@ import { getLOWJCContract, getReadOnlyWeb3, isNativeArbChain } from "../../servi
 import { getLocalChains, getNativeChain, isMainnet } from "../../config/chainConfig";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 
@@ -514,13 +514,14 @@ export default function PostJob() {
             layerzeroOptions
           );
 
-          writeMethod
-            .send(buildWriteSendOptions(chainConfig, {
+          const sendOptions = await buildEstimatedWriteSendOptions(writeMethod, chainConfig, {
               from: fromAddress,
               value: layerZeroFee,
-              gas: 600000,
               gasPrice: await quoteWeb3.eth.getGasPrice(),
-            }))
+            });
+
+          writeMethod
+            .send(sendOptions)
             .on("receipt", function (receipt) {
               
               // First, try to extract job ID from JobPosted event

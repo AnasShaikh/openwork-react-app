@@ -4,7 +4,7 @@ import { getLOWJCContract, isNativeArbChain } from './localChainService';
 import { getChainConfig } from '../config/chainConfig';
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from './contractWriteRouter';
 
@@ -204,16 +204,12 @@ async function sendPortfolioWrite(walletAddress, operation, args, payloadTypes, 
 
   const gasPrice = await web3.eth.getGasPrice();
   const method = createLOWJCWrite(lowjcContract, chainConfig, operation, args, lzOptions);
-  const estimateOptions = buildWriteSendOptions(chainConfig, {
+  const sendOptions = await buildEstimatedWriteSendOptions(method, chainConfig, {
     from: walletAddress,
     value: layerZeroFee,
     gasPrice,
   });
-  const gasEstimate = await method.estimateGas(estimateOptions);
-  return method.send({
-    ...estimateOptions,
-    gas: Math.floor(Number(gasEstimate) * 1.2),
-  });
+  return method.send(sendOptions);
 }
 
 /** Add a new portfolio item to the connected write chain. */

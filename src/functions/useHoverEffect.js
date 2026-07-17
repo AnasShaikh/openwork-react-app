@@ -23,5 +23,12 @@ export function useHoverEffect() {
     };
   }, []);
 
-  return { hovering, setHovering, buttonsVisible, setButtonsVisible, buttonFlex };
+  return {
+    hovering,
+    setHovering,
+    buttonsVisible,
+    setButtonsVisible,
+    buttonFlex,
+    setButtonFlex,
+  };
 }

@@ -10,12 +10,12 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 import Warning from "../../components/Warning/Warning";
 import FileUpload from "../../components/FileUpload/FileUpload";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
-import { getChainConfig, extractChainIdFromJobId } from "../../config/chainConfig";
+import { getChainConfig, extractChainIdFromJobId, getNativeChain } from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -203,10 +203,9 @@ export default function AddUpdate() {
         [jobId, submissionHash],
         lzOptions
       );
-      const tx = await writeMethod.send(buildWriteSendOptions(requiredChainConfig, {
+      const tx = await writeMethod.send(await buildEstimatedWriteSendOptions(writeMethod, requiredChainConfig, {
         from: walletAddress,
         value: quotedFee,
-        gas: 5000000  // Explicit gas limit
       }));
 
       if (isNativeArbitrum) {
@@ -267,14 +266,13 @@ export default function AddUpdate() {
       if (!jobId) return;
       
       try {
-        // Fetch from Arbitrum Genesis (read-only) using full ABI for proper decoding
-        const ARBITRUM_SEPOLIA_RPC = import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
-        const NOWJC_CONTRACT = import.meta.env.VITE_NOWJC_CONTRACT_ADDRESS
-          || import.meta.env.VITE_ARBITRUM_GENESIS_ADDRESS
-          || "0x9E39B37275854449782F1a2a4524405cE79d6C1e";
-        
-        const web3 = new Web3(ARBITRUM_SEPOLIA_RPC);
-        const contract = new web3.eth.Contract(genesisABI, NOWJC_CONTRACT);
+        // Job lifecycle data lives in Genesis on the active native network.
+        const nativeChain = getNativeChain();
+        if (!nativeChain?.rpcUrl || !nativeChain?.contracts?.genesis) {
+          throw new Error("Native chain Genesis configuration is incomplete");
+        }
+        const web3 = new Web3(nativeChain.rpcUrl);
+        const contract = new web3.eth.Contract(genesisABI, nativeChain.contracts.genesis);
 
         const jobData = await contract.methods.getJob(jobId).call();
 

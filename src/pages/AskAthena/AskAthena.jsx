@@ -13,7 +13,7 @@ import { getNativeChain } from "../../config/chainConfig";
 import { getAthenaClientContract, isNativeArbChain } from "../../services/localChainService";
 import {
   ATHENA_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createAthenaWrite,
 } from "../../services/contractWriteRouter";
 
@@ -446,10 +446,9 @@ export default function AskAthena() {
         [description, applicationHash, selectedOracle, feeInUnits],
         lzOptions
       );
-      const receipt = await askMethod.send(buildWriteSendOptions(chainConfig, {
+      const receipt = await askMethod.send(await buildEstimatedWriteSendOptions(askMethod, chainConfig, {
           from: walletAddress,
           value: layerZeroFee,
-          gas: 800000,
           gasPrice: gasPrice.toString(),
         }));
 

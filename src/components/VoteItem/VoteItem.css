@@ -11,7 +11,7 @@
     width: 28px;
     height: 28px;
     border-radius: 137.931px;
-    background: var(--Avatar-user-square-Mollie-Hall, url(<path-to-image>) lightgray 50% / cover no-repeat);
+    background: var(--Avatar-user-square-Mollie-Hall, lightgray);
     box-shadow: 0px 8.276px 11.034px -2.759px rgba(14, 24, 41, 0.08), 0px 2.759px 4.138px -1.379px rgba(14, 24, 41, 0.03);
     box-shadow: 0px 8.276px 11.034px -2.759px color(display-p3 0.0627 0.0941 0.1569 / 0.08), 0px 2.759px 4.138px -1.379px color(display-p3 0.0627 0.0941 0.1569 / 0.03);
 }

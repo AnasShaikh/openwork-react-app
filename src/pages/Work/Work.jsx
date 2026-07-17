@@ -6,7 +6,7 @@ import "./Work.css";
 import BackButton from "../../components/BackButton/BackButton";
 
 export default function Work() {
-    const {buttonsVisible, setButtonsVisible,buttonFlex} = useHoverEffect();
+    const {buttonsVisible, setButtonsVisible, buttonFlex, setButtonFlex} = useHoverEffect();
     return (
         <main className="container-home">
 
@@ -25,11 +25,33 @@ export default function Work() {
                 {/* Core element with hover effects */}
                 <div
                     id="core-home"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Show work navigation"
+                    aria-expanded={buttonsVisible}
                     onMouseEnter={() => {
+                    setButtonFlex(true);
                     setButtonsVisible(true);
                     }}
                     onMouseLeave={() => {
                     setButtonsVisible(false);
+                    }}
+                    onFocus={() => {
+                    setButtonFlex(true);
+                    setButtonsVisible(true);
+                    }}
+                    onClick={() => {
+                    setButtonFlex(true);
+                    setButtonsVisible(true);
+                    }}
+                    onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setButtonFlex(true);
+                        setButtonsVisible(true);
+                    } else if (event.key === "Escape") {
+                        setButtonsVisible(false);
+                    }
                     }}
                 >
                     <img src="/core.svg" alt="The Core" className="core-image" />

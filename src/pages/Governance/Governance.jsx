@@ -6,7 +6,7 @@ import "./Governance.css";
 import BackButton from "../../components/BackButton/BackButton";
 
 export default function Governance() {
-    const {buttonsVisible, setButtonsVisible,buttonFlex} = useHoverEffect();
+    const {buttonsVisible, setButtonsVisible, buttonFlex, setButtonFlex} = useHoverEffect();
     return (
         <main className="container-home">
 
@@ -25,11 +25,33 @@ export default function Governance() {
                 {/* Core element with hover effects */}
                 <div
                     id="core-home"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Show governance navigation"
+                    aria-expanded={buttonsVisible}
                     onMouseEnter={() => {
+                    setButtonFlex(true);
                     setButtonsVisible(true);
                     }}
                     onMouseLeave={() => {
                     setButtonsVisible(false);
+                    }}
+                    onFocus={() => {
+                    setButtonFlex(true);
+                    setButtonsVisible(true);
+                    }}
+                    onClick={() => {
+                    setButtonFlex(true);
+                    setButtonsVisible(true);
+                    }}
+                    onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setButtonFlex(true);
+                        setButtonsVisible(true);
+                    } else if (event.key === "Escape") {
+                        setButtonsVisible(false);
+                    }
                     }}
                 >
                     <img src="/core.svg" alt="The Core" className="core-image" />

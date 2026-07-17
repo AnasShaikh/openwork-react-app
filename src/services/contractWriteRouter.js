@@ -164,6 +164,39 @@ export function buildWriteSendOptions(chainConfig, { from, value, ...options }) 
   return sendOptions;
 }
 
+/**
+ * Estimate gas for the exact routed call and add a buffer for small state
+ * changes between estimation and mining. Fixed gas limits are especially
+ * unsafe for milestone arrays because execution cost grows with their size.
+ */
+export async function buildEstimatedWriteSendOptions(
+  method,
+  chainConfig,
+  options,
+  { bufferBps = 2500 } = {}
+) {
+  if (typeof method?.estimateGas !== "function") {
+    throw new Error("The configured contract method cannot estimate gas");
+  }
+  if (!Number.isInteger(bufferBps) || bufferBps < 0) {
+    throw new Error("Gas estimate buffer must be a non-negative integer");
+  }
+
+  const sendOptions = buildWriteSendOptions(chainConfig, options);
+  const { gas: _ignoredGas, ...estimateOptions } = sendOptions;
+  const estimatedGas = BigInt(await method.estimateGas(estimateOptions));
+  if (estimatedGas <= 0n) {
+    throw new Error("Contract gas estimation returned an invalid value");
+  }
+
+  const basisPoints = 10000n;
+  const bufferedGas = (
+    estimatedGas * (basisPoints + BigInt(bufferBps)) + basisPoints - 1n
+  ) / basisPoints;
+
+  return { ...sendOptions, gas: bufferedGas.toString() };
+}
+
 export function getLOWJCRoute(chainConfig, operation) {
   return { ...getRoute(lowjcRoutes, chainConfig, operation) };
 }

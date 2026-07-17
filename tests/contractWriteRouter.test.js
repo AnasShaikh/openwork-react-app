@@ -7,6 +7,7 @@ import { keccak256 } from 'web3-utils';
 import {
   ATHENA_OPERATIONS,
   LOWJC_OPERATIONS,
+  buildEstimatedWriteSendOptions,
   buildWriteSendOptions,
   createAthenaWrite,
   createLOWJCWrite,
@@ -104,6 +105,47 @@ test('direct send options never include LayerZero value', () => {
   assert.deepEqual(
     buildWriteSendOptions(CROSS_CHAIN, { from: '0xabc', value: 123n, gas: 500000 }),
     { from: '0xabc', value: '123', gas: 500000 }
+  );
+});
+
+test('gas estimation uses the routed call with a safety buffer', async () => {
+  let receivedOptions;
+  const method = {
+    async estimateGas(options) {
+      receivedOptions = options;
+      return 647899n;
+    },
+  };
+
+  const sendOptions = await buildEstimatedWriteSendOptions(method, DIRECT, {
+    from: '0xabc',
+    value: '999',
+    gas: 1,
+    gasPrice: '10',
+  });
+
+  assert.deepEqual(receivedOptions, { from: '0xabc', gasPrice: '10' });
+  assert.deepEqual(sendOptions, {
+    from: '0xabc',
+    gasPrice: '10',
+    gas: '809874',
+  });
+});
+
+test('cross-chain gas estimation retains the required LayerZero fee', async () => {
+  const method = {
+    async estimateGas(options) {
+      assert.equal(options.value, '123');
+      return '100000';
+    },
+  };
+
+  assert.deepEqual(
+    await buildEstimatedWriteSendOptions(method, CROSS_CHAIN, {
+      from: '0xabc',
+      value: 123n,
+    }, { bufferBps: 1000 }),
+    { from: '0xabc', value: '123', gas: '110000' }
   );
 });
 

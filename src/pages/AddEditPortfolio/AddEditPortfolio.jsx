@@ -14,7 +14,7 @@ import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetecti
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
-  buildWriteSendOptions,
+  buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -186,10 +186,9 @@ export default function AddEditPortfolio() {
       const args = isEditMode ? [parseInt(id), portfolioHash] : [portfolioHash];
       setTransactionStatus(`${isEditMode ? 'Updating' : 'Adding'} portfolio on ${chainConfig.name}...`);
       const writeMethod = createLOWJCWrite(lowjcContract, chainConfig, operation, args, lzOptions);
-      const receipt = await writeMethod.send(buildWriteSendOptions(chainConfig, {
+      const receipt = await writeMethod.send(await buildEstimatedWriteSendOptions(writeMethod, chainConfig, {
         from: walletAddress,
         value: quotedFee,
-        gas: 5000000
       }));
       setTransactionStatus(`✅ Portfolio ${isEditMode ? 'updated' : 'added'} on ${chainConfig.name}!`);
 

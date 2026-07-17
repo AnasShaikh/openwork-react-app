@@ -14,7 +14,7 @@ import { getLOWJCContract, isNativeArbChain } from "../../services/localChainSer
 import { getNativeChain, isMainnet } from "../../config/chainConfig";
 import {
     LOWJC_OPERATIONS,
-    buildWriteSendOptions,
+    buildEstimatedWriteSendOptions,
     createLOWJCWrite,
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildLZSteps } from "../../components/CrossChainStatus/CrossChainStatus";
@@ -297,10 +297,9 @@ export default function ProfileOwnerView() {
             const args = hasProfile ? [ipfsHash] : [ipfsHash, referrerForProfile];
             setTransactionStatus(`${hasProfile ? 'Updating' : 'Creating'} profile on ${chainConfig.name}...`);
             const writeMethod = createLOWJCWrite(lowjcContract, chainConfig, operation, args, lzOptions);
-            const receipt = await writeMethod.send(buildWriteSendOptions(chainConfig, {
+            const receipt = await writeMethod.send(await buildEstimatedWriteSendOptions(writeMethod, chainConfig, {
                 from: walletAddress,
                 value: layerZeroFee,
-                gas: 500000,
                 gasPrice: gasPrice.toString()
             }));
             setTransactionStatus(`✅ Profile ${hasProfile ? 'updated' : 'created'} on ${chainConfig.name}!`);
