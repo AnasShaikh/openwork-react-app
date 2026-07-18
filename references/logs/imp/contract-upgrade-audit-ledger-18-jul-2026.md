@@ -189,6 +189,14 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Checkpoint effective voting power whenever staking, unstaking, delegation, or reward power changes, and return the historical value at the requested timestamp. Because the deployed Native and Ethereum DAO implementations have only 359 and 846 bytes of EIP-170 margin respectively, the checkpoint design must be compiled and size-checked before choosing an inline implementation or a deliberately separated module. No correction has been implemented yet.
 
+### 20. Delegated voting power survives stake reduction or withdrawal
+
+**Verified deployed path:** In ETHOpenworkDAO, both full `unstake` and governance `removeStake` reduce or delete the delegator's stake without reducing `delegatedVotingPower` or clearing `delegates`. On the native DAO, `updateStakeData` replaces the synced stake in Genesis without reconciling an existing delegation. Genesis likewise changes the stake record independently of its delegated-power aggregate.
+
+**Risk:** A delegatee can retain voting power backed by stake that has been withdrawn, deleted, or reduced. A later redelegation can also calculate adjustments from the new stake rather than the amount originally delegated, leaving the aggregate inconsistent.
+
+**Correction discussed:** Treat every stake change and delegation change as one atomic voting-power update. Subtract the old delegated amount before reducing or deleting stake, apply the new amount after a partial change, and clear the delegation on full withdrawal. Integrate this with finding 19's historical checkpoints so current and snapshot power are updated from the same source of truth. No correction has been implemented yet.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -256,6 +264,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Legacy local finalization receiver | Dormant; no current-path correction recommended | Redesign only if local job synchronization is intentionally introduced |
 | DAO delegation double-counts stake | Not yet implemented | Native and Ethereum DAO upgrade design pending; strict size limits apply |
 | DAO voting power is not snapshotted | Not yet implemented | Native and Ethereum DAO checkpoint design pending; strict size limits apply |
+| Delegated voting power survives stake reduction | Not yet implemented | Coordinate with DAO delegation and checkpoint redesign; strict size limits apply |
 
 ## Explicit pre-production flags
 
