@@ -153,13 +153,23 @@ Then execute CCTP and finalize payment.
 
 **Decision — July 18, 2026:** Keep the effective minimum dispute fee low during end-to-end testing. Do not activate the current `main` minimum-fee enforcement while the proxies still hold a 50 USDC configured minimum unless `minDisputeFee` is first deliberately lowered. Production fee selection and enforcement are deferred and must be revisited before release. The active-dispute guard is a separate correctness fix, but it must be paired with correct finalization and clearing as described below.
 
-### 16. Canonical dispute IDs cannot finalize local job state
+### 16. Native dispute settlement is not synchronized back to the local chain
 
-**Verified code path:** LocalAthena stores the fee record and `jobDisputeExists` under the base job ID supplied to `raiseDispute`. Native Athena then creates a distinct canonical dispute ID by appending its counter, for example `30365-1-1`. The local bridge forwards that canonical dispute ID unchanged to `handleFinalizeDisputeWithVotes`.
+**Clarification:** Appending the final numeric counter, for example converting job `30365-1` into dispute `30365-1-1`, is intentional and correct. It permits multiple canonical disputes for one job. The counter must not be removed from the canonical dispute record.
 
-**Problem:** LocalAthena looks up `disputeFees[disputeId]` and calls `jobContract.resolveDispute(disputeId, winningSide)`. Neither object is keyed by the canonical dispute ID: the fee record and local job use the base job ID. Finalization therefore reverts at `"Dispute does not exist"`; even bypassing that check would make job resolution revert at `"Job not found"`. The contract also never clears `jobDisputeExists`, so the new active-dispute guard would permanently prevent a later dispute on that job.
+**Verified deployed path:** The live NativeAthena proxy points to implementation `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31`. Its settlement path finalizes the canonical dispute, handles the native payout and fee outcome, and emits `DisputeFinalized`, but does not dispatch `finalizeDisputeWithVotes` through the configured native bridge. The live runtime also does not contain the native bridge's `sendToLocalChain(string,string,bytes,bytes)` selector. Although the deployed local bridge has a receiver for `finalizeDisputeWithVotes`, that receiver is therefore not reached by normal settlement.
 
-**Correction discussed:** In LocalAthena, remove only the final numeric `-counter` suffix from the canonical dispute ID, use the recovered base job ID for `disputeFees`, `jobContract.resolveDispute`, and `jobDisputeExists`, and clear the active flag after successful finalization. Retain the full canonical dispute ID in finalization and vote events for cross-chain traceability. This can be implemented as a LocalAthena proxy upgrade without replacing the local bridge, and the current LocalAthena size margin is 11,770 bytes. It is not yet implemented on `main`.
+**Risk:** The canonical dispute can settle on Arbitrum while the originating local LOWJC remains `InProgress` with its locked-amount accounting unchanged. The local active-dispute flag also cannot be cleared by the absent settlement callback.
+
+**Correction discussed:** Add a payable, permissionless post-settlement synchronization path that reads an already-finalized canonical dispute and sends its result through the existing native bridge to the originating chain. Make it replay-safe and let the caller supply the LayerZero options and native message fee. NativeAthena is close to EIP-170, so compile and measure this path before choosing between a small inline function and a dedicated synchronization adapter. It is not yet implemented.
+
+### 17. The dormant local finalization handler does not reconcile dispute and job IDs
+
+**Verified code path:** LocalAthena stores the fee record and `jobDisputeExists` under the base job ID supplied to `raiseDispute`. Its existing finalization handler instead looks up `disputeFees[disputeId]` and calls `jobContract.resolveDispute(disputeId, winningSide)` using the canonical suffixed dispute ID received from the local bridge.
+
+**Problem:** Once native-to-local settlement synchronization is added, the handler will revert at `"Dispute does not exist"`; even bypassing that check would make job resolution revert at `"Job not found"`. The fee record and local job are keyed by the base job ID, not the canonical dispute ID.
+
+**Correction discussed:** In LocalAthena, remove only the final numeric `-counter` suffix from the canonical dispute ID, use the recovered base job ID for `disputeFees`, `jobContract.resolveDispute`, and `jobDisputeExists`, and clear the active flag after successful finalization. Retain the full canonical dispute ID in finalization and vote events for cross-chain traceability. This does not prevent multiple canonical disputes; it only reconciles each dispute with its underlying job. It can be implemented as a LocalAthena proxy upgrade without replacing the local bridge, and the current LocalAthena size margin is 11,770 bytes. It is not yet implemented on `main`.
 
 ## Mandatory bytecode-size release gate
 
@@ -222,6 +232,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Job-bound disputed-fund accounting | Not yet implemented | Escrow-module design and NOWJC integration pending |
 | Local dispute minimum enforcement | Contract `main`; intentionally deferred for testing | Revisit and configure before production |
 | Local active-dispute guard | Partial on contract `main` | Do not deploy until finalization key/clearing fix is included |
+| Native-to-local dispute settlement synchronization | Not yet implemented | NativeAthena or dedicated sync-adapter change pending |
 | Canonical dispute-ID/local-job-ID reconciliation | Not yet implemented | Optimism/XDC LocalAthena upgrades pending; bridge replacement not required |
 
 ## Explicit pre-production flags
@@ -230,4 +241,5 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 - [ ] Set `minDisputeFee` consistently on Optimism and XDC.
 - [ ] Confirm the deployed LocalAthena implementation enforces that configured value.
 - [ ] Test below-minimum, exact-minimum, duplicate-dispute, settlement, and fee-refund paths before enabling production enforcement.
+- [ ] Add replay-safe native-to-local synchronization for finalized disputes and measure the chosen implementation against EIP-170.
 - [ ] Reconcile canonical dispute IDs to base job IDs and clear the active-dispute flag only after successful finalization.
