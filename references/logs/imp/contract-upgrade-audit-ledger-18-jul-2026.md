@@ -111,6 +111,14 @@ Then execute CCTP and finalize payment.
 
 **Correction on `main`:** Require `_caller == job.jobGiver`, require `InProgress` status, validate `_lockedAmount` against the next canonical milestone amount, and increment only after every check passes. This correction is included in the measured 23,722-byte NOWJC build.
 
+### 11. Empty or zero-value milestone schedules are accepted
+
+**Problem:** The deployed XDC local LOWJC permits posting jobs with empty milestone arrays or zero-value milestones, and deployed NOWJC only checks that milestone description and amount array lengths match. An empty schedule therefore passes the canonical boundary.
+
+**Risk:** A user can pay the cross-chain message fee and create an unusable job that can never start because the local start path later accesses milestone zero. Zero-value schedules can also create invalid payment lifecycles.
+
+**Correction on `main`:** At both the local entry point and NOWJC canonical boundary, require at least one milestone, equal description/amount lengths, and every milestone amount greater than zero. Apply the same checks to applications and direct contracts.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -121,6 +129,13 @@ Measured with Solidity `0.8.23`, optimizer enabled, 200 runs, and `via_ir = true
 |---|---:|---:|
 | Currently deployed | 22,957 bytes | 1,619 bytes |
 | Corrected `main` | 23,722 bytes | 854 bytes |
+
+The XDC local LOWJC size was also checked with the same production compiler settings:
+
+| XDC local LOWJC implementation | Runtime size | Remaining margin |
+|---|---:|---:|
+| Currently deployed | 14,078 bytes | 10,498 bytes |
+| Corrected `main` | 14,484 bytes | 10,092 bytes |
 
 The current combined NOWJC corrections fit, but the margin is small. Before every implementation or upgrade:
 
@@ -145,3 +160,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Invalid application start | Contract `main` | NOWJC proxy upgrade pending |
 | Combined release-and-lock validation | Contract `main` | NOWJC proxy upgrade pending |
 | Standalone next-milestone lock validation | Contract `main` | NOWJC proxy upgrade pending |
+| Empty/zero-value milestone validation | Contract `main` | Local LOWJC and NOWJC proxy upgrades pending |
