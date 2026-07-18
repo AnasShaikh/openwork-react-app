@@ -119,6 +119,14 @@ Then execute CCTP and finalize payment.
 
 **Correction on `main`:** At both the local entry point and NOWJC canonical boundary, require at least one milestone, equal description/amount lengths, and every milestone amount greater than zero. Apply the same checks to applications and direct contracts.
 
+### 12. Applications are accepted for nonexistent or closed jobs
+
+**Problem:** Deployed NOWJC `applyToJob` does not require the job to exist or have `Open` status. Because local lite contracts do not store the canonical application state, they forward the request and rely on NOWJC for this validation.
+
+**Risk:** Users can pay cross-chain fees to create application records for invalid, in-progress, completed, or cancelled jobs, corrupting canonical application data and producing an unusable experience.
+
+**Correction on `main`:** Require a nonzero applicant, an existing job ID, and `Open` job status before duplicate checks or any Genesis mutation. This correction is included in the measured 23,722-byte NOWJC build.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -161,3 +169,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Combined release-and-lock validation | Contract `main` | NOWJC proxy upgrade pending |
 | Standalone next-milestone lock validation | Contract `main` | NOWJC proxy upgrade pending |
 | Empty/zero-value milestone validation | Contract `main` | Local LOWJC and NOWJC proxy upgrades pending |
+| Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
