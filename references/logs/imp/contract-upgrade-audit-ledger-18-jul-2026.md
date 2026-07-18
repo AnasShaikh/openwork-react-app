@@ -135,6 +135,14 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Validate canonically in NativeProfileManager that the job exists and is completed, and that the rater/rated pair is exactly job giver/selected applicant in either direction. Reject an existing rating before writing. Add a defense-in-depth no-overwrite check in NativeProfileGenesis. This correction is not yet implemented on `main` and needs its own tests and final size measurement.
 
+### 14. Disputed-fund releases are not bound to a job escrow
+
+**Verified deployed behavior:** NOWJC `releaseDisputedFunds` accepts only recipient, amount, and target domain. It receives no job or dispute ID, transfers from NOWJC's shared USDC balance, and emits the literal ID `"dispute"` for every release. The current `main` source has the same behavior.
+
+**Risk:** NOWJC cannot prove that the released funds belong to the disputed job, constrain the payout to that job's escrow, or produce job-specific payout accounting. One job's settlement can consume liquidity deposited for another job if the shared balance is otherwise sufficient.
+
+**Correction discussed:** Pass the canonical job/dispute ID into the payout path, maintain and decrement a per-job escrow ledger, and validate the finalized winner, recipient, domain, and amount against canonical dispute/job state before transfer. Because corrected NOWJC has only 854 bytes of EIP-170 margin, this likely needs a deliberately separated escrow/payout module plus a small NOWJC integration rather than a large inline addition. This correction is not yet implemented.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -186,3 +194,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Empty/zero-value milestone validation | Contract `main` | Local LOWJC and NOWJC proxy upgrades pending |
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
 | Canonical rating authorization and duplicate prevention | Not yet implemented | ProfileManager/ProfileGenesis upgrades pending |
+| Job-bound disputed-fund accounting | Not yet implemented | Escrow-module design and NOWJC integration pending |
