@@ -127,6 +127,14 @@ Then execute CCTP and finalize payment.
 
 **Correction on `main`:** Require a nonzero applicant, an existing job ID, and `Open` job status before duplicate checks or any Genesis mutation. This correction is included in the measured 23,722-byte NOWJC build.
 
+### 13. Cross-chain ratings are not authorized against the job
+
+**Verified deployed path:** The local LOWJC forwards any caller-supplied rating. NativeProfileManager validates only that the call came through an authorized bridge and that the rating is 1–5; it does not validate job existence/status or the relationship between rater and rated user. NativeProfileGenesis overwrites `jobRatings[jobId][user]` and appends every submission to `userRatings` without a duplicate guard.
+
+**Risk:** Any local-chain user can rate arbitrary addresses for arbitrary job IDs and can submit repeatedly, corrupting reputation data.
+
+**Correction discussed:** Validate canonically in NativeProfileManager that the job exists and is completed, and that the rater/rated pair is exactly job giver/selected applicant in either direction. Reject an existing rating before writing. Add a defense-in-depth no-overwrite check in NativeProfileGenesis. This correction is not yet implemented on `main` and needs its own tests and final size measurement.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -144,6 +152,13 @@ The XDC local LOWJC size was also checked with the same production compiler sett
 |---|---:|---:|
 | Currently deployed | 14,078 bytes | 10,498 bytes |
 | Corrected `main` | 14,484 bytes | 10,092 bytes |
+
+Current deployed headroom for the rating correction is ample, but corrected artifacts must still be measured:
+
+| Rating-path implementation | Runtime size | Remaining margin |
+|---|---:|---:|
+| NativeProfileManager | 8,683 bytes | 15,893 bytes |
+| NativeProfileGenesis | 7,466 bytes | 17,110 bytes |
 
 The current combined NOWJC corrections fit, but the margin is small. Before every implementation or upgrade:
 
@@ -170,3 +185,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Standalone next-milestone lock validation | Contract `main` | NOWJC proxy upgrade pending |
 | Empty/zero-value milestone validation | Contract `main` | Local LOWJC and NOWJC proxy upgrades pending |
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
+| Canonical rating authorization and duplicate prevention | Not yet implemented | ProfileManager/ProfileGenesis upgrades pending |
