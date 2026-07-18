@@ -330,7 +330,6 @@ contract LocalAthena is
     ) external payable nonReentrant {
         require(_feeAmount >= minDisputeFee, "Fee below minimum");
         require(address(jobContract) != address(0), "Job contract not set");
-        require(!jobDisputeExists[_jobId], "Dispute already exists");
 
         // Transfer USDC from caller to this contract
         require(

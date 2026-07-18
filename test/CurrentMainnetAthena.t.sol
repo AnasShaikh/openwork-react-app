@@ -86,7 +86,7 @@ contract CurrentMainnetAthenaTest is Test {
         client.raiseDispute("job-1", "dispute", "oracle", 50_000_000, 100_000_000);
     }
 
-    function testDisputeCannotBeRaisedTwice() public {
+    function testMultipleDisputesCanBeRaisedForSameJob() public {
         vm.prank(giver);
         client.raiseDispute("job-1", "dispute", "oracle", 50_000_000, 100_000_000);
 
@@ -94,8 +94,9 @@ contract CurrentMainnetAthenaTest is Test {
         assertEq(usdc.balanceOf(address(nativeAthena)), 50_000_000);
 
         vm.prank(giver);
-        vm.expectRevert(bytes("Dispute already exists"));
         client.raiseDispute("job-1", "second", "oracle", 50_000_000, 100_000_000);
+
+        assertEq(usdc.balanceOf(address(nativeAthena)), 100_000_000);
     }
 
     function testDisputeRequiresInProgressJob() public {

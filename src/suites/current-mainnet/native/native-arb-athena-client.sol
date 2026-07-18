@@ -182,7 +182,6 @@ contract NativeArbAthenaClient is
     ) external nonReentrant {
         require(_feeAmount >= minDisputeFee, "Fee below minimum");
         require(address(jobContract) != address(0), "Job contract not set");
-        require(!jobDisputeExists[_jobId], "Dispute already exists");
 
         ILocalOpenWorkJobContract.Job memory job = jobContract.getJob(_jobId);
         require(job.status == ILocalOpenWorkJobContract.JobStatus.InProgress, "Job not in progress");
