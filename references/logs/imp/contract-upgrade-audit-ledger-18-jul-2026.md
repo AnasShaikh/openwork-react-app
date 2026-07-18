@@ -143,6 +143,14 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Pass the canonical job/dispute ID into the payout path, maintain and decrement a per-job escrow ledger, and validate the finalized winner, recipient, domain, and amount against canonical dispute/job state before transfer. Because corrected NOWJC has only 854 bytes of EIP-170 margin, this likely needs a deliberately separated escrow/payout module plus a small NOWJC integration rather than a large inline addition. This correction is not yet implemented.
 
+### 15. LocalAthena ignores its configured dispute minimum and permits replacement disputes
+
+**Verified deployed behavior:** Optimism and XDC LocalAthena proxies both use implementation `0xF78B688846673C3f6b93184BeC230d982c0db0c9` and have `minDisputeFee = 50,000,000` (50 USDC). Deployed `raiseDispute` nevertheless accepts any positive fee and does not reject an existing `jobDisputeExists[_jobId]`; it overwrites the local dispute-fee record before routing another message.
+
+**Risk:** The configured economic threshold is ineffective, and repeated disputes for one job can overwrite local tracking and create inconsistent dispute state across chains.
+
+**Correction on `main`:** Require `_feeAmount >= minDisputeFee` and `!jobDisputeExists[_jobId]` before taking USDC or mutating state. Canonical job-party/status validation remains at Native Athena. The corrected LocalAthena runtime is 12,806 bytes, safely below the EIP-170 limit.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -167,6 +175,13 @@ Current deployed headroom for the rating correction is ample, but corrected arti
 |---|---:|---:|
 | NativeProfileManager | 8,683 bytes | 15,893 bytes |
 | NativeProfileGenesis | 7,466 bytes | 17,110 bytes |
+
+LocalAthena was measured separately with Solidity 0.8.23 and the production optimizer settings:
+
+| LocalAthena implementation | Runtime size | Remaining margin |
+|---|---:|---:|
+| Deployed on Optimism and XDC | 12,872 bytes | 11,704 bytes |
+| Corrected `main` | 12,806 bytes | 11,770 bytes |
 
 The current combined NOWJC corrections fit, but the margin is small. Before every implementation or upgrade:
 
@@ -195,3 +210,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
 | Canonical rating authorization and duplicate prevention | Not yet implemented | ProfileManager/ProfileGenesis upgrades pending |
 | Job-bound disputed-fund accounting | Not yet implemented | Escrow-module design and NOWJC integration pending |
+| Local dispute minimum and duplicate guard | Contract `main` | Optimism/XDC LocalAthena proxy upgrades pending |
