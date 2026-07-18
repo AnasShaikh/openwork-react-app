@@ -143,13 +143,15 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Pass the canonical job/dispute ID into the payout path, maintain and decrement a per-job escrow ledger, and validate the finalized winner, recipient, domain, and amount against canonical dispute/job state before transfer. Because corrected NOWJC has only 854 bytes of EIP-170 margin, this likely needs a deliberately separated escrow/payout module plus a small NOWJC integration rather than a large inline addition. This correction is not yet implemented.
 
-### 15. LocalAthena ignores its configured dispute minimum and permits replacement disputes
+### 15. LocalAthena dispute minimum and replacement-dispute handling
 
 **Verified deployed behavior:** Optimism and XDC LocalAthena proxies both use implementation `0xF78B688846673C3f6b93184BeC230d982c0db0c9` and have `minDisputeFee = 50,000,000` (50 USDC). Deployed `raiseDispute` nevertheless accepts any positive fee and does not reject an existing `jobDisputeExists[_jobId]`; it overwrites the local dispute-fee record before routing another message.
 
 **Risk:** The configured economic threshold is ineffective, and repeated disputes for one job can overwrite local tracking and create inconsistent dispute state across chains.
 
 **Correction on `main`:** Require `_feeAmount >= minDisputeFee` and `!jobDisputeExists[_jobId]` before taking USDC or mutating state. Canonical job-party/status validation remains at Native Athena. The corrected LocalAthena runtime is 12,806 bytes, safely below the EIP-170 limit.
+
+**Decision — July 18, 2026:** Keep the effective minimum dispute fee low during end-to-end testing. Do not activate the current `main` minimum-fee enforcement while the proxies still hold a 50 USDC configured minimum unless `minDisputeFee` is first deliberately lowered. Production fee selection and enforcement are deferred and must be revisited before release. The duplicate-dispute guard is a separate correctness fix and remains recommended.
 
 ## Mandatory bytecode-size release gate
 
@@ -210,4 +212,12 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
 | Canonical rating authorization and duplicate prevention | Not yet implemented | ProfileManager/ProfileGenesis upgrades pending |
 | Job-bound disputed-fund accounting | Not yet implemented | Escrow-module design and NOWJC integration pending |
-| Local dispute minimum and duplicate guard | Contract `main` | Optimism/XDC LocalAthena proxy upgrades pending |
+| Local dispute minimum enforcement | Contract `main`; intentionally deferred for testing | Revisit and configure before production |
+| Local duplicate-dispute guard | Contract `main` | Optimism/XDC LocalAthena proxy upgrades pending |
+
+## Explicit pre-production flags
+
+- [ ] Choose the production dispute minimum.
+- [ ] Set `minDisputeFee` consistently on Optimism and XDC.
+- [ ] Confirm the deployed LocalAthena implementation enforces that configured value.
+- [ ] Test below-minimum, exact-minimum, duplicate-dispute, settlement, and fee-refund paths before enabling production enforcement.
