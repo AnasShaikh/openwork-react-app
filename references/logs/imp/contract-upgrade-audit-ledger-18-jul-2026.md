@@ -143,6 +143,8 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Pass the canonical job/dispute ID into the payout path, maintain and decrement a per-job escrow ledger, and validate the finalized winner, recipient, domain, and amount against canonical dispute/job state before transfer. Because corrected NOWJC has only 854 bytes of EIP-170 margin, this likely needs a deliberately separated escrow/payout module plus a small NOWJC integration rather than a large inline addition. This correction is not yet implemented.
 
+**Decision — July 19, 2026:** Defer implementation pending owner review and further discussion. The escrow ownership model, treatment of partial and multiple disputes, interaction with milestone payments/refunds, migration of existing pooled funds, and the trust/upgrade boundary of any separate escrow module must be finalized before code or an upgrade proposal is prepared. No implementation is authorized until that review is complete.
+
 ### 15. LocalAthena dispute minimum and preservation of multiple disputes
 
 **Verified deployed behavior:** Optimism and XDC LocalAthena proxies both use implementation `0xF78B688846673C3f6b93184BeC230d982c0db0c9` and have `minDisputeFee = 50,000,000` (50 USDC). Deployed `raiseDispute` nevertheless accepts any positive fee. Multiple disputes for one job are intentional: NativeAthena creates a separate canonical dispute ID for each one by appending the per-job counter.
@@ -231,7 +233,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Empty/zero-value milestone validation | Contract `main` | Local LOWJC and NOWJC proxy upgrades pending |
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
 | Canonical rating authorization and duplicate prevention | Not yet implemented | ProfileManager/ProfileGenesis upgrades pending |
-| Job-bound disputed-fund accounting | Not yet implemented | Escrow-module design and NOWJC integration pending |
+| Job-bound disputed-fund accounting | Deliberately deferred; no implementation authorized | Owner review and final design decision required |
 | Local dispute minimum enforcement | Contract `main`; intentionally deferred for testing | Revisit and configure before production |
 | Multiple disputes per job | Preserved on contract `main`; incorrect local guards removed | Canonical counter-based IDs remain authoritative |
 | Native-to-local dispute settlement synchronization | Retracted as a requirement | No upgrade recommended without a separate lifecycle decision |
@@ -243,3 +245,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 - [ ] Set `minDisputeFee` consistently on Optimism and XDC.
 - [ ] Confirm the deployed LocalAthena implementation enforces that configured value.
 - [ ] Test below-minimum, exact-minimum, multiple-dispute, settlement, and fee-refund paths before enabling production enforcement.
+- [ ] Owner to review and finalize the job-bound escrow accounting model before any implementation or upgrade proposal.
