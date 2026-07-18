@@ -103,6 +103,14 @@ Then execute CCTP and finalize payment.
 
 **Correction on `main`:** Run the released amount through `_validateAndCalculatePayment`, require the recorded job giver and an actual next milestone, validate `_lockedAmount` against that next milestone, and only then transfer and increment. This correction is included in the measured 23,722-byte NOWJC build.
 
+### 10. Standalone next-milestone locking trusts the adapter payload
+
+**Problem:** Deployed NOWJC `lockNextMilestone` ignores its `_caller` argument and does not check that the job is `InProgress` or that `_lockedAmount` matches the next canonical milestone. It only checks that another milestone exists, increments the milestone, and emits the supplied amount.
+
+**Risk:** A malformed or inconsistent authorized-adapter payload can advance the canonical job without the correct next-milestone funding.
+
+**Correction on `main`:** Require `_caller == job.jobGiver`, require `InProgress` status, validate `_lockedAmount` against the next canonical milestone amount, and increment only after every check passes. This correction is included in the measured 23,722-byte NOWJC build.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -136,3 +144,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Cross-chain payout destination binding | Contract `main` | NOWJC proxy upgrade pending |
 | Invalid application start | Contract `main` | NOWJC proxy upgrade pending |
 | Combined release-and-lock validation | Contract `main` | NOWJC proxy upgrade pending |
+| Standalone next-milestone lock validation | Contract `main` | NOWJC proxy upgrade pending |
