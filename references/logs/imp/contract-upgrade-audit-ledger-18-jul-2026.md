@@ -5,7 +5,7 @@ This ledger records the frontend, release-process, and deployed-contract finding
 ## Repository and release baseline
 
 - Contract repository: `AnasShaikh/openwork-contracts-final`
-- Working branch: `main`; local `main` and `origin/main` are both at `3b413b9` as of this note.
+- Working branch: `main`; audit changes are committed and pushed directly to `origin/main` in recoverable intermediate states.
 - No audit branch was created. The unrelated untracked `fundraising/` directory was left untouched.
 - Lifecycle corrections are primarily in `068e6f7` (`Harden current mainnet contract lifecycles`).
 - Native Athena ABI and dispute validation corrections are in `3b413b9` (`Validate canonical Native Athena disputes`).
@@ -197,6 +197,38 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Treat every stake change and delegation change as one atomic voting-power update. Subtract the old delegated amount before reducing or deleting stake, apply the new amount after a partial change, and clear the delegation on full withdrawal. Integrate this with finding 19's historical checkpoints so current and snapshot power are updated from the same source of truth. No correction has been implemented yet.
 
+### 21. Native DAO blocks delegated-only voters
+
+**Verified deployed path:** NativeOpenworkDAO `_getVotes` includes `genesis.getDelegatedVotingPower(account)`, but `canVote` checks only the account's own active stake or reward power. `_castVote` rejects the vote unless `canVote(account)` succeeds. This was reproduced on a local Arbitrum mainnet fork against proxy `0x24af98d763724362DC920507b351cC99170a5aa4` and its live implementation `0x20Fa268106A3C532cF9F733005Ab48624105c42F`: a test delegatee had 100 OW of delegated Governor voting power, zero own stake, zero reward power, and `canVote == false`. No live transaction was sent.
+
+**Risk:** Delegated voting power becomes unusable unless the delegatee independently satisfies the personal stake or reward threshold, contradicting the effective power reported to Governor.
+
+**Correction discussed:** Evaluate voting eligibility from the account's effective power at the proposal snapshot, including valid delegated power. Implement this as part of the checkpointed delegation correction rather than adding another mutable current-state calculation.
+
+### 22. Ethereum DAO does not enforce its configured voting threshold
+
+**Verified deployed path:** ETHOpenworkDAO proxy `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` uses implementation `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` and currently exposes `votingThresholdAmount = 50e18`. Its `_castVote` does not check that threshold. The value is used by the eligibility view but not by the Governor vote-acceptance path.
+
+**Risk:** Voting power below the configured minimum can still be recorded and counted, while the frontend eligibility result can disagree with the contract's actual behavior.
+
+**Correction discussed:** Before accepting a vote, require the voter's effective historical power at the proposal snapshot to meet `votingThresholdAmount`. Use the same checkpoint source as findings 19 and 21.
+
+### 23. Ethereum governance notifications can be duplicated or bypassed
+
+**Verified deployed path:** The custom payable `castVote(uint256,uint8,bytes)` sends a governance notification and then calls the overridden `_castVote`, which attempts another notification whenever `msg.value > 0`. If the DAO has enough balance, the same governance action can be sent twice. Conversely, inherited standard Governor entry points do not consistently use the custom payable notification and proposal-list tracking paths.
+
+**Risk:** A single governance action can increment cross-chain activity twice, or a valid action can omit the expected notification or local proposal-list entry depending on which ABI entry point is used.
+
+**Correction discussed:** Route every supported vote and proposal entry point through one internal execution path. Validate and record the governance action once, emit or send exactly one notification, and update proposal tracking exactly once. Preserve standard Governor/Tally-compatible functions while making the payable options variants thin wrappers.
+
+### 24. Cross-chain stake synchronization fails silently
+
+**Verified deployed path:** ETHOpenworkDAO's `_sendStakeDataCrossChain` returns when fee quotation fails and silently catches LayerZero send failures. The surrounding `stake`, completed `unstake`, and governance `removeStake` operations still succeed locally. The January test log also records a stake transaction that succeeded without producing the expected LayerZero stake message.
+
+**Risk:** Native DAO can miss a new stake or, more seriously, retain stake and voting power after the Ethereum stake was reduced or withdrawn. Local and native governance state can diverge without an actionable pending record.
+
+**Correction discussed:** Never discard a failed update. At minimum, reject an operation when its initial cross-chain send cannot be accepted. For delivery-safe operation, persist a monotonically versioned pending stake update, support permissionless retry, reject stale versions on the native chain, and expose synchronization status. The final fail-closed versus pending-state user experience must be fixed in the implementation specification before deployment.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -265,6 +297,10 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | DAO delegation double-counts stake | Not yet implemented | Native and Ethereum DAO upgrade design pending; strict size limits apply |
 | DAO voting power is not snapshotted | Not yet implemented | Native and Ethereum DAO checkpoint design pending; strict size limits apply |
 | Delegated voting power survives stake reduction | Not yet implemented | Coordinate with DAO delegation and checkpoint redesign; strict size limits apply |
+| Native delegated-only voters are blocked | Not yet implemented | Coordinate with DAO delegation and checkpoint redesign |
+| Ethereum voting threshold is not enforced | Not yet implemented | Coordinate with Ethereum DAO checkpoint redesign |
+| Ethereum governance notification entry points diverge | Not yet implemented | Ethereum DAO upgrade and cross-chain regression tests pending |
+| Cross-chain stake synchronization fails silently | Not yet implemented | Ethereum DAO/native receiver reliability design and integration tests pending |
 
 ## Explicit pre-production flags
 
@@ -273,3 +309,20 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 - [ ] Confirm the deployed LocalAthena implementation enforces that configured value.
 - [ ] Test below-minimum, exact-minimum, multiple-dispute, settlement, and fee-refund paths before enabling production enforcement.
 - [ ] Owner to review and finalize the job-bound escrow accounting model before any implementation or upgrade proposal.
+
+## Confirmed-finding remediation plan
+
+1. Implement findings 18–22 as one coherent DAO voting-power redesign: single-count delegation, historical checkpoints, atomic stake/delegation changes, delegated-only voting, and Ethereum threshold enforcement.
+2. Consolidate Ethereum Governor entry points so proposal/vote tracking and cross-chain notification occur exactly once.
+3. Replace silent stake-sync failure with an explicit, versioned, retryable synchronization state; settle the precise fail-closed/pending-state UX before deployment.
+4. Complete the other already authorized source corrections, including canonical rating validation and the coordinated XDC applicant-milestone flow. Keep finding 14's job-bound escrow work deferred until the owner finalizes its accounting model.
+5. Compile with the production toolchain and enforce EIP-170 size and storage-layout gates. Add unit, lifecycle, cross-chain, fork, and proxy-upgrade rehearsal tests.
+6. Prepare a deployment manifest containing each chain, proxy, current and proposed implementation, bytecode hash, storage-layout result, dependency order, exact calldata, rollback point, signer, and estimated maximum fee.
+7. Execute no live transaction until the owner explicitly approves the displayed transaction details. After approval, deploy and upgrade one dependency group at a time, verify source and proxy state on-chain, run post-upgrade checks, and push the resulting deployment record to `main` before continuing.
+
+## Live-transaction authorization gate
+
+- Repository edits, compilation, local tests, local forks, unsigned calldata, simulations, and gas estimates do not require a wallet key and may proceed without a live transaction.
+- Never request or expose a raw private key in chat, logs, commits, command output, or shell history. Use an existing secure terminal signer, encrypted keystore, hardware wallet, or multisig flow when deployment is authorized.
+- Before every transaction that changes live chain state or can spend native gas/token value, present the chain, signer address, target, function/calldata summary, expected state change, value, estimated gas and maximum fee, and rollback/recovery point. Wait for explicit owner confirmation for that transaction or clearly bounded batch.
+- A private key does not become "exhausted"; wallet gas balance, RPC allowance, nonce state, or signer availability can. Check those without revealing the key before requesting transaction approval.
