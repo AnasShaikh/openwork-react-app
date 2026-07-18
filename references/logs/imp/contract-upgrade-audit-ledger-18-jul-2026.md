@@ -181,6 +181,14 @@ Then execute CCTP and finalize payment.
 
 **Correction discussed:** Count each stake exactly once: either with its owner or with its current delegatee, never both. The robust implementation should use checkpointed delegation so Governor reads the ownership/delegation state at the proposal snapshot. The deployed NativeOpenworkDAO runtime is 24,217 bytes (359-byte EIP-170 margin), and ETHOpenworkDAO V2 is 23,730 bytes (846-byte margin), so the exact correction must be compiled and size-checked before an upgrade is selected. No correction has been implemented yet.
 
+### 19. DAO voting power ignores proposal snapshots
+
+**Verified deployed path:** Both deployed DAOs advertise an ERC-6372 timestamp clock, but their `_getVotes(address, uint256, bytes)` implementations ignore the supplied `timepoint`. They instead read the account's current stake, delegated power, and reward power.
+
+**Risk:** Voting power gained or moved after a proposal's snapshot can still count on that proposal. Proposal voting and quorum can therefore be calculated from mutable current state instead of the fixed historical state Governor expects.
+
+**Correction discussed:** Checkpoint effective voting power whenever staking, unstaking, delegation, or reward power changes, and return the historical value at the requested timestamp. Because the deployed Native and Ethereum DAO implementations have only 359 and 846 bytes of EIP-170 margin respectively, the checkpoint design must be compiled and size-checked before choosing an inline implementation or a deliberately separated module. No correction has been implemented yet.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -247,6 +255,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Native-to-local dispute settlement synchronization | Retracted as a requirement | No upgrade recommended without a separate lifecycle decision |
 | Legacy local finalization receiver | Dormant; no current-path correction recommended | Redesign only if local job synchronization is intentionally introduced |
 | DAO delegation double-counts stake | Not yet implemented | Native and Ethereum DAO upgrade design pending; strict size limits apply |
+| DAO voting power is not snapshotted | Not yet implemented | Native and Ethereum DAO checkpoint design pending; strict size limits apply |
 
 ## Explicit pre-production flags
 
