@@ -95,6 +95,14 @@ Then execute CCTP and finalize payment.
 
 **Correction on `main`:** In `startJob`, require the recorded job giver, `Open` status, and a nonzero application applicant before any state mutation.
 
+### 9. Combined release-and-lock trusts unvalidated payment data
+
+**Problem:** Deployed NOWJC `releasePaymentAndLockNext` only checks that its caller is an authorized contract and that a selected applicant exists. It does not verify the job giver, `InProgress` status, current milestone, released amount against the current canonical milestone, or locked amount against the next canonical milestone. The locked amount is otherwise used only in the event.
+
+**Risk:** A mismatched local/native schedule or malformed trusted payload can pay the wrong amount and still advance the canonical milestone.
+
+**Correction on `main`:** Run the released amount through `_validateAndCalculatePayment`, require the recorded job giver and an actual next milestone, validate `_lockedAmount` against that next milestone, and only then transfer and increment. This correction is included in the measured 23,722-byte NOWJC build.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -127,4 +135,4 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | XDC applicant milestone escrow mismatch | Design agreed; coordinated implementation still needed | Pending |
 | Cross-chain payout destination binding | Contract `main` | NOWJC proxy upgrade pending |
 | Invalid application start | Contract `main` | NOWJC proxy upgrade pending |
-
+| Combined release-and-lock validation | Contract `main` | NOWJC proxy upgrade pending |
