@@ -133,7 +133,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** Any local-chain user can rate arbitrary addresses for arbitrary job IDs and can submit repeatedly, corrupting reputation data.
 
-**Correction discussed:** Validate canonically in NativeProfileManager that the job exists and is completed, and that the rater/rated pair is exactly job giver/selected applicant in either direction. Reject an existing rating before writing. Add a defense-in-depth no-overwrite check in NativeProfileGenesis. This correction is not yet implemented on `main` and needs its own tests and final size measurement.
+**Correction on `main` — July 19, 2026:** `native-profile-manager-v3.sol` is an exact-copy successor to the deployed-source `native-profile-manager-v2.sol`, and `native-profile-genesis-v2.sol` is an exact-copy successor to deployed-source `native-profile-genesis.sol`; the original files remain untouched. Manager v3 adds a separately configured canonical job-Genesis dependency, requires an existing completed job, requires the rater/rated pair to be exactly job giver/selected applicant in either direction, and rejects duplicate ratings before storage. ProfileGenesis v2 independently rejects empty IDs, zero users, out-of-range values, and overwrites. The new dependency consumes one reserved ProfileManager gap slot (slot 7); all prior slots are unchanged. Eight proxy-upgrade and rating-path tests pass, including old-state preservation and independent one-time ratings in both directions.
 
 ### 14. Disputed-fund releases are not bound to a job escrow
 
@@ -251,8 +251,10 @@ Current deployed headroom for the rating correction is ample, but corrected arti
 
 | Rating-path implementation | Runtime size | Remaining margin |
 |---|---:|---:|
-| NativeProfileManager | 8,683 bytes | 15,893 bytes |
-| NativeProfileGenesis | 7,466 bytes | 17,110 bytes |
+| NativeProfileManager (deployed V2) | 8,683 bytes | 15,893 bytes |
+| NativeProfileManager V3 correction | 10,696 bytes | 13,880 bytes |
+| NativeProfileGenesis (deployed V1) | 7,466 bytes | 17,110 bytes |
+| NativeProfileGenesis V2 correction | 7,799 bytes | 16,777 bytes |
 
 LocalAthena was measured separately with Solidity 0.8.23 and the production optimizer settings:
 
@@ -288,7 +290,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Standalone next-milestone lock validation | Contract `main` | NOWJC proxy upgrade pending |
 | Empty/zero-value milestone validation | Contract `main` | Local LOWJC and NOWJC proxy upgrades pending |
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
-| Canonical rating authorization and duplicate prevention | Not yet implemented | ProfileManager/ProfileGenesis upgrades pending |
+| Canonical rating authorization and duplicate prevention | Versioned ProfileManager V3/ProfileGenesis V2 corrections on `main`; 8 upgrade/lifecycle tests pass | ProfileManager/ProfileGenesis upgrades and canonical job-Genesis initialization pending |
 | Job-bound disputed-fund accounting | Deliberately deferred; no implementation authorized | Owner review and final design decision required |
 | Local dispute minimum enforcement | Contract `main`; intentionally deferred for testing | Revisit and configure before production |
 | Multiple disputes per job | Preserved on contract `main`; incorrect local guards removed | Canonical counter-based IDs remain authoritative |
