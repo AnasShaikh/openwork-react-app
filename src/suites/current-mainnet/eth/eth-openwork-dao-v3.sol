@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { GovernorUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
-import { GovernorSettingsUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
-import { GovernorCountingSimpleUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {GovernorUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
+import {GovernorSettingsUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
+import {GovernorCountingSimpleUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/governance/IGovernor.sol";
 
 interface IERC20 {
@@ -17,16 +19,11 @@ interface IERC20 {
 }
 
 interface IETHLZOpenworkBridge {
-    function sendToNativeChain(
-        string memory _functionName,
-        bytes memory _payload,
-        bytes calldata _options
-    ) external payable;
+    function sendToNativeChain(string memory _functionName, bytes memory _payload, bytes calldata _options)
+        external
+        payable;
 
-    function quoteNativeChain(
-        bytes calldata _payload,
-        bytes calldata _options
-    ) external view returns (uint256 fee);
+    function quoteNativeChain(bytes calldata _payload, bytes calldata _options) external view returns (uint256 fee);
 
     function sendUpgradeCommand(
         uint32 targetChainId,
@@ -40,11 +37,50 @@ interface IUpgradeable {
     function upgradeFromDAO(address newImplementation) external;
 }
 
+interface IOpenworkVotingPowerCheckpoints {
+    function checkpoint(address account, uint256 stakePower, uint256 rewardPower) external;
+    function getVotes(address account, uint256 timepoint) external view returns (uint256);
+    function latestVotes(address account) external view returns (uint256);
+}
+
+interface IETHDAOMessaging {
+    function setBridge(address newBridge) external;
+    function sendStakeUpdate(
+        address staker,
+        uint256 amount,
+        uint256 unlockTime,
+        uint256 durationYears,
+        bool isActive,
+        bytes calldata options,
+        address refundAddress
+    ) external payable;
+    function recordProposal(uint256 proposalId, address proposer) external returns (bytes32 actionId);
+    function recordVote(uint256 proposalId, address voter) external returns (bytes32 actionId);
+    function sendVoteNotification(uint256 proposalId, address voter, bytes calldata options, address refundAddress)
+        external
+        payable;
+    function sendProposalNotification(
+        uint256 proposalId,
+        address proposer,
+        bytes calldata options,
+        address refundAddress
+    ) external payable;
+    function quoteStakeUpdate(
+        address staker,
+        uint256 amount,
+        uint256 unlockTime,
+        uint256 durationYears,
+        bool isActive,
+        bytes calldata options
+    ) external view returns (uint256 fee);
+    function quoteNotification(address account, bytes calldata options) external view returns (uint256 fee);
+}
+
 /// @title ETHOpenworkDAO
 /// @notice Governor contract for Openwork DAO governance on ETH Sepolia
 /// @dev Implements staking, delegation, and cross-chain voting power sync
 ///      Compatible with OpenZeppelin Governor and Tally
-contract ETHOpenworkDAO is 
+contract ETHOpenworkDAO is
     Initializable,
     GovernorUpgradeable,
     GovernorSettingsUpgradeable,
@@ -55,17 +91,17 @@ contract ETHOpenworkDAO is
 {
     IERC20 public openworkToken;
     IETHLZOpenworkBridge public bridge;
-    uint256 public constant MIN_STAKE = 100 * 10**18;
+    uint256 public constant MIN_STAKE = 100 * 10 ** 18;
     uint32 public chainId;
-    
+
     // Governance parameters (updatable) - for Tally compatibility
     uint256 public proposalThresholdAmount;
     uint256 public votingThresholdAmount;
     uint256 public unstakeDelay;
-    
+
     // Synced user reward data from NOWJC
     mapping(address => uint256) public userTotalRewards;
-    
+
     struct Stake {
         uint256 amount;
         uint256 unlockTime;
@@ -77,7 +113,7 @@ contract ETHOpenworkDAO is
     mapping(address => address) public delegates;
     mapping(address => uint256) public delegatedVotingPower;
     mapping(address => bool) public isStaker;
-    
+
     // Helper arrays for easier testing
     uint256[] public proposalIds;
     address[] public allStakers;
@@ -85,8 +121,12 @@ contract ETHOpenworkDAO is
     // Governance/Admin pattern
     mapping(address => bool) public admins;
 
-    // Storage gap for upgrade safety
-    uint256[50] private __gap;
+    // V3 storage appended inside the existing upgrade reserve.
+    IOpenworkVotingPowerCheckpoints public votingPowerCheckpoints;
+    IETHDAOMessaging public daoMessaging;
+
+    // Storage gap for upgrade safety (two slots consumed by V3).
+    uint256[48] private __gap;
 
     // Events
     event AdminUpdated(address indexed admin, bool status);
@@ -101,44 +141,51 @@ contract ETHOpenworkDAO is
     event GovernanceActionSentToBridge(address indexed user, string action, uint256 fee);
     event CrossContractCallFailed(address indexed account, string reason);
     event UserRewardsSynced(address indexed user, uint256 totalRewards, uint32 sourceChain);
-    
+    event VotingPowerCheckpointsUpdated(address indexed oldContract, address indexed newContract);
+    event VotingPowerCheckpointSynced(address indexed account, uint256 power);
+    event DAOMessagingUpdated(address indexed oldContract, address indexed newContract);
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
-    
-    function initialize(
-        address _owner,
-        address _openworkToken,
-        uint32 _chainId,
-        address _bridge
-    ) public initializer {
+
+    function initialize(address _owner, address _openworkToken, uint32 _chainId, address _bridge) public initializer {
         __Governor_init("OpenWorkDAO");
         __GovernorSettings_init(
             1 minutes,
             5 minutes,
-            100 * 10**18  // This is the base proposalThreshold for Governor
+            100 * 10 ** 18 // This is the base proposalThreshold for Governor
         );
         __GovernorCountingSimple_init();
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
-        
+
         openworkToken = IERC20(_openworkToken);
         chainId = _chainId;
         bridge = IETHLZOpenworkBridge(_bridge);
 
         // Initialize governance parameters
-        proposalThresholdAmount = 100 * 10**18;
-        votingThresholdAmount = 50 * 10**18;
+        proposalThresholdAmount = 100 * 10 ** 18;
+        votingThresholdAmount = 50 * 10 ** 18;
         unstakeDelay = 24 hours;
 
         // Owner is default admin
         admins[_owner] = true;
     }
-    
+
+    /// @notice Configure timestamp checkpoints immediately after the V3 proxy upgrade.
+    function initializeV3(address _votingPowerCheckpoints, address _daoMessaging) external reinitializer(2) onlyOwner {
+        require(_votingPowerCheckpoints != address(0) && _daoMessaging != address(0), "V3");
+        votingPowerCheckpoints = IOpenworkVotingPowerCheckpoints(_votingPowerCheckpoints);
+        daoMessaging = IETHDAOMessaging(_daoMessaging);
+        emit VotingPowerCheckpointsUpdated(address(0), _votingPowerCheckpoints);
+        emit DAOMessagingUpdated(address(0), _daoMessaging);
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-    
+
     // ==================== MESSAGE HANDLERS ====================
 
     /// @notice Handle voting power sync from Native chain via bridge
@@ -148,9 +195,10 @@ contract ETHOpenworkDAO is
     function handleSyncVotingPower(address user, uint256 totalRewards, uint32 sourceChain) external {
         require(msg.sender == address(bridge), "Only bridge can call this function");
         userTotalRewards[user] = totalRewards;
+        _checkpointVotingPower(user);
         emit UserRewardsSynced(user, totalRewards, sourceChain);
     }
-    
+
     // ==================== ADMIN FUNCTIONS ====================
 
     /// @notice Set the bridge contract address
@@ -158,89 +206,60 @@ contract ETHOpenworkDAO is
     function setBridge(address _bridge) external onlyOwner {
         require(_bridge != address(0), "Invalid bridge address");
         bridge = IETHLZOpenworkBridge(_bridge);
+        if (address(daoMessaging) != address(0)) daoMessaging.setBridge(_bridge);
         emit BridgeUpdated(_bridge);
     }
-    
+
     // ==================== CROSS-CHAIN MESSAGING VIA BRIDGE ====================
-    
-    /**
-     * @notice Send governance notification to NOWJC via Bridge
-     * @param account Address of the user who performed governance action
-     * @param actionType Type of governance action
-     * @param _options LayerZero options for the message
-     */
-    function _sendGovernanceNotificationViaBridge(
-        address account, 
-        string memory actionType,
-        bytes memory _options
-    ) internal {
-        if (address(bridge) == address(0)) {
-            emit CrossContractCallFailed(account, "Bridge not set");
-            return;
-        }
-        
-        // Prepare payload for NOWJC chain
-        bytes memory payload = abi.encode("incrementGovernanceAction", account);
-        
-        // Send directly using user-provided msg.value and options
-        try bridge.sendToNativeChain{value: msg.value}("incrementGovernanceAction", payload, _options) {
-            emit GovernanceActionSentToBridge(account, actionType, msg.value);
-        } catch {
-            emit CrossContractCallFailed(account, "Failed to send governance action to Bridge");
-        }
-    }
-    
-    /**
-     * @notice Send stake data cross-chain via Bridge
-     * @param staker Address of the staker
-     * @param userStake Stake data to send (passed directly to avoid redundant storage reads)
-     * @param isActive Whether stake is active
-     * @param _options LayerZero options for the message
-     */
+
     function _sendStakeDataCrossChain(
         address staker,
         Stake memory userStake,
         bool isActive,
-        bytes memory _options
+        bytes memory _options,
+        uint256 suppliedFee
     ) internal {
-        if (address(bridge) == address(0)) return;
-
-        // Get fee quote from Bridge
-        bytes memory payload = abi.encode(
-            "updateStakeData",
-            staker,
-            userStake.amount,
-            userStake.unlockTime,
-            userStake.durationYears,
-            isActive
+        daoMessaging.sendStakeUpdate{value: suppliedFee}(
+            staker, userStake.amount, userStake.unlockTime, userStake.durationYears, isActive, _options, staker
         );
-        
-        uint256 fee = 0;
-        try bridge.quoteNativeChain(payload, _options) returns (uint256 quotedFee) {
-            fee = quotedFee;
-        } catch {
-            return;
-        }
-        
-        // Send via Bridge if fee is available
-        if (fee > 0 && address(this).balance >= fee) {
-            try bridge.sendToNativeChain{value: fee}("updateStakeData", payload, _options) {
-                emit StakeDataSentCrossChain(staker, isActive, fee);
-            } catch {
-                // Silent fail to avoid blocking other operations
-            }
-        }
     }
-    
+
     // ==================== GOVERNANCE POWER CALCULATION ====================
 
     /// @notice Get combined governance power from stake and rewards
     /// @param account Address to query
     /// @return Combined governance power
     function getCombinedGovernancePower(address account) public view returns (uint256) {
-        uint256 stakePower = stakes[account].amount;
-        uint256 rewardPower = userTotalRewards[account];
+        return _currentVotingPower(account);
+    }
+
+    function _currentVotingPower(address account) internal view returns (uint256) {
+        (uint256 stakePower, uint256 rewardPower) = _currentVotingComponents(account);
         return stakePower + rewardPower;
+    }
+
+    function _currentVotingComponents(address account)
+        internal
+        view
+        returns (uint256 stakePower, uint256 rewardPower)
+    {
+        Stake memory userStake = stakes[account];
+        uint256 ownPower = delegates[account] == address(0) ? userStake.amount * userStake.durationYears : 0;
+        return (ownPower + delegatedVotingPower[account], userTotalRewards[account]);
+    }
+
+    function _checkpointVotingPower(address account) internal {
+        require(address(votingPowerCheckpoints) != address(0), "CP");
+        (uint256 stakePower, uint256 rewardPower) = _currentVotingComponents(account);
+        votingPowerCheckpoints.checkpoint(account, stakePower, rewardPower);
+        emit VotingPowerCheckpointSynced(account, stakePower + rewardPower);
+    }
+
+    /// @notice Permissionless migration/resynchronization from canonical DAO state.
+    function syncVotingPower(address[] calldata accounts) external {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _checkpointVotingPower(accounts[i]);
+        }
     }
 
     // ==================== STAKING FUNCTIONS ====================
@@ -249,11 +268,7 @@ contract ETHOpenworkDAO is
     /// @param amount Amount of tokens to stake (min 100 tokens)
     /// @param durationYears Lock duration in years (1-3)
     /// @param _options LayerZero options for cross-chain sync
-    function stake(
-        uint256 amount,
-        uint256 durationYears,
-        bytes calldata _options
-    ) external payable nonReentrant {
+    function stake(uint256 amount, uint256 durationYears, bytes calldata _options) external payable nonReentrant {
         require(amount >= MIN_STAKE, "Minimum stake is 100 tokens");
         require(durationYears >= 1 && durationYears <= 3, "Duration must be 1-3 years");
         require(stakes[msg.sender].amount == 0, "Already staking");
@@ -270,67 +285,96 @@ contract ETHOpenworkDAO is
             allStakers.push(msg.sender);
             isStaker[msg.sender] = true;
         }
-        
+
         emit StakeCreated(msg.sender, amount, durationYears, block.timestamp + (durationYears * 365 days));
-        
+
+        _checkpointVotingPower(msg.sender);
+
         // Send stake data cross-chain via Bridge
-        _sendStakeDataCrossChain(msg.sender, stakes[msg.sender], true, _options);
+        _sendStakeDataCrossChain(msg.sender, stakes[msg.sender], true, _options, msg.value);
     }
-    
+
     /// @notice Unstake tokens (requires two-step process with delay)
     /// @param _options LayerZero options for cross-chain sync
     function unstake(bytes calldata _options) external payable nonReentrant {
         Stake memory userStake = stakes[msg.sender];
         require(userStake.amount > 0, "No stake found");
         require(block.timestamp >= userStake.unlockTime, "Stake still locked");
-        
+
         if (unstakeRequestTime[msg.sender] == 0) {
+            require(msg.value == 0, "FEE");
             unstakeRequestTime[msg.sender] = block.timestamp;
             emit UnstakeRequested(msg.sender, block.timestamp, block.timestamp + unstakeDelay);
         } else {
             require(block.timestamp >= unstakeRequestTime[msg.sender] + unstakeDelay, "Unstake delay not met");
 
             uint256 stakeAmount = userStake.amount;
+            address currentDelegate = delegates[msg.sender];
+
+            if (currentDelegate != address(0)) {
+                delegatedVotingPower[currentDelegate] -= stakeAmount * userStake.durationYears;
+                delete delegates[msg.sender];
+            }
 
             delete stakes[msg.sender];
             delete unstakeRequestTime[msg.sender];
             isStaker[msg.sender] = false;
+
+            _checkpointVotingPower(msg.sender);
+            if (currentDelegate != address(0)) _checkpointVotingPower(currentDelegate);
 
             require(openworkToken.transfer(msg.sender, stakeAmount), "Token transfer failed");
 
             emit UnstakeCompleted(msg.sender, stakeAmount);
 
             // Pass zeroed stake directly — storage already deleted, avoids redundant SLOADs
-            _sendStakeDataCrossChain(msg.sender, Stake(0, 0, 0), false, _options);
+            _sendStakeDataCrossChain(msg.sender, Stake(0, 0, 0), false, _options, msg.value);
         }
     }
-    
+
     /// @notice Remove stake from an address (governance only - for slashing)
     /// @param staker Address to remove stake from
     /// @param removeAmount Amount to remove
     /// @param _options LayerZero options for cross-chain sync
-    function removeStake(
-        address staker,
-        uint256 removeAmount,
-        bytes calldata _options
-    ) external payable onlyGovernance nonReentrant {
+    function removeStake(address staker, uint256 removeAmount, bytes calldata _options)
+        external
+        payable
+        onlyGovernance
+        nonReentrant
+    {
         require(stakes[staker].amount > 0, "No stake found");
         require(removeAmount <= stakes[staker].amount, "Remove amount exceeds stake");
-        
+
+        Stake memory oldStake = stakes[staker];
+        address currentDelegate = delegates[staker];
+        uint256 oldDelegatedPower = oldStake.amount * oldStake.durationYears;
+
         stakes[staker].amount -= removeAmount;
-        
+
         bool isActive = true;
         if (stakes[staker].amount < MIN_STAKE) {
             delete stakes[staker];
             isActive = false;
         }
-        
+
+        if (currentDelegate != address(0)) {
+            delegatedVotingPower[currentDelegate] -= oldDelegatedPower;
+            if (isActive) {
+                delegatedVotingPower[currentDelegate] += stakes[staker].amount * stakes[staker].durationYears;
+            } else {
+                delete delegates[staker];
+            }
+        }
+
+        _checkpointVotingPower(staker);
+        if (currentDelegate != address(0)) _checkpointVotingPower(currentDelegate);
+
         emit StakeRemoved(staker, removeAmount);
-        
+
         // Send updated stake data cross-chain via Bridge
-        _sendStakeDataCrossChain(staker, stakes[staker], isActive, _options);
+        _sendStakeDataCrossChain(staker, stakes[staker], isActive, _options, msg.value);
     }
-    
+
     // ==================== DELEGATION FUNCTIONS ====================
 
     /// @notice Delegate voting power to another address
@@ -338,28 +382,33 @@ contract ETHOpenworkDAO is
     function delegate(address delegatee) external {
         address currentDelegate = delegates[msg.sender];
         require(delegatee != currentDelegate, "Already delegated to this address");
+        require(delegatee != msg.sender, "SELF");
         require(stakes[msg.sender].amount > 0, "No stake to delegate");
-        
+
         uint256 delegatorPower = stakes[msg.sender].amount * stakes[msg.sender].durationYears;
-        
+
         if (currentDelegate != address(0)) {
             delegatedVotingPower[currentDelegate] -= delegatorPower;
         }
-        
+
         if (delegatee != address(0)) {
             delegatedVotingPower[delegatee] += delegatorPower;
         }
-        
+
         delegates[msg.sender] = delegatee;
+
+        _checkpointVotingPower(msg.sender);
+        if (currentDelegate != address(0)) _checkpointVotingPower(currentDelegate);
+        if (delegatee != address(0)) _checkpointVotingPower(delegatee);
         emit DelegateChanged(msg.sender, currentDelegate, delegatee);
     }
-    
+
     // ==================== IERC6372 IMPLEMENTATIONS ====================
-    
+
     function clock() public view override returns (uint48) {
         return uint48(block.timestamp);
     }
-    
+
     function CLOCK_MODE() public pure override returns (string memory) {
         return "mode=timestamp";
     }
@@ -378,11 +427,15 @@ contract ETHOpenworkDAO is
     /// @return unlockTime Timestamp when stake unlocks
     /// @return durationYears Lock duration in years
     /// @return hasStake Whether address has an active stake
-    function getStakerInfo(address staker) external view returns (uint256 amount, uint256 unlockTime, uint256 durationYears, bool hasStake) {
+    function getStakerInfo(address staker)
+        external
+        view
+        returns (uint256 amount, uint256 unlockTime, uint256 durationYears, bool hasStake)
+    {
         Stake memory userStake = stakes[staker];
         return (userStake.amount, userStake.unlockTime, userStake.durationYears, userStake.amount > 0);
     }
-    
+
     /// @notice Get when unstake becomes available after request
     /// @param staker Address to query
     /// @return Timestamp when unstake available (0 if not requested)
@@ -390,21 +443,25 @@ contract ETHOpenworkDAO is
         if (unstakeRequestTime[staker] == 0) return 0;
         return unstakeRequestTime[staker] + unstakeDelay;
     }
-    
+
     /// @notice Get detailed voting power breakdown
     /// @param account Address to query
     /// @return own Own staking power
     /// @return delegated Power delegated to this address
     /// @return reward Power from rewards
     /// @return total Total voting power
-    function getVotingPower(address account) external view returns (uint256 own, uint256 delegated, uint256 reward, uint256 total) {
+    function getVotingPower(address account)
+        external
+        view
+        returns (uint256 own, uint256 delegated, uint256 reward, uint256 total)
+    {
         Stake memory userStake = stakes[account];
-        own = userStake.amount > 0 ? userStake.amount * userStake.durationYears : 0;
+        own = userStake.amount > 0 && delegates[account] == address(0) ? userStake.amount * userStake.durationYears : 0;
         delegated = delegatedVotingPower[account];
         reward = userTotalRewards[account];
         total = own + delegated + reward;
     }
-    
+
     /// @notice Check governance eligibility for an account
     /// @param account Address to check
     /// @return canPropose Whether account can create proposals
@@ -413,126 +470,137 @@ contract ETHOpenworkDAO is
     /// @return rewardTokens Reward tokens from Native chain
     /// @return combinedPower Combined governance power
     /// @return votingPower Actual voting power
-    function getGovernanceEligibility(address account) external view returns (bool canPropose, bool canVote, uint256 stakeAmount, uint256 rewardTokens, uint256 combinedPower, uint256 votingPower) {
+    function getGovernanceEligibility(address account)
+        external
+        view
+        returns (
+            bool canPropose,
+            bool canVote,
+            uint256 stakeAmount,
+            uint256 rewardTokens,
+            uint256 combinedPower,
+            uint256 votingPower
+        )
+    {
         stakeAmount = stakes[account].amount;
         rewardTokens = userTotalRewards[account];
         combinedPower = getCombinedGovernancePower(account);
-        votingPower = _getVotes(account, 0, "");
-        
+        votingPower =
+            address(votingPowerCheckpoints) == address(0) ? combinedPower : votingPowerCheckpoints.latestVotes(account);
+
         canPropose = combinedPower >= proposalThresholdAmount;
         canVote = combinedPower >= votingThresholdAmount;
     }
-    
+
     // ==================== GOVERNOR OVERRIDES FOR TALLY COMPATIBILITY ====================
-    
+
     /**
      * @dev Override _getVotes to include cross-chain reward data in voting power
      * This ensures Tally sees the complete voting power including rewards
      */
-    function _getVotes(address account, uint256, bytes memory) internal view override returns (uint256) {
-        Stake memory userStake = stakes[account];
-        uint256 ownPower = 0;
-        if (userStake.amount > 0) {
-            ownPower = userStake.amount * userStake.durationYears;
-        }
-        
-        // Add reward-based voting power using synced data
-        uint256 rewardPower = userTotalRewards[account];
-        
-        uint256 totalPower = ownPower + delegatedVotingPower[account] + rewardPower;
-        return totalPower;
+    function _getVotes(address account, uint256 timepoint, bytes memory) internal view override returns (uint256) {
+        if (address(votingPowerCheckpoints) == address(0)) return _currentVotingPower(account);
+        return votingPowerCheckpoints.getVotes(account, timepoint);
     }
-    
+
     /**
      * @dev Override proposalThreshold for Tally compatibility
      * Returns our custom threshold that considers stake + rewards
      */
-    function proposalThreshold() public view override(GovernorUpgradeable, GovernorSettingsUpgradeable) returns (uint256) {
+    function proposalThreshold()
+        public
+        view
+        override(GovernorUpgradeable, GovernorSettingsUpgradeable)
+        returns (uint256)
+    {
         return proposalThresholdAmount;
     }
-    
-    /**
-     * @dev Override _castVote to add cross-chain governance notification
-     * But let Governor handle eligibility checks using our _getVotes() function
-     */
+
     function _castVote(uint256 proposalId, address account, uint8 support, string memory reason, bytes memory params)
-        internal override returns (uint256) {
-        
-        // Send governance notification to NOWJC via Bridge if msg.value provided
-        if (msg.value > 0) {
-            _sendGovernanceNotificationViaBridge(account, "vote", "");
-        }
-        
-        return super._castVote(proposalId, account, support, reason, params);
+        internal
+        override
+        returns (uint256)
+    {
+        require(address(votingPowerCheckpoints) != address(0), "CP");
+        uint256 weight = super._castVote(proposalId, account, support, reason, params);
+        require(weight >= votingThresholdAmount, "VOTE");
+
+        daoMessaging.recordVote(proposalId, account);
+        return weight;
     }
-    
-    /**
-     * Override propose to add cross-chain governance notification  
-     * But let Governor handle eligibility checks using our proposalThreshold()
-     */
+
     function propose(
-        address[] memory targets, 
-        uint256[] memory values, 
-        bytes[] memory calldatas, 
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    ) public override returns (uint256) {
+        require(address(votingPowerCheckpoints) != address(0), "CP");
+        uint256 proposalId = super.propose(targets, values, calldatas, description);
+        proposalIds.push(proposalId);
+        daoMessaging.recordProposal(proposalId, msg.sender);
+        return proposalId;
+    }
+
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
         string memory description,
         bytes calldata _options
     ) external payable returns (uint256) {
-        
-        // Send governance notification to NOWJC via Bridge
-        _sendGovernanceNotificationViaBridge(msg.sender, "propose", _options);
-        
-        uint256 proposalId = GovernorUpgradeable.propose(targets, values, calldatas, description);
-        proposalIds.push(proposalId);
+        uint256 proposalId = propose(targets, values, calldatas, description);
+        if (msg.value > 0) {
+            daoMessaging.sendProposalNotification{value: msg.value}(proposalId, msg.sender, _options, msg.sender);
+        }
         return proposalId;
     }
-    
-    /**
-     * @dev Additional castVote function with options for cross-chain calls
-     */
-    function castVote(
-        uint256 proposalId, 
-        uint8 support,
-        bytes calldata _options
-    ) external payable returns (uint256) {
-        
-        // Send governance notification to NOWJC via Bridge
-        _sendGovernanceNotificationViaBridge(msg.sender, "vote", _options);
-        
-        return _castVote(proposalId, msg.sender, support, "", "");
+
+    function castVote(uint256 proposalId, uint8 support, bytes calldata _options) external payable returns (uint256) {
+        uint256 weight = _castVote(proposalId, msg.sender, support, "", "");
+        if (msg.value > 0) {
+            daoMessaging.sendVoteNotification{value: msg.value}(proposalId, msg.sender, _options, msg.sender);
+        }
+        return weight;
     }
-    
-    function hasVoted(uint256 proposalId, address account) public view override(IGovernor, GovernorCountingSimpleUpgradeable) returns (bool) {
+
+    function hasVoted(uint256 proposalId, address account)
+        public
+        view
+        override(IGovernor, GovernorCountingSimpleUpgradeable)
+        returns (bool)
+    {
         return super.hasVoted(proposalId, account);
     }
-    
+
     function quorum(uint256) public pure override returns (uint256) {
-        return 50 * 10**18;
+        return 50 * 10 ** 18;
     }
-    
+
     function votingDelay() public view override(GovernorUpgradeable, GovernorSettingsUpgradeable) returns (uint256) {
         return super.votingDelay();
     }
-    
+
     function votingPeriod() public view override(GovernorUpgradeable, GovernorSettingsUpgradeable) returns (uint256) {
         return super.votingPeriod();
     }
-    
+
     /// @notice Get all currently active proposals
     /// @return activeIds Array of active proposal IDs
     /// @return states Array of proposal states
     function getActiveProposalIds() external view returns (uint256[] memory activeIds, ProposalState[] memory states) {
         uint256 activeCount = 0;
-        
+
         for (uint256 i = 0; i < proposalIds.length; i++) {
             if (state(proposalIds[i]) == ProposalState.Active) {
                 activeCount++;
             }
         }
-        
+
         activeIds = new uint256[](activeCount);
         states = new ProposalState[](activeCount);
         uint256 index = 0;
-        
+
         for (uint256 i = 0; i < proposalIds.length; i++) {
             ProposalState currentState = state(proposalIds[i]);
             if (currentState == ProposalState.Active) {
@@ -542,26 +610,26 @@ contract ETHOpenworkDAO is
             }
         }
     }
-    
+
     /// @notice Get all proposals with their states
     /// @return ids Array of all proposal IDs
     /// @return states Array of proposal states
     function getAllProposalIds() external view returns (uint256[] memory ids, ProposalState[] memory states) {
         ids = new uint256[](proposalIds.length);
         states = new ProposalState[](proposalIds.length);
-        
+
         for (uint256 i = 0; i < proposalIds.length; i++) {
             ids[i] = proposalIds[i];
             states[i] = state(proposalIds[i]);
         }
     }
-    
+
     /// @notice Get total number of proposals created
     /// @return Number of proposals
     function getProposalCount() external view returns (uint256) {
         return proposalIds.length;
     }
-    
+
     // ==================== QUOTE FUNCTIONS ====================
 
     /// @notice Get fee quote for stake update cross-chain message
@@ -569,39 +637,29 @@ contract ETHOpenworkDAO is
     /// @param isActive Whether stake is active
     /// @param _options LayerZero options
     /// @return fee Native token fee required
-    function quoteStakeUpdate(
-        address staker,
-        bool isActive,
-        bytes calldata _options
-    ) external view returns (uint256 fee) {
-        if (address(bridge) == address(0)) return 0;
-        
+    function quoteStakeUpdate(address staker, bool isActive, bytes calldata _options)
+        external
+        view
+        returns (uint256 fee)
+    {
         Stake memory userStake = stakes[staker];
-        bytes memory payload = abi.encode(
-            "updateStakeData",
-            staker,
-            userStake.amount,
-            userStake.unlockTime,
-            userStake.durationYears,
-            isActive
+        return daoMessaging.quoteStakeUpdate(
+            staker, userStake.amount, userStake.unlockTime, userStake.durationYears, isActive, _options
         );
-        return bridge.quoteNativeChain(payload, _options);
     }
-    
+
     /// @notice Get fee quote for governance notification cross-chain message
     /// @param account Address performing governance action
     /// @param _options LayerZero options
     /// @return fee Native token fee required
-    function quoteGovernanceNotification(
-        address account,
-        bytes calldata _options
-    ) external view returns (uint256 fee) {
-        if (address(bridge) == address(0)) return 0;
-        
-        bytes memory payload = abi.encode("incrementGovernanceAction", account);
-        return bridge.quoteNativeChain(payload, _options);
+    function quoteGovernanceNotification(address account, bytes calldata _options)
+        external
+        view
+        returns (uint256 fee)
+    {
+        return daoMessaging.quoteNotification(account, _options);
     }
-    
+
     // ==================== GOVERNANCE ADMIN FUNCTIONS ====================
 
     /// @notice Update the proposal threshold (governance only)
@@ -610,7 +668,7 @@ contract ETHOpenworkDAO is
         proposalThresholdAmount = newThreshold;
         emit ThresholdUpdated("proposalThreshold", newThreshold);
     }
-    
+
     /// @notice Update the voting threshold (governance only)
     /// @param newThreshold New threshold amount
     function updateVotingThreshold(uint256 newThreshold) external onlyGovernance {
@@ -623,7 +681,7 @@ contract ETHOpenworkDAO is
     function updateUnstakeDelay(uint256 newDelay) external onlyGovernance {
         unstakeDelay = newDelay;
     }
-    
+
     // ==================== ADMIN MANAGEMENT ====================
 
     /// @notice Set admin status for an address
@@ -642,7 +700,7 @@ contract ETHOpenworkDAO is
         require(admins[msg.sender], "Only admin");
         uint256 balance = address(this).balance;
         require(balance > 0, "No balance to withdraw");
-        (bool success, ) = payable(msg.sender).call{value: balance}("");
+        (bool success,) = payable(msg.sender).call{value: balance}("");
         require(success, "Transfer failed");
     }
 
@@ -661,12 +719,7 @@ contract ETHOpenworkDAO is
         if (targetChainId == chainId) {
             IUpgradeable(targetProxy).upgradeFromDAO(newImplementation);
         } else {
-            bridge.sendUpgradeCommand{value: msg.value}(
-                targetChainId,
-                targetProxy,
-                newImplementation,
-                _options
-            );
+            bridge.sendUpgradeCommand{value: msg.value}(targetChainId, targetProxy, newImplementation, _options);
         }
     }
 
