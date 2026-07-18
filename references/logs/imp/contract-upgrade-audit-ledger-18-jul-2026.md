@@ -173,6 +173,14 @@ Then execute CCTP and finalize payment.
 
 **Live status:** No upgrade is recommended solely for this dormant path. Remove or redesign it only as part of a deliberate dispute/job lifecycle change.
 
+### 18. DAO delegation counts the same stake twice
+
+**Verified deployed path:** NativeOpenworkDAO proxy `0x24af98d763724362DC920507b351cC99170a5aa4` uses implementation `0x20Fa268106A3C532cF9F733005Ab48624105c42F`; ETHOpenworkDAO proxy `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` uses implementation `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59`. In both implementations, `delegate` adds the staker's power to the delegatee, while `_getVotes` continues counting the same stake as the delegator's own power. Self-delegation is also not rejected or treated as a no-op.
+
+**Risk:** One stake can produce voting power for both its owner and delegatee; self-delegation can directly double the owner's displayed and usable voting power. Governance quorum and proposal outcomes can therefore be calculated from duplicated voting units.
+
+**Correction discussed:** Count each stake exactly once: either with its owner or with its current delegatee, never both. The robust implementation should use checkpointed delegation so Governor reads the ownership/delegation state at the proposal snapshot. The deployed NativeOpenworkDAO runtime is 24,217 bytes (359-byte EIP-170 margin), and ETHOpenworkDAO V2 is 23,730 bytes (846-byte margin), so the exact correction must be compiled and size-checked before an upgrade is selected. No correction has been implemented yet.
+
 ## Mandatory bytecode-size release gate
 
 The EIP-170 runtime limit is **24,576 bytes**.
@@ -238,6 +246,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Multiple disputes per job | Preserved on contract `main`; incorrect local guards removed | Canonical counter-based IDs remain authoritative |
 | Native-to-local dispute settlement synchronization | Retracted as a requirement | No upgrade recommended without a separate lifecycle decision |
 | Legacy local finalization receiver | Dormant; no current-path correction recommended | Redesign only if local job synchronization is intentionally introduced |
+| DAO delegation double-counts stake | Not yet implemented | Native and Ethereum DAO upgrade design pending; strict size limits apply |
 
 ## Explicit pre-production flags
 
