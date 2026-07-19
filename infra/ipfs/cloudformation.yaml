@@ -1,0 +1,348 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Frugal production IPFS pinning node and authenticated HTTPS proxy for OpenWork
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+  CloudFrontOriginPrefixListId:
+    Type: String
+    Description: AWS-managed com.amazonaws.global.cloudfront.origin-facing prefix list
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+  InstanceType:
+    Type: String
+    Default: t4g.small
+    AllowedValues:
+      - t4g.micro
+      - t4g.small
+  DataVolumeSize:
+    Type: Number
+    Default: 30
+    MinValue: 20
+    MaxValue: 100
+  ProxySecretParameterName:
+    Type: String
+    Default: /openwork/ipfs/prod/PROXY_SECRET
+  KuboImage:
+    Type: String
+    Default: ipfs/kubo:v0.40.1
+
+Resources:
+  IpfsNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenWorkIpfsNodeRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ReadOnlyIpfsProxySecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/openwork/ipfs/prod/PROXY_SECRET
+      Tags:
+        - Key: Project
+          Value: OpenWorkIPFS
+        - Key: Environment
+          Value: production
+
+  IpfsNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: OpenWorkIpfsNodeProfile
+      Roles:
+        - !Ref IpfsNodeRole
+
+  IpfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CloudFront-only IPFS HTTP proxy and public IPFS swarm
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: Authenticated HTTP origin reachable only from CloudFront
+          IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourcePrefixListId: !Ref CloudFrontOriginPrefixListId
+        - Description: IPFS swarm TCP
+          IpProtocol: tcp
+          FromPort: 4001
+          ToPort: 4001
+          CidrIp: 0.0.0.0/0
+        - Description: IPFS swarm QUIC
+          IpProtocol: udp
+          FromPort: 4001
+          ToPort: 4001
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: openwork-ipfs-production
+        - Key: Project
+          Value: OpenWorkIPFS
+        - Key: Environment
+          Value: production
+
+  IpfsDataVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      Encrypted: true
+      Size: !Ref DataVolumeSize
+      VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: openwork-ipfs-production-data
+        - Key: Project
+          Value: OpenWorkIPFS
+        - Key: Environment
+          Value: production
+
+  IpfsNode:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref IpfsNodeInstanceProfile
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref IpfsSecurityGroup
+          SubnetId: !Ref SubnetId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            Encrypted: true
+            VolumeSize: 8
+            VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: openwork-ipfs-production
+        - Key: Project
+          Value: OpenWorkIPFS
+        - Key: Environment
+          Value: production
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/openwork-ipfs-bootstrap.log) 2>&1
+
+          dnf install -y docker nginx jq
+          systemctl enable --now docker
+
+          ROOT_SOURCE=$(findmnt -n -o SOURCE /)
+          ROOT_DISK=$(lsblk -no PKNAME "$ROOT_SOURCE" || true)
+          DATA_DISK=""
+          for attempt in $(seq 1 120); do
+            while read -r name type; do
+              if [ "$type" = "disk" ] && [ "$name" != "$ROOT_DISK" ]; then
+                DATA_DISK="/dev/$name"
+                break
+              fi
+            done < <(lsblk -ndo NAME,TYPE)
+            [ -n "$DATA_DISK" ] && break
+            sleep 5
+          done
+          [ -n "$DATA_DISK" ]
+
+          if ! blkid "$DATA_DISK" >/dev/null 2>&1; then
+            mkfs.ext4 -L openwork-ipfs "$DATA_DISK"
+          fi
+          mkdir -p /var/lib/openwork-ipfs
+          DATA_UUID=$(blkid -s UUID -o value "$DATA_DISK")
+          if ! grep -q "$DATA_UUID" /etc/fstab; then
+            printf 'UUID=%s /var/lib/openwork-ipfs ext4 defaults,nofail 0 2\n' "$DATA_UUID" >> /etc/fstab
+          fi
+          mount /var/lib/openwork-ipfs || mount -a
+          mkdir -p /var/lib/openwork-ipfs/data /var/lib/openwork-ipfs/export
+          chown -R 1000:1000 /var/lib/openwork-ipfs
+
+          if [ ! -f /swapfile ]; then
+            dd if=/dev/zero of=/swapfile bs=1M count=1024 status=none
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            printf '/swapfile swap swap defaults 0 0\n' >> /etc/fstab
+          fi
+
+          PROXY_SECRET=$(aws ssm get-parameter \
+            --region ${AWS::Region} \
+            --name '${ProxySecretParameterName}' \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text)
+
+          cat > /etc/nginx/conf.d/openwork-ipfs.conf <<'NGINX'
+          limit_req_zone $binary_remote_addr zone=openwork_ipfs_upload:10m rate=2r/s;
+
+          server {
+              listen 8080 default_server;
+              server_name _;
+              client_max_body_size 10m;
+
+              location = /health {
+                  access_log off;
+                  default_type application/json;
+                  return 200 '{"status":"ok","service":"openwork-ipfs"}';
+              }
+
+              location = /api/v0/add {
+                  if ($request_method != POST) { return 405; }
+                  if ($http_authorization != "Bearer __PROXY_SECRET__") { return 401; }
+                  limit_req zone=openwork_ipfs_upload burst=10 nodelay;
+                  proxy_pass http://127.0.0.1:5001;
+                  proxy_buffering off;
+                  proxy_read_timeout 120s;
+                  proxy_send_timeout 120s;
+              }
+
+              location ~ ^/ipfs/[A-Za-z0-9]+$ {
+                  if ($request_method != GET) { return 405; }
+                  if ($http_authorization != "Bearer __PROXY_SECRET__") { return 401; }
+                  proxy_pass http://127.0.0.1:8081;
+                  proxy_buffering off;
+                  proxy_read_timeout 120s;
+              }
+
+              location / { return 404; }
+          }
+          NGINX
+          sed -i "s|__PROXY_SECRET__|$PROXY_SECRET|g" /etc/nginx/conf.d/openwork-ipfs.conf
+          unset PROXY_SECRET
+          rm -f /etc/nginx/conf.d/default.conf
+          nginx -t
+          systemctl enable --now nginx
+
+          docker pull '${KuboImage}'
+          docker run -d \
+            --name openwork-ipfs \
+            --restart unless-stopped \
+            --memory 1400m \
+            --memory-swap 1800m \
+            --log-opt max-size=10m \
+            --log-opt max-file=3 \
+            -e IPFS_PROFILE=server \
+            -v /var/lib/openwork-ipfs/export:/export \
+            -v /var/lib/openwork-ipfs/data:/data/ipfs \
+            -p 4001:4001/tcp \
+            -p 4001:4001/udp \
+            -p 127.0.0.1:5001:5001 \
+            -p 127.0.0.1:8081:8080 \
+            '${KuboImage}' daemon --migrate=true
+
+          for attempt in $(seq 1 120); do
+            if curl -fsS -X POST http://127.0.0.1:5001/api/v0/id >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS -X POST \
+            'http://127.0.0.1:5001/api/v0/config/Datastore.StorageMax?arg=20GB' >/dev/null
+          curl -fsS -X POST \
+            'http://127.0.0.1:5001/api/v0/config/Datastore.GCPeriod?arg=1h' >/dev/null
+
+  IpfsDataVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf
+      InstanceId: !Ref IpfsNode
+      VolumeId: !Ref IpfsDataVolume
+
+  IpfsElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: openwork-ipfs-production
+        - Key: Project
+          Value: OpenWorkIPFS
+        - Key: Environment
+          Value: production
+
+  IpfsElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt IpfsElasticIp.AllocationId
+      InstanceId: !Ref IpfsNode
+
+  IpfsDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: IpfsElasticIpAssociation
+    Properties:
+      DistributionConfig:
+        Comment: Authenticated HTTPS ingress for OpenWork IPFS
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - Id: openwork-ipfs-ec2
+            DomainName: !GetAtt IpfsNode.PublicDnsName
+            CustomOriginConfig:
+              HTTPPort: 8080
+              OriginKeepaliveTimeout: 5
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 60
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          Compress: false
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+          TargetOriginId: openwork-ipfs-ec2
+          ViewerProtocolPolicy: https-only
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+      Tags:
+        - Key: Project
+          Value: OpenWorkIPFS
+        - Key: Environment
+          Value: production
+
+Outputs:
+  InstanceId:
+    Value: !Ref IpfsNode
+  DataVolumeId:
+    Value: !Ref IpfsDataVolume
+  ElasticIp:
+    Value: !Ref IpfsElasticIp
+  CloudFrontDistributionId:
+    Value: !Ref IpfsDistribution
+  IpfsApiUrl:
+    Value: !Sub https://${IpfsDistribution.DomainName}
+
