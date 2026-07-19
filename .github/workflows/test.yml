@@ -29,7 +29,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v1.7.1
+          version: v1.3.5
 
       - name: Show Forge version
         run: |
@@ -39,10 +39,22 @@ jobs:
         run: forge fmt --check test
         id: fmt
 
-      - name: Build current mainnet contracts
-        run: forge build --contracts src/suites/current-mainnet
+      - name: Build canonical deployed release boundary
+        run: forge build script/DeployConfirmedUpgradeArtifacts19Jul2026.s.sol --skip test
         id: build
 
       - name: Run current mainnet tests
-        run: forge test --contracts src/suites/current-mainnet --match-path 'test/CurrentMainnet*.t.sol'
+        run: >-
+          forge test
+          --contracts src/suites/current-mainnet
+          --match-path 'test/CurrentMainnet*.t.sol'
+          --no-match-path 'test/CurrentMainnetApplicantMilestoneBridges.t.sol'
         id: test
+
+      - name: Run LayerZero bridge harness with compatible compiler
+        run: >-
+          forge test
+          --contracts src/suites/current-mainnet/local
+          --match-path 'test/CurrentMainnetApplicantMilestoneBridges.t.sol'
+          --use 0.8.29
+        id: layerzero-harness

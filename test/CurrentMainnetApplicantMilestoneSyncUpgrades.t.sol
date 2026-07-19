@@ -6,18 +6,14 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {NativeOpenworkGenesis} from "../src/suites/current-mainnet/native/native-openwork-genesis.sol";
-import {
-    LocalOpenWorkJobContractLite as LocalLOWJCV2
-} from "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol";
-import {
-    LocalOpenWorkJobContractLite as LocalLOWJCV3
-} from "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol";
-import {
-    NativeOpenWorkJobContract as NOWJCV4
-} from "../src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol";
-import {
-    NativeOpenWorkJobContract as NOWJCV5
-} from "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
+import {LocalOpenWorkJobContractLite as LocalLOWJCV2} from
+    "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol";
+import {LocalOpenWorkJobContractLite as LocalLOWJCV3} from
+    "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol";
+import {NativeOpenWorkJobContract as NOWJCV4} from
+    "../src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol";
+import {NativeOpenWorkJobContract as NOWJCV5} from
+    "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
 
 interface ILocalMilestoneReceiver {
     function handleStartJobMilestones(

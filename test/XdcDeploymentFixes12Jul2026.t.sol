@@ -3,12 +3,10 @@ pragma solidity 0.8.23;
 
 import {Test} from "forge-std/Test.sol";
 
-import {
-    CCTPTransceiverXdcStandard12Jul2026
-} from "../src/suites/current-mainnet/xdc/cctp-transceiver-xdc-standard-12-jul-2026.sol";
-import {
-    NativeAthenaV8XdcDomain12Jul2026
-} from "../src/suites/current-mainnet/native/native-athena-v8-xdc-domain-12-jul-2026.sol";
+import {CCTPTransceiverXdcStandard12Jul2026} from
+    "../src/suites/current-mainnet/xdc/cctp-transceiver-xdc-standard-12-jul-2026.sol";
+import {NativeAthenaV8XdcDomain12Jul2026} from
+    "../src/suites/current-mainnet/native/native-athena-v8-xdc-domain-12-jul-2026.sol";
 
 contract MockUsdc12Jul2026 {
     mapping(address => uint256) public balanceOf;

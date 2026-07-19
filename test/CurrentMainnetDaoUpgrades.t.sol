@@ -7,9 +7,8 @@ import {ETHOpenworkDAO} from "../src/suites/current-mainnet/eth/eth-openwork-dao
 import {ETHDAOMessaging} from "../src/suites/current-mainnet/eth/eth-dao-messaging-v1.sol";
 import {NativeOpenworkDAO} from "../src/suites/current-mainnet/native/native-openwork-dao-v2.sol";
 import {NativeDAOStakeSync} from "../src/suites/current-mainnet/native/native-dao-stake-sync-v1.sol";
-import {
-    OpenworkVotingPowerCheckpoints
-} from "../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol";
+import {OpenworkVotingPowerCheckpoints} from
+    "../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol";
 
 contract UpgradeTestToken {
     bool public transferFromResult = true;
