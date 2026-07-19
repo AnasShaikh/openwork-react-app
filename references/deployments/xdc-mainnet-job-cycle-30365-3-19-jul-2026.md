@@ -145,6 +145,7 @@ Other signer native balances did not change during the job cycle: Ethereum `0.00
 ## Public application proof
 
 - Live page: `https://app.openwork.technology/job-details/30365-3`
+- Captured evidence: `references/deployments/evidence/xdc-job-30365-3-live-ui-19-jul-2026.jpg`
 - Observed title: `OpenWork XDC End-to-End Verification — 19 July 2026`.
 - Observed completion: `1 / 1 Milestones Completed`.
 - Observed amounts: `0.10 USDC` paid, `0.10 USDC` received, `0` to be paid.
