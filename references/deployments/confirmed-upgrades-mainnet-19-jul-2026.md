@@ -317,6 +317,18 @@ The complete transaction, GUID, CCTP, state, balance and public-UI record is in 
 
 The cycle also exposed an off-chain release issue: production IPFS uploads stop on an invalid Lighthouse credential instead of falling through to the next configured provider, and the Pinata account reached its plan limit. This does not invalidate the completed contract lifecycle, but reliable UI posting requires provider failover plus at least one healthy upload provider.
 
+## Phase 12 — production IPFS recovery and cost isolation
+
+Status: **complete**.
+
+The Phase 11 off-chain release issue is resolved. Frontend commit `42190192279fef0a6a6efd013ff74b26de6ef8f6` makes the authenticated AWS IPFS node the first upload/read provider while retaining Lighthouse and Pinata as later fallbacks. GitHub CI run `29691602100`, CodeBuild `openwork-react-app-prod-build:341f6548-1bbd-41ac-ac9a-d0488b3e3f0e` and App Runner operation `b0d403b8d4944b57a9b866f66bbd49fd` all succeeded. The live image is `openwork-app:prod-4219019-20260719145043`, digest `sha256:03871f13755ef9eaecce1747c8439cb6c452f4237aa77c0f1a31ed5a141c2b29`.
+
+AWS CloudFormation stack `openwork-ipfs-prod` runs one `t4g.small` Kubo node with an encrypted retained 30 GiB data volume, CloudFront TLS/authentication, no SSH exposure and four retained weekly incremental snapshots. Baseline snapshot `snap-0c46969dd7fdcb029` completed successfully. The estimated fixed cost is approximately USD 18.95/month before credits, plus small usage-based transfer and changed-block snapshot charges.
+
+Production upload/read verification succeeded with recursively pinned CID `QmZDiKDQPb7SHas6ysYoogojJfeinVbpCR75LXPGQCU6CB`, including application readback, two public gateways and post-container-restart persistence. All attributable resources are tagged `CostCenter=OpenWorkReactApp`; `Component=IPFS` isolates only this service in AWS Cost Explorer. No blockchain state, contract address or wallet balance changed during this phase.
+
+The detailed infrastructure, security, capacity, cost and recovery record is maintained in the frontend repository at `docs/ipfs-aws-production-2026-07-19.md`.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
