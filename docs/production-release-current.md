@@ -8,27 +8,30 @@ This file is the canonical application release pointer. It describes deployed ap
 |---|---|
 | Deployed at | 19 July 2026 |
 | Git branch | `main` |
-| Git commit | `43956d7223813c279c21cec19fbb781f3a09d2f9` |
-| GitHub CI | `29675227881` — succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-43956d7223813c279c21cec19fbb781f3a09d2f9.zip` |
-| Source archive SHA-256 | `0009b1531be3d3d416120f9548487ce3300f592a757638c285b600678d8fce1b` |
-| CodeBuild | `openwork-react-app-prod-build:9795a0c0-4945-46f9-ba14-3a33fc422657` — succeeded |
-| ECR image | `openwork-app:prod-43956d7-20260719054533` |
-| ECR digest | `sha256:91eaae9d8855c7f69864a87b966e51376869c4d4545633d9ec6e92c97249b16f` |
+| Git commit | `f4b2818782006ae93cacbe71aa82e004dcdc6a95` |
+| GitHub CI | `29690117952` — succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-f4b2818782006ae93cacbe71aa82e004dcdc6a95.zip` |
+| Source archive SHA-256 | `7610880e0d795f10036bb691a686c907040e776390b75066091f54095ee6c441` |
+| CodeBuild | `openwork-react-app-prod-build:830ab20f-d934-41c1-a3a2-b2fdca8a8abc` — succeeded |
+| ECR image | `openwork-app:prod-f4b2818-20260719140650` |
+| ECR digest | `sha256:49b9e3f021e8fb50b6e9c68735b66603fe852a376f471ada37c07972ee55562c` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `6277e917d1364298be84c5d978ef7ad9` — succeeded |
+| App Runner operation | `68a40dcb850d48f9b808c1d9cc492ea1` — succeeded |
 | Public application | `https://app.openwork.technology` |
 | Deployed JS asset | `/assets/index-COP-yjtZ.js` |
 
 ## Verification
 
-- GitHub CI, the focused configuration/write-router tests and the production Vite build passed for the exact source commit.
+- GitHub CI, all frontend/backend tests, the focused three-case IPFS provider-failover suite and the production image build passed for the exact source commit.
 - App Runner HTTP health checks passed, the rollout operation succeeded and the service returned to `RUNNING`.
-- The production root, health dashboard, `/browse-jobs`, `/job-details/30365-2` and `/docs` returned HTTP 200.
+- The production root, health endpoint and completed `/job-details/30365-3` route returned HTTP 200.
 - The deployed bundle contains Native bridge `0x9A0950594A699f5fb7decd7069F935100d39D9bF`, XDC Local bridge `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` and the two Arbitrum write adapters. It contains no occurrence of the retired Native bridge address.
-- XDC `postJob` was simulated successfully against the live LOWJC/bridge/LayerZero path on two independent RPC providers. Both returned the same quote and the live job counter remained `2`.
-- Arbitrum direct `postJob` was simulated successfully against the live ArbLOWJC/NOWJC path on two independent RPC providers. The live job counter remained `21`.
-- Both job-posting checks used `eth_call`; no blockchain transaction was submitted and no native currency or USDC was spent.
+- Production XDC job `30365-3` completed the real post, application, selection/start, USDC escrow, CCTP mint, work submission, release and CCTP payout flow. Its public page shows `1 / 1 Milestones Completed`, `0.10 USDC` paid and `0.10 USDC` received.
+- The deployed IPFS route now catches a provider error and tries the next configured provider. A production probe proved Lighthouse was attempted before Pinata and that both failures were included in the final response.
+
+## Active operational limitation
+
+IPFS uploads still return HTTP 500 because neither configured account is currently usable: Lighthouse rejects its credential and Pinata reports that the account is blocked at its plan-usage limit. The failover code is working; restoring uploads now requires replacing the Lighthouse key, adding Pinata capacity, or configuring the supported self-hosted IPFS proxy. Existing IPFS reads and the completed job page remain healthy.
 
 ## Rollback target
 
@@ -36,7 +39,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-4961c45-20260717225439` |
-| ECR digest | `sha256:bba58369a4575ba89fef23def4dcb8207e2c894c9bebfbdb3c62905d67d0e800` |
+| ECR image | `openwork-app:prod-43956d7-20260719054533` |
+| ECR digest | `sha256:91eaae9d8855c7f69864a87b966e51376869c4d4545633d9ec6e92c97249b16f` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
