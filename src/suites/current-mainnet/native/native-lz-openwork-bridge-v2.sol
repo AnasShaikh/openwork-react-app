@@ -4,7 +4,9 @@ pragma solidity ^0.8.22;
 import {OAppSender, MessagingFee} from "@layerzerolabs/oapp-evm/contracts/oapp/OAppSender.sol";
 import {OAppReceiver} from "@layerzerolabs/oapp-evm/contracts/oapp/OAppReceiver.sol";
 import {OAppCore} from "@layerzerolabs/oapp-evm/contracts/oapp/OAppCore.sol";
-import {Origin} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {
+    Origin, MessagingParams
+} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 interface INativeOpenworkDAO {
@@ -64,7 +66,8 @@ interface INativeOpenWorkJobContract {
         uint32 preferredChainDomain
     ) external;
     function startJob(address jobGiver, string memory jobId, uint256 applicationId, bool useApplicantMilestones)
-        external;
+        external
+        returns (address selectedApplicant, uint256[] memory canonicalAmounts);
     function submitWork(address applicant, string memory jobId, string memory submissionHash) external;
     function releasePayment(address jobGiver, string memory jobId, uint256 amount) external;
     function handleReleasePaymentCrossChain(
@@ -161,6 +164,7 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
     // Chain endpoints - simplified to 2 types
     uint32 public mainChainEid; // Main/Rewards chain (single)
     address public daoStakeSync;
+    mapping(uint32 => bytes) public localCallbackOptions;
 
     // Events
     event CrossChainMessageSent(string indexed functionName, uint32 dstEid, bytes payload);
@@ -175,6 +179,9 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
     event AdminUpdated(address indexed admin, bool status);
     event NativeDAOUpdated(address indexed oldDAO, address indexed newDAO);
     event DAOStakeSyncUpdated(address indexed oldContract, address indexed newContract);
+    event LocalCallbackOptionsUpdated(uint32 indexed localChainEid, bytes options);
+    event CallbackReserveFunded(address indexed funder, uint256 amount);
+    event LocalCallbackSent(uint32 indexed localChainEid, string indexed functionName, uint256 fee);
 
     modifier onlyAuthorized() {
         require(authorizedContracts[msg.sender], "Not authorized to use bridge");
@@ -189,6 +196,10 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
     constructor(address _endpoint, address _owner, uint32 _mainChainEid) OAppCore(_endpoint, _owner) Ownable(_owner) {
         mainChainEid = _mainChainEid;
         admins[_owner] = true; // Owner is default admin
+    }
+
+    receive() external payable {
+        emit CallbackReserveFunded(msg.sender, msg.value);
     }
 
     // Override the conflicting oAppVersion function
@@ -233,6 +244,13 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
             }
         }
         emit LocalChainRemoved(_localChainEid);
+    }
+
+    function setLocalCallbackOptions(uint32 _localChainEid, bytes calldata _options) external onlyOwner {
+        require(authorizedLocalChains[_localChainEid], "Local chain not authorized");
+        require(_options.length > 0, "Callback options required");
+        localCallbackOptions[_localChainEid] = _options;
+        emit LocalCallbackOptionsUpdated(_localChainEid, _options);
     }
 
     /// @notice Get all authorized local chain endpoint IDs
@@ -307,7 +325,7 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
         // Route to appropriate handler based on message type
         bool handled = _handleUpgradeMessages(fnHash, _origin, _message) || _handleDAOMessages(fnHash, _message)
             || _handleAthenaMessages(fnHash, _message) || _handleProfileMessages(fnHash, _message)
-            || _handleJobMessages(fnHash, _message) || _handleGovernanceMessages(fnHash, _message);
+            || _handleJobMessages(fnHash, _origin, _message) || _handleGovernanceMessages(fnHash, _message);
 
         if (!handled) {
             revert(string(abi.encodePacked("Unknown function: ", functionName)));
@@ -472,7 +490,10 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
     }
 
     /// @dev Handle job-related messages (posting, applications, payments, milestones)
-    function _handleJobMessages(bytes32 fnHash, bytes calldata _message) internal returns (bool) {
+    function _handleJobMessages(bytes32 fnHash, Origin calldata _origin, bytes calldata _message)
+        internal
+        returns (bool)
+    {
         // postJob
         if (fnHash == keccak256(bytes("postJob"))) {
             require(nativeOpenWorkJobContract != address(0), "NOWJC not set");
@@ -516,6 +537,22 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
             INativeOpenWorkJobContract(nativeOpenWorkJobContract).startJob(
                 jobGiver, jobId, applicationId, useApplicantMilestones
             );
+            return true;
+        }
+
+        // Two-step local start: canonicalize applicant milestones, then return them to the source LOWJC.
+        if (fnHash == keccak256(bytes("startJobWithMilestoneSync"))) {
+            require(authorizedLocalChains[_origin.srcEid], "Local chain not authorized");
+            require(nativeOpenWorkJobContract != address(0), "NOWJC not set");
+            (, address jobGiver, string memory jobId, uint256 applicationId) =
+                abi.decode(_message, (string, address, string, uint256));
+            (address selectedApplicant, uint256[] memory canonicalAmounts) =
+                INativeOpenWorkJobContract(nativeOpenWorkJobContract).startJob(jobGiver, jobId, applicationId, true);
+            require(selectedApplicant != address(0), "Invalid selected applicant");
+
+            bytes memory callbackPayload =
+                abi.encode("startJobMilestones", jobGiver, jobId, applicationId, canonicalAmounts);
+            _sendLocalCallback(_origin.srcEid, "startJobMilestones", callbackPayload);
             return true;
         }
 
@@ -588,6 +625,21 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
         }
 
         return false;
+    }
+
+    function _sendLocalCallback(uint32 _localChainEid, string memory _functionName, bytes memory _payload) internal {
+        bytes memory options = localCallbackOptions[_localChainEid];
+        require(options.length > 0, "Callback options not set");
+
+        MessagingFee memory fee = _quote(_localChainEid, _payload, options, false);
+        require(address(this).balance >= fee.nativeFee, "Callback reserve too low");
+
+        endpoint.send{value: fee.nativeFee}(
+            MessagingParams(_localChainEid, _getPeerOrRevert(_localChainEid), _payload, options, false),
+            payable(owner())
+        );
+        emit CrossChainMessageSent(_functionName, _localChainEid, _payload);
+        emit LocalCallbackSent(_localChainEid, _functionName, fee.nativeFee);
     }
 
     /// @dev Handle governance action messages (token claims, governance tracking)
@@ -741,6 +793,13 @@ contract NativeLZOpenworkBridgeV2 is OAppSender, OAppReceiver {
     function quoteMainChain(bytes calldata _payload, bytes calldata _options) external view returns (uint256 fee) {
         MessagingFee memory msgFee = _quote(mainChainEid, _payload, _options, false);
         return msgFee.nativeFee;
+    }
+
+    function quoteLocalCallback(uint32 _localChainEid, bytes calldata _payload) external view returns (uint256 fee) {
+        require(authorizedLocalChains[_localChainEid], "Local chain not authorized");
+        bytes memory options = localCallbackOptions[_localChainEid];
+        require(options.length > 0, "Callback options not set");
+        return _quote(_localChainEid, _payload, options, false).nativeFee;
     }
 
     /// @notice Get fee quote for sending messages to three chains

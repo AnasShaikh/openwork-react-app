@@ -71,7 +71,7 @@ Use native adapter ABIs and no-LayerZero paths for Arbitrum. This frontend corre
 
 **Problem:** XDC forwards `_useAppMilestones` to the native chain but immediately locks funds using the employer's original local `milestoneAmounts`. If applicant-proposed milestones are selected, the canonical native schedule and local escrow schedule can differ.
 
-**Correction discussed:** Use a two-step start flow. NOWJC validates the selected application and returns the canonical final milestone amounts; the local LOWJC stores those returned amounts and only then locks milestone 1. This requires a coordinated local LOWJC, native handler/bridge, and frontend change.
+**Correction on `main` — July 19, 2026:** The coordinated two-step flow is implemented only in versioned successors: Local LOWJC V3 (copied from V2), NOWJC V5 (copied from V4), LocalLZOpenworkBridge V2 (copied from V1), and the already-versioned NativeLZOpenworkBridge V2; all original baselines remain untouched. Applicant-milestone starts leave the local job `Open`, record the pending application, and send no USDC. NOWJC validates the exact application, starts the canonical job with the applicant schedule, and returns the canonical amounts through a native-to-local LayerZero callback. Local V3 authenticates the callback, replaces its schedule, and only then pulls/sends milestone 1. Insufficient allowance reverts the callback without changing local state so LayerZero delivery can be retried. Employer-milestone starts retain the immediate existing path. The native bridge requires configured per-local-chain callback options and a funded native-fee reserve; an empty reserve rolls back the native handler mutation. Six proxy-upgrade/lifecycle tests pass under the production Solidity 0.8.23 via-IR pipeline. Three LayerZero round-trip/authentication/reserve tests pass under Solidity 0.8.29 because LayerZero's bundled Foundry helper triggers a compiler-internal Yul stack exception under 0.8.23; the production bridge artifacts themselves compile and are size-measured under 0.8.23 via-IR.
 
 ### 7. Cross-chain payment destination is not bound to the selected applicant
 
@@ -246,6 +246,15 @@ The XDC local LOWJC size was also checked with the same production compiler sett
 |---|---:|---:|
 | Currently deployed | 14,078 bytes | 10,498 bytes |
 | Corrected `main` | 14,484 bytes | 10,092 bytes |
+| V3 applicant-milestone synchronization | 16,286 bytes | 8,290 bytes |
+
+The coordinated callback artifacts were measured with the same production settings:
+
+| Applicant-milestone callback artifact | Runtime size | Remaining margin |
+|---|---:|---:|
+| NOWJC V5 | 23,898 bytes | 678 bytes |
+| NativeLZOpenworkBridge V2 | 20,448 bytes | 4,128 bytes |
+| LocalLZOpenworkBridge V2 | 10,079 bytes | 14,497 bytes |
 
 Current deployed headroom for the rating correction is ample, but corrected artifacts must still be measured:
 
@@ -283,7 +292,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Native Athena ABI/dispute validation | Contract `main` | Proxy upgrade/re-verification pending |
 | ArbLOWJC lifecycle/auth checks | Contract `main` | Proxy upgrade pending |
 | NOWJC premature completion | Contract `main` | Proxy upgrade pending |
-| XDC applicant milestone escrow mismatch | Design agreed; coordinated implementation still needed | Pending |
+| XDC applicant milestone escrow mismatch | Coordinated versioned implementation on `main`; 9 upgrade/lifecycle/LayerZero tests pass | Local/NOWJC upgrades, two bridge deployments, callback options/reserve configuration, and UI state handling pending |
 | Cross-chain payout destination binding | Contract `main` | NOWJC proxy upgrade pending |
 | Invalid application start | Contract `main` | NOWJC proxy upgrade pending |
 | Combined release-and-lock validation | Contract `main` | NOWJC proxy upgrade pending |
@@ -311,6 +320,9 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 - [ ] Confirm the deployed LocalAthena implementation enforces that configured value.
 - [ ] Test below-minimum, exact-minimum, multiple-dispute, settlement, and fee-refund paths before enabling production enforcement.
 - [ ] Owner to review and finalize the job-bound escrow accounting model before any implementation or upgrade proposal.
+- [ ] Configure and verify native-bridge callback options for every enabled local EID.
+- [ ] Fund and monitor the native bridge callback reserve; every live funding transaction remains approval-gated.
+- [ ] Confirm job givers approve enough USDC for applicant milestone 1 until the retryable callback completes.
 
 ## Confirmed-finding remediation plan
 
