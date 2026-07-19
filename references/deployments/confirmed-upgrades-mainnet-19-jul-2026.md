@@ -199,6 +199,22 @@ Readback confirmed the exact LOWJC/Athena routes and authorizations, Arbitrum/Et
 
 XDC isolated-configuration execution cost: `0.011533889759698118 XDC`. Post-phase signer state: nonce 31; balance `50.261279823746857208 XDC`.
 
+## Phase 4 — independent Arbitrum proxy upgrades
+
+Status: **complete**.
+
+| Nonce | Proxy upgrade | New implementation | Transaction hash |
+|---:|---|---|---|
+| 230 | NativeAthena to V9 | `0xB4ea3444517B5C11DDF47f8F6E9dA6EccCD17395` | `0x5aa766c9947ecb3a809212d4c4b09f13a472edc4d5864384e186c3a9c531fe2f` |
+| 231 | ArbLOWJC to V5 | `0xdd7BA6d8E92358AD7477b2f79fF83C78aC07F289` | `0x43b7f3210c20c28ea1e7fddeaac87d64bd9c54cbe17df337a4767cd660c28512` |
+| 232 | ArbAthenaClient to V3 | `0x6DE7D58FCffF98AF2E85e1976155f3D671F6756C` | `0x92fea61d63567b65f4b84b5591e81f3ff1015abc2c4f71826f44ccb0e69580ee` |
+| 233 | ProfileGenesis to V2 | `0x9E8F58839aB114BbcA8A0c24f5BEC1C841294784` | `0x83a1bc36324ffe5bc72e0661af432a343efdc54c30693720cd5e6e3cdabcdd83` |
+| 234 | ProfileManager to V3 plus atomic Job Genesis initializer | `0xd30c9f6Bf3e6563a64AC32BD4Cc76407ed0e2fFf` | `0x709f3e4560b794317964bc31593ef091d770740ef7b7dd10cff9e69c3d55ca2a` |
+
+Every receipt succeeded and every ERC-1967 implementation slot matched. Owner/dependency smoke checks passed. NativeAthena and ProfileManager still pointed to the old bridge after this phase. ProfileManager's `jobGenesis` is `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294`. ArbLOWJC's job counter remained 21. ArbAthenaClient's stored minimum remained `50,000,000` units; V3 retains the selected testing-any-positive-fee behavior.
+
+Execution cost: `0.000004434826742000 ETH`. Post-phase Arbitrum signer state: nonce 235; balance `0.002558888896783726 ETH`.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
