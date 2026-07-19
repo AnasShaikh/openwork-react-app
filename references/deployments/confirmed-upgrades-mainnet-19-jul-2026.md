@@ -307,6 +307,16 @@ Public root, health, Browse Jobs, XDC job detail and documentation routes return
 
 The XDC `postJob(string,string[],uint256[],bytes)` path was simulated with a realistic next-job payload and 800,000 destination-gas options against both `https://erpc.xinfin.network` and `https://rpc.xinfin.network`. Both calls succeeded, both RPCs quoted exactly `4,086,746,197,006,891,805 wei` of XDC and job counter `2` was unchanged. The Arbitrum direct `postJob(string,string[],uint256[])` path was simulated successfully against `https://arb1.arbitrum.io/rpc` and `https://1rpc.io/arb`; both retained job counter `21`. All simulations used `eth_call`, so they changed no state and spent no funds.
 
+## Phase 11 — production XDC job-cycle verification
+
+Status: **complete**.
+
+Production job `30365-3` completed the entire XDC lifecycle with a separately encrypted applicant account: XDC-to-Arbitrum post, application, USDC approval and start, CCTP escrow mint, work submission, milestone release, Arbitrum-to-XDC CCTP payout and public-UI rendering. All five LayerZero messages are `DELIVERED`; both Circle messages are `complete`; XDC LOWJC and Arbitrum Genesis both report `Completed`; `100000` USDC units were released and the applicant received `99986` units after Circle's `14`-unit return-path fee.
+
+The complete transaction, GUID, CCTP, state, balance and public-UI record is in `references/deployments/xdc-mainnet-job-cycle-30365-3-19-jul-2026.md`.
+
+The cycle also exposed an off-chain release issue: production IPFS uploads stop on an invalid Lighthouse credential instead of falling through to the next configured provider, and the Pinata account reached its plan limit. This does not invalidate the completed contract lifecycle, but reliable UI posting requires provider failover plus at least one healthy upload provider.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
