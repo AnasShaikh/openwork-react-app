@@ -92,7 +92,9 @@ interface ILocalOpenWorkJobContract {
 
 // ==================== CONTRACT ====================
 
-contract NativeArbAthenaClient is
+/// @title NativeArbAthenaClient V3
+/// @notice Testing-safe successor with canonical job validation while any positive dispute fee remains accepted.
+contract NativeArbAthenaClientV3 is
     Initializable,
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -182,6 +184,10 @@ contract NativeArbAthenaClient is
     ) external nonReentrant {
         require(_feeAmount > 0, "Fee must be > 0");
         require(address(jobContract) != address(0), "Job contract not set");
+
+        ILocalOpenWorkJobContract.Job memory job = jobContract.getJob(_jobId);
+        require(job.status == ILocalOpenWorkJobContract.JobStatus.InProgress, "Job not in progress");
+        require(msg.sender == job.jobGiver || msg.sender == job.selectedApplicant, "Not a job party");
 
         // Transfer fee directly to NativeAthena — it holds and distributes the fees
         usdcToken.safeTransferFrom(msg.sender, address(nativeAthena), _feeAmount);

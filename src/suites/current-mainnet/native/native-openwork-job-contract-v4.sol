@@ -639,12 +639,7 @@ contract NativeOpenWorkJobContract is
     function postJob(string memory _jobId, address _jobGiver, string memory _jobDetailHash, string[] memory _descriptions, uint256[] memory _amounts) external {
         require(authorizedContracts[msg.sender], "Auth");
         require(!genesis.jobExists(_jobId), "Job exists");
-        require(_jobGiver != address(0), "Invalid job giver");
-        require(_descriptions.length > 0, "Must have milestones");
         require(_descriptions.length == _amounts.length, "Length mismatch");
-        for (uint i = 0; i < _amounts.length; i++) {
-            require(_amounts[i] > 0, "Invalid milestone amount");
-        }
 
         genesis.setJob(_jobId, _jobGiver, _jobDetailHash, _descriptions, _amounts);
         emit JobPosted(_jobId, _jobGiver, _jobDetailHash);
@@ -667,17 +662,10 @@ contract NativeOpenWorkJobContract is
     /// @param _preferredChainDomain Applicant's preferred payment chain (CCTP domain)
     function applyToJob(address _applicant, string memory _jobId, string memory _applicationHash, string[] memory _descriptions, uint256[] memory _amounts, uint32 _preferredChainDomain) external {
         require(authorizedContracts[msg.sender], "Auth");
-        require(_applicant != address(0), "Invalid applicant");
-        require(_descriptions.length > 0, "Must have milestones");
         require(_descriptions.length == _amounts.length, "Length mismatch");
 
         IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
-        require(bytes(job.id).length != 0, "Job does not exist");
-        require(job.status == IOpenworkGenesis.JobStatus.Open, "Job not open");
         require(_applicant != job.jobGiver, "Self");
-        for (uint i = 0; i < _amounts.length; i++) {
-            require(_amounts[i] > 0, "Invalid milestone amount");
-        }
         for (uint i = 0; i < job.applicants.length; i++) {
             require(job.applicants[i] != _applicant, "Already applied");
         }
@@ -711,13 +699,9 @@ contract NativeOpenWorkJobContract is
     ) external {
         require(authorizedContracts[msg.sender], "Auth");
         require(!genesis.jobExists(_jobId), "Job already exists");
-        require(_jobGiver != address(0) && _jobTaker != address(0), "Invalid participant");
         require(_descriptions.length == _amounts.length, "Length mismatch");
         require(_descriptions.length > 0, "Must have milestones");
         require(_jobGiver != _jobTaker, "Self");
-        for (uint i = 0; i < _amounts.length; i++) {
-            require(_amounts[i] > 0, "Invalid milestone amount");
-        }
 
         // 1. Create job in Genesis
         genesis.setJob(_jobId, _jobGiver, _jobDetailHash, _descriptions, _amounts);
@@ -761,13 +745,10 @@ contract NativeOpenWorkJobContract is
     /// @param _jobId Job identifier
     /// @param _applicationId ID of the selected application
     /// @param _useApplicantMilestones True to use applicant's proposed milestones
-    function startJob(address _jobGiver, string memory _jobId, uint256 _applicationId, bool _useApplicantMilestones) external {
+    function startJob(address /* _jobGiver */, string memory _jobId, uint256 _applicationId, bool _useApplicantMilestones) external {
         require(authorizedContracts[msg.sender], "Auth");
         IOpenworkGenesis.Application memory application = genesis.getJobApplication(_jobId, _applicationId);
         IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
-        require(job.jobGiver == _jobGiver, "Only job giver");
-        require(job.status == IOpenworkGenesis.JobStatus.Open, "Job not open");
-        require(application.applicant != address(0), "Invalid application");
 
         genesis.setJobSelectedApplicant(_jobId, application.applicant, _applicationId);
         genesis.updateJobStatus(_jobId, IOpenworkGenesis.JobStatus.InProgress);
@@ -793,11 +774,8 @@ contract NativeOpenWorkJobContract is
     /// @param _submissionHash IPFS hash of work submission
     function submitWork(address _applicant, string memory _jobId, string memory _submissionHash) external {
         require(authorizedContracts[msg.sender], "Auth");
-        IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
-        require(job.status == IOpenworkGenesis.JobStatus.InProgress, "Job not in progress");
-        require(job.selectedApplicant == _applicant, "Only selected applicant");
-        require(job.currentMilestone > 0 && job.currentMilestone <= job.finalMilestones.length, "Invalid milestone");
         genesis.addWorkSubmission(_jobId, _submissionHash);
+        IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
         emit WorkSubmitted(_jobId, _applicant, _submissionHash, job.currentMilestone);
     }
 
@@ -852,9 +830,6 @@ contract NativeOpenWorkJobContract is
             uint256 netAmount,
             uint256 commission
         ) = _validateAndCalculatePayment(_jobId, _amount);
-        require(job.jobGiver == _jobGiver, "Only job giver");
-        require(job.selectedApplicant == _targetRecipient, "Invalid recipient");
-        require(jobApplicantChainDomain[_jobId][job.selectedApplicant] == _targetChainDomain, "Invalid target domain");
 
         // Execute CCTP cross-chain transfer
         _executeCCTPTransfer(_targetRecipient, _targetChainDomain, netAmount);
@@ -948,16 +923,10 @@ contract NativeOpenWorkJobContract is
     /// @notice Lock the next milestone for work
     /// @param _jobId Job identifier
     /// @param _lockedAmount Amount being locked for the milestone
-    function lockNextMilestone(address _caller, string memory _jobId, uint256 _lockedAmount) external {
+    function lockNextMilestone(address /* _caller */, string memory _jobId, uint256 _lockedAmount) external {
         require(authorizedContracts[msg.sender], "Auth");
         IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
-        require(job.jobGiver == _caller, "Only job giver");
-        require(job.status == IOpenworkGenesis.JobStatus.InProgress, "Job not in progress");
         require(job.currentMilestone < job.finalMilestones.length, "All completed");
-
-        uint256 expectedAmount = job.finalMilestones[job.currentMilestone].amount;
-        require(_lockedAmount >= (expectedAmount * 9999) / 10000, "Amount below milestone minimum");
-        require(_lockedAmount <= expectedAmount * 2, "Amount exceeds milestone maximum");
 
         genesis.setJobCurrentMilestone(_jobId, job.currentMilestone + 1);
         emit MilestoneLocked(_jobId, job.currentMilestone + 1, _lockedAmount);
@@ -970,15 +939,13 @@ contract NativeOpenWorkJobContract is
     /// @param _lockedAmount Amount to lock for next milestone
     function releasePaymentAndLockNext(address _jobGiver, string memory _jobId, uint256 _releasedAmount, uint256 _lockedAmount) external {
         require(authorizedContracts[msg.sender], "Auth");
-
-        (IOpenworkGenesis.Job memory job, uint256 netAmount, uint256 commission) =
-            _validateAndCalculatePayment(_jobId, _releasedAmount);
-        require(job.jobGiver == _jobGiver, "Only job giver");
-        require(job.currentMilestone < job.finalMilestones.length, "No next milestone");
-
-        uint256 expectedLockedAmount = job.finalMilestones[job.currentMilestone].amount;
-        require(_lockedAmount >= (expectedLockedAmount * 9999) / 10000, "Locked amount below minimum");
-        require(_lockedAmount <= expectedLockedAmount * 2, "Locked amount exceeds maximum");
+        
+        IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
+        require(job.selectedApplicant != address(0), "No applicant");
+        
+        // Calculate and deduct commission
+        uint256 commission = calculateCommission(_releasedAmount);
+        uint256 netAmount = _releasedAmount - commission;
         
         // Accumulate commission
         accumulatedCommission += commission;
@@ -1011,10 +978,16 @@ contract NativeOpenWorkJobContract is
         
         genesis.setJobCurrentMilestone(_jobId, job.currentMilestone + 1);
         
+        job = genesis.getJob(_jobId); // Re-fetch updated job
+        if (job.currentMilestone > job.finalMilestones.length) {
+            genesis.updateJobStatus(_jobId, IOpenworkGenesis.JobStatus.Completed);
+            emit JobStatusChanged(_jobId, IOpenworkGenesis.JobStatus.Completed);
+        }
+        
         // Emit commission event
         emit CommissionDeducted(_jobId, _releasedAmount, commission, netAmount);
         
-        emit PaymentReleasedAndNextMilestoneLocked(_jobId, netAmount, _lockedAmount, job.currentMilestone + 1);
+        emit PaymentReleasedAndNextMilestoneLocked(_jobId, netAmount, _lockedAmount, job.currentMilestone);
     }
 
     /// @notice Release final payment for native Arb jobs (called by authorized LOWJC)
@@ -1024,27 +997,29 @@ contract NativeOpenWorkJobContract is
     function releasePayment(address _jobGiver, string memory _jobId, uint256 _amount) external {
         require(authorizedContracts[msg.sender], "Not authorized");
 
-        (IOpenworkGenesis.Job memory job, uint256 netAmount, uint256 commission) =
-            _validateAndCalculatePayment(_jobId, _amount);
-        require(job.jobGiver == _jobGiver, "Only job giver");
+        IOpenworkGenesis.Job memory job = genesis.getJob(_jobId);
+        require(job.selectedApplicant != address(0), "No applicant");
+        require(_amount > 0, "Invalid amount");
 
-        uint32 applicantTargetDomain = jobApplicantChainDomain[_jobId][job.selectedApplicant];
-        if (applicantTargetDomain == 3) {
-            usdcToken.safeTransfer(job.selectedApplicant, netAmount);
-        } else {
-            require(cctpTransceiver != address(0), "CCTP Transceiver not set");
-            _executeCCTPTransfer(job.selectedApplicant, applicantTargetDomain, netAmount);
-        }
+        // Calculate commission
+        uint256 commission = calculateCommission(_amount);
+        uint256 netAmount = _amount - commission;
 
-        _finalizePayment(
-            _jobGiver,
-            _jobId,
-            job,
-            _amount,
-            netAmount,
-            commission,
-            job.selectedApplicant
-        );
+        // Accumulate commission
+        accumulatedCommission += commission;
+
+        // Native Arb — direct transfer
+        usdcToken.safeTransfer(job.selectedApplicant, netAmount);
+
+        // Update job state in Genesis
+        genesis.updateJobTotalPaid(_jobId, netAmount);
+        genesis.updateJobStatus(_jobId, IOpenworkGenesis.JobStatus.Completed);
+
+        // Rewards
+        _processRewardsForPayment(_jobGiver, _jobId, netAmount);
+
+        emit CommissionDeducted(_jobId, _amount, commission, netAmount);
+        emit PaymentReleased(_jobId, _jobGiver, job.selectedApplicant, netAmount, 0);
     }
 
     // ==================== BRIDGE INTEGRATION ====================

@@ -5,8 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {NativeOpenworkGenesis} from "../src/suites/current-mainnet/native/native-openwork-genesis.sol";
-import {NativeOpenWorkJobContract} from "../src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol";
-import {NativeArbOpenWorkJobContract} from "../src/suites/current-mainnet/native/native-arb-lowjc-v4.sol";
+import {NativeOpenWorkJobContract} from "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
+import {NativeArbOpenWorkJobContractV5} from "../src/suites/current-mainnet/native/native-arb-lowjc-v5.sol";
 
 contract MockProfileManager {
     function hasProfile(address) external pure returns (bool) {
@@ -18,7 +18,7 @@ contract CurrentMainnetJobLifecycleTest is Test {
     ERC20Mock internal usdc;
     NativeOpenworkGenesis internal genesis;
     NativeOpenWorkJobContract internal nowjc;
-    NativeArbOpenWorkJobContract internal adapter;
+    NativeArbOpenWorkJobContractV5 internal adapter;
 
     address internal giver = makeAddr("giver");
     address internal applicant = makeAddr("applicant");
@@ -49,13 +49,13 @@ contract CurrentMainnetJobLifecycleTest is Test {
             )
         );
 
-        NativeArbOpenWorkJobContract adapterImplementation = new NativeArbOpenWorkJobContract();
-        adapter = NativeArbOpenWorkJobContract(
+        NativeArbOpenWorkJobContractV5 adapterImplementation = new NativeArbOpenWorkJobContractV5();
+        adapter = NativeArbOpenWorkJobContractV5(
             address(
                 new ERC1967Proxy(
                     address(adapterImplementation),
                     abi.encodeCall(
-                        NativeArbOpenWorkJobContract.initialize, (address(this), address(usdc), address(nowjc))
+                        NativeArbOpenWorkJobContractV5.initialize, (address(this), address(usdc), address(nowjc))
                     )
                 )
             )
@@ -91,7 +91,7 @@ contract CurrentMainnetJobLifecycleTest is Test {
         vm.prank(giver);
         adapter.startJob(jobId, 1, true);
 
-        NativeArbOpenWorkJobContract.Job memory localJob = adapter.getJob(jobId);
+        NativeArbOpenWorkJobContractV5.Job memory localJob = adapter.getJob(jobId);
         assertEq(localJob.currentMilestone, 1);
         assertEq(localJob.currentLockedAmount, 150_000);
         assertEq(localJob.finalMilestones[0].amount, 150_000);
@@ -120,7 +120,7 @@ contract CurrentMainnetJobLifecycleTest is Test {
         localJob = adapter.getJob(jobId);
         assertEq(localJob.currentMilestone, 2);
         assertEq(localJob.currentLockedAmount, 250_000);
-        assertEq(uint256(localJob.status), uint256(NativeArbOpenWorkJobContract.JobStatus.InProgress));
+        assertEq(uint256(localJob.status), uint256(NativeArbOpenWorkJobContractV5.JobStatus.InProgress));
 
         nativeJob = genesis.getJob(jobId);
         assertEq(nativeJob.currentMilestone, 2);
@@ -136,7 +136,7 @@ contract CurrentMainnetJobLifecycleTest is Test {
         assertEq(usdc.balanceOf(applicant), 400_000);
         localJob = adapter.getJob(jobId);
         assertEq(localJob.currentLockedAmount, 0);
-        assertEq(uint256(localJob.status), uint256(NativeArbOpenWorkJobContract.JobStatus.Completed));
+        assertEq(uint256(localJob.status), uint256(NativeArbOpenWorkJobContractV5.JobStatus.Completed));
 
         nativeJob = genesis.getJob(jobId);
         assertEq(nativeJob.totalPaid, 400_000);

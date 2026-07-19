@@ -55,11 +55,11 @@ interface ICCTPSender {
     function sendFast(uint256 amount, uint32 domain, bytes32 mintRecipient, uint256 nonce) external;
 }
 
-/// @title LocalAthena
+/// @title LocalAthena V2
 /// @notice Oracle client for dispute resolution on Local chains (OP Sepolia)
 /// @dev Handles dispute raising, skill verification, and fee routing to Native chain
 ///      Uses CCTP for USDC transfers and LayerZero for message passing
-contract LocalAthena is 
+contract LocalAthenaV2 is 
     Initializable,
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -328,7 +328,7 @@ contract LocalAthena is
         uint256 _disputedAmount,
         bytes calldata _nativeOptions
     ) external payable nonReentrant {
-        require(_feeAmount > 0, "Fee amount must be greater than 0");
+        require(_feeAmount >= minDisputeFee, "Fee below minimum");
         require(address(jobContract) != address(0), "Job contract not set");
 
         // Transfer USDC from caller to this contract

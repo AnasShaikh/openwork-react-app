@@ -7,7 +7,7 @@ import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {
     LocalOpenWorkJobContractLite,
     ILayerZeroBridge
-} from "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol";
+} from "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol";
 
 contract MockLocalBridge is ILayerZeroBridge {
     function sendToNativeChain(string calldata, bytes calldata, bytes calldata) external payable {}
@@ -75,17 +75,17 @@ contract CurrentMainnetLocalLifecycleTest is Test {
         assertEq(uint256(job.status), uint256(LocalOpenWorkJobContractLite.JobStatus.Completed));
     }
 
-    function testApplicantMilestonesFailBeforeEscrowOnLocalChain() public {
+    function testApplicantMilestonesWaitForCanonicalScheduleBeforeEscrow() public {
         vm.prank(giver);
         adapter.postJob("details", _strings("one", "two"), _amounts(100_000, 200_000), bytes(""));
 
         vm.prank(giver);
-        vm.expectRevert(bytes("Applicant milestones unsupported on local chain"));
         adapter.startJob("50-1", 1, true, bytes(""));
 
         LocalOpenWorkJobContractLite.Job memory job = adapter.getJob("50-1");
         assertEq(uint256(job.status), uint256(LocalOpenWorkJobContractLite.JobStatus.Open));
         assertEq(job.currentLockedAmount, 0);
+        assertEq(adapter.pendingStartApplicationId("50-1"), 1);
     }
 
     function testRejectsInvalidMilestonesBeforeSendingMessage() public {

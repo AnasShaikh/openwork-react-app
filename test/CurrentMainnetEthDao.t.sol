@@ -2,7 +2,15 @@
 pragma solidity ^0.8.22;
 
 import {Test} from "forge-std/Test.sol";
-import {ETHOpenworkDAO} from "../src/suites/current-mainnet/eth/eth-openwork-dao-v2.sol";
+import {ETHOpenworkDAO} from "../src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol";
+
+contract MockEthDaoCheckpoints {
+    function checkpoint(address, uint256, uint256) external {}
+}
+
+contract MockEthDaoMessaging {
+    function sendStakeUpdate(address, uint256, uint256, uint256, bool, bytes calldata, address) external payable {}
+}
 
 contract ConfigurableReturnToken {
     bool internal transferFromResult = true;
@@ -37,9 +45,10 @@ contract CurrentMainnetEthDaoTest is Test {
     function setUp() public {
         token = new ConfigurableReturnToken();
         address daoAddress = makeAddr("eth-dao");
-        vm.etch(daoAddress, vm.getDeployedCode("src/suites/current-mainnet/eth/eth-openwork-dao-v2.sol:ETHOpenworkDAO"));
+        vm.etch(daoAddress, vm.getDeployedCode("src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol:ETHOpenworkDAO"));
         dao = ETHOpenworkDAO(payable(daoAddress));
         dao.initialize(address(this), address(token), 1, address(0));
+        dao.initializeV3(address(new MockEthDaoCheckpoints()), address(new MockEthDaoMessaging()));
     }
 
     function testStakeRejectsFailedTokenTransfer() public {

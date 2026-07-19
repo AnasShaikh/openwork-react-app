@@ -7,8 +7,8 @@ This ledger records the frontend, release-process, and deployed-contract finding
 - Contract repository: `AnasShaikh/openwork-contracts-final`
 - Working branch: `main`; audit changes are committed and pushed directly to `origin/main` in recoverable intermediate states.
 - No audit branch was created. The unrelated untracked `fundraising/` directory was left untouched.
-- Lifecycle corrections are primarily in `068e6f7` (`Harden current mainnet contract lifecycles`).
-- Native Athena ABI and dispute validation corrections are in `3b413b9` (`Validate canonical Native Athena disputes`).
+- Lifecycle corrections were initially developed in `068e6f7` and were subsequently moved into properly named versioned successors; the earlier/deployed source files were restored byte-for-byte.
+- Native Athena ABI and dispute validation were initially developed in `3b413b9` and are now carried by NativeAthena V9, copied from the actual live V8/XDC line.
 - “Present on `main`” does not mean “deployed.” Every proxy upgrade still needs exact bytecode-size, storage-layout, test, ownership, deployment, and explorer-verification checks.
 
 ## Frontend and release-process findings
@@ -40,9 +40,9 @@ Use native adapter ABIs and no-LayerZero paths for Arbitrum. This frontend corre
 
 **Problem discussed:** Native Athena's Genesis `Job` interface must exactly match the deployed Genesis tuple. Dispute creation also needs canonical job validation: job exists, is in progress, raiser is the job giver or selected applicant, and both fee and disputed amount are positive.
 
-**Correction on `main`:** `3b413b9` adds the exact `Job`/`MilestonePayment` ABI and the dispute checks.
+**Correction on `main`:** `native-athena-v9.sol` is copied from the verified live V8/XDC source and adds the exact `Job`/`MilestonePayment` ABI plus the canonical dispute checks. V8 and the earlier V5 source remain untouched.
 
-**Deployment note:** The Native Athena proxy currently points to implementation `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31`. Its exact source was not available from Blockscout or Sourcify during the latest check, so its runtime must be matched or verified before proposing the final upgrade transaction.
+**Deployment note:** The Native Athena proxy currently points to verified V8 implementation `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31`. Its exact dated source is now consolidated on `main`; normalized V8/V9 storage layouts match.
 
 ### 4. Deployed ArbLOWJC lifecycle and authorization defects
 
@@ -55,7 +55,7 @@ Use native adapter ABIs and no-LayerZero paths for Arbitrum. This frontend corre
 - Work submission lacked selected-applicant, status, and milestone authorization checks.
 - Escrow progression and next-milestone handling could diverge from the canonical NOWJC schedule.
 
-**Correction on `main`:** ArbLOWJC v4 initializes milestone `1`, selects the correct final milestone schedule, validates work submission, and hardens release/lock progression.
+**Correction on `main`:** `native-arb-lowjc-v5.sol` is copied from the deployed V4 line, initializes milestone `1`, selects the correct final milestone schedule, validates work submission, and hardens release/lock progression. V4 is restored to its exact pre-audit baseline.
 
 ### 5. Native NOWJC marks any native payment as final
 
@@ -151,7 +151,7 @@ Then execute CCTP and finalize payment.
 
 **Identifier clarification:** A canonical dispute ID and a job ID are different identifiers. The local `disputeFees[jobId]` and `jobDisputeExists[jobId]` values are remnants of the old local fee-settlement path; overwriting that local record does not overwrite the distinct canonical dispute records stored by NativeAthena/Genesis.
 
-**Correction on `main`:** Minimum-fee enforcement remains in source, subject to the testing decision below. The one-dispute-per-job guards added during this audit were incorrect and have been removed from both LocalAthena and ArbAthenaClient. Job-party and status validation remains in ArbAthenaClient and at the canonical NativeAthena boundary; those checks do not prevent multiple distinct disputes by valid job parties.
+**Correction on `main`:** LocalAthena V2 contains the future configured-minimum enforcement but is explicitly held from deployment. ArbAthenaClient V3 preserves the current testing-safe any-positive-fee behavior while adding job-party and status validation. The one-dispute-per-job guards are absent. Canonical NativeAthena V9 independently validates the job and parties, so multiple distinct disputes remain possible.
 
 **Decision — July 18, 2026:** Keep the effective minimum dispute fee low during end-to-end testing. Do not activate the current `main` minimum-fee enforcement while the proxies still hold a 50 USDC configured minimum unless `minDisputeFee` is first deliberately lowered. Production fee selection and enforcement are deferred and must be revisited before release. Any limit on aggregate disputed value belongs in canonical per-job escrow accounting, not in a local boolean that prohibits multiple dispute IDs.
 
@@ -256,6 +256,13 @@ The coordinated callback artifacts were measured with the same production settin
 | NativeLZOpenworkBridge V3 | 20,448 bytes | 4,128 bytes |
 | LocalLZOpenworkBridge V2 | 10,079 bytes | 14,497 bytes |
 
+The versioned Arbitrum adapter successors were measured with the same settings:
+
+| Arbitrum adapter | Runtime size | Remaining margin |
+|---|---:|---:|
+| ArbLOWJC V5 | 19,913 bytes | 4,663 bytes |
+| ArbAthenaClient V3 (testing-safe fee behavior) | 7,162 bytes | 17,414 bytes |
+
 The DAO correction and its separated modules were measured with the same production settings:
 
 | DAO artifact | Runtime size | Remaining margin |
@@ -282,9 +289,9 @@ LocalAthena was measured separately with Solidity 0.8.23 and the production opti
 | LocalAthena implementation | Runtime size | Remaining margin |
 |---|---:|---:|
 | Deployed on Optimism and XDC | 12,872 bytes | 11,704 bytes |
-| Current `main` with multiple disputes preserved | 12,690 bytes | 11,886 bytes |
+| LocalAthena V2 future minimum-enforcement successor (held) | 12,690 bytes | 11,886 bytes |
 
-The current `main` ArbAthenaClient runtime is 7,213 bytes with 17,363 bytes of margin under the same Solidity 0.8.23 production settings.
+ArbAthenaClient V3, selected for the testing phase, is 7,162 bytes with 17,414 bytes of margin under the same Solidity 0.8.23 production settings.
 
 The current combined NOWJC corrections fit, but the margin is small. Before every implementation or upgrade:
 
@@ -313,7 +320,7 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Application job existence/status validation | Contract `main` | NOWJC proxy upgrade pending |
 | Canonical rating authorization and duplicate prevention | Versioned ProfileManager V3/ProfileGenesis V2 corrections on `main`; 8 upgrade/lifecycle tests pass | ProfileManager/ProfileGenesis upgrades and canonical job-Genesis initialization pending |
 | Job-bound disputed-fund accounting | Deliberately deferred; no implementation authorized | Owner review and final design decision required |
-| Local dispute minimum enforcement | Contract `main`; intentionally deferred for testing | Revisit and configure before production |
+| Local dispute minimum enforcement | LocalAthena V2 prepared but intentionally held; ArbAthenaClient V3 keeps any-positive-fee testing behavior | Revisit and configure before production |
 | Multiple disputes per job | Preserved on contract `main`; incorrect local guards removed | Canonical counter-based IDs remain authoritative |
 | Native-to-local dispute settlement synchronization | Retracted as a requirement | No upgrade recommended without a separate lifecycle decision |
 | Legacy local finalization receiver | Dormant; no current-path correction recommended | Redesign only if local job synchronization is intentionally introduced |
@@ -345,11 +352,11 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 
 ## July 19 pre-deployment verification checkpoint
 
-- Exact Solidity 0.8.23, optimizer 200, via-IR aggregate: 48/48 current-mainnet unit, lifecycle, authorization, proxy-upgrade, DAO, rating, and milestone tests passed after consolidating the XDC deployment line and adding NativeAthena V9.
+- Exact Solidity 0.8.23, optimizer 200, via-IR aggregate: 44/44 non-duplicated current-mainnet unit, lifecycle, authorization, proxy-upgrade, DAO, rating, and milestone tests passed after consolidating XDC and restoring every earlier/deployed source baseline.
 - The retained XDC deployment/finality suite passed 4/4 under Solidity 0.8.23.
 - LayerZero endpoint harness: 3/3 round-trip, source-authentication, and callback-reserve rollback tests passed under Solidity 0.8.29; production artifacts compile and fit under 0.8.23.
 - Live read-only forks: Arbitrum proxy group, Ethereum DAO plus two-account checkpoint migration, and XDC LOWJC each upgraded successfully in ephemeral state with preserved legacy slots (3/3 fork rehearsals).
-- Storage layouts are compatible against the versioned predecessors: ETH V3 consumes gap slots 14–15; Native DAO V2 appends slot 11; ProfileManager V3 consumes gap slot 7; Local LOWJC V3 consumes gap slot 8; ProfileGenesis V2, NOWJC V5, ArbLOWJC V4, and NativeAthena V9 do not change their predecessor storage layouts. NativeAthena V8/V9 normalized labels, slots, offsets, and storage types match exactly.
+- Storage layouts are compatible against the versioned predecessors: ETH V3 consumes gap slots 14–15; Native DAO V2 appends slot 11; ProfileManager V3 consumes gap slot 7; Local LOWJC V3 consumes gap slot 8; ProfileGenesis V2, NOWJC V5, ArbLOWJC V5, ArbAthenaClient V3, and NativeAthena V9 do not change their predecessor storage layouts. Normalized labels, slots, offsets, and storage types match for V8/V9 NativeAthena and every restored-baseline/successor pair.
 - Live implementation/owner reads were refreshed at Arbitrum block 485,331,711 and later, Ethereum block 25,563,446 and later, and XDC block 105,085,240 and later. Every upgrade proxy is owned by `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`.
 - No DAO proposal was active during the check. Ethereum checkpoint migration currently includes reward-bearing accounts `0x93514040f43aB16D52faAe7A3f380c4089D844F9` and `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`; refresh the set from events immediately before deployment.
 

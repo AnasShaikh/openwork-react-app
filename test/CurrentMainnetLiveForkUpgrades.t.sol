@@ -14,8 +14,10 @@ import {OpenworkVotingPowerCheckpoints} from
 import {NativeAthenaV9} from "../src/suites/current-mainnet/native/native-athena-v9.sol";
 import {NativeOpenWorkJobContract as NativeOpenWorkJobContractV5} from
     "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
-import {NativeArbOpenWorkJobContract as NativeArbLOWJCV4} from
-    "../src/suites/current-mainnet/native/native-arb-lowjc-v4.sol";
+import {NativeArbOpenWorkJobContractV5 as NativeArbLOWJCV5} from
+    "../src/suites/current-mainnet/native/native-arb-lowjc-v5.sol";
+import {NativeArbAthenaClientV3} from
+    "../src/suites/current-mainnet/native/native-arb-athena-client-v3.sol";
 import {NativeProfileManager as NativeProfileManagerV3} from
     "../src/suites/current-mainnet/native/native-profile-manager-v3.sol";
 import {NativeProfileGenesis as NativeProfileGenesisV2} from
@@ -61,6 +63,7 @@ contract CurrentMainnetLiveForkUpgradesTest is Test {
     address internal constant ARB_NATIVE_ATHENA = 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf;
     address internal constant ARB_NOWJC = 0x8EfbF240240613803B9c9e716d4b5AD1388aFd99;
     address internal constant ARB_LOWJC = 0x5727cA7326032a8644a49dECECB8388BEF122bef;
+    address internal constant ARB_ATHENA_CLIENT = 0xB5d3F406089236ef9d4aB13306187aFCCA81f099;
     address internal constant ARB_PROFILE_GENESIS = 0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E;
     address internal constant ARB_PROFILE_MANAGER = 0x51285003A01319c2f46BB2954384BCb69AfB1b45;
 
@@ -124,8 +127,12 @@ contract CurrentMainnetLiveForkUpgradesTest is Test {
         _assertSlots(ARB_NOWJC, nowjcSlots);
 
         bytes32[] memory arbLowjcSlots = _snapshotSlots(ARB_LOWJC, 24);
-        _upgrade(ARB_LOWJC, address(new NativeArbLOWJCV4()), bytes(""));
+        _upgrade(ARB_LOWJC, address(new NativeArbLOWJCV5()), bytes(""));
         _assertSlots(ARB_LOWJC, arbLowjcSlots);
+
+        bytes32[] memory arbAthenaClientSlots = _snapshotSlots(ARB_ATHENA_CLIENT, 24);
+        _upgrade(ARB_ATHENA_CLIENT, address(new NativeArbAthenaClientV3()), bytes(""));
+        _assertSlots(ARB_ATHENA_CLIENT, arbAthenaClientSlots);
 
         bytes32[] memory profileGenesisSlots = _snapshotSlots(ARB_PROFILE_GENESIS, 24);
         _upgrade(ARB_PROFILE_GENESIS, address(new NativeProfileGenesisV2()), bytes(""));

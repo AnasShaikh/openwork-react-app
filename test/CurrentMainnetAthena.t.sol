@@ -5,10 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 import {
-    NativeArbAthenaClient,
+    NativeArbAthenaClientV3,
     ILocalOpenWorkJobContract,
     INativeAthena
-} from "../src/suites/current-mainnet/native/native-arb-athena-client.sol";
+} from "../src/suites/current-mainnet/native/native-arb-athena-client-v3.sol";
 
 contract MockNativeAthena is INativeAthena {
     function handleRaiseDispute(string memory, string memory, string memory, uint256, uint256, address) external {}
@@ -46,7 +46,7 @@ contract CurrentMainnetAthenaTest is Test {
     ERC20Mock internal usdc;
     MockNativeAthena internal nativeAthena;
     MockAthenaJobContract internal jobContract;
-    NativeArbAthenaClient internal client;
+    NativeArbAthenaClientV3 internal client;
 
     address internal giver = makeAddr("giver");
     address internal applicant = makeAddr("applicant");
@@ -57,13 +57,13 @@ contract CurrentMainnetAthenaTest is Test {
         nativeAthena = new MockNativeAthena();
         jobContract = new MockAthenaJobContract();
 
-        NativeArbAthenaClient implementation = new NativeArbAthenaClient();
-        client = NativeArbAthenaClient(
+        NativeArbAthenaClientV3 implementation = new NativeArbAthenaClientV3();
+        client = NativeArbAthenaClientV3(
             address(
                 new ERC1967Proxy(
                     address(implementation),
                     abi.encodeCall(
-                        NativeArbAthenaClient.initialize,
+                        NativeArbAthenaClientV3.initialize,
                         (address(this), address(usdc), address(nativeAthena), address(jobContract))
                     )
                 )
@@ -76,10 +76,10 @@ contract CurrentMainnetAthenaTest is Test {
         usdc.approve(address(client), type(uint256).max);
     }
 
-    function testDisputeRequiresMinimumFeeAndJobParty() public {
+    function testDisputeRequiresPositiveFeeAndJobParty() public {
         vm.prank(giver);
-        vm.expectRevert(bytes("Fee below minimum"));
-        client.raiseDispute("job-1", "dispute", "oracle", 49_999_999, 100_000_000);
+        vm.expectRevert(bytes("Fee must be > 0"));
+        client.raiseDispute("job-1", "dispute", "oracle", 0, 100_000_000);
 
         vm.prank(attacker);
         vm.expectRevert(bytes("Not a job party"));
