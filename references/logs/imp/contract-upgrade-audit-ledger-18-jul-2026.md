@@ -71,7 +71,7 @@ Use native adapter ABIs and no-LayerZero paths for Arbitrum. This frontend corre
 
 **Problem:** XDC forwards `_useAppMilestones` to the native chain but immediately locks funds using the employer's original local `milestoneAmounts`. If applicant-proposed milestones are selected, the canonical native schedule and local escrow schedule can differ.
 
-**Correction on `main` — July 19, 2026:** The coordinated two-step flow is implemented only in versioned successors: Local LOWJC V3 (copied from V2), NOWJC V5 (copied from V4), LocalLZOpenworkBridge V2 (copied from V1), and the already-versioned NativeLZOpenworkBridge V2; all original baselines remain untouched. Applicant-milestone starts leave the local job `Open`, record the pending application, and send no USDC. NOWJC validates the exact application, starts the canonical job with the applicant schedule, and returns the canonical amounts through a native-to-local LayerZero callback. Local V3 authenticates the callback, replaces its schedule, and only then pulls/sends milestone 1. Insufficient allowance reverts the callback without changing local state so LayerZero delivery can be retried. Employer-milestone starts retain the immediate existing path. The native bridge requires configured per-local-chain callback options and a funded native-fee reserve; an empty reserve rolls back the native handler mutation. Six proxy-upgrade/lifecycle tests pass under the production Solidity 0.8.23 via-IR pipeline. Three LayerZero round-trip/authentication/reserve tests pass under Solidity 0.8.29 because LayerZero's bundled Foundry helper triggers a compiler-internal Yul stack exception under 0.8.23; the production bridge artifacts themselves compile and are size-measured under 0.8.23 via-IR.
+**Correction on `main` — July 19, 2026:** The coordinated two-step flow is implemented only in versioned successors: Local LOWJC V3 (copied from V2), NOWJC V5 (copied from V4), LocalLZOpenworkBridge V2 (copied from V1), and NativeLZOpenworkBridge V3 (copied from the corrected V2 work line); all original baselines remain untouched. Applicant-milestone starts leave the local job `Open`, record the pending application, and send no USDC. NOWJC validates the exact application, starts the canonical job with the applicant schedule, and returns the canonical amounts through a native-to-local LayerZero callback. Local V3 authenticates the callback, replaces its schedule, and only then pulls/sends milestone 1. Insufficient allowance reverts the callback without changing local state so LayerZero delivery can be retried. Employer-milestone starts retain the immediate existing path. The native bridge requires configured per-local-chain callback options and a funded native-fee reserve; an empty reserve rolls back the native handler mutation. Six proxy-upgrade/lifecycle tests pass under the production Solidity 0.8.23 via-IR pipeline. Three LayerZero round-trip/authentication/reserve tests pass under Solidity 0.8.29 because LayerZero's bundled Foundry helper triggers a compiler-internal Yul stack exception under 0.8.23; the production bridge artifacts themselves compile and are size-measured under 0.8.23 via-IR.
 
 ### 7. Cross-chain payment destination is not bound to the selected applicant
 
@@ -253,7 +253,7 @@ The coordinated callback artifacts were measured with the same production settin
 | Applicant-milestone callback artifact | Runtime size | Remaining margin |
 |---|---:|---:|
 | NOWJC V5 | 23,898 bytes | 678 bytes |
-| NativeLZOpenworkBridge V2 | 20,448 bytes | 4,128 bytes |
+| NativeLZOpenworkBridge V3 | 20,448 bytes | 4,128 bytes |
 | LocalLZOpenworkBridge V2 | 10,079 bytes | 14,497 bytes |
 
 The DAO correction and its separated modules were measured with the same production settings:
@@ -266,7 +266,7 @@ The DAO correction and its separated modules were measured with the same product
 | ETHDAOMessaging V1 | 5,781 bytes | 18,795 bytes |
 | NativeDAOStakeSync V1 | 4,073 bytes | 20,503 bytes |
 
-NativeAthena V5 is **24,516 bytes**, leaving only **60 bytes**. It fits the limit but is effectively closed to further inline changes; any edit requires a new versioned successor and a repeated exact-toolchain size check.
+NativeAthena V9 is the deployable successor to live V8 and combines XDC domain support with canonical dispute validation. It is **24,531 bytes**, leaving only **45 bytes** under EIP-170 with the exact production toolchain. V9 is frozen except for a release-blocking change followed by another exact size check.
 
 Current deployed headroom for the rating correction is ample, but corrected artifacts must still be measured:
 
@@ -345,10 +345,11 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 
 ## July 19 pre-deployment verification checkpoint
 
-- Exact Solidity 0.8.23, optimizer 200, via-IR aggregate: 41/41 current-mainnet unit, lifecycle, authorization, proxy-upgrade, DAO, rating, and milestone tests passed.
+- Exact Solidity 0.8.23, optimizer 200, via-IR aggregate: 48/48 current-mainnet unit, lifecycle, authorization, proxy-upgrade, DAO, rating, and milestone tests passed after consolidating the XDC deployment line and adding NativeAthena V9.
+- The retained XDC deployment/finality suite passed 4/4 under Solidity 0.8.23.
 - LayerZero endpoint harness: 3/3 round-trip, source-authentication, and callback-reserve rollback tests passed under Solidity 0.8.29; production artifacts compile and fit under 0.8.23.
 - Live read-only forks: Arbitrum proxy group, Ethereum DAO plus two-account checkpoint migration, and XDC LOWJC each upgraded successfully in ephemeral state with preserved legacy slots (3/3 fork rehearsals).
-- Storage layouts are compatible against the versioned predecessors: ETH V3 consumes gap slots 14–15; Native DAO V2 appends slot 11; ProfileManager V3 consumes gap slot 7; Local LOWJC V3 consumes gap slot 8; ProfileGenesis V2, NOWJC V5, ArbLOWJC V4, and NativeAthena V5 do not change their predecessor storage layouts.
+- Storage layouts are compatible against the versioned predecessors: ETH V3 consumes gap slots 14–15; Native DAO V2 appends slot 11; ProfileManager V3 consumes gap slot 7; Local LOWJC V3 consumes gap slot 8; ProfileGenesis V2, NOWJC V5, ArbLOWJC V4, and NativeAthena V9 do not change their predecessor storage layouts. NativeAthena V8/V9 normalized labels, slots, offsets, and storage types match exactly.
 - Live implementation/owner reads were refreshed at Arbitrum block 485,331,711 and later, Ethereum block 25,563,446 and later, and XDC block 105,085,240 and later. Every upgrade proxy is owned by `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`.
 - No DAO proposal was active during the check. Ethereum checkpoint migration currently includes reward-bearing accounts `0x93514040f43aB16D52faAe7A3f380c4089D844F9` and `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`; refresh the set from events immediately before deployment.
 

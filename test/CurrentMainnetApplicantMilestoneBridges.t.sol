@@ -5,7 +5,7 @@ import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {Origin} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {LocalLZOpenworkBridgeV2} from "../src/suites/current-mainnet/local/local-lz-openwork-bridge-v2.sol";
-import {NativeLZOpenworkBridgeV2} from "../src/suites/current-mainnet/native/native-lz-openwork-bridge-v2.sol";
+import {NativeLZOpenworkBridgeV3} from "../src/suites/current-mainnet/native/native-lz-openwork-bridge-v3.sol";
 
 interface IBridgeTestLocalMilestoneReceiver {
     function handleStartJobMilestones(
@@ -57,7 +57,7 @@ contract CurrentMainnetApplicantMilestoneBridgeTest is TestHelperOz5 {
     uint32 internal constant NATIVE_EID = 2;
 
     LocalLZOpenworkBridgeV2 internal localBridge;
-    NativeLZOpenworkBridgeV2 internal nativeBridge;
+    NativeLZOpenworkBridgeV3 internal nativeBridge;
     BridgeTestMockNOWJC internal nowjc;
     BridgeTestMockLocalReceiver internal localReceiver;
     bytes internal options;
@@ -69,7 +69,7 @@ contract CurrentMainnetApplicantMilestoneBridgeTest is TestHelperOz5 {
 
         localBridge =
             new LocalLZOpenworkBridgeV2(address(endpoints[LOCAL_EID]), address(this), NATIVE_EID, 3, LOCAL_EID);
-        nativeBridge = new NativeLZOpenworkBridgeV2(address(endpoints[NATIVE_EID]), address(this), 3);
+        nativeBridge = new NativeLZOpenworkBridgeV3(address(endpoints[NATIVE_EID]), address(this), 3);
         nowjc = new BridgeTestMockNOWJC();
         localReceiver = new BridgeTestMockLocalReceiver();
 

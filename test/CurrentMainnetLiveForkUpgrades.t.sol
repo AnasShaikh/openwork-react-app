@@ -11,7 +11,7 @@ import {NativeOpenworkDAO as NativeOpenworkDAOV2} from
     "../src/suites/current-mainnet/native/native-openwork-dao-v2.sol";
 import {OpenworkVotingPowerCheckpoints} from
     "../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol";
-import {NativeAthena as NativeAthenaV5} from "../src/suites/current-mainnet/native/native-athena-v5.sol";
+import {NativeAthenaV9} from "../src/suites/current-mainnet/native/native-athena-v9.sol";
 import {NativeOpenWorkJobContract as NativeOpenWorkJobContractV5} from
     "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
 import {NativeArbOpenWorkJobContract as NativeArbLOWJCV4} from
@@ -116,7 +116,7 @@ contract CurrentMainnetLiveForkUpgradesTest is Test {
         assertEq(INativeDAOV2Read(ARB_NATIVE_DAO).votingPowerCheckpoints(), nativeCheckpoints);
 
         bytes32[] memory athenaSlots = _snapshotSlots(ARB_NATIVE_ATHENA, 32);
-        _upgrade(ARB_NATIVE_ATHENA, address(new NativeAthenaV5()), bytes(""));
+        _upgrade(ARB_NATIVE_ATHENA, address(new NativeAthenaV9()), bytes(""));
         _assertSlots(ARB_NATIVE_ATHENA, athenaSlots);
 
         bytes32[] memory nowjcSlots = _snapshotSlots(ARB_NOWJC, 32);
