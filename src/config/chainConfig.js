@@ -244,7 +244,7 @@ export const MAINNET_CHAIN_CONFIG = {
     contracts: {
       lowjc: "0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7",
       athenaClient: "0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d",
-      localBridge: "0x74566644782e98c87a12E8Fc6f7c4c72e2908a36",
+      localBridge: "0xDae5036a1d9E7C6CE953604FF238E13BD2B83951",
       cctp: "0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510",
       usdc: "0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1",
       tokenMessenger: "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
@@ -288,7 +288,7 @@ export const MAINNET_CHAIN_CONFIG = {
       oracleManager: "0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15",
       activityTracker: "0x8C04840c3f5b5a8c44F9187F9205ca73509690EA",
       contractRegistry: "0x29D61B1a9E2837ABC0810925429Df641CBed58c3",
-      nativeBridge: "0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F",
+      nativeBridge: "0x9A0950594A699f5fb7decd7069F935100d39D9bF",
       cctp: "0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87",
       usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
       // Write-capable frontend adapters. These are not NOWJC/NativeAthena.

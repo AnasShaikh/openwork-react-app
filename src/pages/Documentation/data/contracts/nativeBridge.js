@@ -11,7 +11,7 @@ export const nativeBridge = {
   testnetNetwork: 'Arbitrum Sepolia',
   mainnetDeployed: 'Deployed',
   testnetDeployed: 'Deployed',
-  mainnetAddress: '0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F',
+  mainnetAddress: '0x9A0950594A699f5fb7decd7069F935100d39D9bF',
   testnetAddress: '0x3b2AC1d1281cA4a1188d9F09A5Af9a9E6a114D6c',
   tvl: 'N/A',
   docs: 'Native Bridge - LayerZero OApp serving as the central messaging hub on Arbitrum. Routes messages between Local Chains, Native contracts, and Main Chain for the entire OpenWork cross-chain architecture.',

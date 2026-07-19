@@ -25,10 +25,12 @@ test('release configuration keeps the native Arbitrum adapter addresses', () => 
   }
 });
 
-test('XDC applicant milestones stay release-gated until coordinated deployment', () => {
-  assert.match(source('.env.example'), /VITE_XDC_APPLICANT_MILESTONES_ENABLED=false/);
-  assert.match(source('buildspec.yml'), /VITE_XDC_APPLICANT_MILESTONES_ENABLED='false'/);
+test('coordinated bridge release enables XDC applicant milestones and current bridge addresses', () => {
+  assert.match(source('.env.example'), /VITE_XDC_APPLICANT_MILESTONES_ENABLED=true/);
+  assert.match(source('buildspec.yml'), /VITE_XDC_APPLICANT_MILESTONES_ENABLED='true'/);
   assert.match(source('Dockerfile'), /ARG VITE_XDC_APPLICANT_MILESTONES_ENABLED/);
+  assert.match(source('src/config/chainConfig.js'), /0xDae5036a1d9E7C6CE953604FF238E13BD2B83951/);
+  assert.match(source('src/config/chainConfig.js'), /0x9A0950594A699f5fb7decd7069F935100d39D9bF/);
 });
 
 test('CI verifies both frontend and backend', () => {
