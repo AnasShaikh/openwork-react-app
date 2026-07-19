@@ -77,7 +77,9 @@ function getChainIdFromJobId(jobId) {
     throw new Error(`Invalid EID in job ID: ${jobId}`);
   }
 
-  const chainId = EID_TO_CHAIN_ID[eid];
+  // Historical jobs use LayerZero EIDs; accept a known chain ID prefix as a
+  // defensive fallback for early/local deployments that used chain IDs.
+  const chainId = EID_TO_CHAIN_ID[eid] || (CHAIN_NAMES[eid] ? eid : undefined);
   if (!chainId) {
     throw new Error(`Unknown EID ${eid} in job ID: ${jobId}`);
   }

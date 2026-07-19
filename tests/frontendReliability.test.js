@@ -78,8 +78,35 @@ test('radial navigation cores are keyboard accessible', () => {
 test('applicant milestones cannot produce mismatched cross-chain escrow', () => {
   const service = source('src/services/localChainService.js');
   const applicationView = source('src/pages/ViewReceivedApplication/ViewReceivedApplication.jsx');
+  const chainConfig = source('src/config/chainConfig.js');
+  const backend = source('backend/server.js');
 
-  assert.match(service, /const useAppMilestones = native && requestedApplicantMilestones/);
+  assert.match(chainConfig, /VITE_XDC_APPLICANT_MILESTONES_ENABLED === 'true'/);
+  assert.match(service, /const useAppMilestones = applicantMilestonesSupported && requestedApplicantMilestones/);
+  assert.match(service, /startJobWithMilestoneSync/);
   assert.match(applicationView, /effectiveUseAppMilestones = supportsApplicantMilestones && useAppMilestones/);
+  assert.match(applicationView, /application\?\.proposedMilestones\?\.\[0\]\?\.amount/);
+  assert.match(applicationView, /START_JOB_WITH_MILESTONE_SYNC/);
+  assert.match(applicationView, /localEscrowReady = Number\(localJob\?\.status\) === 1/);
+  assert.match(service, /asyncApplicantStart \? "START_JOB_WITH_MILESTONE_SYNC" : "START_JOB"/);
+  assert.match(chainConfig, /START_JOB_WITH_MILESTONE_SYNC: 1500000/);
   assert.match(applicationView, /disabled=\{!supportsApplicantMilestones\}/);
+  assert.match(backend, /waitForAsyncStartJobBurn/);
+  assert.match(backend, /FundsSent\(string,uint256\)/);
+  assert.match(backend, /completedJobs\.set\(key, Date\.now\(\)\);\s*\}\)/);
+});
+
+test('start-job reads use the canonical deployed Genesis tuples', () => {
+  const applicationView = source('src/pages/ViewReceivedApplication/ViewReceivedApplication.jsx');
+  assert.match(applicationView, /\{"name": "preferredPaymentChainDomain", "type": "uint32"\},\s*\{"name": "preferredPaymentAddress", "type": "address"\}\s*\]/);
+  assert.doesNotMatch(applicationView, /\{"name": "preferredPaymentAddress", "type": "address"\},\s*\{"name": "status", "type": "uint8"\}/);
+  assert.match(applicationView, /\{"name": "paymentTargetChainDomain", "type": "uint32"\}/);
+  assert.match(applicationView, /\{"name": "applierOriginChainDomain", "type": "uint32"\}/);
+  assert.doesNotMatch(applicationView, /\{"name": "currentLockedAmount", "type": "uint256"\},\s*\{"name": "currentMilestone"/);
+});
+
+test('backend recognizes canonical XDC EIDs and defensive chain-ID job prefixes', () => {
+  const chainUtils = source('backend/utils/chain-utils.js');
+  assert.match(chainUtils, /30365: 50/);
+  assert.match(chainUtils, /EID_TO_CHAIN_ID\[eid\] \|\| \(CHAIN_NAMES\[eid\] \? eid : undefined\)/);
 });

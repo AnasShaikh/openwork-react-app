@@ -200,7 +200,7 @@ app.get('/api/payment-log/:jobId', (req, res) => {
 
 // Start job endpoint - accepts tx hash from frontend
 app.post('/api/start-job', async (req, res) => {
-  const { jobId, txHash } = req.body;
+  const { jobId, txHash, asyncApplicantMilestones = false } = req.body;
   
   if (!jobId || !txHash) {
     return res.status(400).json({ 
@@ -238,16 +238,17 @@ app.post('/api/start-job', async (req, res) => {
   });
   
   console.log(`\n📥 API: Received start-job request for Job ${jobId}`);
-  console.log(`   OP Sepolia TX: ${txHash}`);
+  console.log(`   Start request TX: ${txHash}`);
   
   // Process in background
-  processStartJobDirect(jobId, txHash)
+  processStartJobDirect(jobId, txHash, { asyncApplicantMilestones: asyncApplicantMilestones === true })
     .then(() => {
       jobStatuses.set(jobId, {
         status: 'completed',
         message: 'CCTP transfer completed successfully',
         txHash
       });
+      completedJobs.set(key, Date.now());
     })
     .catch((error) => {
       jobStatuses.set(jobId, {
@@ -259,7 +260,6 @@ app.post('/api/start-job', async (req, res) => {
     })
     .finally(() => {
       processingJobs.delete(key);
-      completedJobs.set(key, Date.now());
       
       // Clean up old completed jobs (keep last 100)
       if (completedJobs.size > 100) {
@@ -783,15 +783,62 @@ app.post('/api/compile', async (req, res) => {
   }
 });
 
+async function waitForAsyncStartJobBurn(jobId, requestTxHash) {
+  const { getChainIdFromJobId } = require('./utils/chain-utils');
+  const sourceChainId = getChainIdFromJobId(jobId);
+  if (sourceChainId !== 50) {
+    throw new Error(`Async applicant milestone monitoring is not configured for chain ${sourceChainId}`);
+  }
+
+  const web3 = new Web3(config.XDC_RPC);
+  const requestReceipt = await web3.eth.getTransactionReceipt(requestTxHash);
+  if (!requestReceipt) {
+    throw new Error(`Start request transaction not found on XDC: ${requestTxHash}`);
+  }
+
+  const fundsSentTopic = web3.utils.keccak256('FundsSent(string,uint256)');
+  const jobIdTopic = web3.utils.keccak256(jobId);
+  let fromBlock = BigInt(requestReceipt.blockNumber);
+  const deadline = Date.now() + config.EVENT_DETECTION_TIMEOUT;
+
+  jobStatuses.set(jobId, {
+    status: 'waiting_for_callback_burn',
+    message: 'Waiting for the verified XDC callback to lock milestone 1 and emit the CCTP burn',
+    txHash: requestTxHash,
+  });
+
+  while (Date.now() < deadline) {
+    const latestBlock = await web3.eth.getBlockNumber();
+    if (latestBlock >= fromBlock) {
+      const logs = await web3.eth.getPastLogs({
+        address: config.LOWJC_XDC_ADDRESS,
+        fromBlock,
+        toBlock: latestBlock,
+        topics: [fundsSentTopic, jobIdTopic],
+      });
+      if (logs.length > 0) return logs[0].transactionHash;
+      fromBlock = latestBlock + 1n;
+    }
+    await new Promise(resolve => setTimeout(resolve, config.EVENT_POLL_INTERVAL));
+  }
+
+  throw new Error(`Timed out waiting for the XDC start-job callback burn for ${jobId}`);
+}
+
 /**
- * Process Start Job directly from source chain tx hash
- * No need to wait for NOWJC event
+ * Process Start Job from either the immediate source burn or the async callback burn.
  */
-async function processStartJobDirect(jobId, sourceTxHash) {
+async function processStartJobDirect(jobId, sourceTxHash, { asyncApplicantMilestones = false } = {}) {
   try {
     console.log('\n🚀 ========== START JOB DIRECT FLOW ==========');
     console.log(`Job ID: ${jobId}`);
     console.log(`Source TX: ${sourceTxHash}`);
+
+    const requestTxHash = sourceTxHash;
+    const cctpSourceTxHash = asyncApplicantMilestones
+      ? await waitForAsyncStartJobBurn(jobId, requestTxHash)
+      : requestTxHash;
+    if (asyncApplicantMilestones) console.log(`Callback CCTP burn TX: ${cctpSourceTxHash}`);
 
     // Import utilities
     const { getDomainFromJobId, getChainNameFromJobId } = require('./utils/chain-utils');
@@ -809,20 +856,21 @@ async function processStartJobDirect(jobId, sourceTxHash) {
       throw error;
     }
 
-    // 📝 Persist OP burn tx hash immediately
-    recordTx(jobId, 'startJob_burn', sourceTxHash, {
+    // Persist the actual CCTP burn (the callback tx for async applicant starts).
+    recordTx(jobId, 'startJob_burn', cctpSourceTxHash, {
       chain: sourceChain, domain: sourceDomain,
-      note: 'USDC burned on ' + sourceChain + ' via CCTP. If relay fails, poll iris-api.circle.com/v2/messages/' + sourceDomain + '?transactionHash=' + sourceTxHash + ' then call ARB MessageTransmitter.receiveMessage()'
+      requestTxHash,
+      note: 'USDC burned on ' + sourceChain + ' via CCTP. If relay fails, poll iris-api.circle.com/v2/messages/' + sourceDomain + '?transactionHash=' + cctpSourceTxHash + ' then call ARB MessageTransmitter.receiveMessage()'
     });
 
     // Save to database
-    await saveCCTPTransfer('startJob', jobId, sourceTxHash, sourceChain, sourceDomain);
+    await saveCCTPTransfer('startJob', jobId, cctpSourceTxHash, sourceChain, sourceDomain);
 
     // Update in-memory status
     jobStatuses.set(jobId, {
       status: 'polling_attestation',
       message: `Polling Circle API for CCTP attestation from ${sourceChain}...`,
-      txHash: sourceTxHash
+      txHash: cctpSourceTxHash
     });
 
     await updateCCTPStatus(jobId, 'startJob', { step: 'polling_attestation' });
@@ -833,7 +881,7 @@ async function processStartJobDirect(jobId, sourceTxHash) {
 
     // STEP 1: Poll Circle API for CCTP attestation
     console.log(`\n📍 STEP 1/2: Polling Circle API for CCTP attestation (Domain ${sourceDomain})...`);
-    const attestation = await pollCCTPAttestation(sourceTxHash, sourceDomain);
+    const attestation = await pollCCTPAttestation(cctpSourceTxHash, sourceDomain);
     console.log(`✅ Attestation received from ${sourceChain}`);
 
     await updateCCTPStatus(jobId, 'startJob', {
@@ -845,7 +893,7 @@ async function processStartJobDirect(jobId, sourceTxHash) {
     jobStatuses.set(jobId, {
       status: 'executing_receive',
       message: 'Executing receive() on Arbitrum CCTP Transceiver...',
-      txHash: sourceTxHash
+      txHash: cctpSourceTxHash
     });
 
     // STEP 2: Execute receive() on Arbitrum
@@ -872,7 +920,7 @@ async function processStartJobDirect(jobId, sourceTxHash) {
     console.log('\n🎉 ========== START JOB FLOW COMPLETED ==========\n');
 
     return {
-      success: true, jobId, sourceTxHash, sourceChain,
+      success: true, jobId, sourceTxHash: cctpSourceTxHash, requestTxHash, sourceChain,
       completionTxHash: result.transactionHash,
       alreadyCompleted: result.alreadyCompleted
     };

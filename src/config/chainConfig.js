@@ -20,6 +20,9 @@ export const CHAIN_TYPES = {
   MAIN: "main"              // Governance only
 };
 
+const XDC_APPLICANT_MILESTONES_ENABLED =
+  import.meta.env.VITE_XDC_APPLICANT_MILESTONES_ENABLED === 'true';
+
 /**
  * Get current network mode from environment
  * @returns {'testnet' | 'mainnet'} Network mode
@@ -51,6 +54,8 @@ export const DESTINATION_GAS_ESTIMATES = {
   RELEASE_PAYMENT: 800000,
   LOCK_MILESTONE: 500000,
   START_JOB: 800000,
+  // Includes canonical application lookup plus the native-to-local callback send.
+  START_JOB_WITH_MILESTONE_SYNC: 1500000,
   DEFAULT: 800000
 };
 
@@ -250,7 +255,11 @@ export const MAINNET_CHAIN_CONFIG = {
       options: "0x0003010011010000000000000000000000000007a120" // 500k destination gas
     },
     cctpDomain: 18,
-    cctpTransferMode: "standard"
+    cctpTransferMode: "standard",
+    features: {
+      applicantMilestones: XDC_APPLICANT_MILESTONES_ENABLED,
+      asyncApplicantMilestoneStart: XDC_APPLICANT_MILESTONES_ENABLED,
+    }
   },
 
   // Arbitrum One - Native Data Hub + Native Local Chain (direct job transactions)
@@ -291,6 +300,10 @@ export const MAINNET_CHAIN_CONFIG = {
       eid: 30110
     },
     cctpDomain: 3, // Arbitrum One CCTP domain
+    features: {
+      applicantMilestones: true,
+      asyncApplicantMilestoneStart: false,
+    },
     // No LayerZero fee required — calls go directly to NOWJC on the same chain
     requiresLzFee: false
   },
@@ -377,6 +390,14 @@ export function getChainConfig(chainId) {
 export function isChainAllowed(chainId) {
   const config = getChainConfig(chainId);
   return config?.allowed === true;
+}
+
+export function supportsApplicantMilestones(chainId) {
+  return getChainConfig(chainId)?.features?.applicantMilestones === true;
+}
+
+export function usesAsyncApplicantMilestoneStart(chainId) {
+  return getChainConfig(chainId)?.features?.asyncApplicantMilestoneStart === true;
 }
 
 /**

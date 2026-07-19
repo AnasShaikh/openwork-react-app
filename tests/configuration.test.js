@@ -25,6 +25,12 @@ test('release configuration keeps the native Arbitrum adapter addresses', () => 
   }
 });
 
+test('XDC applicant milestones stay release-gated until coordinated deployment', () => {
+  assert.match(source('.env.example'), /VITE_XDC_APPLICANT_MILESTONES_ENABLED=false/);
+  assert.match(source('buildspec.yml'), /VITE_XDC_APPLICANT_MILESTONES_ENABLED='false'/);
+  assert.match(source('Dockerfile'), /ARG VITE_XDC_APPLICANT_MILESTONES_ENABLED/);
+});
+
 test('CI verifies both frontend and backend', () => {
   const workflow = source('.github/workflows/ci.yml');
   assert.match(workflow, /frontend:/);
@@ -38,6 +44,7 @@ test('backend examples use the runtime configuration names consumed by code', ()
   const envExample = source('backend/.env.example');
   const server = source('backend/server.js');
   assert.match(envExample, /OPTIMISM_MAINNET_RPC_URL=/);
+  assert.match(envExample, /XDC_MAINNET_RPC_URL=/);
   assert.doesNotMatch(envExample, /^OP_SEPOLIA_RPC_URL=/m);
   assert.match(server, /config\.CCTP_ARB_ADDRESS/);
   assert.match(server, /config\.MESSAGE_TRANSMITTER_ARB/);

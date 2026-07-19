@@ -14,7 +14,16 @@ import Collapse from "../../components/Collapse/Collapse";
 import SkillBox from "../../components/SkillBox/SkillBox";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { useWalletConnection } from "../../functions/useWalletConnection";
-import { getChainConfig, extractChainIdFromJobId, getNativeChain, isMainnet, buildLzOptions, DESTINATION_GAS_ESTIMATES } from "../../config/chainConfig";
+import {
+  getChainConfig,
+  extractChainIdFromJobId,
+  getNativeChain,
+  isMainnet,
+  buildLzOptions,
+  DESTINATION_GAS_ESTIMATES,
+  supportsApplicantMilestones as chainSupportsApplicantMilestones,
+  usesAsyncApplicantMilestoneStart,
+} from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
@@ -161,8 +170,11 @@ export default function ViewReceivedApplication() {
   // Get job posting chain from jobId
   const jobChainId = jobId ? extractChainIdFromJobId(jobId) : null;
   const jobChainConfig = jobChainId ? getChainConfig(jobChainId) : null;
-  const supportsApplicantMilestones = jobChainId ? isNativeArbChain(jobChainId) : false;
+  const supportsApplicantMilestones = jobChainId ? chainSupportsApplicantMilestones(jobChainId) : false;
   const effectiveUseAppMilestones = supportsApplicantMilestones && useAppMilestones;
+  const asyncApplicantMilestoneStart = Boolean(
+    effectiveUseAppMilestones && jobChainId && usesAsyncApplicantMilestoneStart(jobChainId)
+  );
 
   useEffect(() => {
     if (!supportsApplicantMilestones && useAppMilestones) {
@@ -216,8 +228,7 @@ export default function ViewReceivedApplication() {
                 {"name": "amount", "type": "uint256"}
               ]},
               {"name": "preferredPaymentChainDomain", "type": "uint32"},
-              {"name": "preferredPaymentAddress", "type": "address"},
-              {"name": "status", "type": "uint8"}
+              {"name": "preferredPaymentAddress", "type": "address"}
             ]
           }],
           "stateMutability": "view",
@@ -243,12 +254,12 @@ export default function ViewReceivedApplication() {
                 {"name": "amount", "type": "uint256"}
               ]},
               {"name": "totalPaid", "type": "uint256"},
-              {"name": "currentLockedAmount", "type": "uint256"},
               {"name": "currentMilestone", "type": "uint256"},
               {"name": "selectedApplicant", "type": "address"},
               {"name": "selectedApplicationId", "type": "uint256"},
-              {"name": "totalEscrowed", "type": "uint256"},
-              {"name": "totalReleased", "type": "uint256"}
+              {"name": "paymentTargetChainDomain", "type": "uint32"},
+              {"name": "paymentTargetAddress", "type": "address"},
+              {"name": "applierOriginChainDomain", "type": "uint32"}
             ]
           }],
           "stateMutability": "view", 
@@ -445,19 +456,21 @@ export default function ViewReceivedApplication() {
       return;
     }
 
-    // Get first milestone amount based on whether we're using applicant's milestones
-    let firstMilestoneAmount;
-    if (effectiveUseAppMilestones && milestoneDetails.length > 0) {
-      // Use applicant's proposed milestone amount (already in USDC format from IPFS fetch)
-      firstMilestoneAmount = parseFloat(milestoneDetails[0].amount);
-    } else {
-      // Use job giver's original milestone amount
-      firstMilestoneAmount = job ? (parseFloat(job.milestonePayments[0]?.amount || 0) / 1000000) : 0;
+    // Approvals must use the canonical on-chain amount, never editable IPFS display data.
+    let amountInUSDCUnits;
+    try {
+      const canonicalAmount = effectiveUseAppMilestones
+        ? application?.proposedMilestones?.[0]?.amount
+        : job?.milestonePayments?.[0]?.amount;
+      amountInUSDCUnits = BigInt(canonicalAmount ?? 0);
+    } catch {
+      amountInUSDCUnits = 0n;
     }
-    if (firstMilestoneAmount <= 0) {
+    if (amountInUSDCUnits <= 0n) {
       setTransactionStatus("❌ Invalid milestone amount - must be greater than 0");
       return;
     }
+    const firstMilestoneAmount = Number(amountInUSDCUnits) / 1000000;
 
     // CRITICAL: Validate user is on POSTING chain
     if (!jobChainId || !jobChainConfig) {
@@ -496,15 +509,12 @@ export default function ViewReceivedApplication() {
       const lowjcContract = await getLOWJCContract(jobChainId);
       const isNativeArbitrum = isNativeArbChain(jobChainId);
       
-      // Calculate amount in USDC units (6 decimals)
-      const amountInUSDCUnits = Math.floor(firstMilestoneAmount * 1000000);
-      
       // Check user's USDC balance before approval
       setTransactionStatus("🔍 Checking USDC balance...");
       const userBalance = await usdcContract.methods.balanceOf(walletAddress).call();
       const balanceInUSDC = parseFloat(userBalance) / 1000000;
       
-      if (parseFloat(userBalance) < amountInUSDCUnits) {
+      if (BigInt(userBalance) < amountInUSDCUnits) {
         throw new Error(`Insufficient USDC balance. Required: ${firstMilestoneAmount} USDC, Available: ${balanceInUSDC.toFixed(2)} USDC`);
       }
 
@@ -512,7 +522,7 @@ export default function ViewReceivedApplication() {
       setTransactionStatus("🔍 Checking USDC allowance...");
       const currentAllowance = await usdcContract.methods.allowance(walletAddress, lowjcAddress).call();
 
-      if (BigInt(currentAllowance) < BigInt(amountInUSDCUnits)) {
+      if (BigInt(currentAllowance) < amountInUSDCUnits) {
         setTransactionStatus(`💰 Step 1/3: Approving ${firstMilestoneAmount} USDC — Please confirm in MetaMask`);
 
         const approveTx = await usdcContract.methods.approve(
@@ -534,7 +544,9 @@ export default function ViewReceivedApplication() {
       // ============ STEP 2: START JOB ON POSTING CHAIN ============
       const lzOptions = isNativeArbitrum
         ? null
-        : buildLzOptions(DESTINATION_GAS_ESTIMATES.START_JOB);
+        : buildLzOptions(asyncApplicantMilestoneStart
+            ? DESTINATION_GAS_ESTIMATES.START_JOB_WITH_MILESTONE_SYNC
+            : DESTINATION_GAS_ESTIMATES.START_JOB);
       let layerZeroFee;
       if (!isNativeArbitrum) {
         setTransactionStatus(`🔧 Step 2/3: Getting LayerZero fee quote on ${jobChainConfig.name}...`);
@@ -550,10 +562,15 @@ export default function ViewReceivedApplication() {
           "type": "function"
         }];
         const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-        const payload = web3.eth.abi.encodeParameters(
-          ['string', 'address', 'string', 'uint256', 'bool'],
-          ['startJob', walletAddress, jobId, parseInt(applicationId), effectiveUseAppMilestones]
-        );
+        const payload = asyncApplicantMilestoneStart
+          ? web3.eth.abi.encodeParameters(
+              ['string', 'address', 'string', 'uint256'],
+              ['startJobWithMilestoneSync', walletAddress, jobId, parseInt(applicationId)]
+            )
+          : web3.eth.abi.encodeParameters(
+              ['string', 'address', 'string', 'uint256', 'bool'],
+              ['startJob', walletAddress, jobId, parseInt(applicationId), effectiveUseAppMilestones]
+            );
         layerZeroFee = (await bridgeContract.methods
           .quoteNativeChain(payload, lzOptions)
           .call()).toString();
@@ -592,9 +609,13 @@ export default function ViewReceivedApplication() {
         }
         const srcChainId = jobChainId;
         const lzLink     = `https://layerzeroscan.com/tx/${srcTxHash}`;
-        const circleLink = `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
+        const circleLink = asyncApplicantMilestoneStart
+          ? undefined
+          : `https://iris-api.circle.com/v2/messages/${jobChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
 
-        setTransactionStatus(`✅ Job started on ${jobChainConfig.name}. Tracking cross-chain progress...`);
+        setTransactionStatus(asyncApplicantMilestoneStart
+          ? `✅ Start request confirmed on ${jobChainConfig.name}. Waiting for canonical milestones and local escrow...`
+          : `✅ Job started on ${jobChainConfig.name}. Tracking cross-chain progress...`);
 
         // Show CrossChainStatus immediately
         setCrossChainSteps(buildPaymentSteps({
@@ -617,32 +638,30 @@ export default function ViewReceivedApplication() {
             lzLink:       lzUpdate.lzLink || lzLink,
             lzDstTxHash:  lzUpdate.dstTxHash,
             lzDstChainId: 42161,
-            cctpBurnTxHash: lzUpdate.dstTxHash,
-            cctpSourceDomain: 3,
+            cctpBurnTxHash: asyncApplicantMilestoneStart ? undefined : srcTxHash,
+            cctpSourceDomain: asyncApplicantMilestoneStart ? undefined : jobChainConfig.cctpDomain,
             circleLink,
           }));
-          if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
-            monitorCCTPTransfer(lzUpdate.dstTxHash, 3,
+          if (!asyncApplicantMilestoneStart && lzUpdate.status === STATUS.SUCCESS) {
+            monitorCCTPTransfer(srcTxHash, jobChainConfig.cctpDomain,
               (cu) => setCrossChainSteps(buildPaymentSteps({
                 sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
                 lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
-                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: 3, lzLink, circleLink,
+                cctpBurnTxHash: srcTxHash, cctpSourceDomain: jobChainConfig.cctpDomain, lzLink, circleLink,
                 cctpAttestationStatus: cu.status === STATUS.SUCCESS ? 'complete'
                                      : cu.message?.includes('slow') ? 'slow' : 'pending',
               })),
               () => setCrossChainSteps(buildPaymentSteps({
                 sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
                 lzStatus: 'delivered', lzDstTxHash: lzUpdate.dstTxHash, lzDstChainId: 42161,
-                cctpBurnTxHash: lzUpdate.dstTxHash, cctpSourceDomain: 3, lzLink, circleLink,
+                cctpBurnTxHash: srcTxHash, cctpSourceDomain: jobChainConfig.cctpDomain, lzLink, circleLink,
                 cctpAttestationStatus: 'complete',
               }))
             );
           }
         });
 
-        // ── Ground-truth: poll Genesis on Arbitrum for selectedApplicant ──
-        // When Genesis reflects a non-zero selectedApplicant, startJob is done.
-        // This fires regardless of which relay path completed the delivery.
+        // ── Ground truth: native selection plus local escrow for async starts ──
         const nativeChain = getNativeChain();
         const arbRpc      = import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
         const genesisAddr = nativeChain?.contracts?.genesis;
@@ -660,12 +679,12 @@ export default function ViewReceivedApplication() {
             {"name": "milestonePayments", "type": "tuple[]", "components": [{"name": "descriptionHash", "type": "string"}, {"name": "amount", "type": "uint256"}]},
             {"name": "finalMilestones", "type": "tuple[]", "components": [{"name": "descriptionHash", "type": "string"}, {"name": "amount", "type": "uint256"}]},
             {"name": "totalPaid", "type": "uint256"},
-            {"name": "currentLockedAmount", "type": "uint256"},
             {"name": "currentMilestone", "type": "uint256"},
             {"name": "selectedApplicant", "type": "address"},
             {"name": "selectedApplicationId", "type": "uint256"},
-            {"name": "totalEscrowed", "type": "uint256"},
-            {"name": "totalReleased", "type": "uint256"}
+            {"name": "paymentTargetChainDomain", "type": "uint32"},
+            {"name": "paymentTargetAddress", "type": "address"},
+            {"name": "applierOriginChainDomain", "type": "uint32"}
           ]}],
           "stateMutability": "view", "type": "function"
         }], genesisAddr);
@@ -677,7 +696,16 @@ export default function ViewReceivedApplication() {
           try {
             const freshJob = await genesisContract.methods.getJob(jobId).call();
             const ZERO = '0x0000000000000000000000000000000000000000';
-            if (freshJob?.selectedApplicant && freshJob.selectedApplicant !== ZERO) {
+            const nativeStarted = freshJob?.selectedApplicant && freshJob.selectedApplicant !== ZERO;
+            let localEscrowReady = true;
+            if (nativeStarted && asyncApplicantMilestoneStart) {
+              const localJob = await lowjcContract.methods.getJob(jobId).call();
+              localEscrowReady = Number(localJob?.status) === 1 && BigInt(localJob?.currentLockedAmount || 0) > 0n;
+              if (!localEscrowReady) {
+                setTransactionStatus(`✅ Canonical applicant selected. Waiting for ${jobChainConfig.name} callback to lock milestone 1...`);
+              }
+            }
+            if (nativeStarted && localEscrowReady) {
               setCrossChainSteps(prev => prev ? prev.map(s =>
                 s.id === 'cctp-receive' ? { ...s, status: STATUS.SUCCESS } : s
               ) : prev);
@@ -699,7 +727,11 @@ export default function ViewReceivedApplication() {
         fetch(`${BACKEND_URL}/api/start-job`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jobId, txHash: srcTxHash })
+          body: JSON.stringify({
+            jobId,
+            txHash: srcTxHash,
+            asyncApplicantMilestones: asyncApplicantMilestoneStart,
+          })
         }).catch(err => console.warn('Backend notify failed (non-fatal):', err.message));
       })
       .on('receipt', () => {
@@ -708,7 +740,9 @@ export default function ViewReceivedApplication() {
           setIsProcessing(false);
           setTimeout(() => { window.location.href = `/job-deep-view/${jobId}`; }, 2000);
         } else {
-          setTransactionStatus(`✅ Step 2/3: Transaction confirmed. Waiting for cross-chain delivery...`);
+          setTransactionStatus(asyncApplicantMilestoneStart
+            ? `✅ Start request confirmed. Keep the approved USDC available while the canonical callback locks milestone 1...`
+            : `✅ Step 2/3: Transaction confirmed. Waiting for cross-chain delivery...`);
         }
       })
       .on('error', (error) => {
@@ -867,8 +901,10 @@ export default function ViewReceivedApplication() {
                         <span className="milestone-toggle-title">Accept applicant's milestones</span>
                         <span className="milestone-toggle-desc">
                           {supportsApplicantMilestones
-                            ? "Use applicant's proposed milestones instead of original job milestones"
-                            : "Applicant milestones are unavailable for cross-chain jobs because their escrow amounts are not stored locally"}
+                            ? asyncApplicantMilestoneStart
+                              ? "Use the applicant's canonical schedule; milestone 1 is locked after the verified cross-chain callback"
+                              : "Use applicant's proposed milestones instead of original job milestones"
+                            : "Applicant milestones remain disabled until this chain's synchronized escrow upgrade is live"}
                         </span>
                     </div>
                     <label className="milestone-toggle-switch">

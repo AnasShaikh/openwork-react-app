@@ -16,7 +16,16 @@
  */
 
 import Web3 from "web3";
-import { getChainConfig, isChainAllowed, getLocalChains, buildLzOptions, DESTINATION_GAS_ESTIMATES, CHAIN_TYPES } from "../config/chainConfig";
+import {
+  getChainConfig,
+  isChainAllowed,
+  getLocalChains,
+  buildLzOptions,
+  DESTINATION_GAS_ESTIMATES,
+  CHAIN_TYPES,
+  supportsApplicantMilestones,
+  usesAsyncApplicantMilestoneStart,
+} from "../config/chainConfig";
 import LOWJC_ABI from "../ABIs/lowjc-lite_ABI.json";
 import NATIVE_ARB_LOWJC_ABI from "../ABIs/native-arb-lowjc_ABI.json";
 import ATHENA_CLIENT_ABI from "../ABIs/athena-client_ABI.json";
@@ -291,21 +300,35 @@ export async function startJob(chainId, userAddress, startData, onStatus) {
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
-    const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.START_JOB);
     const requestedApplicantMilestones = Boolean(startData.useAppMilestones);
-    const useAppMilestones = native && requestedApplicantMilestones;
-    if (!native && requestedApplicantMilestones) {
-      emit("Applicant milestones are only available for native Arbitrum jobs; using the original job milestones.");
+    const applicantMilestonesSupported = supportsApplicantMilestones(chainId);
+    const useAppMilestones = applicantMilestonesSupported && requestedApplicantMilestones;
+    const asyncApplicantStart = useAppMilestones && usesAsyncApplicantMilestoneStart(chainId);
+    const destinationGas = asyncApplicantStart
+      ? DESTINATION_GAS_ESTIMATES.START_JOB_WITH_MILESTONE_SYNC
+      : DESTINATION_GAS_ESTIMATES.START_JOB;
+    const nativeOptions = native ? null : buildLzOptions(destinationGas);
+    if (!applicantMilestonesSupported && requestedApplicantMilestones) {
+      emit(`Applicant milestones are not enabled on ${config.name}; using the original job milestones.`);
     }
     let lzFee = "0";
     if (!native) {
       emit("Estimating LayerZero fee...");
       const quoteWeb3 = getReadOnlyWeb3(chainId);
-      const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
-        ['string', 'address', 'string', 'uint256', 'bool'],
-        ['startJob', userAddress, startData.jobId, startData.applicationId, useAppMilestones]
+      const encodedPayload = asyncApplicantStart
+        ? quoteWeb3.eth.abi.encodeParameters(
+            ['string', 'address', 'string', 'uint256'],
+            ['startJobWithMilestoneSync', userAddress, startData.jobId, startData.applicationId]
+          )
+        : quoteWeb3.eth.abi.encodeParameters(
+            ['string', 'address', 'string', 'uint256', 'bool'],
+            ['startJob', userAddress, startData.jobId, startData.applicationId, useAppMilestones]
+          );
+      lzFee = await estimateLayerZeroFee(
+        chainId,
+        asyncApplicantStart ? "START_JOB_WITH_MILESTONE_SYNC" : "START_JOB",
+        { encodedPayload, nativeOptions }
       );
-      lzFee = await estimateLayerZeroFee(chainId, "START_JOB", { encodedPayload, nativeOptions });
     }
 
     emit(`Starting job on ${config.name} — confirm in wallet...`);
@@ -322,8 +345,12 @@ export async function startJob(chainId, userAddress, startData, onStatus) {
       from: userAddress,
       value: lzFee,
     }));
-    emit(`Job started: ${tx.transactionHash}`);
-    saveTxHash('startJob', tx.transactionHash, startData.jobId, chainId, userAddress);
+    emit(asyncApplicantStart
+      ? `Start requested; waiting for canonical milestones and local escrow: ${tx.transactionHash}`
+      : `Job started: ${tx.transactionHash}`);
+    saveTxHash('startJob', tx.transactionHash, startData.jobId, chainId, userAddress, {
+      asyncApplicantStart,
+    });
     console.log(`[startJob] confirmed on ${config.name}:`, tx.transactionHash);
     return tx;
   } catch (error) {
