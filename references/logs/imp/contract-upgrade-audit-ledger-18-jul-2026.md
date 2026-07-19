@@ -366,3 +366,12 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 - Never request or expose a raw private key in chat, logs, commits, command output, or shell history. Use an existing secure terminal signer, encrypted keystore, hardware wallet, or multisig flow when deployment is authorized.
 - Before every transaction that changes live chain state or can spend native gas/token value, present the chain, signer address, target, function/calldata summary, expected state change, value, estimated gas and maximum fee, and rollback/recovery point. Wait for explicit owner confirmation for that transaction or clearly bounded batch.
 - A private key does not become "exhausted"; wallet gas balance, RPC allowance, nonce state, or signer availability can. Check those without revealing the key before requesting transaction approval.
+
+## July 19 deployment-preparation package
+
+- The approval-gated release manifest is `confirmed-contract-upgrade-deployment-manifest-19-jul-2026.md`.
+- `DeployConfirmedUpgradeArtifacts19Jul2026.s.sol` deploys only the selected successor implementations, module proxies, and replacement bridges. It asserts chain, owner, and an explicitly supplied starting nonce; it performs no upgrade or cutover.
+- `generate-confirmed-upgrade-calldata-19-jul-2026.sh` is a read-only generator for 61 labeled unsigned configuration, upgrade, migration, and peer-cutover calls, including exact cloned LayerZero security configuration bytes.
+- The deployment helper compiles with the exact Solidity 0.8.23 production settings. The calldata generator passes shell syntax validation and every emitted call is valid hex calldata.
+- No live transaction, signature, funding transfer, proxy upgrade, peer change, or callback-reserve transfer occurred while preparing the package.
+- Before deployment approval, refresh per-chain gas and fee estimates and show the owner the exact ETH/XDC balance required and additional top-up required for Ethereum, Arbitrum, XDC, and Optimism separately.
