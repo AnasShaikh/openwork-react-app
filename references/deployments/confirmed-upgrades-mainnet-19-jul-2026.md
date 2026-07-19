@@ -50,7 +50,7 @@ Snapshot taken July 19, 2026 before funding bridge transaction:
 
 ## Phase 1 — Ethereum-to-Arbitrum deployment funding
 
-Status: **blocked only on local keystore-password handoff; not broadcast**.
+Status: **complete**.
 
 | Field | Value |
 |---|---|
@@ -60,9 +60,23 @@ Status: **blocked only on local keystore-password handoff; not broadcast**.
 | ETH value | `0.003 ETH` |
 | Arbitrum recipient | Signer `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C` |
 | Source nonce | 40 |
-| Transaction hash | Pending |
-| Ethereum receipt | Pending |
-| Arbitrum credit | Pending |
+| Transaction hash | `0xbb3dddb45715dd5568a0fffd7653912c3da855c906c0d1467b570d9dc0b10ba7` |
+| Ethereum receipt | Success at block `25564372`; gas used `91,101`; effective gas price `51,762,155 wei`; cost `0.000004715584082655 ETH` |
+| Arbitrum credit | Confirmed by two independent RPCs; balance increased exactly `0.003 ETH`, from `0.000276365728837726 ETH` to `0.003276365728837726 ETH` |
+
+Post-receipt Ethereum signer state:
+
+- Pending nonce: 41.
+- Balance: `0.001928946914474152 ETH`.
+- Recomputed deployment addresses for the helper's exact CREATE order:
+
+| Nonce | Candidate address | Artifact |
+|---:|---|---|
+| 41 | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | ETH DAO V3 implementation |
+| 42 | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | Checkpoints V1 implementation |
+| 43 | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | Checkpoints V1 proxy |
+| 44 | `0x532fAB0b8Ca0dD7c14ca1324e7502534E5c8b9AE` | ETHDAOMessaging V1 implementation |
+| 45 | `0xDCF7c77314E8F042C97EFB96991b7DAc5Dc79f0D` | ETHDAOMessaging V1 proxy |
 
 ## Deployment address registry
 
@@ -92,7 +106,7 @@ No live transaction has been broadcast in this rollout yet.
 
 | Seq. | Chain | Nonce | Purpose | Value | Tx hash | Receipt | Post-state verification |
 |---:|---|---:|---|---:|---|---|---|
-| 1 | Ethereum | 40 | Bridge deployment funding to Arbitrum | `0.003 ETH` | Pending | Pending | Pending |
+| 1 | Ethereum | 40 | Bridge deployment funding to Arbitrum | `0.003 ETH` | `0xbb3dddb45715dd5568a0fffd7653912c3da855c906c0d1467b570d9dc0b10ba7` | Success | Canonical Inbox event and exact `0.003 ETH` Arbitrum balance increase confirmed |
 
 ## Recovery rules
 
