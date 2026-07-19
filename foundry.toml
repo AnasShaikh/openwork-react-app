@@ -11,6 +11,17 @@ remappings = [
     "@hyperlane-xyz/core/=lib/hyperlane-monorepo/solidity/contracts/"
 ]
 
+# LayerZero's bundled TestHelper does not compile through the production 0.8.23
+# via-IR pipeline. Keep its bridge round-trip harness isolated from release
+# artifacts and the exact-version production tests.
+[profile.layerzero_harness]
+src = "src/suites/current-mainnet/local"
+test = "test/layerzero-harness"
+script = "test/layerzero-harness"
+out = "out/layerzero-harness"
+cache_path = "cache/layerzero-harness"
+solc_version = "0.8.29"
+
 [rpc_endpoints]
 arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
 optimism_sepolia = "https://sepolia.optimism.io"
