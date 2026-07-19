@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
 import JobContractABI from "../../ABIs/lowjc-lite_ABI.json";
@@ -71,6 +71,8 @@ export default function PostJob() {
   const [transactionStatus, setTransactionStatus] = useState("Job posting requires blockchain transaction fees");
   const [crossChainSteps, setCrossChainSteps] = useState(null); // null = not started
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shouldScrollToStatus, setShouldScrollToStatus] = useState(false);
+  const statusSectionRef = useRef(null);
   const [milestones, setMilestones] = useState([
     {
       title: "Milestone 1",
@@ -96,6 +98,20 @@ export default function PostJob() {
       }
     }
   }, [chainId, chainConfig, isAllowed, chainError, walletAddress]);
+
+  useEffect(() => {
+    if (!shouldScrollToStatus || loadingT) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      statusSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      setShouldScrollToStatus(false);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [shouldScrollToStatus, loadingT]);
 
   // Function to extract job ID from LayerZero logs (MULTI-CHAIN COMPATIBLE)
   const extractJobIdFromLayerZeroLogs = (receipt) => {
@@ -591,6 +607,7 @@ export default function PostJob() {
               setIsProcessing(false);
             })
             .on("transactionHash", function (hash) {
+              setShouldScrollToStatus(true);
               if (isNativeArbitrum) {
                 setLoadingT(false);
                 setCrossChainSteps(null);
@@ -836,15 +853,17 @@ export default function PostJob() {
               onClick={handleSubmit}
               disabled={isProcessing}
             />
-            <div className="warning-form">
-              <Warning content={transactionStatus} />
+            <div ref={statusSectionRef} className="transaction-status-section" aria-live="polite">
+              <div className="warning-form">
+                <Warning content={transactionStatus} />
+              </div>
+              {crossChainSteps && (
+                <CrossChainStatus
+                  title="Cross-chain status"
+                  steps={crossChainSteps}
+                />
+              )}
             </div>
-            {crossChainSteps && (
-              <CrossChainStatus
-                title="Cross-chain status"
-                steps={crossChainSteps}
-              />
-            )}
           </div>
         </div>
       </div>

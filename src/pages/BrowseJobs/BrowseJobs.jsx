@@ -103,7 +103,7 @@ const fetchFromIPFS = async (rawHash, timeout = 5000) => {
     }
 };
 
-const formatJob = (jobId, jobData, jobDetails = null, posterName = null) => {
+const formatJob = (jobId, jobData, jobDetails = null, posterName = null, metadataPending = false) => {
     const totalBudget = jobData.milestonePayments.reduce(
         (sum, milestone) => sum + parseFloat(milestone.amount),
         0,
@@ -113,7 +113,7 @@ const formatJob = (jobId, jobData, jobDetails = null, posterName = null) => {
 
     return {
         id: jobId,
-        title: jobDetails?.title || `Job ${jobId}`,
+        title: jobDetails?.title || (metadataPending ? "Loading job details…" : `Job ${jobId}`),
         postedBy: posterName || fallbackPosterName,
         jobGiver: jobData.jobGiver,
         skills: Array.isArray(skills) ? skills : [skills],
@@ -372,7 +372,9 @@ export default function BrowseJobs() {
                     }
                 }))).filter((record) => record !== null);
 
-                const fallbackJobs = jobRecords.map(({ jobId, jobData }) => formatJob(jobId, jobData));
+                const fallbackJobs = jobRecords.map(({ jobId, jobData }) => (
+                    formatJob(jobId, jobData, null, null, true)
+                ));
                 fallbackJobs.reverse();
                 setJobs(fallbackJobs);
                 setLoading(false);

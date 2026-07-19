@@ -35,6 +35,17 @@ test('job creation order is reversed without lexicographic ID sorting', () => {
   assert.doesNotMatch(contents, /localeCompare/);
   assert.match(contents, /fallbackJobs\.reverse\(\)/);
   assert.match(contents, /enrichedJobs\.reverse\(\)/);
+  assert.match(contents, /metadataPending \? "Loading job details…"/);
+  assert.match(contents, /formatJob\(jobId, jobData, null, null, true\)/);
+});
+
+test('post-job submission reveals the transaction status after wallet confirmation', () => {
+  const postJob = source('src/pages/PostJob/PostJob.jsx');
+
+  assert.match(postJob, /setShouldScrollToStatus\(true\)/);
+  assert.match(postJob, /statusSectionRef\.current\?\.scrollIntoView/);
+  assert.match(postJob, /ref=\{statusSectionRef\}/);
+  assert.match(postJob, /aria-live="polite"/);
 });
 
 test('job listings reject malformed IPFS identifiers without gateway retries', () => {
@@ -119,4 +130,12 @@ test('XDC job posting uses a browser-safe RPC and the validated destination gas'
   assert.doesNotMatch(chainConfig, /VITE_XDC_MAINNET_RPC_URL \|\| 'https:\/\/erpc\.xinfin\.network'/);
   assert.match(postJob, /buildLzOptions\(DESTINATION_GAS_ESTIMATES\.POST_JOB\)/);
   assert.doesNotMatch(postJob, /const layerzeroOptions = chainConfig\.layerzero\.options/);
+});
+
+test('the XDC chain logo is distinct from the USDC payment icon', () => {
+  const chainConfig = source('src/config/chainConfig.js');
+
+  assert.match(chainConfig, /50: '\/xdc-chain\.svg'/);
+  assert.doesNotMatch(chainConfig, /50: '\/xdc\.svg'/);
+  assert.match(source('public/xdc-chain.svg'), /viewBox="0 0 413\.13 382\.18"/);
 });

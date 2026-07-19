@@ -559,7 +559,7 @@ export function getChainLogo(chainId) {
     42161: '/arbitrum-chain.png',     // Arbitrum One
     8453: '/base-chain.png',          // Base Mainnet
     137: '/polygon-chain.png',        // Polygon
-    50: '/xdc.svg'                    // XDC Network
+    50: '/xdc-chain.svg'              // XDC Network
   };
   return logos[chainId] || '/OWIcon.svg';  // Fallback to OpenWork icon
 }
