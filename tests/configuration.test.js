@@ -33,6 +33,14 @@ test('coordinated bridge release enables XDC applicant milestones and current br
   assert.match(source('src/config/chainConfig.js'), /0x9A0950594A699f5fb7decd7069F935100d39D9bF/);
 });
 
+test('release configuration uses the browser-compatible XDC RPC', () => {
+  for (const filename of ['.env.example', 'buildspec.yml']) {
+    const contents = source(filename);
+    assert.match(contents, /https:\/\/rpc\.xinfin\.network/);
+    assert.doesNotMatch(contents, /https:\/\/erpc\.xinfin\.network/);
+  }
+});
+
 test('CI verifies both frontend and backend', () => {
   const workflow = source('.github/workflows/ci.yml');
   assert.match(workflow, /frontend:/);

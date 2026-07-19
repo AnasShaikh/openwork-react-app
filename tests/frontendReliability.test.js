@@ -110,3 +110,13 @@ test('backend recognizes canonical XDC EIDs and defensive chain-ID job prefixes'
   assert.match(chainUtils, /30365: 50/);
   assert.match(chainUtils, /EID_TO_CHAIN_ID\[eid\] \|\| \(CHAIN_NAMES\[eid\] \? eid : undefined\)/);
 });
+
+test('XDC job posting uses a browser-safe RPC and the validated destination gas', () => {
+  const chainConfig = source('src/config/chainConfig.js');
+  const postJob = source('src/pages/PostJob/PostJob.jsx');
+
+  assert.match(chainConfig, /rpcUrl: import\.meta\.env\.VITE_XDC_MAINNET_RPC_URL \|\| 'https:\/\/rpc\.xinfin\.network'/);
+  assert.doesNotMatch(chainConfig, /VITE_XDC_MAINNET_RPC_URL \|\| 'https:\/\/erpc\.xinfin\.network'/);
+  assert.match(postJob, /buildLzOptions\(DESTINATION_GAS_ESTIMATES\.POST_JOB\)/);
+  assert.doesNotMatch(postJob, /const layerzeroOptions = chainConfig\.layerzero\.options/);
+});

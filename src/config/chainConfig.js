@@ -239,7 +239,10 @@ export const MAINNET_CHAIN_CONFIG = {
       symbol: "XDC",
       decimals: 18
     },
-    rpcUrl: import.meta.env.VITE_XDC_MAINNET_RPC_URL || 'https://erpc.xinfin.network',
+    // erpc.xinfin.network does not return browser CORS headers, so Web3
+    // read/quote calls fail before MetaMask opens. rpc.xinfin.network exposes
+    // the same XDC mainnet state and explicitly permits browser POST requests.
+    rpcUrl: import.meta.env.VITE_XDC_MAINNET_RPC_URL || 'https://rpc.xinfin.network',
     blockExplorer: "https://xdcscan.com",
     contracts: {
       lowjc: "0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7",

@@ -19,7 +19,13 @@ import FileUpload from "../../components/FileUpload/FileUpload";
 // Multi-chain support
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getLOWJCContract, getReadOnlyWeb3, isNativeArbChain } from "../../services/localChainService";
-import { getLocalChains, getNativeChain, isMainnet } from "../../config/chainConfig";
+import {
+  DESTINATION_GAS_ESTIMATES,
+  buildLzOptions,
+  getLocalChains,
+  getNativeChain,
+  isMainnet,
+} from "../../config/chainConfig";
 import {
   LOWJC_OPERATIONS,
   buildEstimatedWriteSendOptions,
@@ -461,9 +467,11 @@ export default function PostJob() {
 
           // Step 4: Prepare contract parameters - USE DETECTED CHAIN CONFIG
           const lowjcAddress = chainConfig.contracts.lowjc;
-          const layerzeroOptions = chainConfig.layerzero.options;
           const quoteWeb3 = getReadOnlyWeb3(chainId);
           const isNativeArbitrum = isNativeArbChain(chainId);
+          const layerzeroOptions = isNativeArbitrum
+            ? null
+            : buildLzOptions(DESTINATION_GAS_ESTIMATES.POST_JOB);
           
           const contract = await getLOWJCContract(chainId);
           const readContract = isNativeArbitrum

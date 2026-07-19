@@ -15,7 +15,7 @@ phases:
           --build-arg VITE_ARBITRUM_MAINNET_RPC_URL='https://arb1.arbitrum.io/rpc' \
           --build-arg VITE_OPTIMISM_MAINNET_RPC_URL='https://mainnet.optimism.io' \
           --build-arg VITE_ETHEREUM_MAINNET_RPC_URL='https://cloudflare-eth.com' \
-          --build-arg VITE_XDC_MAINNET_RPC_URL='https://erpc.xinfin.network' \
+          --build-arg VITE_XDC_MAINNET_RPC_URL='https://rpc.xinfin.network' \
           --build-arg VITE_XDC_APPLICANT_MILESTONES_ENABLED='true' \
           --build-arg VITE_ARBITRUM_SEPOLIA_RPC_URL='' \
           --build-arg VITE_OPTIMISM_SEPOLIA_RPC_URL='' \
