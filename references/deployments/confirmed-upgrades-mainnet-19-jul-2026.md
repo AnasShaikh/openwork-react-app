@@ -97,8 +97,8 @@ Rows are marked live only after successful receipts and immutable-aware runtime 
 | Arbitrum | ArbAthenaClient | `src/suites/current-mainnet/native/native-arb-athena-client-v3.sol` | `0x6DE7D58FCffF98AF2E85e1976155f3D671F6756C` | Existing `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x15ae2755581bbfc0ff039bd68d345cc4a9eba668def14126ac6824b02cd3f081` | Yes; patched hash `0x6274f7ffcc2037149a26d3359a5c4a70d3d49065013524db536b10b746ac5d10` | Pending |
 | Arbitrum | ProfileGenesis | `src/suites/current-mainnet/native/native-profile-genesis-v2.sol` | `0x9E8F58839aB114BbcA8A0c24f5BEC1C841294784` | Existing `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` | `0x3c7a0cb949f549eaa080c9c2ebc5a4fb4935a7a2ecad258c515a7dcc18579e53` | Yes; patched hash `0xa00e5d639aeb0fb642edbcfadbeb8d57cd1018c00f8c2b9afe17f1cb27fe75ca` | Pending |
 | Arbitrum | ProfileManager | `src/suites/current-mainnet/native/native-profile-manager-v3.sol` | `0xd30c9f6Bf3e6563a64AC32BD4Cc76407ed0e2fFf` | Existing `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | `0x3c1adb08219f6a1cfe62cb0896fb8d076f245d6dec51c2464d8eb5b6835aa54c` | Yes; patched hash `0x656c414d5f055c809d2ac5e046b82e667be74dda86d71e6db0ee129f40545d5b` | Pending |
-| XDC | Local bridge | `src/suites/current-mainnet/local/local-lz-openwork-bridge-v2.sol` | N/A | Pending | Pending | Pending | Pending |
-| XDC | Local LOWJC | `src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol` | Pending | Existing `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | Pending | Pending | Pending |
+| XDC | Local bridge | `src/suites/current-mainnet/local/local-lz-openwork-bridge-v2.sol` | N/A | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` | `0x99b8786959993efbe647628a1d4756c077756325dc005e75af98e2446e957af6` | Yes; endpoint-patched hash `0xe24b3d98dbb590605dca4da6c3cb9dfb809cfa7e479d3f06eb06a7a5864c820a` | Pending |
+| XDC | Local LOWJC | `src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol` | `0x7898B41BB04428bf3ccaC5a321d1513D4A00A47D` | Existing `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | `0x1c6842e8d900951b4850975e808bd4ac6bbc9da990d5eb4de607936dcfc29764` | Yes; patched hash `0x3574087a4d7cbabcc521293037163343b08971fe3e97e1eb0253e5afba030fa7` | Pending |
 
 ## Transaction journal
 
@@ -124,10 +124,14 @@ No live transaction has been broadcast in this rollout yet.
 | 16 | Arbitrum | 200 | Deploy ArbAthenaClient V3 implementation | 0 | `0x15ae2755581bbfc0ff039bd68d345cc4a9eba668def14126ac6824b02cd3f081` | Success | Address and patched runtime exact |
 | 17 | Arbitrum | 201 | Deploy ProfileGenesis V2 implementation | 0 | `0x3c7a0cb949f549eaa080c9c2ebc5a4fb4935a7a2ecad258c515a7dcc18579e53` | Success | Address and patched runtime exact |
 | 18 | Arbitrum | 202 | Deploy ProfileManager V3 implementation | 0 | `0x3c1adb08219f6a1cfe62cb0896fb8d076f245d6dec51c2464d8eb5b6835aa54c` | Success | Address and patched runtime exact |
+| 19 | XDC | 19 | Deploy isolated Local bridge V2 | 0 | `0x99b8786959993efbe647628a1d4756c077756325dc005e75af98e2446e957af6` | Success | Address, constructor state and endpoint-patched runtime exact |
+| 20 | XDC | 20 | Deploy Local LOWJC V3 implementation | 0 | `0x1c6842e8d900951b4850975e808bd4ac6bbc9da990d5eb4de607936dcfc29764` | Success | Address and patched runtime exact |
 
 Ethereum artifact-deployment execution cost: `0.000417780711103748 ETH`. Post-phase signer state: nonce 46; balance `0.001511166203370404 ETH`. The existing ETH DAO proxy remains on its pre-release implementation; this phase changed no production proxy behavior.
 
 Arbitrum artifact-deployment execution cost: `0.000666396152552000 ETH`. Post-phase signer state: nonce 203; balance `0.002609969576285726 ETH`. Existing production proxies and all current bridge pointers remain unchanged.
+
+XDC artifact-deployment execution cost: `0.111112439250000000 XDC`. Post-phase signer state: nonce 21; balance `50.272813713506555326 XDC`. Existing production proxies and all current bridge pointers remain unchanged.
 
 ## Recovery rules
 
