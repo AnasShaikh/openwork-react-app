@@ -4,26 +4,31 @@ pragma solidity 0.8.23;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {ETHOpenworkDAO as ETHOpenworkDAOV3} from
-    "../src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol";
+import {ETHOpenworkDAO as ETHOpenworkDAOV3} from "../src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol";
 import {ETHDAOMessaging} from "../src/suites/current-mainnet/eth/eth-dao-messaging-v1.sol";
-import {NativeOpenworkDAO as NativeOpenworkDAOV2} from
-    "../src/suites/current-mainnet/native/native-openwork-dao-v2.sol";
-import {OpenworkVotingPowerCheckpoints} from
-    "../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol";
+import {
+    NativeOpenworkDAO as NativeOpenworkDAOV2
+} from "../src/suites/current-mainnet/native/native-openwork-dao-v2.sol";
+import {
+    OpenworkVotingPowerCheckpoints
+} from "../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol";
 import {NativeAthenaV9} from "../src/suites/current-mainnet/native/native-athena-v9.sol";
-import {NativeOpenWorkJobContract as NativeOpenWorkJobContractV5} from
-    "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
-import {NativeArbOpenWorkJobContractV5 as NativeArbLOWJCV5} from
-    "../src/suites/current-mainnet/native/native-arb-lowjc-v5.sol";
-import {NativeArbAthenaClientV3} from
-    "../src/suites/current-mainnet/native/native-arb-athena-client-v3.sol";
-import {NativeProfileManager as NativeProfileManagerV3} from
-    "../src/suites/current-mainnet/native/native-profile-manager-v3.sol";
-import {NativeProfileGenesis as NativeProfileGenesisV2} from
-    "../src/suites/current-mainnet/native/native-profile-genesis-v2.sol";
-import {LocalOpenWorkJobContractLite as LocalLOWJCV3} from
-    "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol";
+import {
+    NativeOpenWorkJobContract as NativeOpenWorkJobContractV5
+} from "../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol";
+import {
+    NativeArbOpenWorkJobContractV5 as NativeArbLOWJCV5
+} from "../src/suites/current-mainnet/native/native-arb-lowjc-v5.sol";
+import {NativeArbAthenaClientV3} from "../src/suites/current-mainnet/native/native-arb-athena-client-v3.sol";
+import {
+    NativeProfileManager as NativeProfileManagerV3
+} from "../src/suites/current-mainnet/native/native-profile-manager-v3.sol";
+import {
+    NativeProfileGenesis as NativeProfileGenesisV2
+} from "../src/suites/current-mainnet/native/native-profile-genesis-v2.sol";
+import {
+    LocalOpenWorkJobContractLite as LocalLOWJCV3
+} from "../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol";
 
 interface IUUPSProxy {
     function upgradeToAndCall(address newImplementation, bytes calldata data) external payable;
@@ -78,7 +83,9 @@ contract CurrentMainnetLiveForkUpgradesTest is Test {
 
     function _snapshotSlots(address target, uint256 count) internal view returns (bytes32[] memory values) {
         values = new bytes32[](count);
-        for (uint256 i = 0; i < count; i++) values[i] = vm.load(target, bytes32(i));
+        for (uint256 i = 0; i < count; i++) {
+            values[i] = vm.load(target, bytes32(i));
+        }
     }
 
     function _assertSlots(address target, bytes32[] memory expected) internal view {
@@ -96,8 +103,7 @@ contract CurrentMainnetLiveForkUpgradesTest is Test {
         OpenworkVotingPowerCheckpoints implementation = new OpenworkVotingPowerCheckpoints();
         proxy = address(
             new ERC1967Proxy(
-                address(implementation),
-                abi.encodeCall(OpenworkVotingPowerCheckpoints.initialize, (OWNER, dao))
+                address(implementation), abi.encodeCall(OpenworkVotingPowerCheckpoints.initialize, (OWNER, dao))
             )
         );
     }

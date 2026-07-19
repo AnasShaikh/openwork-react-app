@@ -14,9 +14,6 @@ concurrency:
   group: contracts-ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  FOUNDRY_PROFILE: ci
-
 jobs:
   check:
     strategy:
@@ -31,6 +28,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1
 
       - name: Show Forge version
         run: |

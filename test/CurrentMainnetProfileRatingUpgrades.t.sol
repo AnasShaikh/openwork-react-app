@@ -4,14 +4,18 @@ pragma solidity ^0.8.22;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {NativeOpenworkGenesis} from "../src/suites/current-mainnet/native/native-openwork-genesis.sol";
-import {NativeProfileGenesis as NativeProfileGenesisV1} from
-    "../src/suites/current-mainnet/native/native-profile-genesis.sol";
-import {NativeProfileGenesis as NativeProfileGenesisV2} from
-    "../src/suites/current-mainnet/native/native-profile-genesis-v2.sol";
-import {NativeProfileManager as NativeProfileManagerV2} from
-    "../src/suites/current-mainnet/native/native-profile-manager-v2.sol";
-import {NativeProfileManager as NativeProfileManagerV3} from
-    "../src/suites/current-mainnet/native/native-profile-manager-v3.sol";
+import {
+    NativeProfileGenesis as NativeProfileGenesisV1
+} from "../src/suites/current-mainnet/native/native-profile-genesis.sol";
+import {
+    NativeProfileGenesis as NativeProfileGenesisV2
+} from "../src/suites/current-mainnet/native/native-profile-genesis-v2.sol";
+import {
+    NativeProfileManager as NativeProfileManagerV2
+} from "../src/suites/current-mainnet/native/native-profile-manager-v2.sol";
+import {
+    NativeProfileManager as NativeProfileManagerV3
+} from "../src/suites/current-mainnet/native/native-profile-manager-v3.sol";
 
 contract CurrentMainnetProfileRatingUpgradesTest is Test {
     NativeOpenworkGenesis internal jobGenesis;

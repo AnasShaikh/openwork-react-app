@@ -11,7 +11,9 @@ contract CurrentMainnetNativeAthenaAuthTest is Test {
 
     function setUp() public {
         address athenaAddress = makeAddr("athena");
-        vm.etch(athenaAddress, vm.getDeployedCode("src/suites/current-mainnet/native/native-athena-v2.sol:NativeAthenaV2"));
+        vm.etch(
+            athenaAddress, vm.getDeployedCode("src/suites/current-mainnet/native/native-athena-v2.sol:NativeAthenaV2")
+        );
         athena = NativeAthenaV2(payable(athenaAddress));
         athena.initialize(address(this), makeAddr("dao"), makeAddr("genesis"), makeAddr("nowjc"), makeAddr("usdc"));
     }
