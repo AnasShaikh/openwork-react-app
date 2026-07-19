@@ -133,6 +133,72 @@ Arbitrum artifact-deployment execution cost: `0.000666396152552000 ETH`. Post-ph
 
 XDC artifact-deployment execution cost: `0.111112439250000000 XDC`. Post-phase signer state: nonce 21; balance `50.272813713506555326 XDC`. Existing production proxies and all current bridge pointers remain unchanged.
 
+## Phase 3 — isolated replacement-bridge configuration
+
+Status: **complete**. The old production bridges, reciprocal peers, proxies, and core bridge pointers were not changed in this phase.
+
+### Arbitrum bridge-local transactions
+
+| Nonce | Operation | Transaction hash |
+|---:|---|---|
+| 203 | Route Native DAO | `0xa59195ee90c28f092113dc2348e6490a480aa66630a332fa013ccce28d93e87b` |
+| 204 | Route stake sync | `0x366cd293cfc89763446ecb439fc284886ecdd9bf9da7e18c6fad36915acd44bb` |
+| 205 | Route NativeAthena | `0x0935931ae14b41ada6ba043c50cf22e89bf50596e21600e26e824fefd980e26b` |
+| 206 | Route NOWJC | `0x37b8bef2a6373038acf93d85368bdea18e758c601201d13a18e69a43392026b8` |
+| 207 | Route ProfileManager | `0x74e9f3250b207890d33fb64c25e7cfff2b631c5ed60aca88102c8d3e04bbe126` |
+| 208 | Add Optimism EID 30111 | `0x220cdd07f2a9484849636c568176baa70dba1ae346aceefc29e2ab7d863ffb8d` |
+| 209 | Add XDC EID 30365 | `0xf1bf6821131c8d7cdf409cf5abbf321334c528ef8e711b09f06005ac77a34f16` |
+| 210 | Set XDC callback options | `0x7d97e02a82b275350262fd667065a8bf56a3cfc2081f3d3d2073fdbdafc3de53` |
+| 211 | Set Ethereum peer | `0x4c8ca8b7d2606dab33d89bffc2d83a2bfe3ddd3c844cbef79809263f03cb4083` |
+| 212 | Set Optimism peer | `0x9e61fadca7fd06e3e474eb77b4326b2cb5ad7e1f029e8206b23ddeecbb33f5c0` |
+| 213 | Set XDC peer | `0xd9b029728b59e1f848ca524302b53f254ef720409cb3f911eef1e88affa79b18` |
+| 214 | Authorize Native DAO | `0x73bec3397a7c9f524121de86ad88e2f4e86bcff73a658cd783a76008b3cb3e5f` |
+| 215 | Authorize NOWJC | `0x4f71472ba87ffd4166e6e2cb30f1f29505b89480a9165cf87e78e3f7c624c8f9` |
+| 216 | Authorize NativeAthena | `0x876289040713ee1daa8bca4ab5e1b8d8b7480ab7d370ee8793b9430b3c861c11` |
+| 217 | Authorize Rewards | `0x53aca6765030e7629fc00d6dfa8879ff6db6886f9c9ce2accb20e7fcd03dc1ea` |
+
+Readback confirmed the exact owner, routes, EIDs, callback bytes, peers and authorizations. `nativeDAO` admin authority and `directContractManager` remain zero as required.
+
+### Arbitrum LayerZero endpoint transactions
+
+| Nonce | Operation | Transaction hash |
+|---:|---|---|
+| 218 | Set Ethereum send library | `0x3769c44e7456df92a5a2981da841208bec5c8ebc55407f4822f635a6b05eee8a` |
+| 219 | Set Ethereum receive library | `0x1a0e2a7d42f18ccc10e6da9b7edcb9a31cad1f26eb53793717525d2c47d9d107` |
+| 220 | Set Ethereum send configs | `0xa62fa1ef475befe262ebe8b5ee312eabede10c17daa522a1dad23c1315fd21c5` |
+| 221 | Set Ethereum receive config | `0xd1ebb4980a84f536f4fe004450b9bd259238febf5e619ecb6cb1bf6e5e55799b` |
+| 222 | Set Optimism send library | `0x85c8d5a641f0f8f4a0d2883d64abc5f2e5c6a8a1fa9d4b73157bccd2c20dcd07` |
+| 223 | Set Optimism receive library | `0xacbd244373f9886d0a5df956c944408f3e502672824af08af5563f590dcbdde7` |
+| 224 | Set Optimism send configs | `0xd29b9373c56200c324c43787a1ba80c97d62a5ff5727b9ba6702da3f5b586b5b` |
+| 225 | Set Optimism receive config | `0x740ac30983d457eab119aed32c3f4bfe1cb306783e92b6b759e58edf87cc1e3d` |
+| 226 | Set XDC send library | `0x5a7dea698310f3d494f4f75f66982575bea5842a7a316d9d9ac2bf66e2ff9517` |
+| 227 | Set XDC receive library | `0xb71c85b4615b6eb96babac532d63aa112bd89c270eb7872a92295a359fc4f086` |
+| 228 | Set XDC send configs | `0xdf3e0549d4efb2af0bd45bef30b6342a531e8330140fcd000c03aafd713bf166` |
+| 229 | Set XDC receive config | `0xb0f7a045fb02747dbd05e0c813a4f840a6902d89da05d222a8d6363bb7dbde45` |
+
+For EIDs 30101, 30111 and 30365, endpoint readback byte-matched the locked send/receive libraries, executor config, send ULN and receive ULN. Ethereum uses 15 receive confirmations; Optimism and XDC use 20. Each uses the four locked required DVNs and no optional DVNs.
+
+Arbitrum isolated-configuration execution cost: `0.000046645852760000 ETH`. Post-phase signer state: nonce 230; balance `0.002563323723525726 ETH`.
+
+### XDC bridge-local and LayerZero transactions
+
+| Nonce | Operation | Transaction hash |
+|---:|---|---|
+| 21 | Route LOWJC | `0x98449dec668e47901edb8e4b694603ae69e9d275e472f2b130cb2cdff2fc99e6` |
+| 22 | Route Athena | `0xd5c9137e611a6621f14a8f80669758bd8f4c05f8fc110cf660db20d9b6c310c1` |
+| 23 | Authorize LOWJC | `0xbf97ca0abe30916ba0a2b02515bdddb2c1685d9819bedd9f8c1784936be604a5` |
+| 24 | Authorize Athena | `0x7b2f57b20357bebd3ce31ee8894b086f59731ad9f40d5da26d254459b100ca71` |
+| 25 | Set Arbitrum peer | `0x91793d382a4ddaa507ae75d884667be413349b454d32918333330d59e3012501` |
+| 26 | Set Ethereum peer; security path remains disabled | `0x285ae179ac33cbad62c187336b174758a69259ccaf719ed7c2034ce7c4baa552` |
+| 27 | Set Arbitrum send library | `0x50ce565622c6f7d59c0a3e055c76890c273978ed869940c793f27d591cf9f63c` |
+| 28 | Set Arbitrum receive library | `0x77fd5e8c96bbd57f5dce837980151d954398310f770e832bb1cdeb8ef09c89e2` |
+| 29 | Set Arbitrum send configs | `0x511240ab000b00ded8f4a7875240af63d8eea23b85cad5d22b6c575a5dbb10e4` |
+| 30 | Set Arbitrum receive config | `0x14807626400014a9881ee0a1b8520364b9d78b0906aa983baad10eade72cb4a1` |
+
+Readback confirmed the exact LOWJC/Athena routes and authorizations, Arbitrum/Ethereum peers, send/receive libraries, executor bytes and four-DVN ULN bytes. No Ethereum security config was installed, so that direct path remains disabled.
+
+XDC isolated-configuration execution cost: `0.011533889759698118 XDC`. Post-phase signer state: nonce 31; balance `50.261279823746857208 XDC`.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
