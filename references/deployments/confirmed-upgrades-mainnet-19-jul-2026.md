@@ -234,6 +234,58 @@ Ethereum phase cost: `0.000017506812487457 ETH`; post-phase nonce 49 and balance
 
 Arbitrum phase cost: `0.000031970169118000 ETH`; post-phase nonce 238 and balance `0.002526918727665726 ETH`.
 
+## Phases 6–9 — maintenance, canonical job flow, reciprocal cutover and callback reserve
+
+Status: **complete**.
+
+Maintenance inspection found no old-bridge events in the inspected Arbitrum, Optimism or XDC windows. Ethereum had only this rollout's module-authorization event and no message traffic. Before cutover, Ethereum, Optimism and the old XDC bridge all still peered with the old Native bridge.
+
+### Arbitrum preparation and core cutover
+
+| Nonce | Operation | Transaction hash |
+|---:|---|---|
+| 238 | Upgrade NOWJC to V5 | `0x66b67a2c6bf5951ca5f1370962c8bf05e991db38c8f4aa1967093cb5267d12ad` |
+| 239 | Authorize new bridge on NOWJC | `0x7b0a41415df3c31f65f7ad4a8be00277d8440069b2eb02d0c66204dfa544fa49` |
+| 240 | Authorize new bridge on NativeAthena | `0xa6e50b3c41dd5a52bad036fa1623fed8bcd711b21345a01352b5294f16a26ea7` |
+| 241 | Preserve old bridge authorization on NativeAthena for rollback/in-flight compatibility | `0xcccdb34d0b3bbd0c25a3d1cb761c1b45d19b5a96c2af632600fbdb1d2f0485eb` |
+| 242 | Point Native DAO to new bridge | `0xa4b6e3e9034bc41ab5b043eb786c4d8c9bb9655fceb21a2aca76a1d228fa66c0` |
+| 243 | Point NativeAthena to new bridge | `0x2e69892ae68bf9603d888a79bb83cf43c74ba037fbb1197832717cf7ca032f58` |
+| 244 | Point NOWJC to new bridge | `0xdcf801e4c37cb94ab7d686fb0b08920400ff9e5c88093bd05259feb8e093deb7` |
+| 245 | Point ProfileManager to new bridge | `0x88a8b0a81c7ff537c1a69e02c3f26744eb56fa952fbc033337c385680e675629` |
+| 246 | Point Rewards to new bridge | `0x9191ae8585cb0b303c927fd119f0a3b9f4587d19fecd0ab0be084214ac1cf4b2` |
+| 247 | Fund recoverable callback reserve | `0x60b7ee6a0ac1a799828afa8a39fb26f6f1766a6bbc74f9ac89d5e49a1d9d671e` |
+
+NOWJC V5 retained owner, Genesis, Rewards, USDC, NativeAthena, Native DAO, treasury, old bridge and the live zero commission/minimum settings. Both old and new bridges remain authorized on NOWJC and NativeAthena. All five core `bridge()` pointers now return `0x9A0950594A699f5fb7decd7069F935100d39D9bF`.
+
+### Reciprocal local-chain cutover
+
+| Chain | Nonce | Operation | Transaction hash |
+|---|---:|---|---|
+| XDC | 31 | Upgrade LOWJC to V3 | `0x1544c47b9ca7b2663729258b30ccd027beefe3e115963a74b9c2a6fb8da01d8f` |
+| XDC | 32 | Point LOWJC to new XDC bridge | `0xe941b8e3757a44f37d6376bd9bb8352b8611a1390a9e901e53d4a175ba59aaee` |
+| XDC | 33 | Point LocalAthena to new XDC bridge | `0xa22f5f2dc2d820a04f58422a7880ea2f129c5be56fb2ed02408219952bbb3b16` |
+| Ethereum | 49 | Change Arbitrum peer to new Native bridge | `0xb4889ae93a4a58b88af0e01eccbbc911ccfba39ff51f138464934db1dcc2db4e` |
+| Optimism | 327 | Change Arbitrum peer to new Native bridge | `0x1982ca18b9a70e3092379caba29ab86d725db8e39a419595077a0bdd57032e71` |
+
+XDC LOWJC V3 retained owner, job counter 2, USDC, EID, CCTP endpoints, Athena and pre-cutover bridge until the explicit pointer transaction. Both XDC LOWJC and LocalAthena now point to `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951`; the testing minimum remains `50,000,000` units. Ethereum and Optimism peer EID 30110 now contain the new Native bridge as bytes32.
+
+### Callback quote and reserve
+
+- Representative payload: 512-byte ABI encoding of `startJobMilestones` with a long XDC job ID and five canonical milestone amounts.
+- Payload keccak256: `0x712abb2ece72995dbae374add81e0bba69736e3cc61ccb04dc494ed874adc96a`.
+- Quote matched on two Arbitrum RPCs: `11,441,372,830,583 wei` (`0.000011441372830583 ETH`).
+- Reserve funded: `0.0005 ETH`, enough for 43 such callbacks at the quoted fee before fee changes.
+- Reserve is held by the owner-controlled bridge and recoverable through its owner-only withdrawal function.
+
+### Phase cost and final topology snapshot
+
+- Ethereum cutover gas: `0.000001458266203475 ETH`.
+- Arbitrum gas: `0.000007942780428000 ETH`, plus the separate recoverable `0.0005 ETH` callback reserve.
+- Optimism cutover gas: `0.000000000732122220 ETH`.
+- XDC upgrade/cutover gas: `0.001453188621500000 XDC`.
+- Post-phase signer balances: Ethereum `0.001492201124679472 ETH`; Arbitrum `0.002018975947237726 ETH`; Optimism `0.000819327708158739 ETH`; XDC `50.259826635125357208 XDC`.
+- Full four-chain structural audit: **pass**. All implementations, module addresses, core pointers, reciprocal peers, authorizations, active-proposal gates and reserve balance matched.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
