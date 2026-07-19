@@ -286,6 +286,27 @@ XDC LOWJC V3 retained owner, job counter 2, USDC, EID, CCTP endpoints, Athena an
 - Post-phase signer balances: Ethereum `0.001492201124679472 ETH`; Arbitrum `0.002018975947237726 ETH`; Optimism `0.000819327708158739 ETH`; XDC `50.259826635125357208 XDC`.
 - Full four-chain structural audit: **pass**. All implementations, module addresses, core pointers, reciprocal peers, authorizations, active-proposal gates and reserve balance matched.
 
+## Phase 10 — frontend release and read-only write-path smoke tests
+
+Status: **complete**.
+
+The consolidated frontend `main` release commit is `43956d7223813c279c21cec19fbb781f3a09d2f9`. It replaces the frontend's XDC Local bridge and Arbitrum Native bridge pointers, enables the coordinated XDC applicant-milestone path, retains the correct Arbitrum write adapters and passed GitHub CI run `29675227881`.
+
+| Release artifact | Immutable reference |
+|---|---|
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-43956d7223813c279c21cec19fbb781f3a09d2f9.zip` |
+| Archive SHA-256 | `0009b1531be3d3d416120f9548487ce3300f592a757638c285b600678d8fce1b` |
+| CodeBuild | `openwork-react-app-prod-build:9795a0c0-4945-46f9-ba14-3a33fc422657` — succeeded |
+| ECR image | `openwork-app:prod-43956d7-20260719054533` |
+| ECR digest | `sha256:91eaae9d8855c7f69864a87b966e51376869c4d4545633d9ec6e92c97249b16f` |
+| App Runner operation | `6277e917d1364298be84c5d978ef7ad9` — succeeded |
+| Public JS asset | `/assets/index-COP-yjtZ.js` |
+| Rollback image | `openwork-app:prod-4961c45-20260717225439` (`sha256:bba58369a4575ba89fef23def4dcb8207e2c894c9bebfbdb3c62905d67d0e800`) |
+
+Public root, health, Browse Jobs, XDC job detail and documentation routes returned HTTP 200. The deployed bundle contains the replacement bridge addresses and both correct Arbitrum frontend adapter addresses; the old Native bridge address is absent.
+
+The XDC `postJob(string,string[],uint256[],bytes)` path was simulated with a realistic next-job payload and 800,000 destination-gas options against both `https://erpc.xinfin.network` and `https://rpc.xinfin.network`. Both calls succeeded, both RPCs quoted exactly `4,086,746,197,006,891,805 wei` of XDC and job counter `2` was unchanged. The Arbitrum direct `postJob(string,string[],uint256[])` path was simulated successfully against `https://arb1.arbitrum.io/rpc` and `https://1rpc.io/arb`; both retained job counter `21`. All simulations used `eth_call`, so they changed no state and spent no funds.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
