@@ -48,7 +48,7 @@ The calldata generator emits 61 labeled unsigned calls (Ethereum 4, Arbitrum 43,
 
 The hashes below are from one focused production build containing all selected targets. `Init bytes` and `Runtime bytes` include compiler metadata. EIP-170 allows at most 24,576 runtime bytes.
 
-| Artifact | Source successor | Init bytes | Init-code keccak256 | Runtime bytes | Runtime-code keccak256 |
+| Artifact | Source successor | Init bytes | Init-code keccak256 | Runtime bytes | Runtime-template keccak256 |
 |---|---|---:|---|---:|---|
 | ETHOpenworkDAO | `eth-openwork-dao-v3.sol` | 24,478 | `0xc531bf193406b94e707c600d0c6b48537813bc4e6c92eea4e70ca2f72b8fd6a9` | 24,264 | `0x856d69cb3f30f5cb9ca8b91c258b67f35243b3d316a360df4b429da88ed24841` |
 | ETHDAOMessaging | `eth-dao-messaging-v1.sol` | 5,990 | `0x456b53db3ee9ea0d0db0d7c05e586f005e058e8898dc0759e50b995bbccbcb3a` | 5,781 | `0xf83cbd1c22080906bba45b76f784cef5f3849e2dbeac69f9db6f9ecaf775e71c` |
@@ -65,6 +65,8 @@ The hashes below are from one focused production build containing all selected t
 | NativeLZOpenworkBridgeV3 | `native-lz-openwork-bridge-v3.sol` | 20,907 | `0x9c19969b9145b86a4d166222a425876bf173fcd482ba0c977ccbcd533ad89e05` | 20,448 | `0x4a9309684f91eecd6e7fe4cfd340ce030add3829ac1f1118cc41097cf5f73269` |
 | LocalLZOpenworkBridgeV2 | `local-lz-openwork-bridge-v2.sol` | 10,616 | `0x004b44752d97ecb390d3e0456a1690de26beeb3be075aef734c0e9a0af7ea54d` | 10,079 | `0x0ae411a3677a1930807d8057a26b02170f3bb25d2146d71bd9d31f1ef7380eab` |
 | UUPSProxy | `proxy.sol` | 828 | `0xc2e210a64e46b57c1c61c8c56e78defb8102587bbf023d30e769be7f84a6f2f8` | 267 | `0x0c40e480dae5df8d18febc649e55ee1317281784b5c3c3316257d93eb80f7f73` |
+
+The runtime hashes in this table are compiler-artifact template hashes, with compiler-declared immutable references zeroed. They are not direct live-code hashes for artifacts with nonempty `deployedBytecode.immutableReferences`. For each UUPS implementation, patch every declared immutable reference with the implementation's own address as a left-padded 32-byte value. For each bridge, patch every declared immutable reference with its constructor LayerZero endpoint as a left-padded 32-byte value. The resulting bytes and hash must match `eth_getCode` exactly. `UUPSProxy` has no immutable references and can be hashed directly. Init-code hashes remain exact before constructor arguments are appended.
 
 NativeAthena V9 has only 45 bytes of runtime margin and is frozen unless a release-blocking correction is followed by a new canonical size/hash lock.
 
@@ -163,7 +165,7 @@ Proxy upgrades use `upgradeToAndCall(address,bytes)`:
 - ProfileManager: new V3 implementation plus `initializeV3(0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294)` atomically.
 - NativeAthena, NOWJC, ArbLOWJC, ArbAthenaClient, ProfileGenesis, and XDC LOWJC: their selected implementation with empty call data.
 
-After every upgrade, read the ERC-1967 implementation slot, compare deployed runtime keccak256 with this manifest, confirm owner/admin state, and run the contract-specific smoke calls before proceeding.
+After every upgrade, read the ERC-1967 implementation slot, compare deployed runtime byte-for-byte after applying the compiler-declared immutable patches described above, confirm owner/admin state, and run the contract-specific smoke calls before proceeding.
 
 ## New bridge configuration lock
 

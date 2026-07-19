@@ -80,13 +80,13 @@ Post-receipt Ethereum signer state:
 
 ## Deployment address registry
 
-Nothing in this table is live yet. Rows will be filled only after successful receipts and runtime-hash checks.
+Rows are marked live only after successful receipts and immutable-aware runtime verification.
 
 | Chain | Live role | Versioned source file | Implementation address | Proxy / standalone address | Deployment tx | Runtime verified | Explorer source |
 |---|---|---|---|---|---|---|---|
-| Ethereum | ETH DAO | `src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol` | Pending | Existing `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | Pending | Pending | Pending |
-| Ethereum | Voting checkpoints | `src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol` | Pending | Pending | Pending | Pending | Pending |
-| Ethereum | DAO messaging | `src/suites/current-mainnet/eth/eth-dao-messaging-v1.sol` | Pending | Pending | Pending | Pending | Pending |
+| Ethereum | ETH DAO | `src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol` | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | Existing `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xac4090a72d64f316eeb368f57b1b99a8b256cb7fac436dcff2179d66dc08a2b4` | Yes; patched live hash `0xe4081627893f8af8f2cd6dbd6ef9b9cd58aca6ecd2ebe1849d33136ea46969dc` | Pending |
+| Ethereum | Voting checkpoints | `src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol` | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | Impl `0x3e31d04417667fc4e4cbecf795201915de37df05412d17a2473c117b6185c2f3`; proxy `0x0f557411422c70cc98c0682e6d1bedb2e2b61ff1e5245e8a7115b446ec01caa1` | Yes; impl patched hash `0x2d3edbd31d99fd4921d54a800caa18e6ba3a334b308095329cf838a76385d6b0`; proxy hash locked | Pending |
+| Ethereum | DAO messaging | `src/suites/current-mainnet/eth/eth-dao-messaging-v1.sol` | `0x532fAB0b8Ca0dD7c14ca1324e7502534E5c8b9AE` | `0xDCF7c77314E8F042C97EFB96991b7DAc5Dc79f0D` | Impl `0x6fb4f924b2ae05283d06528aef0f004428648fbd766c8d5fb4c1e13a4bb34efa`; proxy `0xe22528b9e6cefa4f372976f44bff0eeafe04648096332d0f794040cce2038356` | Yes; impl patched hash `0x48288739add349317d9ddb6cc77d90d443859e260d4cf59c5a16bd1d2e4a5613`; proxy hash locked | Pending |
 | Arbitrum | Native bridge | `src/suites/current-mainnet/native/native-lz-openwork-bridge-v3.sol` | N/A | Pending | Pending | Pending | Pending |
 | Arbitrum | Native DAO | `src/suites/current-mainnet/native/native-openwork-dao-v2.sol` | Pending | Existing `0x24af98d763724362DC920507b351cC99170a5aa4` | Pending | Pending | Pending |
 | Arbitrum | Voting checkpoints | `src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol` | Pending | Pending | Pending | Pending | Pending |
@@ -107,11 +107,19 @@ No live transaction has been broadcast in this rollout yet.
 | Seq. | Chain | Nonce | Purpose | Value | Tx hash | Receipt | Post-state verification |
 |---:|---|---:|---|---:|---|---|---|
 | 1 | Ethereum | 40 | Bridge deployment funding to Arbitrum | `0.003 ETH` | `0xbb3dddb45715dd5568a0fffd7653912c3da855c906c0d1467b570d9dc0b10ba7` | Success | Canonical Inbox event and exact `0.003 ETH` Arbitrum balance increase confirmed |
+| 2 | Ethereum | 41 | Deploy ETH DAO V3 implementation | 0 | `0xac4090a72d64f316eeb368f57b1b99a8b256cb7fac436dcff2179d66dc08a2b4` | Success | Address and immutable-patched runtime exact |
+| 3 | Ethereum | 42 | Deploy voting-checkpoints V1 implementation | 0 | `0x3e31d04417667fc4e4cbecf795201915de37df05412d17a2473c117b6185c2f3` | Success | Address and immutable-patched runtime exact |
+| 4 | Ethereum | 43 | Deploy and atomically initialize voting-checkpoints proxy | 0 | `0x0f557411422c70cc98c0682e6d1bedb2e2b61ff1e5245e8a7115b446ec01caa1` | Success | Proxy runtime, owner, DAO and implementation slot exact |
+| 5 | Ethereum | 44 | Deploy ETH DAO messaging V1 implementation | 0 | `0x6fb4f924b2ae05283d06528aef0f004428648fbd766c8d5fb4c1e13a4bb34efa` | Success | Address and immutable-patched runtime exact |
+| 6 | Ethereum | 45 | Deploy and atomically initialize DAO-messaging proxy | 0 | `0xe22528b9e6cefa4f372976f44bff0eeafe04648096332d0f794040cce2038356` | Success | Proxy runtime, owner, DAO, bridge and implementation slot exact |
+
+Ethereum artifact-deployment execution cost: `0.000417780711103748 ETH`. Post-phase signer state: nonce 46; balance `0.001511166203370404 ETH`. The existing ETH DAO proxy remains on its pre-release implementation; this phase changed no production proxy behavior.
 
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
 - Artifact deployment alone changes no live proxy behavior.
+- Runtime verification accounts for compiler-declared immutables: UUPS implementations embed their own address and bridges embed their LayerZero endpoint. The artifact's zero-filled runtime-template hash is never compared directly to live code when immutable references are present.
 - New bridges are configured and verified while isolated before any current contract or reciprocal peer points to them.
 - Old bridges remain deployed and authorized during cutover for rollback; they are not destroyed.
 - No callback reserve is funded until a fresh maximum representative quote is taken after final configuration.
