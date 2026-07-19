@@ -179,7 +179,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** One stake can produce voting power for both its owner and delegatee; self-delegation can directly double the owner's displayed and usable voting power. Governance quorum and proposal outcomes can therefore be calculated from duplicated voting units.
 
-**Correction discussed:** Count each stake exactly once: either with its owner or with its current delegatee, never both. The robust implementation should use checkpointed delegation so Governor reads the ownership/delegation state at the proposal snapshot. The deployed NativeOpenworkDAO runtime is 24,217 bytes (359-byte EIP-170 margin), and ETHOpenworkDAO V2 is 23,730 bytes (846-byte margin), so the exact correction must be compiled and size-checked before an upgrade is selected. No correction has been implemented yet.
+**Correction on `main` — July 19, 2026:** Versioned ETH DAO V3 and Native DAO V2 successors count an active stake either for its owner or its delegatee, reject self-delegation, and checkpoint both affected accounts on delegation changes. Historical originals remain untouched. The voting checkpoint logic is isolated in `openwork-voting-power-checkpoints-v1.sol` because both DAO implementations are close to EIP-170.
 
 ### 19. DAO voting power ignores proposal snapshots
 
@@ -187,7 +187,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** Voting power gained or moved after a proposal's snapshot can still count on that proposal. Proposal voting and quorum can therefore be calculated from mutable current state instead of the fixed historical state Governor expects.
 
-**Correction discussed:** Checkpoint effective voting power whenever staking, unstaking, delegation, or reward power changes, and return the historical value at the requested timestamp. Because the deployed Native and Ethereum DAO implementations have only 359 and 846 bytes of EIP-170 margin respectively, the checkpoint design must be compiled and size-checked before choosing an inline implementation or a deliberately separated module. No correction has been implemented yet.
+**Correction on `main`:** Both versioned DAOs use an external, DAO-bound timestamp checkpoint module and return historical power at the Governor timepoint. Permissionless migration/sync functions seed current accounts after upgrade. At the July 19 read-only check, neither DAO had an active proposal, so no pre-upgrade proposal snapshot needs retroactive voting power. This must be rechecked immediately before deployment.
 
 ### 20. Delegated voting power survives stake reduction or withdrawal
 
@@ -195,7 +195,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** A delegatee can retain voting power backed by stake that has been withdrawn, deleted, or reduced. A later redelegation can also calculate adjustments from the new stake rather than the amount originally delegated, leaving the aggregate inconsistent.
 
-**Correction discussed:** Treat every stake change and delegation change as one atomic voting-power update. Subtract the old delegated amount before reducing or deleting stake, apply the new amount after a partial change, and clear the delegation on full withdrawal. Integrate this with finding 19's historical checkpoints so current and snapshot power are updated from the same source of truth. No correction has been implemented yet.
+**Correction on `main`:** ETH DAO V3 reconciles delegated power before stake reduction, clears full-withdrawal delegation, and checkpoints the delegator and delegatee. `native-dao-stake-sync-v1.sol` applies monotonically versioned Ethereum stake updates, adjusts the old and new delegated amounts atomically in Genesis, rejects stale/replayed versions, clears delegation on full withdrawal, and synchronizes affected checkpoints.
 
 ### 21. Native DAO blocks delegated-only voters
 
@@ -203,7 +203,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** Delegated voting power becomes unusable unless the delegatee independently satisfies the personal stake or reward threshold, contradicting the effective power reported to Governor.
 
-**Correction discussed:** Evaluate voting eligibility from the account's effective power at the proposal snapshot, including valid delegated power. Implement this as part of the checkpointed delegation correction rather than adding another mutable current-state calculation.
+**Correction on `main`:** Native DAO V2 evaluates eligibility from the same checkpointed stake/reward components used by Governor, so delegated-only power is usable when it meets the configured threshold.
 
 ### 22. Ethereum DAO does not enforce its configured voting threshold
 
@@ -211,7 +211,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** Voting power below the configured minimum can still be recorded and counted, while the frontend eligibility result can disagree with the contract's actual behavior.
 
-**Correction discussed:** Before accepting a vote, require the voter's effective historical power at the proposal snapshot to meet `votingThresholdAmount`. Use the same checkpoint source as findings 19 and 21.
+**Correction on `main`:** ETH DAO V3 requires effective power at the proposal snapshot to meet `votingThresholdAmount` before accepting a vote.
 
 ### 23. Ethereum governance notifications can be duplicated or bypassed
 
@@ -219,7 +219,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** A single governance action can increment cross-chain activity twice, or a valid action can omit the expected notification or local proposal-list entry depending on which ABI entry point is used.
 
-**Correction discussed:** Route every supported vote and proposal entry point through one internal execution path. Validate and record the governance action once, emit or send exactly one notification, and update proposal tracking exactly once. Preserve standard Governor/Tally-compatible functions while making the payable options variants thin wrappers.
+**Correction on `main`:** ETH DAO V3 preserves the standard Governor/Tally entry points and records each proposal/vote notification once in the separate `eth-dao-messaging-v1.sol` module. Notification sending is idempotent and permissionless after recording, and a second send reverts. Stake updates and governance notifications each use one bridge send path.
 
 ### 24. Cross-chain stake synchronization fails silently
 
@@ -227,7 +227,7 @@ Then execute CCTP and finalize payment.
 
 **Risk:** Native DAO can miss a new stake or, more seriously, retain stake and voting power after the Ethereum stake was reduced or withdrawn. Local and native governance state can diverge without an actionable pending record.
 
-**Correction discussed:** Never discard a failed update. At minimum, reject an operation when its initial cross-chain send cannot be accepted. For delivery-safe operation, persist a monotonically versioned pending stake update, support permissionless retry, reject stale versions on the native chain, and expose synchronization status. The final fail-closed versus pending-state user experience must be fixed in the implementation specification before deployment.
+**Correction on `main`:** The selected behavior is fail-closed at the Ethereum boundary: stake/unstake/removeStake reverts if the LayerZero quote or send cannot be accepted, so local state cannot silently diverge. `ETHDAOMessaging` assigns monotonically increasing per-staker versions, and `NativeDAOStakeSync` rejects stale/replayed deliveries and applies delegation reconciliation before checkpointing.
 
 ## Mandatory bytecode-size release gate
 
@@ -255,6 +255,18 @@ The coordinated callback artifacts were measured with the same production settin
 | NOWJC V5 | 23,898 bytes | 678 bytes |
 | NativeLZOpenworkBridge V2 | 20,448 bytes | 4,128 bytes |
 | LocalLZOpenworkBridge V2 | 10,079 bytes | 14,497 bytes |
+
+The DAO correction and its separated modules were measured with the same production settings:
+
+| DAO artifact | Runtime size | Remaining margin |
+|---|---:|---:|
+| ETHOpenworkDAO V3 | 24,264 bytes | 312 bytes |
+| NativeOpenworkDAO V2 | 23,918 bytes | 658 bytes |
+| OpenworkVotingPowerCheckpoints V1 | 4,557 bytes | 20,019 bytes |
+| ETHDAOMessaging V1 | 5,781 bytes | 18,795 bytes |
+| NativeDAOStakeSync V1 | 4,073 bytes | 20,503 bytes |
+
+NativeAthena V5 is **24,516 bytes**, leaving only **60 bytes**. It fits the limit but is effectively closed to further inline changes; any edit requires a new versioned successor and a repeated exact-toolchain size check.
 
 Current deployed headroom for the rating correction is ample, but corrected artifacts must still be measured:
 
@@ -305,13 +317,13 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 | Multiple disputes per job | Preserved on contract `main`; incorrect local guards removed | Canonical counter-based IDs remain authoritative |
 | Native-to-local dispute settlement synchronization | Retracted as a requirement | No upgrade recommended without a separate lifecycle decision |
 | Legacy local finalization receiver | Dormant; no current-path correction recommended | Redesign only if local job synchronization is intentionally introduced |
-| DAO delegation double-counts stake | Not yet implemented | Native and Ethereum DAO upgrade design pending; strict size limits apply |
-| DAO voting power is not snapshotted | Not yet implemented | Native and Ethereum DAO checkpoint design pending; strict size limits apply |
-| Delegated voting power survives stake reduction | Not yet implemented | Coordinate with DAO delegation and checkpoint redesign; strict size limits apply |
-| Native delegated-only voters are blocked | Not yet implemented | Coordinate with DAO delegation and checkpoint redesign |
-| Ethereum voting threshold is not enforced | Not yet implemented | Coordinate with Ethereum DAO checkpoint redesign |
-| Ethereum governance notification entry points diverge | Not yet implemented | Ethereum DAO upgrade and cross-chain regression tests pending |
-| Cross-chain stake synchronization fails silently | Not yet implemented | Ethereum DAO/native receiver reliability design and integration tests pending |
+| DAO delegation double-counts stake | Versioned DAO corrections on `main` | Module deployments, proxy upgrades, and migration pending |
+| DAO voting power is not snapshotted | Shared checkpoint module and versioned DAO integrations on `main` | Deploy two checkpoint proxies, upgrade DAOs, seed current accounts |
+| Delegated voting power survives stake reduction | ETH DAO V3 and NativeDAOStakeSync V1 on `main` | Coordinated module/bridge configuration pending |
+| Native delegated-only voters are blocked | Native DAO V2 on `main` | Proxy upgrade and checkpoint migration pending |
+| Ethereum voting threshold is not enforced | ETH DAO V3 on `main` | Proxy upgrade pending |
+| Ethereum governance notification entry points diverge | ETHDAOMessaging V1 + ETH DAO V3 on `main` | Module deployment/configuration and proxy upgrade pending |
+| Cross-chain stake synchronization fails silently | Fail-closed ETH sender plus ordered native receiver on `main` | Messaging/stake-sync deployment and bridge wiring pending |
 
 ## Explicit pre-production flags
 
@@ -326,13 +338,19 @@ The current combined NOWJC corrections fit, but the margin is small. Before ever
 
 ## Confirmed-finding remediation plan
 
-1. Implement findings 18–22 as one coherent DAO voting-power redesign: single-count delegation, historical checkpoints, atomic stake/delegation changes, delegated-only voting, and Ethereum threshold enforcement.
-2. Consolidate Ethereum Governor entry points so proposal/vote tracking and cross-chain notification occur exactly once.
-3. Replace silent stake-sync failure with an explicit, versioned, retryable synchronization state; settle the precise fail-closed/pending-state UX before deployment.
-4. Complete the other already authorized source corrections, including canonical rating validation and the coordinated XDC applicant-milestone flow. Keep finding 14's job-bound escrow work deferred until the owner finalizes its accounting model.
-5. Compile with the production toolchain and enforce EIP-170 size and storage-layout gates. Add unit, lifecycle, cross-chain, fork, and proxy-upgrade rehearsal tests.
-6. Prepare a deployment manifest containing each chain, proxy, current and proposed implementation, bytecode hash, storage-layout result, dependency order, exact calldata, rollback point, signer, and estimated maximum fee.
-7. Execute no live transaction until the owner explicitly approves the displayed transaction details. After approval, deploy and upgrade one dependency group at a time, verify source and proxy state on-chain, run post-upgrade checks, and push the resulting deployment record to `main` before continuing.
+1. Keep finding 14's job-bound escrow work deferred until the owner finalizes its accounting model.
+2. Prepare the deployment manifest and unsigned calldata for the completed DAO, rating, lifecycle, and XDC synchronization corrections.
+3. Immediately before deployment, recheck active DAO proposals and derive the complete checkpoint migration account lists from live events/state.
+4. Execute no live transaction until the owner explicitly approves the displayed transaction details. After approval, deploy and configure dependency modules first, upgrade one dependency group at a time, verify source/proxy state on-chain, run post-upgrade checks, and push each deployment record to `main` before continuing.
+
+## July 19 pre-deployment verification checkpoint
+
+- Exact Solidity 0.8.23, optimizer 200, via-IR aggregate: 41/41 current-mainnet unit, lifecycle, authorization, proxy-upgrade, DAO, rating, and milestone tests passed.
+- LayerZero endpoint harness: 3/3 round-trip, source-authentication, and callback-reserve rollback tests passed under Solidity 0.8.29; production artifacts compile and fit under 0.8.23.
+- Live read-only forks: Arbitrum proxy group, Ethereum DAO plus two-account checkpoint migration, and XDC LOWJC each upgraded successfully in ephemeral state with preserved legacy slots (3/3 fork rehearsals).
+- Storage layouts are compatible against the versioned predecessors: ETH V3 consumes gap slots 14–15; Native DAO V2 appends slot 11; ProfileManager V3 consumes gap slot 7; Local LOWJC V3 consumes gap slot 8; ProfileGenesis V2, NOWJC V5, ArbLOWJC V4, and NativeAthena V5 do not change their predecessor storage layouts.
+- Live implementation/owner reads were refreshed at Arbitrum block 485,331,711 and later, Ethereum block 25,563,446 and later, and XDC block 105,085,240 and later. Every upgrade proxy is owned by `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`.
+- No DAO proposal was active during the check. Ethereum checkpoint migration currently includes reward-bearing accounts `0x93514040f43aB16D52faAe7A3f380c4089D844F9` and `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`; refresh the set from events immediately before deployment.
 
 ## Live-transaction authorization gate
 
