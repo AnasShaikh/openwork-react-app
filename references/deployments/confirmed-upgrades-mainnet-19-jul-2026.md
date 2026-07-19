@@ -215,6 +215,25 @@ Every receipt succeeded and every ERC-1967 implementation slot matched. Owner/de
 
 Execution cost: `0.000004434826742000 ETH`. Post-phase Arbitrum signer state: nonce 235; balance `0.002558888896783726 ETH`.
 
+## Phase 5 — DAO modules, atomic upgrades and checkpoint migration
+
+Status: **complete**. Immediately before each DAO upgrade, `getActiveProposalIds()` returned empty IDs and states.
+
+| Chain | Nonce | Operation | Transaction hash |
+|---|---:|---|---|
+| Ethereum | 46 | Authorize DAO-messaging proxy on existing ETH bridge | `0x63710b582ec4d85c088b5a4a1718507b9c0be6c57766dc598542469e0d014203` |
+| Arbitrum | 235 | Authorize stake-sync proxy on Job Genesis | `0x261445b2c4a7f7a201f7c637493bac2f8b151f3a036f7d2f2090e8eec4ed354d` |
+| Ethereum | 47 | Upgrade ETH DAO to V3 and atomically initialize checkpoint/messaging modules | `0xe81a86418ce3b72bee0d15e491d5d5855ff573bb48fcdc2518ecfc49f969ec0b` |
+| Arbitrum | 236 | Upgrade Native DAO to V2 and atomically initialize checkpoint module | `0x6f3c00a751b72cce327892cda5d8321f4372dbde0efd8db9357a86bbcb1cd990` |
+| Ethereum | 48 | Seed two audited Ethereum voting accounts | `0x7964459976ca3f6772585a2f0e44f6d9362bd18180d9532501e67f464d351fde` |
+| Arbitrum | 237 | Seed 12 audited native voting accounts | `0x7d5ceb2e9147d499381124c7e477955c564f98d39aba93c9f4c89cde61e6b216` |
+
+Both implementation slots and atomic module addresses matched. Ethereum owner, token, existing bridge, chain ID, proposal/voting thresholds and unstake delay were unchanged. Arbitrum owner, NOWJC, existing bridge, Genesis, activity tracker, Rewards and all four thresholds were unchanged. Each migration account has exactly one checkpoint; its latest stake and reward components exactly match the DAO's current components.
+
+Ethereum phase cost: `0.000017506812487457 ETH`; post-phase nonce 49 and balance `0.001493659390882947 ETH`.
+
+Arbitrum phase cost: `0.000031970169118000 ETH`; post-phase nonce 238 and balance `0.002526918727665726 ETH`.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
