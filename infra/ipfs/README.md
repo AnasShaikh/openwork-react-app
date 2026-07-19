@@ -15,6 +15,10 @@ At the verified July 19, 2026 us-east-1 rates, the fixed monthly estimate is app
 
 The 30 GiB data volume is intentionally larger than the initial requirement. It supports 300 jobs with an average of roughly 50 MiB of pinned job/application/submission content while retaining several GiB of headroom. The upload route still enforces a 10 MiB per-file limit.
 
+## Cost isolation
+
+The stack applies `CostCenter=OpenWorkReactApp`, `Component=IPFS`, `Environment=production` and `Project=OpenWorkReactApp` to its cost-bearing resources. These keys are active AWS cost-allocation tags. In Cost Explorer, filter by `CostCenter=OpenWorkReactApp` for the complete application or add `Component=IPFS` for only this service. Existing production web-app infrastructure uses the same cost center, while the OpenWork landing site uses its own `OpenWorkLanding` cost center.
+
 ## Secret and application integration
 
 - Proxy secret parameter: `/openwork/ipfs/prod/PROXY_SECRET` as SSM `SecureString`.
@@ -33,5 +37,6 @@ The App Runner instance role's `OpenWorkAppRunnerSSMParameterPolicy` is recorded
 - Container logs rotate at three 10 MiB files.
 - Kubo's repository limit is 20 GiB and pinned content is protected from garbage collection.
 - The exact Kubo image is pinned to `ipfs/kubo:v0.40.1` rather than an unversioned latest tag.
+- Data Lifecycle Manager takes one incremental EBS snapshot each Sunday and retains only the latest four. Snapshot billing follows changed blocks, not the empty provisioned capacity.
 
 Do not delete the retained data volume during instance replacement. Attach and mount it at `/var/lib/openwork-ipfs` before starting Kubo.

@@ -56,9 +56,25 @@ Resources:
                 Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/openwork/ipfs/prod/PROXY_SECRET
       Tags:
         - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
           Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
         - Key: Environment
           Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
 
   IpfsNodeInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -95,9 +111,25 @@ Resources:
         - Key: Name
           Value: openwork-ipfs-production
         - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
           Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
         - Key: Environment
           Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
 
   IpfsDataVolume:
     Type: AWS::EC2::Volume
@@ -112,9 +144,25 @@ Resources:
         - Key: Name
           Value: openwork-ipfs-production-data
         - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
           Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
         - Key: Environment
           Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
 
   IpfsNode:
     Type: AWS::EC2::Instance
@@ -122,6 +170,7 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref IpfsNodeInstanceProfile
+      PropagateTagsToVolumeOnCreation: true
       MetadataOptions:
         HttpEndpoint: enabled
         HttpTokens: required
@@ -143,9 +192,25 @@ Resources:
         - Key: Name
           Value: openwork-ipfs-production
         - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
           Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
         - Key: Environment
           Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -273,6 +338,106 @@ Resources:
       InstanceId: !Ref IpfsNode
       VolumeId: !Ref IpfsDataVolume
 
+  IpfsSnapshotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenWorkIpfsSnapshotRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: dlm.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+      Tags:
+        - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
+          Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
+        - Key: Environment
+          Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
+
+  IpfsSnapshotPolicy:
+    Type: AWS::DLM::LifecyclePolicy
+    Properties:
+      Description: Weekly snapshots of the retained OpenWork IPFS data volume
+      ExecutionRoleArn: !GetAtt IpfsSnapshotRole.Arn
+      State: ENABLED
+      PolicyDetails:
+        PolicyType: EBS_SNAPSHOT_MANAGEMENT
+        ResourceTypes:
+          - VOLUME
+        TargetTags:
+          - Key: Name
+            Value: openwork-ipfs-production-data
+        Schedules:
+          - Name: WeeklyOpenWorkIpfsSnapshot
+            CopyTags: true
+            CreateRule:
+              CronExpression: cron(0 3 ? * SUN *)
+            RetainRule:
+              Count: 4
+            TagsToAdd:
+              - Key: Project
+                Value: OpenWorkReactApp
+              - Key: Application
+                Value: OpenWork
+              - Key: Service
+                Value: OpenWorkIPFS
+              - Key: Component
+                Value: IPFS
+              - Key: CostCenter
+                Value: OpenWorkReactApp
+              - Key: Environment
+                Value: production
+              - Key: Domain
+                Value: app.openwork.technology
+              - Key: Repository
+                Value: openwork-react-app
+              - Key: ManagedBy
+                Value: DataLifecycleManager
+              - Key: TrackingScope
+                Value: OpenWorkAppDedicated
+              - Key: BackupType
+                Value: automated-weekly
+      Tags:
+        - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
+          Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
+        - Key: Environment
+          Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
+
   IpfsElasticIp:
     Type: AWS::EC2::EIP
     Properties:
@@ -281,9 +446,25 @@ Resources:
         - Key: Name
           Value: openwork-ipfs-production
         - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
           Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
         - Key: Environment
           Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
 
   IpfsElasticIpAssociation:
     Type: AWS::EC2::EIPAssociation
@@ -330,9 +511,25 @@ Resources:
           CloudFrontDefaultCertificate: true
       Tags:
         - Key: Project
+          Value: OpenWorkReactApp
+        - Key: Application
+          Value: OpenWork
+        - Key: Service
           Value: OpenWorkIPFS
+        - Key: Component
+          Value: IPFS
+        - Key: CostCenter
+          Value: OpenWorkReactApp
         - Key: Environment
           Value: production
+        - Key: Domain
+          Value: app.openwork.technology
+        - Key: Repository
+          Value: openwork-react-app
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: TrackingScope
+          Value: OpenWorkAppDedicated
 
 Outputs:
   InstanceId:
@@ -345,4 +542,5 @@ Outputs:
     Value: !Ref IpfsDistribution
   IpfsApiUrl:
     Value: !Sub https://${IpfsDistribution.DomainName}
-
+  SnapshotPolicyId:
+    Value: !Ref IpfsSnapshotPolicy
