@@ -2,7 +2,8 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { uploadToIPFS } = require('../routes/ipfs');
+const { getReadGateways, uploadToIPFS } = require('../routes/ipfs');
+const { checkIPFS } = require('../routes/health');
 
 const silentLogger = { warn() {} };
 
@@ -28,20 +29,19 @@ test('IPFS upload falls back from Lighthouse to Pinata', async () => {
   assert.deepEqual(result, { IpfsHash: 'QmPinataFallback', PinSize: 11 });
 });
 
-test('IPFS upload falls back from an unavailable Pinata account to the proxy', async () => {
+test('IPFS upload prefers the self-hosted proxy over commercial providers', async () => {
   const requestedUrls = [];
   const result = await uploadToIPFS(Buffer.from('payload'), 'test.txt', {
     env: {
+      LIGHTHOUSE_API_KEY: 'configured-lighthouse-key',
       PINATA_JWT: 'configured-pinata-token',
       IPFS_API_URL: 'https://ipfs-proxy.example',
       IPFS_PROXY_SECRET: 'configured-proxy-token',
     },
     logger: silentLogger,
+    uploadLighthouse: async () => assert.fail('Lighthouse must not be called after proxy success'),
     fetch: async (url) => {
       requestedUrls.push(url);
-      if (url.includes('pinata.cloud')) {
-        return { ok: false, status: 403, text: async () => 'plan usage limit' };
-      }
       return {
         ok: true,
         json: async () => ({ Hash: 'QmProxyFallback', Size: '7' }),
@@ -50,10 +50,24 @@ test('IPFS upload falls back from an unavailable Pinata account to the proxy', a
   });
 
   assert.deepEqual(requestedUrls, [
-    'https://api.pinata.cloud/pinning/pinFileToIPFS',
     'https://ipfs-proxy.example/api/v0/add',
   ]);
   assert.deepEqual(result, { IpfsHash: 'QmProxyFallback', PinSize: 7 });
+});
+
+test('IPFS upload falls back from the proxy to Lighthouse', async () => {
+  const result = await uploadToIPFS(Buffer.from('payload'), 'test.txt', {
+    env: {
+      IPFS_API_URL: 'https://ipfs-proxy.example/',
+      IPFS_PROXY_SECRET: 'configured-proxy-token',
+      LIGHTHOUSE_API_KEY: 'configured-lighthouse-key',
+    },
+    logger: silentLogger,
+    fetch: async () => ({ ok: false, status: 503, text: async () => 'temporarily unavailable' }),
+    uploadLighthouse: async () => ({ data: { Hash: 'QmLighthouseFallback', Size: '7' } }),
+  });
+
+  assert.deepEqual(result, { IpfsHash: 'QmLighthouseFallback', PinSize: 7 });
 });
 
 test('IPFS upload reports all configured provider failures', async () => {
@@ -69,4 +83,34 @@ test('IPFS upload reports all configured provider failures', async () => {
     }),
     /All configured IPFS providers failed \(Lighthouse: Authentication failed; Pinata: HTTP 403: plan usage limit\)/,
   );
+});
+
+test('self-hosted reads are authenticated and tried before public gateways', () => {
+  const gateways = getReadGateways('QmContent', {
+    IPFS_API_URL: 'https://ipfs-proxy.example/',
+    IPFS_PROXY_SECRET: 'configured-proxy-token',
+  });
+
+  assert.deepEqual(gateways[0], {
+    url: 'https://ipfs-proxy.example/ipfs/QmContent',
+    headers: { Authorization: 'Bearer configured-proxy-token' },
+  });
+  assert.match(gateways[1].url, /gateway\.lighthouse\.storage/);
+});
+
+test('health reports the AWS IPFS node as the active healthy provider', async () => {
+  const result = await checkIPFS({
+    env: {
+      IPFS_API_URL: 'https://ipfs-proxy.example/',
+      IPFS_PROXY_SECRET: 'configured-proxy-token',
+      PINATA_JWT: 'configured-pinata-token',
+    },
+    fetch: async (url) => {
+      assert.equal(url, 'https://ipfs-proxy.example/health');
+      return { ok: true, status: 200 };
+    },
+  });
+
+  assert.equal(result.status, 'green');
+  assert.equal(result.message, 'AWS IPFS node reachable');
 });

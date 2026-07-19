@@ -23,6 +23,8 @@ The 30 GiB data volume is intentionally larger than the initial requirement. It 
 
 The public application never receives the proxy secret. Browser uploads continue to go through `/api/ipfs/upload-json` and `/api/ipfs/upload-file` on the existing backend.
 
+The App Runner instance role's `OpenWorkAppRunnerSSMParameterPolicy` is recorded in `app-runner-instance-policy.json`. It preserves the existing application-secret path and adds read access only to the one IPFS proxy secret.
+
 ## Recovery properties
 
 - Docker restarts Kubo automatically after a process failure or host reboot.

@@ -57,24 +57,41 @@ async function checkWallets() {
   };
 }
 
-async function checkIPFS() {
+async function checkIPFS(dependencies = {}) {
   const start = Date.now();
-  const PINATA_JWT = process.env.PINATA_JWT;
-  if (!PINATA_JWT) return { status: 'red', message: 'PINATA_JWT not set', ms: 0 };
-  try {
-    const resp = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${PINATA_JWT}`, 'Content-Type': 'multipart/form-data' },
-      timeout: 8000,
-    });
-    // Just test auth — even a 400 means Pinata is reachable
-    const ms = Date.now() - start;
-    return resp.status < 500
-      ? { status: 'green', message: 'Pinata reachable', ms }
-      : { status: 'red',   message: `Pinata ${resp.status}`, ms };
-  } catch (e) {
-    return { status: 'red', message: e.message, ms: Date.now() - start };
+  const env = dependencies.env || process.env;
+  const request = dependencies.fetch || fetch;
+  const failures = [];
+
+  if (env.IPFS_API_URL && env.IPFS_PROXY_SECRET) {
+    try {
+      const baseUrl = env.IPFS_API_URL.replace(/\/+$/, '');
+      const resp = await request(`${baseUrl}/health`, { timeout: 8000 });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return { status: 'green', message: 'AWS IPFS node reachable', ms: Date.now() - start };
+    } catch (error) {
+      failures.push(`AWS IPFS: ${error.message}`);
+    }
   }
+
+  if (env.PINATA_JWT) {
+    try {
+      const resp = await request('https://api.pinata.cloud/data/testAuthentication', {
+        headers: { 'Authorization': `Bearer ${env.PINATA_JWT}` },
+        timeout: 8000,
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return { status: 'green', message: 'Pinata reachable', ms: Date.now() - start };
+    } catch (error) {
+      failures.push(`Pinata: ${error.message}`);
+    }
+  }
+
+  return {
+    status: 'red',
+    message: failures.join('; ') || 'No testable IPFS provider configured',
+    ms: Date.now() - start,
+  };
 }
 
 async function checkContracts() {
@@ -174,3 +191,4 @@ router.get('/', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.checkIPFS = checkIPFS;

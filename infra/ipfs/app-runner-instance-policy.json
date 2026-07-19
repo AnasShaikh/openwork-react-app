@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath"
+      ],
+      "Resource": [
+        "arn:aws:ssm:us-east-1:256309399568:parameter/openwork/react-app/prod/*",
+        "arn:aws:ssm:us-east-1:256309399568:parameter/openwork/ipfs/prod/PROXY_SECRET"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "kms:Decrypt",
+      "Resource": "*"
+    }
+  ]
+}
