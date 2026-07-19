@@ -57,4 +57,10 @@ jobs:
           --contracts src/suites/current-mainnet/local
           --match-path 'test/CurrentMainnetApplicantMilestoneBridges.t.sol'
           --use 0.8.29
+          --skip script
+          --skip native-athena-v8-xdc-domain-12-jul-2026.sol
+          --skip native-athena-v9.sol
+          --skip cctp-transceiver-xdc-standard-12-jul-2026.sol
+          --skip CurrentMainnetLiveForkUpgrades.t.sol
+          --skip XdcDeploymentFixes12Jul2026.t.sol
         id: layerzero-harness
