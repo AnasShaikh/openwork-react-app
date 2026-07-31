@@ -6,25 +6,29 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 19 July 2026 UTC (20 July IST) |
+| Deployed at | 31 July 2026 UTC (31 July IST) |
 | Git branch | `main` |
-| Git commit | `835098412e76ec580c91092969e123934f38d399` |
-| GitHub CI | `29699568533` — succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-835098412e76ec580c91092969e123934f38d399.zip` |
-| Source archive SHA-256 | `5825b2c4b2c47b2c0ac609a87e8b2cbd9a4b30a00fbd2abb14ca251d4254e1ba` |
-| CodeBuild | `openwork-react-app-prod-build:9b513d66-e486-4acd-b43c-bbb76eeb1bb7` — succeeded |
-| ECR image | `openwork-app:prod-8350984-20260719185759` |
-| ECR digest | `sha256:82cd66daa07908fe2f4030b471726c20bd3c94cc1093c9a874b8eb472d2a5103` |
+| Git commit | `8f1b2503da38f288fd92453c649bf86ee1ca8eec` |
+| GitHub CI | `30651908896` — succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-8f1b2503da38f288fd92453c649bf86ee1ca8eec.zip` |
+| Source archive SHA-256 | `c5b033466f2075758fa374763112679c83ae987086498efb417bcbe454fbd256` |
+| CodeBuild | `openwork-react-app-prod-build:9c61b728-12d0-4d7d-94b8-4efed0d48b56` — succeeded |
+| ECR image | `openwork-app:prod-8f1b250-20260731173844` |
+| ECR digest | `sha256:d0593e15e7bb3b5bd45acfe802118c8d864888833f0c9f891d712d80c22a3e65` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `ac76c1fcfedc4a1a90e26707a20dbcd5` — succeeded |
+| App Runner operation | `ba0c040ea2d047dbad5c453ba41879ca` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-EyZtYB-u.js` |
+| Deployed JS asset | `/assets/index-CeqKqcJ5.js` |
 
 ## Verification
 
-- GitHub CI, all 27 frontend reliability/configuration tests, backend checks and the production image build passed for the exact source commit.
-- App Runner HTTP health checks passed, the rollout operation succeeded and the service returned to `RUNNING`.
-- The production root, `/health`, `/post-job` and `/browse-jobs` returned HTTP 200.
+- GitHub CI, frontend tests/build, backend tests/audit checks and the production image build passed for the exact source commit. The backend dependency lock now resolves the newly disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
+- App Runner HTTP health checks passed. The production root and `/healthz` returned HTTP 200, and browser smoke checks passed for `/direct-contract` and the durable `/direct-contract-status/:transactionHash` fallback.
+- The production Arbitrum RPC secret was rotated from the exhausted Alchemy endpoint to `https://arb1.arbitrum.io/rpc`, the canonical public Arbitrum endpoint already used by the frontend build. App Runner was recycled so its backend event listener and service-wallet health checks load the replacement endpoint.
+- The refreshed health check exposed that relay wallet `0x93514040f43aB16D52faAe7A3f380c4089D844F9` has `0 ETH` on Arbitrum. Automatic relay transactions that require this signer remain blocked until a separately authorized gas-funding transaction is completed; no funds were moved during this release.
+- Direct Contract now scopes placeholder styling to actual placeholders, makes the displayed milestone amount directly editable, renders progress states in orange instead of error red, prevents duplicate submission once a receipt is confirmed, and persists a transaction-hash progress route that can be revisited safely.
+- The wallet-provider `deceptive request` warning is not emitted by OpenWork application code and is unchanged in this application release; it requires separate wallet/security-provider reputation remediation.
+- No smart contract, wallet, token balance or on-chain state changed during this application release or its verification.
 - The live ledger decodes `30365-*` job IDs as XDC Network and now loads `/xdc-chain.svg`, while USDC budget amounts continue to use the separate `/xdc.svg` token icon. The deployed XDC asset SHA-256 exactly matched the reviewed source asset.
 - The ledger still preserves Genesis creation order and reverses it so newest jobs render first. During IPFS enrichment it now shows `Loading job details…` instead of temporarily presenting a raw job ID as the title.
 - After a Post Job wallet confirmation produces a transaction hash, the form dismisses its loading overlay and smoothly reveals the transaction and cross-chain status region at the bottom of the form.
@@ -44,6 +48,10 @@ Commit `7bbe46529cadaaa25f65faa282d54b602b7c6884` corrects both defects. It chan
 
 Commit `835098412e76ec580c91092969e123934f38d399` separates the XDC Network chain mark from the USDC payment-token icon, removes the confusing raw-ID metadata-loading flash and reveals the Post Job transaction status immediately after wallet confirmation. The XDC mark comes from the official XDC Foundation brand asset package and remains distinct from all budget icons. This was an application-only release: no smart contract, wallet, token balance or on-chain state changed.
 
+## Direct Contract transaction experience correction
+
+Commit `7f9c01deba2624fd308c3436b3fdc44d8e318791` implements the four application-owned experience corrections reported on 31 July 2026. Commit `8f1b2503da38f288fd92453c649bf86ee1ca8eec` refreshes only the backend dependency lock so the same source release passes the production audit gate. Receipt-confirmed transactions now leave the submission form and continue on a durable status route; retrying the wallet transaction is no longer the recovery path.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -54,7 +62,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-7bbe465-20260719183509` |
-| ECR digest | `sha256:011f55b0408312e39522a81f95f493396b857d21096a2cd138d984c80f9a408d` |
+| ECR image | `openwork-app:prod-8350984-20260719185759` |
+| ECR digest | `sha256:82cd66daa07908fe2f4030b471726c20bd3c94cc1093c9a874b8eb472d2a5103` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
