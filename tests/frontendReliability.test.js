@@ -139,3 +139,44 @@ test('the XDC chain logo is distinct from the USDC payment icon', () => {
   assert.doesNotMatch(chainConfig, /50: '\/xdc\.svg'/);
   assert.match(source('public/xdc-chain.svg'), /viewBox="0 0 413\.13 382\.18"/);
 });
+
+test('direct-contract placeholders and amounts are visibly editable', () => {
+  const applyNowCss = source('src/pages/ApplyNow/ApplyNow.css');
+  const directContractCss = source('src/pages/DirectContractForm/DirectContractForm.css');
+  const milestone = source('src/components/Milestone/Milestone.jsx');
+
+  assert.match(applyNowCss, /\.apply-now-form ::placeholder/);
+  assert.doesNotMatch(applyNowCss, /^::placeholder/m);
+  assert.match(directContractCss, /\.form-groupDC input::placeholder,[\s\S]*font-weight: 400/);
+  assert.match(milestone, /className="milestone-inline-amount"/);
+  assert.match(milestone, /onUpdate\?\.\("amount", nextAmount\)/);
+});
+
+test('transaction notices use semantic colors instead of treating progress as an error', () => {
+  const warning = source('src/components/Warning/Warning.jsx');
+  const warningCss = source('src/components/Warning/Warning.css');
+  const directContract = source('src/pages/DirectContractForm/DirectContractForm.jsx');
+
+  assert.match(warning, /warning-content--\$\{resolvedVariant\}/);
+  assert.match(warningCss, /\.warning-content--info/);
+  assert.match(warningCss, /\.warning-content--success/);
+  assert.match(warningCss, /\.warning-content--error/);
+  assert.match(directContract, /phase: "submitted"[\s\S]*variant: "info"/);
+});
+
+test('direct-contract confirmation is duplicate-safe and reload-safe', () => {
+  const directContract = source('src/pages/DirectContractForm/DirectContractForm.jsx');
+  const statusPage = source('src/pages/DirectContractStatus/DirectContractStatus.jsx');
+  const app = source('src/App.jsx');
+
+  assert.match(directContract, /submissionLockRef\.current/);
+  assert.match(directContract, /resolveDirectContractJobId/);
+  assert.match(directContract, /saveDirectContractProgress\(progress\)/);
+  assert.match(directContract, /disabled=\{transactionInProgress\}/);
+  assert.match(statusPage, /loadDirectContractProgress\(jobId\)/);
+  assert.match(statusPage, /pollOnChainJobState/);
+  assert.match(statusPage, /monitorLZMessage/);
+  assert.match(statusPage, /monitorCCTPTransfer/);
+  assert.match(statusPage, /Do not submit/);
+  assert.match(app, /path="\/direct-contract-status\/:jobId"/);
+});

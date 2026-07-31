@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
-import BrowseJobsABI from "../../ABIs/nowjc_ABI.json";
 import "./DirectContractForm.css";
 import { useWalletConnection } from "../../functions/useWalletConnection";
 import { formatWalletAddress } from "../../functions/formatWalletAddress";
@@ -13,34 +12,43 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 import Milestone from "../../components/Milestone/Milestone";
 import RadioButton from "../../components/RadioButton/RadioButton";
 import Warning from "../../components/Warning/Warning";
-import { getLocalChains, getChainConfig, getNativeChain, isMainnet } from "../../config/chainConfig";
+import { getLocalChains, getChainConfig, getNativeChain } from "../../config/chainConfig";
 import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
   buildEstimatedWriteSendOptions,
   createLOWJCWrite,
 } from "../../services/contractWriteRouter";
-import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
-import { monitorLZMessage, monitorCCTPTransfer, STATUS } from "../../utils/crossChainMonitor";
+import {
+  resolveDirectContractJobId,
+  saveDirectContractProgress,
+} from "../../utils/directContractReceipt";
 
 const SKILLOPTIONS = [
   'UX/UI Skill Oracle','Full Stack development','UX/UI Skill Oracle',
 ]
 
-// Dynamic network-aware functions for cross-chain polling
-function getGenesisAddress() {
-  const nativeChain = getNativeChain();
-  return nativeChain?.contracts?.genesis;
-}
-
-function getArbitrumRpc() {
-  return isMainnet()
-    ? import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL
-    : import.meta.env.VITE_ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc';
-}
-
 // Backend URL for secure API calls
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
+const INITIAL_TRANSACTION_STATE = {
+  phase: "idle",
+  message: "Direct contract creation requires blockchain transaction fees",
+  variant: "warning",
+};
+
+const TRANSACTION_BUTTON_LABELS = {
+  idle: "Enter Contract",
+  error: "Try Again",
+  preparing: "Preparing Contract…",
+  approval: "Confirm USDC Approval…",
+  quoting: "Getting Network Quote…",
+  "contract-signature": "Confirm Contract…",
+  submitted: "Confirming Transaction…",
+  "source-confirmed": "Opening Progress…",
+  success: "Contract Created",
+  "confirmed-unresolved": "Transaction Confirmed",
+};
 
 function FileUpload({ onFilesUploaded, uploadedFiles }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -253,13 +261,11 @@ export default function DirectContractForm() {
   const [jobType, setJobType] = useState("");
   const [jobTaker, setJobTaker] = useState(searchParams.get('taker') || "");
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const [loadingT, setLoadingT] = useState("");
   const [selectedOption, setSelectedOption] = useState('Single Milestone');
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [skillInput, setSkillInput] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [transactionStatus, setTransactionStatus] = useState("Direct contract creation requires blockchain transaction fees");
-  const [crossChainSteps, setCrossChainSteps] = useState(null);
+  const [transactionState, setTransactionState] = useState(INITIAL_TRANSACTION_STATE);
   const [platformFee, setPlatformFee] = useState(null);
   const [milestones, setMilestones] = useState(() => {
     const budgetParam = searchParams.get('budget');
@@ -271,6 +277,8 @@ export default function DirectContractForm() {
   });
 
   const navigate = useNavigate();
+  const submissionLockRef = useRef(false);
+  const transactionInProgress = !["idle", "error"].includes(transactionState.phase);
 
   // Update milestones based on selected option
   useEffect(() => {
@@ -365,167 +373,6 @@ export default function DirectContractForm() {
     setDropdownVisible(!dropdownVisible);
   };
 
-
-  // Function to extract job ID from LayerZero logs
-  const extractJobIdFromLayerZeroLogs = (receipt) => {
-    try {
-      
-      const layerZeroSignature = "0x1ab700d4ced0c005b164c0f789fd09fcbb0156d4c2041b8a3bfbcd961cd1567f";
-      
-      const layerZeroLog = receipt.logs.find(log => 
-        log.topics && log.topics[0] === layerZeroSignature
-      );
-      
-      if (!layerZeroLog) {
-        return null;
-      }
-      
-      
-      const logData = layerZeroLog.data;
-      const dataStr = logData.slice(2);
-      const chunks = dataStr.match(/.{1,64}/g) || [];
-      
-      for (const chunk of chunks) {
-        try {
-          const cleanChunk = chunk.replace(/00+$/, "");
-          if (cleanChunk.length > 0) {
-            const decoded = Web3.utils.hexToUtf8("0x" + cleanChunk);
-            if (decoded.match(/^\d+-\d+$/)) {
-              return decoded;
-            }
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error("❌ Error extracting job ID:", error);
-      return null;
-    }
-  };
-
-  // Function to check if job exists on Arbitrum (Genesis contract)
-  const checkJobExistsOnArbitrum = async (jobId) => {
-    try {
-      const genesisAddress = getGenesisAddress();
-      const arbitrumRpc = getArbitrumRpc();
-      const networkMode = isMainnet() ? "mainnet" : "testnet";
-
-
-      const arbitrumWeb3 = new Web3(arbitrumRpc);
-
-      // Test RPC connection
-      try {
-        const blockNumber = await arbitrumWeb3.eth.getBlockNumber();
-      } catch (rpcError) {
-        console.error("  ❌ RPC connection failed:", rpcError);
-        return false;
-      }
-
-      const browseJobsContract = new arbitrumWeb3.eth.Contract(
-        BrowseJobsABI,
-        genesisAddress
-      );
-
-      // Try to call getJob
-      const jobData = await browseJobsContract.methods.getJob(jobId).call();
-
-      const jobExists = jobData && jobData.id && jobData.id === jobId;
-
-      return jobExists;
-    } catch (error) {
-      console.error("\n❌ ========== POLLING ERROR ==========");
-      console.error("  Job ID:", jobId);
-      console.error("  Error type:", error.constructor.name);
-      console.error("  Error message:", error.message);
-      console.error("  Full error:", error);
-      console.error("=====================================\n");
-      return false;
-    }
-  };
-
-  // Function to poll for job sync completion
-  const pollForJobSync = async (jobId) => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-    const maxAttempts = 40; // 40 x 5s = ~3.5 minutes max
-    const pollInterval = 5000;
-    let jobSynced = false;
-    let cctpCompleted = false;
-
-    setTransactionStatus("Step 1/2: Waiting for LayerZero message to sync job on Arbitrum...");
-    await new Promise(resolve => setTimeout(resolve, 10000));
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-
-      // Check LZ sync (job exists on Arbitrum)
-      if (!jobSynced) {
-        const jobExists = await checkJobExistsOnArbitrum(jobId);
-        if (jobExists) {
-          jobSynced = true;
-        }
-      }
-
-      // Check CCTP relay status from backend
-      if (!cctpCompleted) {
-        try {
-          const res = await fetch(`${backendUrl}/api/start-job-status/${jobId}`);
-          if (res.ok) {
-            const status = await res.json();
-
-            if (status.status === 'completed') {
-              cctpCompleted = true;
-            } else if (status.status === 'failed') {
-              // Backend relay failed — but Circle's own relayer may still deliver.
-              // Don't abort. Mark as "processing via Circle network" and let the
-              // on-chain job sync be the actual completion gate.
-              console.warn('[CCTP] Backend relay failed — monitoring via Circle network:', status.error);
-              setTransactionStatus("Step 2/2: USDC processing via Circle network (backend relay unavailable)...");
-              cctpCompleted = true; // treat as done for redirect purposes — job sync is the real gate
-            } else if (status.status === 'polling_attestation') {
-              if (jobSynced) {
-                setTransactionStatus("Step 2/2: Job synced! Polling Circle API for CCTP attestation...");
-              }
-            } else if (status.status === 'executing_receive') {
-              setTransactionStatus("Step 2/2: Executing CCTP receive on Arbitrum...");
-            }
-          }
-        } catch (err) {
-          console.warn("CCTP status check failed:", err.message);
-        }
-      }
-
-      // Both done — redirect
-      if (jobSynced && cctpCompleted) {
-        setTransactionStatus("Contract synced and USDC received! Redirecting...");
-        setTimeout(() => navigate(`/job-details/${jobId}`), 1500);
-        return;
-      }
-
-      // Update status message based on what's still pending
-      if (!jobSynced && !cctpCompleted) {
-        setTransactionStatus("Step 1/2: Waiting for LayerZero sync and CCTP relay...");
-      } else if (jobSynced && !cctpCompleted) {
-        setTransactionStatus("Step 2/2: Job synced! Waiting for CCTP relay to deliver USDC to Arbitrum...");
-      } else if (!jobSynced && cctpCompleted) {
-        setTransactionStatus("Step 1/2: CCTP complete! Waiting for LayerZero sync...");
-      }
-
-      if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-      }
-    }
-
-    // Timeout — redirect if job at least synced
-    if (jobSynced) {
-      setTransactionStatus("Contract synced but CCTP relay still processing. Redirecting...");
-      setTimeout(() => navigate(`/job-details/${jobId}`), 2000);
-    } else {
-      setTransactionStatus("Contract created but sync taking longer than expected. Check browse jobs in a few minutes.");
-    }
-  };
-
   // Function to pin individual milestone to IPFS
   const pinMilestoneToIPFS = async (milestone, index) => {
     try {
@@ -566,303 +413,6 @@ export default function DirectContractForm() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-
-    // Validate required fields
-    if (!jobTitle.trim()) {
-      alert("Please enter a job title");
-      return;
-    }
-
-    if (!jobDescription.trim()) {
-      alert("Please enter job requirements");
-      return;
-    }
-
-    if (!jobTaker.trim()) {
-      alert("Please enter job taker address");
-      return;
-    }
-
-    if (window.ethereum) {
-      try {
-        setLoadingT(true);
-
-        const web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        
-        // Check if user is connected to a supported local chain
-        const chainId = await web3.eth.getChainId();
-        const localChains = getLocalChains();
-        const allowedChainIds = localChains.map(c => c.chainId);
-
-        if (!allowedChainIds.includes(Number(chainId))) {
-          const chainNames = localChains.map(c => c.name).join(' or ');
-          alert(`Please switch to ${chainNames}. Current chain ID: ${chainId}`);
-          setLoadingT(false);
-          return;
-        }
-
-        const currentChainConfig = getChainConfig(Number(chainId));
-        const contractAddress = currentChainConfig.contracts.lowjc;
-
-        const accounts = await web3.eth.getAccounts();
-        const fromAddress = accounts[0];
-
-
-        // Step 1: Upload milestones to IPFS
-        const milestoneHashes = [];
-        const milestoneAmounts = [];
-
-        for (let i = 0; i < milestones.length; i++) {
-          const milestone = milestones[i];
-
-          const milestoneHash = await pinMilestoneToIPFS(milestone, i);
-          if (!milestoneHash) {
-            throw new Error(`Failed to upload milestone ${i}`);
-          }
-
-          milestoneHashes.push(milestoneHash);
-          milestoneAmounts.push(milestone.amount * 1000000); // Convert to USDT units (6 decimals)
-
-        }
-
-
-        // Step 2: Create job details object
-        const jobDetails = {
-          title: jobTitle,
-          description: jobDescription,
-          milestoneType: selectedOption,
-          milestones: milestones,
-          milestoneHashes: milestoneHashes,
-          attachments: uploadedFiles,
-          totalCompensation: totalCompensation,
-          jobGiver: fromAddress,
-          jobTaker: jobTaker,
-          timestamp: new Date().toISOString(),
-        };
-
-        // Step 3: Upload job details to IPFS
-        const jobResponse = await pinJobDetailsToIPFS(jobDetails);
-
-        if (jobResponse && jobResponse.IpfsHash) {
-          const jobDetailHash = jobResponse.IpfsHash;
-
-          // Step 4: Prepare contract call
-          const contract = await getLOWJCContract(Number(chainId));
-          const isNativeArbitrum = isNativeArbChain(Number(chainId));
-
-          // Job taker chain domain - use CCTP domain (not chain ID)
-          // CCTP domains: 0=Ethereum, 2=Optimism, 3=Arbitrum, 6=Base
-          const jobTakerChainDomain = currentChainConfig.cctpDomain;
-
-          // Step 5: Approve USDC spending (total of all milestones)
-          setTransactionStatus("💰 Approving USDC spending - Please confirm in MetaMask");
-          
-          const USDC_ADDRESS = currentChainConfig.contracts.usdc;
-          const firstMilestoneUSDC = milestones[0].amount * 1000000; // Only first milestone - contract locks one at a time
-
-          
-          const usdcABI = [{
-            "inputs": [
-              {"internalType": "address", "name": "spender", "type": "address"},
-              {"internalType": "uint256", "name": "amount", "type": "uint256"}
-            ],
-            "name": "approve",
-            "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-            "stateMutability": "nonpayable",
-            "type": "function"
-          }];
-          
-          const usdcContract = new web3.eth.Contract(usdcABI, USDC_ADDRESS);
-          
-          try {
-            await usdcContract.methods.approve(
-              contractAddress,
-              firstMilestoneUSDC.toString()
-            ).send({ from: fromAddress, gas: 100000 });
-            
-          } catch (approvalError) {
-            console.error("❌ USDC approval failed:", approvalError);
-            setTransactionStatus("❌ USDC approval failed - Please try again");
-            setLoadingT(false);
-            return;
-          }
-
-          // Get current job count to predict next jobId
-          const jobCounter = await contract.methods.getJobCount().call();
-          const jobIdPrefix = isNativeArbitrum ? Number(chainId) : currentChainConfig.layerzero.eid;
-          const predictedJobId = `${jobIdPrefix}-${Number(jobCounter) + 1}`;
-
-          // DirectContract needs more destination gas than PostJob due to extra parameters.
-          const DIRECT_CONTRACT_OPTIONS = isNativeArbitrum
-            ? null
-            : '0x00030100110100000000000000000000000000186A00';
-          let layerZeroFee;
-          if (!isNativeArbitrum) {
-            setTransactionStatus("Getting LayerZero quote...");
-            const bridgeAddress = await contract.methods.bridge().call();
-            const bridgeABI = [{
-              "inputs": [
-                {"type": "bytes", "name": "_payload"},
-                {"type": "bytes", "name": "_options"}
-              ],
-              "name": "quoteNativeChain",
-              "outputs": [{"type": "uint256", "name": "fee"}],
-              "stateMutability": "view",
-              "type": "function"
-            }];
-            const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-            const quotePayload = web3.eth.abi.encodeParameters(
-              ['string', 'address', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
-              ['startDirectContract', fromAddress, jobTaker, predictedJobId, jobDetailHash, milestoneHashes, milestoneAmounts, jobTakerChainDomain]
-            );
-            layerZeroFee = (await bridgeContract.methods
-              .quoteNativeChain(quotePayload, DIRECT_CONTRACT_OPTIONS)
-              .call()).toString();
-          }
-
-
-          // Step 6: Call startDirectContract with higher gas options
-          setTransactionStatus("Sending transaction to blockchain...");
-
-          const directContractMethod = createLOWJCWrite(
-            contract,
-            currentChainConfig,
-            LOWJC_OPERATIONS.START_DIRECT_CONTRACT,
-            [jobTaker, jobDetailHash, milestoneHashes, milestoneAmounts, jobTakerChainDomain],
-            DIRECT_CONTRACT_OPTIONS
-          );
-          const sendOptions = await buildEstimatedWriteSendOptions(directContractMethod, currentChainConfig, {
-              from: fromAddress,
-              value: layerZeroFee,
-              gasPrice: await web3.eth.getGasPrice(),
-            });
-          directContractMethod
-            .send(sendOptions)
-            .on("receipt", function (receipt) {
-
-              // Try to extract job ID from LayerZero logs first
-              let jobId = extractJobIdFromLayerZeroLogs(receipt);
-
-              // Fallback: use predicted job ID
-              if (!jobId) {
-                jobId = predictedJobId;
-              }
-
-              if (jobId) {
-                setTransactionStatus(isNativeArbitrum
-                  ? "✅ Direct contract created on Arbitrum! Confirming indexed data..."
-                  : "✅ Contract created! Tracking cross-chain progress...");
-                setLoadingT(false);
-
-                const srcTxHash  = receipt.transactionHash;
-                const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-                if (isNativeArbitrum) {
-                  setCrossChainSteps(null);
-                } else {
-                  const srcChainId = Number(chainId);
-                  const lzLink = `https://layerzeroscan.com/tx/${srcTxHash}`;
-                  const circleLink = `https://iris-api.circle.com/v2/messages/${currentChainConfig?.cctpDomain ?? 2}?transactionHash=${srcTxHash}`;
-                  setCrossChainSteps(buildPaymentSteps({
-                    sourceChainId: srcChainId, usdcApproved: true, sourceTxHash: srcTxHash,
-                    lzStatus: 'active', lzLink, circleLink,
-                  }));
-                  monitorLZMessage(srcTxHash, (lzUpdate) => {
-                    setCrossChainSteps(prev => buildPaymentSteps({
-                      ...prev,
-                      lzStatus: lzUpdate.status === STATUS.SUCCESS ? 'delivered'
-                              : lzUpdate.status === STATUS.FAILED ? 'failed' : 'active',
-                      lzLink: lzUpdate.lzLink || lzLink,
-                      lzDstTxHash: lzUpdate.dstTxHash,
-                      lzDstChainId: 42161,
-                      cctpBurnTxHash: lzUpdate.dstTxHash,
-                      cctpSourceDomain: 3,
-                      sourceChainId: srcChainId,
-                      usdcApproved: true,
-                      sourceTxHash: srcTxHash,
-                      circleLink,
-                    }));
-                    if (lzUpdate.status === STATUS.SUCCESS && lzUpdate.dstTxHash) {
-                      monitorCCTPTransfer(lzUpdate.dstTxHash, 3,
-                        (cctpUpdate) => setCrossChainSteps(prev => buildPaymentSteps({
-                          ...prev,
-                          cctpAttestationStatus: cctpUpdate.status === STATUS.SUCCESS ? 'complete'
-                                               : cctpUpdate.message?.includes('slow') ? 'slow' : 'pending',
-                        })),
-                        () => setCrossChainSteps(prev => buildPaymentSteps({ ...prev, cctpAttestationStatus: 'complete' }))
-                      );
-                    }
-                  });
-                  fetch(`${backendUrl}/api/start-job`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jobId, txHash: srcTxHash })
-                  }).then(res => res.json()).catch(err => {
-                    console.warn("⚠️ Backend unavailable, client-side monitor handling:", err.message);
-                    setTransactionStatus("⚠️ Backend offline — tracking cross-chain status directly. Check progress below.");
-                  });
-                }
-
-                // Persist tx hash for user history
-                fetch(`${backendUrl}/api/jobs/tx`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: 'startDirectContract', txHash: srcTxHash, jobId,
-                    chainId: currentChainConfig?.chainId, walletAddress: accounts[0] })
-                }).catch(() => {});
-
-                // Also poll Genesis for job sync visibility
-                pollForJobSync(jobId);
-              } else {
-                setTransactionStatus("✅ Transaction confirmed but job ID extraction failed. Check browse jobs manually.");
-                setLoadingT(false);
-              }
-            })
-            .on("error", function (error) {
-              console.error("❌ Error sending transaction:", error);
-              setTransactionStatus(`❌ Transaction failed: ${error.message}`);
-              setLoadingT(false);
-            })
-            .on("transactionHash", function (hash) {
-              setTransactionStatus(`Transaction sent! Hash: ${hash.substring(0, 10)}...`);
-            })
-            .catch(function (error) {
-              console.error("Transaction was rejected:", error);
-              setTransactionStatus(`❌ Transaction rejected: ${error.message}`);
-              setLoadingT(false);
-            });
-        } else {
-          console.error("Failed to pin job details to IPFS");
-          setLoadingT(false);
-        }
-      } catch (error) {
-        console.error("Error in handleSubmit:", error);
-        setLoadingT(false);
-      }
-    } else {
-      console.error("MetaMask not detected");
-      setLoadingT(false);
-    }
-  };
-
-  if (loadingT) {
-    return (
-      <div className="loading-containerT">
-        <div className="loading-icon">
-          <img src="/OWIcon.svg" alt="Loading..." />
-        </div>
-        <div className="loading-message">
-          <h1 id="txText">Transaction in Progress</h1>
-          <p id="txSubtext">
-            If the transaction goes through, we'll redirect you to your contract
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const pinJobDetailsToIPFS = async (jobDetails) => {
     try {
       const response = await fetch(
@@ -891,6 +441,272 @@ export default function DirectContractForm() {
     } catch (error) {
       console.error('Error pinning job details to IPFS:', error);
       return null;
+    }
+  };
+
+  const handleDirectContractSubmit = async (event) => {
+    event?.preventDefault();
+
+    if (submissionLockRef.current) {
+      return;
+    }
+
+    if (!jobTitle.trim()) {
+      alert("Please enter a job title");
+      return;
+    }
+
+    if (!jobDescription.trim()) {
+      alert("Please enter job requirements");
+      return;
+    }
+
+    if (!Web3.utils.isAddress(jobTaker.trim())) {
+      alert("Please enter a valid job taker address");
+      return;
+    }
+
+    const toMicroUsdc = (amount) => {
+      const scaledAmount = Math.round(Number(amount) * 1_000_000);
+      if (!Number.isSafeInteger(scaledAmount) || scaledAmount <= 0) {
+        throw new Error("Every milestone needs a valid amount greater than zero.");
+      }
+      return String(scaledAmount);
+    };
+
+    submissionLockRef.current = true;
+    setTransactionState({
+      phase: "preparing",
+      message: "Preparing contract details and uploading them securely…",
+      variant: "info",
+    });
+
+    try {
+      if (!window.ethereum) {
+        throw new Error("MetaMask was not detected. Install or enable it to continue.");
+      }
+
+      const web3 = new Web3(window.ethereum);
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+
+      const chainId = Number(await web3.eth.getChainId());
+      const localChains = getLocalChains();
+      const currentChainConfig = getChainConfig(chainId);
+
+      if (!localChains.some((chain) => chain.chainId === chainId)) {
+        throw new Error(
+          `Please switch to ${localChains.map((chain) => chain.name).join(" or ")}.`,
+        );
+      }
+
+      const [fromAddress] = await web3.eth.getAccounts();
+      if (!fromAddress) {
+        throw new Error("Connect a wallet to continue.");
+      }
+
+      const milestoneHashes = [];
+      const milestoneAmounts = milestones.map((milestone) => toMicroUsdc(milestone.amount));
+
+      for (let index = 0; index < milestones.length; index += 1) {
+        const milestoneHash = await pinMilestoneToIPFS(milestones[index], index);
+        if (!milestoneHash) {
+          throw new Error(`Milestone ${index + 1} could not be uploaded. Please try again.`);
+        }
+        milestoneHashes.push(milestoneHash);
+      }
+
+      const jobResponse = await pinJobDetailsToIPFS({
+        title: jobTitle,
+        description: jobDescription,
+        milestoneType: selectedOption,
+        milestones,
+        milestoneHashes,
+        attachments: uploadedFiles,
+        totalCompensation,
+        jobGiver: fromAddress,
+        jobTaker: jobTaker.trim(),
+        timestamp: new Date().toISOString(),
+      });
+
+      if (!jobResponse?.IpfsHash) {
+        throw new Error("The contract details could not be uploaded. Please try again.");
+      }
+
+      const contract = await getLOWJCContract(chainId);
+      const contractAddress = currentChainConfig.contracts.lowjc;
+      const isNativeArbitrum = isNativeArbChain(chainId);
+      const jobTakerChainDomain = currentChainConfig.cctpDomain;
+
+      setTransactionState({
+        phase: "approval",
+        message: "Confirm the USDC approval in MetaMask. This is required before the contract can be created.",
+        variant: "warning",
+      });
+
+      const usdcContract = new web3.eth.Contract([{
+        inputs: [
+          { internalType: "address", name: "spender", type: "address" },
+          { internalType: "uint256", name: "amount", type: "uint256" },
+        ],
+        name: "approve",
+        outputs: [{ internalType: "bool", name: "", type: "bool" }],
+        stateMutability: "nonpayable",
+        type: "function",
+      }], currentChainConfig.contracts.usdc);
+
+      await usdcContract.methods
+        .approve(contractAddress, milestoneAmounts[0])
+        .send({ from: fromAddress, gas: 100000 });
+
+      const counterBefore = await contract.methods.getJobCount().call();
+      const jobIdPrefix = isNativeArbitrum
+        ? chainId
+        : currentChainConfig.layerzero.eid;
+      const predictedJobId = `${jobIdPrefix}-${BigInt(counterBefore) + 1n}`;
+      const directContractOptions = isNativeArbitrum
+        ? null
+        : "0x00030100110100000000000000000000000000186A00";
+
+      let layerZeroFee;
+      if (!isNativeArbitrum) {
+        setTransactionState({
+          phase: "quoting",
+          message: "Getting the cross-chain network quote…",
+          variant: "info",
+        });
+
+        const bridgeAddress = await contract.methods.bridge().call();
+        const bridgeContract = new web3.eth.Contract([{
+          inputs: [
+            { type: "bytes", name: "_payload" },
+            { type: "bytes", name: "_options" },
+          ],
+          name: "quoteNativeChain",
+          outputs: [{ type: "uint256", name: "fee" }],
+          stateMutability: "view",
+          type: "function",
+        }], bridgeAddress);
+        const quotePayload = web3.eth.abi.encodeParameters(
+          ["string", "address", "address", "string", "string", "string[]", "uint256[]", "uint32"],
+          [
+            "startDirectContract",
+            fromAddress,
+            jobTaker.trim(),
+            predictedJobId,
+            jobResponse.IpfsHash,
+            milestoneHashes,
+            milestoneAmounts,
+            jobTakerChainDomain,
+          ],
+        );
+        layerZeroFee = String(await bridgeContract.methods
+          .quoteNativeChain(quotePayload, directContractOptions)
+          .call());
+      }
+
+      setTransactionState({
+        phase: "contract-signature",
+        message: "Confirm the direct contract transaction in MetaMask.",
+        variant: "warning",
+      });
+
+      const directContractMethod = createLOWJCWrite(
+        contract,
+        currentChainConfig,
+        LOWJC_OPERATIONS.START_DIRECT_CONTRACT,
+        [
+          jobTaker.trim(),
+          jobResponse.IpfsHash,
+          milestoneHashes,
+          milestoneAmounts,
+          jobTakerChainDomain,
+        ],
+        directContractOptions,
+      );
+      const sendOptions = await buildEstimatedWriteSendOptions(
+        directContractMethod,
+        currentChainConfig,
+        {
+          from: fromAddress,
+          value: layerZeroFee,
+          gasPrice: await web3.eth.getGasPrice(),
+        },
+      );
+
+      let sourceTxHash = null;
+      const pendingTransaction = directContractMethod.send(sendOptions);
+      pendingTransaction.on("transactionHash", (hash) => {
+        sourceTxHash = hash;
+        setTransactionState({
+          phase: "submitted",
+          message: `Transaction submitted (${hash.slice(0, 10)}…). Waiting for confirmation.`,
+          variant: "info",
+        });
+      });
+
+      const receipt = await pendingTransaction;
+      sourceTxHash = receipt.transactionHash || sourceTxHash;
+      setTransactionState({
+        phase: "source-confirmed",
+        message: "Transaction confirmed. Resolving the contract ID…",
+        variant: "success",
+      });
+
+      const jobId = await resolveDirectContractJobId({
+        receipt,
+        contract,
+        jobIdPrefix,
+        counterBefore,
+      });
+
+      if (!jobId) {
+        setTransactionState({
+          phase: "confirmed-unresolved",
+          message: `The transaction was confirmed${sourceTxHash ? ` (${sourceTxHash.slice(0, 10)}…)` : ""}, but its contract ID could not be resolved. Do not submit again; check your transaction history or Browse Jobs.`,
+          variant: "warning",
+        });
+        return;
+      }
+
+      fetch(`${BACKEND_URL}/api/jobs/tx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "startDirectContract",
+          txHash: sourceTxHash,
+          jobId,
+          chainId,
+          walletAddress: fromAddress,
+        }),
+      }).catch(() => {});
+
+      if (isNativeArbitrum) {
+        setTransactionState({
+          phase: "success",
+          message: "Direct contract created successfully. Opening it now…",
+          variant: "success",
+        });
+        navigate(`/job-details/${jobId}`);
+        return;
+      }
+
+      const progress = {
+        jobId,
+        sourceTxHash,
+        sourceChainId: chainId,
+        sourceDomain: currentChainConfig.cctpDomain,
+        createdAt: Date.now(),
+      };
+      saveDirectContractProgress(progress);
+      navigate(`/direct-contract-status/${jobId}`, { state: { progress } });
+    } catch (error) {
+      console.error("Direct contract submission failed:", error);
+      submissionLockRef.current = false;
+      setTransactionState({
+        phase: "error",
+        message: error?.message || "The transaction could not be completed. Please try again.",
+        variant: "error",
+      });
     }
   };
 
@@ -1084,19 +900,17 @@ export default function DirectContractForm() {
               <span>{platformFee !== null ? `${platformFee}%` : '...'}</span>
             </div>
             <BlueButton 
-              label="Enter Contract" 
+              label={TRANSACTION_BUTTON_LABELS[transactionState.phase] || "Enter Contract"}
               style={{width: '100%', justifyContent: 'center'}}
-              onClick={handleSubmit}
+              onClick={handleDirectContractSubmit}
+              disabled={transactionInProgress}
             />
             <div className="warning-form">
-              <Warning content={transactionStatus} />
-            </div>
-            {crossChainSteps && (
-              <CrossChainStatus
-                title="Contract cross-chain status"
-                steps={crossChainSteps}
+              <Warning
+                content={transactionState.message}
+                variant={transactionState.variant}
               />
-            )}
+            </div>
           </div>
         </div>
       </div>

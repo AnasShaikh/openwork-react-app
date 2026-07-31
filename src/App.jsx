@@ -4,6 +4,7 @@ import { Routes, Route, Link, BrowserRouter, Navigate } from "react-router-dom";
 import "./App.css";
 import { Layout } from "./components/Layout/layout";
 import DirectContractForm from "./pages/DirectContractForm/DirectContractForm";
+import DirectContractStatus from "./pages/DirectContractStatus/DirectContractStatus";
 import ViewJobs from "./pages/ViewJobs/ViewJobs";
 import SingleJobDetails from "./pages/SingleJobDetails/SingleJobDetails";
 import JobDeepView from "./pages/JobDeepView/JobDeepView";
@@ -339,6 +340,7 @@ export default function App() {
               <Route path="/jobs" element={<Navigate to="/browse-jobs" replace />}/>
               <Route path="/browse-talent" element={<BrowseTalent/>}/>
               <Route path="/direct-contract" element={<DirectContractForm />} />
+              <Route path="/direct-contract-status/:jobId" element={<DirectContractStatus />} />
               <Route path="/post-job" element={<PostJob/>}/>
               <Route path="/view-jobs" element={<ViewJobs />} />
               <Route path="view-work/:jobId" element={<ViewWork/>}/>

@@ -1,4 +1,4 @@
-import { React, useState } from "react";
+import { React, useEffect, useState } from "react";
 import StatusButton from "../StatusButton/StatusButton";
 import "./Milestone.css";
 import Button from "../Button/Button";
@@ -15,6 +15,7 @@ export default function Milestone({
 }) {
     const [open, setOpen] = useState(false);
     const [edit, setEdit] = useState(false);
+    const [inlineAmount, setInlineAmount] = useState(String(amount));
 
     // Local state for editing
     const [editValues, setEditValues] = useState({
@@ -22,6 +23,22 @@ export default function Milestone({
         content: content,
         amount: amount,
     });
+
+    useEffect(() => {
+        setInlineAmount(String(amount));
+    }, [amount]);
+
+    const commitInlineAmount = () => {
+        const nextAmount = Number(inlineAmount);
+
+        if (Number.isFinite(nextAmount) && nextAmount > 0) {
+            onUpdate?.("amount", nextAmount);
+            setInlineAmount(String(nextAmount));
+            return;
+        }
+
+        setInlineAmount(String(amount));
+    };
 
     const handleEdit = () => {
         // Reset edit values to current props when starting edit
@@ -75,7 +92,30 @@ export default function Milestone({
                             {status && <StatusButton status={status} />}
                         </div>
                         <div className="milestone-amount">
-                            <span>{amount}</span>
+                            {editable ? (
+                                <input
+                                    className="milestone-inline-amount"
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    aria-label={`${title} amount`}
+                                    value={inlineAmount}
+                                    onClick={(event) => event.stopPropagation()}
+                                    onChange={(event) => setInlineAmount(event.target.value)}
+                                    onBlur={commitInlineAmount}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.currentTarget.blur();
+                                        } else if (event.key === "Escape") {
+                                            event.preventDefault();
+                                            setInlineAmount(String(amount));
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <span>{amount}</span>
+                            )}
                             <img src="/xdc.svg" alt="" />
                             {date && (
                                 <>

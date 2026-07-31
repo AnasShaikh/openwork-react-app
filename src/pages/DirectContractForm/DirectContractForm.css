@@ -168,7 +168,7 @@ img#connectButtonDC {
 .form-groupDC textarea::placeholder {
   font-family: 'Satoshi', sans-serif;
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400;
   font-size: 14px;
   line-height: 24px;
   /* identical to box height, or 171% */
@@ -177,6 +177,7 @@ img#connectButtonDC {
 
   /* Gray/Main */
   color: #868686;
+  opacity: 1;
 }
 
 .dropdownButtonContainerDC {

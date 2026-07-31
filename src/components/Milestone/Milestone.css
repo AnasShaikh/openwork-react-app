@@ -43,6 +43,28 @@
     line-height: 24px; /* 171.429% */
 }
 
+.milestone-inline-amount {
+    width: 84px;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid #dfe6f8;
+    border-radius: 8px;
+    background: #fff;
+    color: #575757;
+    font: inherit;
+    line-height: 20px;
+    text-align: right;
+}
+
+.milestone-inline-amount:hover {
+    border-color: #9eb7ff;
+}
+
+.milestone-inline-amount:focus {
+    border-color: #3971ff;
+    outline: 3px solid rgba(57, 113, 255, 0.14);
+}
+
 .arrow-icon {
     padding: 7px 5px;
 }

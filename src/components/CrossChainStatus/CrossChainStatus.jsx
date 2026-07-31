@@ -209,12 +209,12 @@ export function buildPaymentSteps(state = {}) {
   steps.push({
     id:      STEP.CCTP_BURN,
     label:   'USDC sent via Circle CCTP',
-    status:  !lzDstTxHash && lzStatus !== 'delivered' ? STATUS.PENDING
-           : cctpBurnTxHash                            ? STATUS.SUCCESS
+    status:  cctpBurnTxHash                            ? STATUS.SUCCESS
+           : !lzDstTxHash && lzStatus !== 'delivered' ? STATUS.PENDING
            : lzStatus === 'delivered'                  ? STATUS.ACTIVE
            :                                             STATUS.PENDING,
     txHash:  cctpBurnTxHash || lzDstTxHash,
-    chainId: lzDstChainId || 42161,
+    chainId: cctpBurnTxHash ? sourceChainId : lzDstChainId || 42161,
     message: !cctpBurnTxHash && lzStatus === 'delivered' ? 'NOWJC received LZ message, initiating CCTP burn...' : undefined,
   });
 

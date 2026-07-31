@@ -1,8 +1,8 @@
-::placeholder {
+.apply-now-form ::placeholder {
     color: black !important;
     opacity: 1; /* Firefox */
 }
 
-::-ms-input-placeholder { /* Edge 12 -18 */
-color: black !important;
+.apply-now-form ::-ms-input-placeholder { /* Edge 12 -18 */
+    color: black !important;
 }

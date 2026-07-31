@@ -144,7 +144,7 @@ export default function ApplyNow() {
 
   return (
     <>
-      <div className="form-containerDC">
+      <div className="form-containerDC apply-now-form">
         <div className="form-header">
           <BackButton to="/skill-oracles" title="Skill Oracle Application"/>
         </div>

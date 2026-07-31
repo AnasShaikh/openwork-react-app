@@ -5,14 +5,38 @@
     gap: 8px;
 
     border-radius: var(--xl, 16px);
-    border: 1px solid var(--Warning-200, #FFDC67);
-    border: 1px solid var(--Warning-200, color(display-p3 0.9977 0.8745 0.5357));
-    background: rgba(255, 239, 194, 0.50);
-    background: color(display-p3 0.9978 0.9393 0.7787 / 0.50);
-
-    color: #c43d00;
     font-family: 'Satoshi', sans-serif;
     font-size: 12px;
     font-weight: 500;
     line-height: 18px;
+}
+
+.warning-content--warning {
+    border: 1px solid #ffdc67;
+    background: rgba(255, 239, 194, 0.50);
+    color: #8a4b00;
+}
+
+.warning-content--info {
+    border: 1px solid #b8cbff;
+    background: #f3f6ff;
+    color: #1746bd;
+}
+
+.warning-content--success {
+    border: 1px solid #a9dfbf;
+    background: #f0faf4;
+    color: #17633a;
+}
+
+.warning-content--error {
+    border: 1px solid #f2b8b5;
+    background: #fff4f3;
+    color: #a42b25;
+}
+
+.warning-content img {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
 }

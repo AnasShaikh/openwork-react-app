@@ -1,0 +1,57 @@
+.direct-contract-status {
+  width: min(760px, calc(100% - 40px));
+  margin: 40px auto 80px;
+  font-family: "Satoshi", sans-serif;
+}
+
+.direct-contract-status__card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 28px;
+  padding: 28px;
+  border: 1px solid #e4e7ec;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.06);
+}
+
+.direct-contract-status__card h1,
+.direct-contract-status__card p {
+  margin: 0;
+}
+
+.direct-contract-status__card h1 {
+  color: #101828;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.direct-contract-status__card p {
+  color: #667085;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.direct-contract-status__browse {
+  align-self: flex-start;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #0057ff;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .direct-contract-status {
+    width: min(100% - 24px, 760px);
+    margin-top: 24px;
+  }
+
+  .direct-contract-status__card {
+    padding: 20px;
+  }
+}
