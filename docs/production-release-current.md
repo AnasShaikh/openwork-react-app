@@ -8,22 +8,25 @@ This file is the canonical application release pointer. It describes deployed ap
 |---|---|
 | Deployed at | 1 August 2026 UTC (1 August IST) |
 | Git branch | `main` |
-| Git commit | `6426381b58f199511eff9a9d3919885507525574` |
+| Git commit | `9b2c112a0578de3aaf146dae80d48a4fefbdb04b` |
 | GitHub CI | No workflow run is configured for this branch; local frontend/backend gates and CodeBuild passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-6426381b58f199511eff9a9d3919885507525574.zip` |
-| Source archive SHA-256 | `c6a9f9f3eb1d19d9f8f4f41556a417e0b8b4ce32513621ec3245ca99353ec6b3` |
-| CodeBuild | `openwork-react-app-prod-build:76b5762d-a7a6-4e22-9f69-55162854a580` — succeeded |
-| ECR image | `openwork-app:prod-6426381-20260801160952` |
-| ECR digest | `sha256:a0d2f88c41fb970aad3e83f3c7630dd3983a358e13abbce1bde1df4cb33c0d74` |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-9b2c112a0578de3aaf146dae80d48a4fefbdb04b.zip` |
+| Source archive SHA-256 | `8aeb9407f3c87bc7f62a5818aa6540712e5cfe43e6c889827c702702a98d42e8` |
+| CodeBuild | `openwork-react-app-prod-build:935cf2c9-2d9c-40d4-ab98-f44ec8961716` — succeeded |
+| ECR image | `openwork-app:prod-9b2c112-20260801174632` |
+| ECR digest | `sha256:4721fa2d466510d373b13b8ab9509d1adcbb6c044414a81586a500c399fd987b` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `daf7d10193fe432aa20466d42a44bb66` — succeeded |
+| App Runner operation | `9f173e90c86f4a5684a40f766934efe2` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-DAYt2cu-.js` |
+| Deployed JS asset | `/assets/index-NQdqMeIj.js` |
 
 ## Verification
 
-- Frontend tests (`35/35`), backend tests (`17/17`), the frontend build and the production image build passed for the exact source commit. The backend dependency lock continues to resolve the disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
+- Frontend tests (`36/36`), backend tests (`17/17`), the mainnet frontend build and the production image build passed for the exact source commit. The backend dependency lock continues to resolve the disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
 - App Runner HTTP health checks passed. The production root and `/healthz` returned HTTP 200, and browser smoke checks passed for `/direct-contract` and the durable `/direct-contract-status/:transactionHash` fallback.
+- XDC Direct Contract creation now checks the connected wallet's native XDC USDC balance before uploading metadata or requesting approval, reports the exact required and available amounts, and reuses a sufficient existing allowance instead of charging for another approval. Counter reads, LayerZero quotes and exact gas estimation now use the configured browser-safe XDC HTTP RPC; only the final signed write is sent through MetaMask.
+- The reported XDC attempt was reproduced read-only against live state. Wallet `0x7a2B...6384C` had approved `100,000` raw USDC units to LOWJC but held only `12,361`; an exact `eth_call` reverted with `ERC20: transfer amount exceeds balance`. Approval transaction `0x18fb958c5f5582fd7173c5de5af37f06c038edb6b11cf619bd7a9c3e5c6484b1` succeeded, but no Direct Contract transaction or outgoing USDC `Transfer` was present, so the intended `0.1 USDC` did not move.
+- Live XDC reads confirmed chain ID `50`, LOWJC implementation `0x7898B41BB04428bf3ccaC5a321d1513D4A00A47D`, bridge `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951`, CCTP sender `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` and native XDC USDC `0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1`.
 - The backend now treats the indexed `PaymentReleased(string)` topic as an opaque hash instead of a decoded job ID, ignores native Arbitrum releases that require no cross-chain relay, accepts genuinely decoded cross-chain IDs, deduplicates by transaction and only marks processing complete after success. A 5,000-block production startup scan completed without replaying the malformed topic hash into the CCTP flow.
 - Native Arbitrum payment release now estimates the exact routed call through the configured Arbitrum HTTP RPC instead of the injected wallet provider. MetaMask receives only the signed write request and manages its own fee fields, avoiding the pre-confirmation `Internal JSON-RPC error` observed on job `42161-22`.
 - The Release Payment page now rejects a connected account that is not the recorded job giver before requesting any wallet transaction. Nested wallet/RPC errors are surfaced when providers return useful underlying details.
@@ -64,6 +67,10 @@ Commit `ffa05619c3771121acbc04881bc2aaf4d0d3b9bf` fixes the production Release P
 
 Commit `6426381b58f199511eff9a9d3919885507525574` prevents the backend listener from interpreting the indexed hash of a dynamic `string` event field as a literal OpenWork job ID. Native Arbitrum payments remain final on Arbitrum and are not queued for CCTP; decoded cross-chain IDs still enter the relay path. The correction is covered by four focused classifier tests and the existing backend suite. Deployment and startup recovery performed no wallet, token or contract write.
 
+## XDC Direct Contract preflight correction
+
+Commit `9b2c112a0578de3aaf146dae80d48a4fefbdb04b` corrects the production XDC Direct Contract path after MetaMask surfaced a generic `Internal JSON-RPC error` for an on-chain insufficient-USDC revert. The application now fails early with the exact balance shortfall, skips redundant approval when allowance is already sufficient and performs all read-only preflight through the configured XDC RPC. The deployment itself performed no wallet, token or smart-contract write.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -74,7 +81,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-ffa0561-20260801153911` |
-| ECR digest | `sha256:7f2b2c529e92768549b6643beba24241e9cc9afbfa569150e4314bc95e68f7d4` |
+| ECR image | `openwork-app:prod-6426381-20260801160952` |
+| ECR digest | `sha256:a0d2f88c41fb970aad3e83f3c7630dd3983a358e13abbce1bde1df4cb33c0d74` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
