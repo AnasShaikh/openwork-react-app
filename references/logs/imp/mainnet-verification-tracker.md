@@ -2,12 +2,32 @@
 
 **Started:** January 22, 2026
 **Completed:** January 22, 2026
-**Updated:** July 13, 2026 — XDC Mainnet and NativeAthena V8
+**Updated:** August 1, 2026 — current 19 July rollout status added
 **Commands Reference:** [mainnet-verification-commands.md](mainnet-verification-commands.md)
 
 ---
 
-## Progress Summary
+## Current active-artifact status
+
+The detailed 39/39 tables below are the completed historical verification set through 13 July. They do **not** include the 19 artifacts deployed on 19 July. The authoritative active registry is [live-contract-registry-19-mar-2026.md](live-contract-registry-19-mar-2026.md).
+
+| Status | Count |
+|---|---:|
+| Active artifacts, counting proxy and implementation separately | 50 |
+| Explorer source verified | 31 |
+| Explorer source pending | 19 |
+
+The pending set is runtime-verified and live, but source is not yet published on the relevant explorers:
+
+- Arbitrum: seven upgraded implementations, both VotingPowerCheckpoints artifacts, both NativeDAOStakeSync artifacts, and Native Bridge V3 (12).
+- Ethereum: DAO V3 implementation, both VotingPowerCheckpoints artifacts, and both ETHDAOMessaging artifacts (5).
+- XDC: LOWJC V3 implementation and Local Bridge V2 (2).
+
+Do not use “39/39” or “100% verified” as a claim about the current active deployment. It describes only the historical set below.
+
+---
+
+## Historical progress summary through 13 July 2026
 
 | Chain | Total | Verified | Pending | Status |
 |-------|-------|----------|---------|--------|

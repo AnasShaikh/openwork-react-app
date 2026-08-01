@@ -1,53 +1,71 @@
 # Openwork Live Contract Registry
 
 **Deployer:** `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`
-**Snapshot:** `src/suites/snapshot-19-mar-2026/`
-**Remote source:** `github.com/botopenwork-ui/openwork-react-app` → `contracts/src/`
-**Last audited:** `13 July 2026` — XDC launch, NativeAthena V8, production-webapp delivery test, and NOWJC commission readback
 
-This file is the canonical live address-to-source registry. Its historical filename is retained for stable links; use the last-audited date and changelog to determine freshness.
+**Current source tree:** `src/suites/current-mainnet/`
 
----
+**Last audited:** `1 August 2026`
 
-## Arbitrum One (Native Chain) — Chain ID: 42161 | LZ EID: 30110 | CCTP Domain: 3
+**Current release ledger:** [confirmed-upgrades-mainnet-19-jul-2026.md](../../deployments/confirmed-upgrades-mainnet-19-jul-2026.md)
 
-### Upgradeable Contracts (UUPS Proxy)
+**Latest configuration record:** [arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md](../../deployments/arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md)
 
-| # | Contract | Proxy | Implementation | Version | Source | Arbiscan | Verified? |
-|---|----------|-------|----------------|---------|--------|----------|-----------|
-| 1 | NativeOpenworkGenesis | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | V1 (Jan 18) | [native-openwork-genesis.sol](../../../src/suites/current-mainnet/native/native-openwork-genesis.sol) | [proxy](https://arbiscan.io/address/0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294) / [impl](https://arbiscan.io/address/0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d) | YES (impl) |
-| 2 | NativeOpenWorkJobContract (NOWJC) | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | `0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528` | V5 (Mar 19) | [native-openwork-job-contract-v4.sol](../../../src/suites/current-mainnet/native/native-openwork-job-contract-v4.sol) | [proxy](https://arbiscan.io/address/0x8EfbF240240613803B9c9e716d4b5AD1388aFd99) / [impl](https://arbiscan.io/address/0x95036F8Ad9Dd3c7Fe28744E42D24EfDB15c21528) | YES (impl) |
-| 3 | NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0x309f02301c641627A114D4E5Fb840bAA5C2809D3` | V4 (Apr 8) | [native-arb-lowjc-v4.sol](../../../src/suites/current-mainnet/native/native-arb-lowjc-v4.sol) | [proxy](https://arbiscan.io/address/0x5727cA7326032a8644a49dECECB8388BEF122bef) / [impl](https://arbiscan.io/address/0x309f02301c641627A114D4E5Fb840bAA5C2809D3) | YES (impl) |
-| 4 | NativeArbAthenaClient | `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x9456989F7B9Cb707451d7179Fc1FC401221DE01a` | Redeployed (Mar 19) | [native-arb-athena-client.sol](../../../src/suites/current-mainnet/native/native-arb-athena-client.sol) | [proxy](https://arbiscan.io/address/0xB5d3F406089236ef9d4aB13306187aFCCA81f099) / [impl](https://arbiscan.io/address/0x9456989F7B9Cb707451d7179Fc1FC401221DE01a) | YES (impl) |
-| 5 | NativeOpenworkDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | V1 (Jan 18) | [native-openwork-dao.sol](../../../src/suites/current-mainnet/native/native-openwork-dao.sol) | [proxy](https://arbiscan.io/address/0x24af98d763724362DC920507b351cC99170a5aa4) / [impl](https://arbiscan.io/address/0x20Fa268106A3C532cF9F733005Ab48624105c42F) | YES (impl) |
-| 6 | NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31` | V8 (Jul 13) — XDC domain | [native-athena-v8-xdc-domain-12-jul-2026.sol](../../../src/suites/current-mainnet/native/native-athena-v8-xdc-domain-12-jul-2026.sol) | [proxy](https://arbiscan.io/address/0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf) / [impl](https://arbiscan.io/address/0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31) | YES (impl) |
-| 7 | NativeProfileGenesis | `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` | `0xae31d7be760D92807B013a71bb51f2cBB132166b` | V1 (Jan 22) | [native-profile-genesis.sol](../../../src/suites/current-mainnet/native/native-profile-genesis.sol) | [proxy](https://arbiscan.io/address/0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E) / [impl](https://arbiscan.io/address/0xae31d7be760D92807B013a71bb51f2cBB132166b) | YES (impl) |
-| 8 | NativeAthenaActivityTracker | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | V1 (Jan 22) | [native-athena-activity-tracker.sol](../../../src/suites/current-mainnet/native/native-athena-activity-tracker.sol) | [proxy](https://arbiscan.io/address/0x8C04840c3f5b5a8c44F9187F9205ca73509690EA) / [impl](https://arbiscan.io/address/0x9588A78748a8bc82295bf44d87C4b9F924d11AE8) | YES (impl) |
-| 9 | NativeAthenaOracleManager | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | V1 (Jan 22) | [native-athena-oracle-manager.sol](../../../src/suites/current-mainnet/native/native-athena-oracle-manager.sol) | [proxy](https://arbiscan.io/address/0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15) / [impl](https://arbiscan.io/address/0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59) | YES (impl) |
-| 10 | NativeProfileManager | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | `0x19E4fBe10C2F2531248e5FfDF150D8c61168702f` | V2 (Feb 28) | [native-profile-manager-v2.sol](../../../src/suites/current-mainnet/native/native-profile-manager-v2.sol) | [proxy](https://arbiscan.io/address/0x51285003A01319c2f46BB2954384BCb69AfB1b45) / [impl](https://arbiscan.io/address/0x19E4fBe10C2F2531248e5FfDF150D8c61168702f) | YES (impl) |
+This historical filename is retained for stable links. This file is the canonical production address-to-source registry. “Runtime verified” means the live bytecode, proxy slot, pointers or configuration were read back successfully. “Source verified” means source is published on the relevant block explorer. Those are separate claims.
 
-### Non-Upgradeable Contracts
+## Audit snapshot
 
-| # | Contract | Address | Version | Source | Arbiscan | Verified? |
-|---|----------|---------|---------|--------|----------|-----------|
-| 11 | NativeLZOpenworkBridge | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | V2 (Jan 24) | [native-lz-openwork-bridge.sol](../../../src/suites/current-mainnet/native/native-lz-openwork-bridge.sol) | [link](https://arbiscan.io/address/0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F) | YES |
-| 12 | NativeRewardsContract | `0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9` | V2 (Jan 23) | [native-rewards-contract.sol](../../../src/suites/current-mainnet/native/native-rewards-contract.sol) | [link](https://arbiscan.io/address/0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9) | YES |
-| 13 | CCTPTransceiver | `0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87` | V1 (Jan 18) | [cctp-transceiver.sol](../../../src/suites/current-mainnet/utilities/cctp-transceiver.sol) | [link](https://arbiscan.io/address/0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87) | YES |
-| 14 | NativeContractRegistry | `0x29D61B1a9E2837ABC0810925429Df641CBed58c3` | V1 (Jan 22) | [native-contract-registry.sol](../../../src/suites/current-mainnet/native/native-contract-registry.sol) | [link](https://arbiscan.io/address/0x29D61B1a9E2837ABC0810925429Df641CBed58c3) | YES |
-| 15 | NativeGenesisReader | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | V1 (Jan 22) | [native-genesis-reader.sol](../../../src/suites/current-mainnet/native/native-genesis-reader.sol) | [link](https://arbiscan.io/address/0x72ee091C288512f0ee9eB42B8C152fbB127Dc782) | YES |
+| Chain | Audit block |
+|---|---:|
+| Ethereum Mainnet | `25661615` |
+| Arbitrum One | `490059405` |
+| Optimism | `155003860` |
+| XDC Network | `105610758` |
 
-### External Dependencies (Arbitrum One)
+| Metric | Count |
+|---|---:|
+| Active contract roles | 31 |
+| Active artifacts, counting proxies and implementations separately | 50 |
+| Explorer source verified | 31 |
+| Explorer source pending | 19 |
 
-| Contract | Address |
-|----------|---------|
-| USDC | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
-| LZ Endpoint V2 | `0x1a44076050125825900e736c501f859c50fE728c` |
-| TokenMessengerV2 | `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` |
-| MessageTransmitterV2 | `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` |
+All 19 active proxy ERC-1967 implementation slots match this registry. The 19 artifacts deployed on 19 July are live and runtime-verified but still pending explorer source publication. Do not describe production as “fully explorer verified” until those submissions succeed.
+
+## Arbitrum One
+
+Chain ID `42161` · LayerZero EID `30110` · CCTP domain `3`
+
+### Upgradeable roles
+
+| Role | Proxy | Implementation | Version | Exact source | Explorer source |
+|---|---|---|---|---|---|
+| NativeOpenworkGenesis | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | V1 | [native-openwork-genesis.sol](../../../src/suites/current-mainnet/native/native-openwork-genesis.sol) | proxy + impl verified |
+| NativeOpenWorkJobContract (NOWJC) | `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | `0x1a406176a9f5727689035eD82f4c28CACaCeDC96` | V5 | [native-openwork-job-contract-v5.sol](../../../src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol) | proxy verified; impl pending |
+| NativeArbOpenWorkJobContract | `0x5727cA7326032a8644a49dECECB8388BEF122bef` | `0xdd7BA6d8E92358AD7477b2f79fF83C78aC07F289` | V5 | [native-arb-lowjc-v5.sol](../../../src/suites/current-mainnet/native/native-arb-lowjc-v5.sol) | proxy verified; impl pending |
+| NativeArbAthenaClient | `0xB5d3F406089236ef9d4aB13306187aFCCA81f099` | `0x6DE7D58FCffF98AF2E85e1976155f3D671F6756C` | V3 | [native-arb-athena-client-v3.sol](../../../src/suites/current-mainnet/native/native-arb-athena-client-v3.sol) | proxy verified; impl pending |
+| NativeOpenworkDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` | `0xeb1A8fB15d3Bf5E1bd1100AC2528962356c2a398` | V2 | [native-openwork-dao-v2.sol](../../../src/suites/current-mainnet/native/native-openwork-dao-v2.sol) | proxy verified; impl pending |
+| NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` | `0xB4ea3444517B5C11DDF47f8F6E9dA6EccCD17395` | V9 | [native-athena-v9.sol](../../../src/suites/current-mainnet/native/native-athena-v9.sol) | proxy verified; impl pending |
+| NativeProfileGenesis | `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` | `0x9E8F58839aB114BbcA8A0c24f5BEC1C841294784` | V2 | [native-profile-genesis-v2.sol](../../../src/suites/current-mainnet/native/native-profile-genesis-v2.sol) | proxy verified; impl pending |
+| NativeAthenaActivityTracker | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` | `0x9588A78748a8bc82295bf44d87C4b9F924d11AE8` | V1 | [native-athena-activity-tracker.sol](../../../src/suites/current-mainnet/native/native-athena-activity-tracker.sol) | proxy + impl verified |
+| NativeAthenaOracleManager | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | V1 | [native-athena-oracle-manager.sol](../../../src/suites/current-mainnet/native/native-athena-oracle-manager.sol) | proxy + impl verified |
+| NativeProfileManager | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | `0xd30c9f6Bf3e6563a64AC32BD4Cc76407ed0e2fFf` | V3 | [native-profile-manager-v3.sol](../../../src/suites/current-mainnet/native/native-profile-manager-v3.sol) | proxy verified; impl pending |
+| OpenworkVotingPowerCheckpoints | `0x586cb49f19f93E5b9037CD22c539a7529b7bA1d9` | `0x78C3E094a8Dba771c434E1258738cE9D4404C19e` | V1 | [openwork-voting-power-checkpoints-v1.sol](../../../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol) | proxy + impl pending |
+| NativeDAOStakeSync | `0xe541c372bF4E91F9FFe3Bc2A2Fa45CC38A273d2B` | `0xddF69B7C6a04C4972e27Dc2b3a9f88E8081bCf03` | V1 | [native-dao-stake-sync-v1.sol](../../../src/suites/current-mainnet/native/native-dao-stake-sync-v1.sol) | proxy + impl pending |
+
+### Standalone roles
+
+| Role | Address | Version | Exact source | Explorer source |
+|---|---|---|---|---|
+| NativeLZOpenworkBridge | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` | V3 | [native-lz-openwork-bridge-v3.sol](../../../src/suites/current-mainnet/native/native-lz-openwork-bridge-v3.sol) | pending |
+| NativeRewardsContract | `0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9` | V2 | [native-rewards-contract.sol](../../../src/suites/current-mainnet/native/native-rewards-contract.sol) | verified |
+| CCTPTransceiver | `0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87` | V1 | [cctp-transceiver.sol](../../../src/suites/current-mainnet/utilities/cctp-transceiver.sol) | verified |
+| NativeContractRegistry | `0x29D61B1a9E2837ABC0810925429Df641CBed58c3` | V1 | [native-contract-registry.sol](../../../src/suites/current-mainnet/native/native-contract-registry.sol) | verified |
+| NativeGenesisReader | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | V1 | [native-genesis-reader.sol](../../../src/suites/current-mainnet/native/native-genesis-reader.sol) | verified |
+
+Native USDC: `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`.
 
 ### Live NOWJC commission configuration
 
-Read back from proxy `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` on 13 July 2026:
+Read back from the proxy on 1 August 2026:
 
 | Setting | Live value |
 |---|---:|
@@ -55,227 +73,85 @@ Read back from proxy `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` on 13 July 202
 | `minCommission()` | `0` USDC units |
 | `calculateCommission(500000)` | `0` USDC units |
 
-The V5 implementation source declares defaults of `100` basis points and `1e6` minimum units, but those declaration-time values did not populate the existing proxy storage. The production webapp reads `calculateCommission(...)` live and therefore displays `0 USDC`. If a nonzero fee is intended, treat `setCommissionPercentage(...)` and `setMinCommission(...)` as separate paid Arbitrum configuration writes requiring an explicit target and approval.
+The V5 implementation source declares 100 basis points and 1 USDC as initial field values, but the upgrade did not overwrite existing proxy storage. Public documentation must use the live proxy values, not the source initializers.
 
----
+## Optimism
 
-## Optimism (Local Chain) — Chain ID: 10 | LZ EID: 30111 | CCTP Domain: 2
+Chain ID `10` · LayerZero EID `30111` · CCTP domain `2`
 
-### Upgradeable Contracts (UUPS Proxy)
+| Role | Proxy / address | Implementation | Version | Exact source | Explorer source |
+|---|---|---|---|---|---|
+| LocalOpenWorkJobContract Lite | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | `0x74D6e1aDA0Dae53231298B24DeAf169647fd557d` | Lite V6 | [local-openwork-job-contract-lite-v2.sol](../../../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol) | proxy + impl verified |
+| LocalAthena | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | V1 | [local-athena.sol](../../../src/suites/current-mainnet/local/local-athena.sol) | proxy + impl verified |
+| LocalLZOpenworkBridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | — | V1 | [local-lz-openwork-bridge.sol](../../../src/suites/current-mainnet/local/local-lz-openwork-bridge.sol) | verified |
+| CCTPTransceiver | `0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15` | — | V2 | [cctp-transceiver.sol](../../../src/suites/current-mainnet/utilities/cctp-transceiver.sol) | verified |
 
-| # | Contract | Proxy | Implementation | Version | Source | Etherscan | Verified? |
-|---|----------|-------|----------------|---------|--------|-----------|-----------|
-| 16 | LocalOpenWorkJobContract Lite | `0x620205A4Ff0E652fF03a890d2A677de878a1dB63` | `0x74D6e1aDA0Dae53231298B24DeAf169647fd557d` | Lite V6 (agent upgrade) | [local-openwork-job-contract-lite-v2.sol](../../../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol) | [proxy](https://optimistic.etherscan.io/address/0x620205A4Ff0E652fF03a890d2A677de878a1dB63) / [impl](https://optimistic.etherscan.io/address/0x74D6e1aDA0Dae53231298B24DeAf169647fd557d) | YES (impl) |
-| 17 | LocalAthena | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | V1 (Jan 18) | [local-athena.sol](../../../src/suites/current-mainnet/local/local-athena.sol) | [proxy](https://optimistic.etherscan.io/address/0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d) / [impl](https://optimistic.etherscan.io/address/0xF78B688846673C3f6b93184BeC230d982c0db0c9) | YES (impl) |
+Native USDC: `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85`.
 
-### Non-Upgradeable Contracts
+## XDC Network
 
-| # | Contract | Address | Version | Source | Etherscan | Verified? |
-|---|----------|---------|---------|--------|-----------|-----------|
-| 18 | LocalLZOpenworkBridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | V1 (Jan 18) | [local-lz-openwork-bridge.sol](../../../src/suites/current-mainnet/local/local-lz-openwork-bridge.sol) | [link](https://optimistic.etherscan.io/address/0x74566644782e98c87a12E8Fc6f7c4c72e2908a36) | YES |
-| 19 | CCTPTransceiver V2 | `0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15` | V2 (Jan 23) | [cctp-transceiver.sol](../../../src/suites/current-mainnet/utilities/cctp-transceiver.sol) | [link](https://optimistic.etherscan.io/address/0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15) | YES |
+Chain ID `50` · LayerZero EID `30365` · CCTP domain `18`
 
-### External Dependencies (Optimism)
+| Role | Proxy / address | Implementation | Version | Exact source | Explorer source |
+|---|---|---|---|---|---|
+| LocalOpenWorkJobContract Lite | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | `0x7898B41BB04428bf3ccaC5a321d1513D4A00A47D` | V3 | [local-openwork-job-contract-lite-v3.sol](../../../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol) | proxy verified; impl pending |
+| LocalAthena | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | V1 | [local-athena.sol](../../../src/suites/current-mainnet/local/local-athena.sol) | proxy + impl verified |
+| LocalLZOpenworkBridge | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` | — | V2 | [local-lz-openwork-bridge-v2.sol](../../../src/suites/current-mainnet/local/local-lz-openwork-bridge-v2.sol) | pending |
+| CCTPTransceiverXdcStandard12Jul2026 | `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` | — | XDC standard | [cctp-transceiver-xdc-standard-12-jul-2026.sol](../../../src/suites/current-mainnet/xdc/cctp-transceiver-xdc-standard-12-jul-2026.sol) | verified |
 
-| Contract | Address |
-|----------|---------|
-| USDC | `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` |
-| LZ Endpoint V2 | `0x1a44076050125825900e736c501f859c50fE728c` |
-| TokenMessengerV2 | `0x2B4069517957735bE00ceE0fadAE88a26365528f` |
-| MessageTransmitterV2 | `0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8` |
+Native USDC: `0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1`.
 
----
+## Ethereum Mainnet
 
-## Ethereum Mainnet — Chain ID: 1 | LZ EID: 30101 | CCTP Domain: 0
+Chain ID `1` · LayerZero EID `30101` · CCTP domain `0`
 
-### Upgradeable Contracts (UUPS Proxy)
+| Role | Proxy / address | Implementation | Version | Exact source | Explorer source |
+|---|---|---|---|---|---|
+| ETHOpenworkDAO | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` | V3 | [eth-openwork-dao-v3.sol](../../../src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol) | proxy verified; impl pending |
+| OpenworkVotingPowerCheckpoints | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` | V1 | [openwork-voting-power-checkpoints-v1.sol](../../../src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol) | proxy + impl pending |
+| ETHDAOMessaging | `0xDCF7c77314E8F042C97EFB96991b7DAc5Dc79f0D` | `0x532fAB0b8Ca0dD7c14ca1324e7502534E5c8b9AE` | V1 | [eth-dao-messaging-v1.sol](../../../src/suites/current-mainnet/eth/eth-dao-messaging-v1.sol) | proxy + impl pending |
+| ETHLZOpenworkBridge | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | — | V1 | [eth-lz-openwork-bridge.sol](../../../src/suites/current-mainnet/eth/eth-lz-openwork-bridge.sol) | verified |
+| ETHRewardsContract | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | — | V1 | [eth-rewards-contract.sol](../../../src/suites/current-mainnet/eth/eth-rewards-contract.sol) | verified |
+| OpenworkToken (OWORK) | `0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87` | — | V1 | [openwork-token.sol](../../../src/suites/current-mainnet/utilities/openwork-token.sol) | verified |
 
-| # | Contract | Proxy | Implementation | Version | Source | Etherscan | Verified? |
-|---|----------|-------|----------------|---------|--------|-----------|-----------|
-| 20 | ETHOpenworkDAO | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` | `0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59` | V2 (Mar 19) | [eth-openwork-dao.sol](../../../src/suites/current-mainnet/eth/eth-openwork-dao.sol) | [proxy](https://etherscan.io/address/0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294) / [impl](https://etherscan.io/address/0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59) | YES (impl) |
+## Active peer and pathway status
 
-### Non-Upgradeable Contracts
-
-| # | Contract | Address | Version | Source | Etherscan | Verified? |
-|---|----------|---------|---------|--------|-----------|-----------|
-| 21 | ETHLZOpenworkBridge | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | V1 (Jan 18) | [eth-lz-openwork-bridge.sol](../../../src/suites/current-mainnet/eth/eth-lz-openwork-bridge.sol) | [link](https://etherscan.io/address/0x20Fa268106A3C532cF9F733005Ab48624105c42F) | YES |
-| 22 | ETHRewardsContract | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | V1 (Jan 22) | [eth-rewards-contract.sol](../../../src/suites/current-mainnet/eth/eth-rewards-contract.sol) | [link](https://etherscan.io/address/0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d) | YES |
-| 23 | OpenworkToken (OWORK) | `0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87` | V1 (Jan 22) | [openwork-token.sol](../../../src/suites/current-mainnet/utilities/openwork-token.sol) | [link](https://etherscan.io/address/0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87) | YES |
-
-### Token Distribution
-
-| Holder | Amount | Percentage |
-|--------|--------|------------|
-| ETHRewardsContract | 750,000,000 OWORK | 75% |
-| ETHOpenworkDAO Proxy | 250,000,000 OWORK | 25% |
-
-### External Dependencies (Ethereum)
-
-| Contract | Address |
-|----------|---------|
-| LZ Endpoint V2 | `0x1a44076050125825900e736c501f859c50fE728c` |
-| TokenMessengerV2 | `0xBd3fa81B58Ba92a82136038B25aDec7066af3155` |
-| MessageTransmitterV2 | `0x0a992d191deec32afe36203ad87d7d289a738f81` |
-
----
-
-## Cross-Chain Peer Configuration
-
-| Source Bridge | Target EID | Target Bridge |
-|---------------|------------|---------------|
-| Native (Arb) `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | 30101 (ETH) | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` |
-| Native (Arb) `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | 30111 (OP) | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` |
-| ETH `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | 30110 (Arb) | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
-| Local (OP) `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | 30110 (Arb) | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
-| Native (Arb) `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | 30365 (XDC) | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` |
-| XDC `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | 30110 (Arb) | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
-| ETH `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | 30365 (XDC) | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` |
-| XDC `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | 30101 (ETH) | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` |
-
----
-
-## XDC Mainnet — Chain ID: 50 | LZ EID: 30365 | CCTP Domain: 18
-
-**Status:** XDC/Arbitrum four-DVN pathway operational; contract test `30365-1` and production-webapp job `30365-2` delivered 13 July 2026; direct XDC/Ethereum DVN configuration pending
-
-### Deployed Contracts
-
-| Contract | Address | Version | Source | Verified? |
-|---|---|---|---|---|
-| LocalLZOpenworkBridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` | XDC launch (12 Jul 2026) | [local-lz-openwork-bridge.sol](../../../src/suites/current-mainnet/local/local-lz-openwork-bridge.sol) | YES |
-| CCTPTransceiverXdcStandard12Jul2026 | `0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510` | XDC Standard CCTP (13 Jul 2026) | [cctp-transceiver-xdc-standard-12-jul-2026.sol](../../../src/suites/current-mainnet/xdc/cctp-transceiver-xdc-standard-12-jul-2026.sol) | YES |
-| LOWJC implementation | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | XDC launch (13 Jul 2026) | [local-openwork-job-contract-lite-v2.sol](../../../src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol) | YES |
-| LocalAthena implementation | `0xF78B688846673C3f6b93184BeC230d982c0db0c9` | XDC launch (13 Jul 2026) | [local-athena.sol](../../../src/suites/current-mainnet/local/local-athena.sol) | YES |
-| LOWJC proxy | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | XDC launch (13 Jul 2026) | [proxy.sol](../../../src/suites/current-mainnet/utilities/proxy.sol) | YES (linked to implementation) |
-| LocalAthena proxy | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | XDC launch (13 Jul 2026) | [proxy.sol](../../../src/suites/current-mainnet/utilities/proxy.sol) | YES (linked to implementation) |
-
-**Deploy transaction:** `0x1d583b0813703364485b6817d3d7a90874343cd28dbe0107fcb4321f99fc84fb`
-
-**Verification:** XDCScan/Etherscan V2 `Pass - Verified`; Solidity `v0.8.23+commit.f704f362`, optimizer 200, viaIR, Shanghai EVM, MIT.
-
-**CCTP deploy transaction:** `0xb90c9322f6588a9faf0024f7e1cb6100e2af11634136190cff059185e38bbd7a`
-
-**CCTP verification:** XDCScan/Etherscan V2 `Pass - Verified`; Solidity `v0.8.23+commit.f704f362`, optimizer 200, viaIR, Shanghai EVM, MIT.
-
-**LOWJC implementation deploy transaction:** `0xfa45735c777aac18375b6a09179b5733819e26262857d278058d819c476948a4`
-
-**LOWJC implementation verification:** XDCScan/Etherscan V2 `Pass - Verified`; Solidity `v0.8.23+commit.f704f362`, optimizer 200, viaIR, Shanghai EVM, MIT.
-
-**LocalAthena implementation deploy transaction:** `0x05aa98127d827bb6784b39b816e3617f8a6d6fd4ec0bc09622332b1b01be7972`
-
-**LocalAthena implementation verification:** XDCScan/Etherscan V2 `Pass - Verified`; Solidity `v0.8.23+commit.f704f362`, optimizer 200, viaIR, Shanghai EVM, MIT.
-
-**LOWJC proxy deploy transaction:** `0x8a1ba7425272ea890ea62ce4fc0a0470725ed9639e0ef7f49a1513e49cbe58e9`
-
-**LOWJC proxy verification:** XDCScan/Etherscan V2 `Pass - Verified`; proxy linked to implementation `0x20Fa268106A3C532cF9F733005Ab48624105c42F`.
-
-**LocalAthena proxy deploy transaction:** `0x74adc7146d62b3f04ed8893889a5ff8726269a9cb692c5436be7d54c97ffc172`
-
-**LocalAthena proxy verification:** XDCScan identical UUPSProxy source match; proxy linked to implementation `0xF78B688846673C3f6b93184BeC230d982c0db0c9`.
-
-### XDC-side configuration
-
-| Setting | Confirmed value | Status |
+| Pathway | Status | Evidence / limitation |
 |---|---|---|
-| Bridge LOWJC | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | YES |
-| Bridge LocalAthena | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | YES |
-| Bridge authorizes LOWJC | `true` | YES |
-| Bridge authorizes LocalAthena | `true` | YES |
-| LOWJC Athena client | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` | YES |
-| LOWJC CCTP mint recipient | Arbitrum NOWJC `0x8EfbF240240613803B9c9e716d4b5AD1388aFd99` | YES |
-| LocalAthena job contract | `0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7` | YES |
-| LocalAthena native CCTP domain | `3` | YES (initializer) |
-| XDC bridge peer `30110` | Arbitrum bridge `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` | YES |
-| XDC bridge peer `30101` | Ethereum bridge `0x20Fa268106A3C532cF9F733005Ab48624105c42F` | YES |
+| XDC ↔ Arbitrum | End-to-end tested | Reciprocal peers and explicit four-DVN security configuration; production job `30365-3` completed after the 19 July cutover |
+| Optimism ↔ Arbitrum | Configured | Reciprocal peers and Native V3 security stack read back; no recorded post-cutover application delivery test |
+| Ethereum ↔ Arbitrum | Configured | Reciprocal peers and Native V3 security stack read back; no recorded post-cutover governance delivery test |
+| XDC ↔ Ethereum direct | Disabled | Ethereum still peers the retired XDC bridge and the direct security stack is not installed; route through Arbitrum |
 
-### Pending pathway configuration
+Active peer values:
 
-- Direct XDC/Ethereum LayerZero pathway still inherits `LZDeadDVN`; configure matching send/receive stacks if direct messaging will be used
+| Source | Target | Peer |
+|---|---|---|
+| Arbitrum V3 bridge | Ethereum `30101` | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` |
+| Arbitrum V3 bridge | Optimism `30111` | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` |
+| Arbitrum V3 bridge | XDC `30365` | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` |
+| Optimism bridge | Arbitrum `30110` | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` |
+| Ethereum bridge | Arbitrum `30110` | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` |
+| XDC V2 bridge | Arbitrum `30110` | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` |
 
----
+## Legacy and held artifacts
 
-## Verification Summary (Updated Jul 13, 2026)
+- Old Arbitrum bridge `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` remains deployed for rollback/in-flight compatibility but is not the active pointer.
+- Old XDC bridge `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` is retired on XDC. The same address remains active on Optimism.
+- `LocalAthena V2` exists in source but is intentionally not deployed pending a production dispute-minimum decision.
 
-| Status | Count |
-|--------|-------|
-| Verified on block explorer | **39** |
-| Not verified | 0 |
-| **Total tracked deployments** | **39** |
+## Architecture changes in the 19 July rollout
 
-## On-Chain Slot Verification (ERC1967 impl slot)
+- Added historical voting-power checkpoints on both Arbitrum and Ethereum.
+- Added `ETHDAOMessaging` on Ethereum and `NativeDAOStakeSync` on Arbitrum to separate DAO messaging from native stake-state application.
+- Replaced the Arbitrum and XDC bridge deployments and cut all active application pointers to them.
+- Upgraded NOWJC, NativeArb LOWJC, NativeArb Athena, Native DAO, NativeAthena, ProfileGenesis, ProfileManager, Ethereum DAO and XDC LOWJC.
+- Configured NativeRewards `profileGenesis` on 1 August; this was a configuration write, not a new contract deployment.
 
-All 15 live upgradeable proxy implementation slots were read on-chain via `cast storage` and match this registry. NativeAthena and both XDC proxies were rechecked on 13 July 2026; NativeAthena's live implementation slot is `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31`.
+## Outstanding actions
 
----
-
-## Abandoned Contracts (agent wallet key lost)
-
-| Contract | Old Proxy | Old Impl | Reason |
-|----------|-----------|----------|--------|
-| NativeArbAthenaClient (old) | `0xEC9446A163E74D2fBF3def75324895204415166D` | `0x0688FcF38eA366a7fACe4b056F0eC6b66E6DA06E` | Agent wallet `0xb8dC...` key lost |
-| NativeArbOpenWorkJobContract (old) | `0xEE57ee10cCAB26f5642d4EbDC15B3881Bb0B5587` | `0xC14310DE9C057FBF54797E7118abcD5C412BFcD2` | Agent wallet `0xb8dC...` key lost |
-
----
-
-## Changelog
-
-### Jul 13, 2026 — NativeAthena V8 and XDC reciprocal connection
-- **Fix:** Added `XDC EID 30365 -> CCTP domain 18` without editing the previously deployed V7 source.
-- **New impl:** `0xd9eFCA708f027ff813f03aDF73f8264a28BDAf31` ([deploy tx](https://arbiscan.io/tx/0xf8b94f98904f0e6402a8be0a889f681c38ea832ad213b658707c388b1bff2d77))
-- **Upgrade tx:** [Arbiscan](https://arbiscan.io/tx/0xd36e34f6081ce39013347e7aaa213d3059eac596589ec3de9afbe096299accbb)
-- **Source:** `native-athena-v8-xdc-domain-12-jul-2026.sol`
-- **Previous impl:** `0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4` (V7)
-- **Bridge configuration:** Arbitrum peer `30365` points to XDC and is authorized; XDC peer `30110` points back to Arbitrum.
-- **Status:** Deployed, upgraded, verified, and live-state audited
-
-### Jul 13, 2026 — XDC/Arbitrum LayerZero pathway and job test
-- **Security stack:** 20 confirmations; LayerZero Labs, Nethermind, Horizen, and Canary all required
-- **Configuration:** matching send/receive ULN configs applied and read back on XDC and Arbitrum
-- **Test job:** `30365-1`
-- **Source tx:** `0xdd20ddebcf87ff3757cbea0c6670d5550abbded96c31d72ad2f10340fa455806`
-- **Destination tx:** `0x36c8d34d4ae92f091a936dadaff5d1fe0282eceb770c9af800974f6b347c42bf`
-- **LayerZero status:** `DELIVERED`
-- **Status:** End-to-end XDC to Arbitrum job posting passed
-
-### Jul 13, 2026 — Production webapp XDC job test
-- **Test job:** `30365-2`
-- **Source tx:** `0xf9b88e09488de62bbb92572492c74268dccf445bea6279d672fc458963a57d09`
-- **LayerZero GUID:** `0x6e75481de82c9527faab41f47b5899058906ab1ddd3d05594968b3ac6299aeff`
-- **Destination tx:** `0xcf5f406e94942db276958e2828c8e5ce9f8271d32209a84610fc24e1202ad6a0`
-- **LayerZero status:** `DELIVERED`
-- **Application state:** Arbitrum Genesis contains the correct job giver, IPFS hashes, `0.5 USDC` nominal milestone, and `Open` status
-- **Wallet spend:** `4.803234084721259807 XDC` including gas
-- **Evidence:** [production webapp test log](../xdc-mainnet-webapp-job-post-test-13-jul-2026.md)
-- **Status:** Production app XDC job posting passed end to end
-
----
-
-### Mar 26, 2026 — NativeAthena V7 (EID fix)
-- **Bug:** `_parseJobIdForChainDomain` had only testnet EIDs hardcoded. Mainnet EIDs (30101/30111/30110) fell through to `return 0` (Ethereum), causing dispute funds to route to wrong chain.
-- **Fix:** Added mainnet LZ EIDs, changed default from `return 0` to `revert("Unknown EID")`.
-- **New impl:** `0x7D4F986b56cdD84b529d5653e4CCD851454fF1C4` ([tx](https://arbiscan.io/tx/0x44c32a7aac37179c37305146133f96ff1009bdb1b10a731cddf2c67bd4dea06c))
-- **Source:** `native-athena-v5.sol` (copy of v4 with fix)
-- **Previous impl:** `0x461Bd6f9C706c495781392f54C29d23c1871aC15` (V6)
-- **Status:** Deployed, upgraded, verified
-
----
-
-### Apr 8, 2026 — ArbLOWJC V4 (jobCounter fix)
-- **Bug:** `jobCounter` was `0` after Mar 19 redeployment. `postJob()` tried `42161-1` which already exists in Genesis → revert `"Job exists"`.
-- **Fix:** Added `setJobCounter()` admin function. Set counter to `4` (old ArbLOWJC had posted 4 jobs).
-- **New impl:** `0x309f02301c641627A114D4E5Fb840bAA5C2809D3` ([tx](https://arbiscan.io/tx/0x8e257588e869fd7796cc05a63c09230056e3079d91a9f57683264336369f4eb5))
-- **Source:** `native-arb-lowjc-v4.sol`
-- **Previous impl:** `0x79CE037946B44EDF4f8B2c2EA51C610C2AA6a0f7` (V3)
-- **Status:** Deployed, upgraded, jobCounter set to 4, and verified (rechecked through explorer API on 13 July 2026)
-
----
-
-## Outstanding Actions
-
-- [x] Verify all 39 tracked deployments on block explorers — DONE
-- [x] Update webapp with new ArbAthenaClient (`0xB5d3...`) and ArbLOWJC (`0x5727...`) proxy addresses
-- [x] Redeploy + verify NativeAthena impl under deployer (was agent-compiled)
-- [x] Redeploy + verify ETHOpenworkDAO impl under deployer (was unknown wallet)
-- [ ] Revoke old abandoned proxy addresses from authorizedContracts
-- [ ] Run config value audit on active development contracts
-- [ ] Transfer any remaining USDC from old ArbLOWJC proxy if applicable
+- Publish and verify source for the 19 new artifacts on the relevant explorers.
+- Run post-cutover application delivery proof for Optimism ↔ Arbitrum.
+- Run post-cutover governance delivery proof for Ethereum ↔ Arbitrum.
+- Decide whether direct XDC ↔ Ethereum should remain disabled or receive reciprocal peer/security configuration.
+- Decide the production dispute minimum before deploying LocalAthena V2.
