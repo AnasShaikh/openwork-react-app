@@ -6,22 +6,29 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 1 August 2026 UTC (1 August IST) |
+| Deployed at | 1 August 2026 18:35:20 UTC (2 August 2026 00:05:20 IST) |
 | Git branch | `main` |
-| Git commit | `9b2c112a0578de3aaf146dae80d48a4fefbdb04b` |
-| GitHub CI | No workflow run is configured for this branch; local frontend/backend gates and CodeBuild passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-9b2c112a0578de3aaf146dae80d48a4fefbdb04b.zip` |
-| Source archive SHA-256 | `8aeb9407f3c87bc7f62a5818aa6540712e5cfe43e6c889827c702702a98d42e8` |
-| CodeBuild | `openwork-react-app-prod-build:935cf2c9-2d9c-40d4-ab98-f44ec8961716` — succeeded |
-| ECR image | `openwork-app:prod-9b2c112-20260801174632` |
-| ECR digest | `sha256:4721fa2d466510d373b13b8ab9509d1adcbb6c044414a81586a500c399fd987b` |
+| Git commit | `8f98a50535468208ab5a6ad86ac8e78d74c5b183` |
+| GitHub CI | [Run 30712460684](https://github.com/AnasShaikh/openwork-react-app/actions/runs/30712460684) — frontend and backend succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-8f98a50535468208ab5a6ad86ac8e78d74c5b183.zip` |
+| Source archive SHA-256 | `56109fac9a47c0da69338272894e0e17177c5600a552b0d2d4ad2c755c29cc1b` |
+| CodeBuild | `openwork-react-app-prod-build:2eb737a5-4269-44b4-aa5e-57437b84b7c0` — succeeded |
+| ECR image | `openwork-app:prod-8f98a50-20260801182553` |
+| ECR digest | `sha256:ae6744739650a111f0a492c3ecf5e370668336df76bb7a1e348428edf5814533` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `9f173e90c86f4a5684a40f766934efe2` — succeeded |
+| App Runner operation | `8bec462571d9445685bf11216f223686` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-NQdqMeIj.js` |
+| Deployed JS asset | `/assets/index-CdWkV-aF.js` |
 
 ## Verification
 
+- Frontend tests (`41/41`), backend tests (`17/17`), the mainnet frontend build, CodeBuild and the production image build passed for the exact source commit.
+- Post-deploy checks returned HTTP 200 for `/`, `/health`, `/healthz`, `/docs`, `/documentation` and every documentation API endpoint. Browser verification confirmed the production title and subtitle, registry summary, contract rows and client-side `/documentation` redirect on the deployed bundle.
+- The public documentation route is now `/docs`; `/documentation` redirects to it and the former documentation explorer remains available at `/docs/legacy` with a legacy notice.
+- The published registry documents 31 production roles represented by 50 deployed artifacts across Arbitrum, Optimism, Ethereum and XDC. It distinguishes role status from explorer source-verification status and links each deployment to its chain explorer.
+- The documentation API exposes the canonical skill, references, contract registry and combined bundle through `/api/docs`, `/api/docs/skill`, `/api/docs/references`, `/api/docs/contracts` and `/api/docs/full`.
+- The architecture overview now reflects the active Arbitrum and XDC bridge deployments, CCTP pathways, LayerZero peers, the direct-contract modules and the intentionally disabled or held routes without claiming unverified end-to-end evidence.
+- This release changed the public application and repository documentation only. It performed no smart-contract deployment or upgrade and changed no wallet, token balance or on-chain state.
 - Frontend tests (`36/36`), backend tests (`17/17`), the mainnet frontend build and the production image build passed for the exact source commit. The backend dependency lock continues to resolve the disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
 - App Runner HTTP health checks passed. The production root and `/healthz` returned HTTP 200, and browser smoke checks passed for `/direct-contract` and the durable `/direct-contract-status/:transactionHash` fallback.
 - XDC Direct Contract creation now checks the connected wallet's native XDC USDC balance before uploading metadata or requesting approval, reports the exact required and available amounts, and reuses a sufficient existing allowance instead of charging for another approval. Counter reads, LayerZero quotes and exact gas estimation now use the configured browser-safe XDC HTTP RPC; only the final signed write is sent through MetaMask.
@@ -44,6 +51,12 @@ This file is the canonical application release pointer. It describes deployed ap
 - The Post Job page now derives Type-3 LayerZero options from `DESTINATION_GAS_ESTIMATES.POST_JOB` (`800,000` destination gas), matching the validated production transaction path instead of reusing the stale `500,000` static chain option.
 - Production XDC job `30365-3` completed the real post, application, selection/start, USDC escrow, CCTP mint, work submission, release and CCTP payout flow. Its public page shows `1 / 1 Milestones Completed`, `0.10 USDC` paid and `0.10 USDC` received.
 - The AWS-hosted IPFS provider remained healthy after deployment. A post-deploy production upload returned CID `QmTr7iGdvFAt3RQy7QnMEe3TxMY8o579N8fvRDmWDVSfoW` with HTTP 200.
+
+## Public production documentation release
+
+Commit `8f98a50535468208ab5a6ad86ac8e78d74c5b183` replaces the stale public documentation landing route with a production-focused reference for OpenWork's architecture, deployed contracts, cross-chain pathways and verification state. The page is responsive at laptop and mobile widths, uses compact copyable addresses, and keeps historical or incomplete verification claims visibly separate from active deployment status.
+
+The release registry is derived from the contract repository's canonical live registry and deployment ledgers. Its audit date is 1 August 2026. Source verification is confirmed for 31 artifacts and remains pending for 19 artifacts; pending explorer publication is not presented as a deployment failure. Optimism and Ethereum pathway proof remains explicitly incomplete, the direct XDC-to-Ethereum route remains disabled, and LocalAthena V2 remains held rather than live.
 
 ## XDC browser quote correction
 
@@ -81,7 +94,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-6426381-20260801160952` |
-| ECR digest | `sha256:a0d2f88c41fb970aad3e83f3c7630dd3983a358e13abbce1bde1df4cb33c0d74` |
+| ECR image | `openwork-app:prod-9b2c112-20260801174632` |
+| ECR digest | `sha256:4721fa2d466510d373b13b8ab9509d1adcbb6c044414a81586a500c399fd987b` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
