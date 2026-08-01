@@ -193,3 +193,17 @@ test('native Arbitrum payment release preflights through the configured RPC', ()
   assert.match(localChainService, /export async function getReadOnlyLOWJCContract/);
   assert.match(localChainService, /getReadOnlyWeb3\(chainId\)/);
 });
+
+test('direct-contract validates USDC and keeps XDC preflight off the injected wallet RPC', () => {
+  const directContract = source('src/pages/DirectContractForm/DirectContractForm.jsx');
+
+  assert.match(directContract, /getReadOnlyLOWJCContract/);
+  assert.match(directContract, /getReadOnlyWeb3/);
+  assert.match(directContract, /balanceOf\(fromAddress\)/);
+  assert.match(directContract, /allowance\(fromAddress, contractAddress\)/);
+  assert.match(directContract, /Insufficient USDC balance/);
+  assert.match(directContract, /BigInt\(currentAllowance\) < firstMilestoneAmount/);
+  assert.match(directContract, /estimateLayerZeroFee\(chainId, "START_DIRECT_CONTRACT"/);
+  assert.match(directContract, /buildEstimatedWriteSendOptions\([\s\S]*readOnlyDirectContractMethod/);
+  assert.match(directContract, /directContractMethod\.send\(sendOptions\)/);
+});

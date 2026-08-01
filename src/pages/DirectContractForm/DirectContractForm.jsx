@@ -13,7 +13,13 @@ import Milestone from "../../components/Milestone/Milestone";
 import RadioButton from "../../components/RadioButton/RadioButton";
 import Warning from "../../components/Warning/Warning";
 import { getLocalChains, getChainConfig, getNativeChain } from "../../config/chainConfig";
-import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  estimateLayerZeroFee,
+  getLOWJCContract,
+  getReadOnlyLOWJCContract,
+  getReadOnlyWeb3,
+  isNativeArbChain,
+} from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
   buildEstimatedWriteSendOptions,
@@ -49,6 +55,47 @@ const TRANSACTION_BUTTON_LABELS = {
   success: "Contract Created",
   "confirmed-unresolved": "Transaction Confirmed",
 };
+
+const USDC_BASE_UNITS = 1_000_000n;
+const USDC_ABI = [
+  {
+    inputs: [{ type: "address", name: "account" }],
+    name: "balanceOf",
+    outputs: [{ type: "uint256", name: "" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { type: "address", name: "owner" },
+      { type: "address", name: "spender" },
+    ],
+    name: "allowance",
+    outputs: [{ type: "uint256", name: "" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { type: "address", name: "spender" },
+      { type: "uint256", name: "amount" },
+    ],
+    name: "approve",
+    outputs: [{ type: "bool", name: "" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
+function formatUsdcBaseUnits(value) {
+  const amount = BigInt(value);
+  const whole = amount / USDC_BASE_UNITS;
+  const fractional = (amount % USDC_BASE_UNITS)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
+  return fractional ? `${whole}.${fractional}` : whole.toString();
+}
 
 function FileUpload({ onFilesUploaded, uploadedFiles }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -506,6 +553,30 @@ export default function DirectContractForm() {
 
       const milestoneHashes = [];
       const milestoneAmounts = milestones.map((milestone) => toMicroUsdc(milestone.amount));
+      const firstMilestoneAmount = BigInt(milestoneAmounts[0]);
+      const contractAddress = currentChainConfig.contracts.lowjc;
+      const readOnlyWeb3 = getReadOnlyWeb3(chainId);
+      const readOnlyUsdcContract = new readOnlyWeb3.eth.Contract(
+        USDC_ABI,
+        currentChainConfig.contracts.usdc,
+      );
+
+      setTransactionState({
+        phase: "preparing",
+        message: "Checking your USDC balance and existing approval…",
+        variant: "info",
+      });
+
+      const [userUsdcBalance, currentAllowance] = await Promise.all([
+        readOnlyUsdcContract.methods.balanceOf(fromAddress).call(),
+        readOnlyUsdcContract.methods.allowance(fromAddress, contractAddress).call(),
+      ]);
+
+      if (BigInt(userUsdcBalance) < firstMilestoneAmount) {
+        throw new Error(
+          `Insufficient USDC balance. The first milestone requires ${formatUsdcBaseUnits(firstMilestoneAmount)} USDC, but this wallet has ${formatUsdcBaseUnits(userUsdcBalance)} USDC. Add USDC on ${currentChainConfig.name} before trying again.`,
+        );
+      }
 
       for (let index = 0; index < milestones.length; index += 1) {
         const milestoneHash = await pinMilestoneToIPFS(milestones[index], index);
@@ -533,32 +604,33 @@ export default function DirectContractForm() {
       }
 
       const contract = await getLOWJCContract(chainId);
-      const contractAddress = currentChainConfig.contracts.lowjc;
+      const readOnlyContract = await getReadOnlyLOWJCContract(chainId);
       const isNativeArbitrum = isNativeArbChain(chainId);
       const jobTakerChainDomain = currentChainConfig.cctpDomain;
 
-      setTransactionState({
-        phase: "approval",
-        message: "Confirm the USDC approval in MetaMask. This is required before the contract can be created.",
-        variant: "warning",
-      });
+      if (BigInt(currentAllowance) < firstMilestoneAmount) {
+        setTransactionState({
+          phase: "approval",
+          message: "Confirm the USDC approval in MetaMask. This is required before the contract can be created.",
+          variant: "warning",
+        });
 
-      const usdcContract = new web3.eth.Contract([{
-        inputs: [
-          { internalType: "address", name: "spender", type: "address" },
-          { internalType: "uint256", name: "amount", type: "uint256" },
-        ],
-        name: "approve",
-        outputs: [{ internalType: "bool", name: "", type: "bool" }],
-        stateMutability: "nonpayable",
-        type: "function",
-      }], currentChainConfig.contracts.usdc);
+        const walletUsdcContract = new web3.eth.Contract(
+          USDC_ABI,
+          currentChainConfig.contracts.usdc,
+        );
+        await walletUsdcContract.methods
+          .approve(contractAddress, firstMilestoneAmount.toString())
+          .send({ from: fromAddress, gas: 100000 });
+      } else {
+        setTransactionState({
+          phase: "preparing",
+          message: "Your existing USDC approval is sufficient. Preparing the contract…",
+          variant: "info",
+        });
+      }
 
-      await usdcContract.methods
-        .approve(contractAddress, milestoneAmounts[0])
-        .send({ from: fromAddress, gas: 100000 });
-
-      const counterBefore = await contract.methods.getJobCount().call();
+      const counterBefore = await readOnlyContract.methods.getJobCount().call();
       const jobIdPrefix = isNativeArbitrum
         ? chainId
         : currentChainConfig.layerzero.eid;
@@ -575,18 +647,7 @@ export default function DirectContractForm() {
           variant: "info",
         });
 
-        const bridgeAddress = await contract.methods.bridge().call();
-        const bridgeContract = new web3.eth.Contract([{
-          inputs: [
-            { type: "bytes", name: "_payload" },
-            { type: "bytes", name: "_options" },
-          ],
-          name: "quoteNativeChain",
-          outputs: [{ type: "uint256", name: "fee" }],
-          stateMutability: "view",
-          type: "function",
-        }], bridgeAddress);
-        const quotePayload = web3.eth.abi.encodeParameters(
+        const quotePayload = readOnlyWeb3.eth.abi.encodeParameters(
           ["string", "address", "address", "string", "string", "string[]", "uint256[]", "uint32"],
           [
             "startDirectContract",
@@ -599,9 +660,10 @@ export default function DirectContractForm() {
             jobTakerChainDomain,
           ],
         );
-        layerZeroFee = String(await bridgeContract.methods
-          .quoteNativeChain(quotePayload, directContractOptions)
-          .call());
+        layerZeroFee = await estimateLayerZeroFee(chainId, "START_DIRECT_CONTRACT", {
+          encodedPayload: quotePayload,
+          nativeOptions: directContractOptions,
+        });
       }
 
       setTransactionState({
@@ -623,14 +685,30 @@ export default function DirectContractForm() {
         ],
         directContractOptions,
       );
-      const sendOptions = await buildEstimatedWriteSendOptions(
-        directContractMethod,
+      const readOnlyDirectContractMethod = createLOWJCWrite(
+        readOnlyContract,
         currentChainConfig,
-        {
-          from: fromAddress,
-          value: layerZeroFee,
-          gasPrice: await web3.eth.getGasPrice(),
-        },
+        LOWJC_OPERATIONS.START_DIRECT_CONTRACT,
+        [
+          jobTaker.trim(),
+          jobResponse.IpfsHash,
+          milestoneHashes,
+          milestoneAmounts,
+          jobTakerChainDomain,
+        ],
+        directContractOptions,
+      );
+      const preflightOptions = isNativeArbitrum
+        ? { from: fromAddress }
+        : {
+            from: fromAddress,
+            value: layerZeroFee,
+            gasPrice: String(await readOnlyWeb3.eth.getGasPrice()),
+          };
+      const sendOptions = await buildEstimatedWriteSendOptions(
+        readOnlyDirectContractMethod,
+        currentChainConfig,
+        preflightOptions,
       );
 
       let sourceTxHash = null;
@@ -654,7 +732,7 @@ export default function DirectContractForm() {
 
       const jobId = await resolveDirectContractJobId({
         receipt,
-        contract,
+        contract: readOnlyContract,
         jobIdPrefix,
         counterBefore,
       });
