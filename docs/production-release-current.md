@@ -6,23 +6,28 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 1 August 2026 18:35:20 UTC (2 August 2026 00:05:20 IST) |
+| Deployed at | 1 August 2026 19:27:28 UTC (2 August 2026 00:57:28 IST) |
 | Git branch | `main` |
-| Git commit | `8f98a50535468208ab5a6ad86ac8e78d74c5b183` |
-| GitHub CI | [Run 30712460684](https://github.com/AnasShaikh/openwork-react-app/actions/runs/30712460684) — frontend and backend succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-8f98a50535468208ab5a6ad86ac8e78d74c5b183.zip` |
-| Source archive SHA-256 | `56109fac9a47c0da69338272894e0e17177c5600a552b0d2d4ad2c755c29cc1b` |
-| CodeBuild | `openwork-react-app-prod-build:2eb737a5-4269-44b4-aa5e-57437b84b7c0` — succeeded |
-| ECR image | `openwork-app:prod-8f98a50-20260801182553` |
-| ECR digest | `sha256:ae6744739650a111f0a492c3ecf5e370668336df76bb7a1e348428edf5814533` |
+| Git commit | `fec743f07cbc56659bb623830208fed82d38929d` |
+| GitHub CI | No workflow run was registered for this commit; local frontend/backend tests and the production CodeBuild gate passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-fec743f07cbc56659bb623830208fed82d38929d.zip` |
+| Source archive SHA-256 | `9bc90b2e7f51d0d4a290b02c4fcf022617f71feae6cd5feaf52bf4d4c7d22369` |
+| CodeBuild | `openwork-react-app-prod-build:9b916750-e9c1-4d13-972a-a045c283e56b` — succeeded |
+| ECR image | `openwork-app:prod-fec743f-20260801191945` |
+| ECR digest | `sha256:a36c87803e5ae853cab26c5d057ca68bf0f9e747bd65a590fb194448b0fc8189` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `8bec462571d9445685bf11216f223686` — succeeded |
+| App Runner operation | `dec3e3f9674246828a392b82358e473d` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CdWkV-aF.js` |
+| Deployed JS asset | `/assets/index-Baoy7gR-.js` |
 
 ## Verification
 
-- Frontend tests (`41/41`), backend tests (`17/17`), the mainnet frontend build, CodeBuild and the production image build passed for the exact source commit.
+- Frontend tests (`42/42`), backend tests (`21/21`), the mainnet frontend build, CodeBuild and the production image build passed for the exact source commit.
+- CCTP receive execution now reconciles generic provider or duplicate-relay errors against Circle's destination `usedNonces(bytes32)` state. A consumed nonce is recorded as delivered instead of a false failure; an unused nonce is never presented as success.
+- Release Payment and Start Job no longer expose protected operator retry endpoints in the browser or interpolate missing backend fields into `undefined` error messages. Job `30365-5` now renders its contract-recorded final state: `Completed`, `0.10 USDC` released, `0` locked, both payment buttons disabled and a definitive success notice.
+- Production browser verification of `/release-payment/30365-5` found no console warnings or errors. The deployed bundle contains the final-state message and contains neither browser CCTP retry endpoint nor the obsolete retry-attempt text.
+- The current relay status store remains process-local because production has no usable external database configured. On-chain destination-nonce reconciliation prevents false failures within a running process, while durable historical relay status across restarts still requires a real external database.
+- This repair deployed application/backend code only. It sent no chain transaction and changed no smart contract, wallet, token balance or on-chain state.
 - Post-deploy checks returned HTTP 200 for `/`, `/health`, `/healthz`, `/docs`, `/documentation` and every documentation API endpoint. Browser verification confirmed the production title and subtitle, registry summary, contract rows and client-side `/documentation` redirect on the deployed bundle.
 - The public documentation route is now `/docs`; `/documentation` redirects to it and the former documentation explorer remains available at `/docs/legacy` with a legacy notice.
 - The published registry documents 31 production roles represented by 50 deployed artifacts across Arbitrum, Optimism, Ethereum and XDC. It distinguishes role status from explorer source-verification status and links each deployment to its chain explorer.
@@ -84,6 +89,12 @@ Commit `6426381b58f199511eff9a9d3919885507525574` prevents the backend listener 
 
 Commit `9b2c112a0578de3aaf146dae80d48a4fefbdb04b` corrects the production XDC Direct Contract path after MetaMask surfaced a generic `Internal JSON-RPC error` for an on-chain insufficient-USDC revert. The application now fails early with the exact balance shortfall, skips redundant approval when allowance is already sufficient and performs all read-only preflight through the configured XDC RPC. The deployment itself performed no wallet, token or smart-contract write.
 
+## CCTP destination-delivery reconciliation
+
+Commits `7655f91702345832ffb515b94b6e7ac150dccce3`, `b48281fd4c679f8babc5b62a3d80015e288d7d13` and `fec743f07cbc56659bb623830208fed82d38929d` correct the misleading failed/incomplete state observed after XDC job `30365-5` paid its applicant successfully. The backend now treats the destination Circle MessageTransmitter nonce as the delivery authority, including before a service-wallet write and after a generic provider error. The user-facing pages no longer call protected operator-retry routes, and a contract-completed job is rendered as final with no further payment action available.
+
+The verified release path burned `0.1 USDC` on Arbitrum in transaction `0x45985996d8bbd0ad39d36db06a4238cb3b6d8b636498f1e8b460d34a74f34f17`; XDC transaction `0x28ce7065d9190d3a016126a31676cb6207cf65a4ad5de8fa4187f9f6ff1a9518` consumed the Circle message and delivered `99,986` raw USDC units to applicant `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724` after the 14-unit protocol fee. This release only corrected application interpretation and UI state; it did not replay or alter those transactions.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -94,7 +105,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-9b2c112-20260801174632` |
-| ECR digest | `sha256:4721fa2d466510d373b13b8ab9509d1adcbb6c044414a81586a500c399fd987b` |
+| ECR image | `openwork-app:prod-b48281f-20260801190752` |
+| ECR digest | `sha256:18644cd7fa5f55e72b68270e925b7e805f14be2bc287460a303f9a046b495046` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
