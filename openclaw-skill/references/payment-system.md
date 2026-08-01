@@ -1,17 +1,17 @@
 # Payment System
 
-All payments in OpenWork use USDC with cross-chain escrow. Funds flow from the job giver on a supported local chain (Optimism or XDC), through escrow on Arbitrum, and to the job taker on their preferred chain.
+All payments in OpenWork use USDC with escrow on Arbitrum. Funds can enter through Optimism, XDC, or the direct Arbitrum adapter and are released to the job taker's preferred supported chain.
 
 ## Payment Flow Overview
 
 ```
-Job Giver (Optimism or XDC)
+Job Giver (Optimism, XDC, or Arbitrum)
   → Approves USDC
   → LOWJC transfers USDC, sends via CCTP to Arbitrum
   → NOWJC holds USDC in escrow on Arbitrum
   → Job giver releases payment
-  → NOWJC deducts 1% commission
-  → Sends remaining USDC via CCTP to job taker's preferred chain
+  → NOWJC calculates the live configured commission
+  → Sends the net USDC directly on Arbitrum or via CCTP to the preferred chain
 ```
 
 ## USDC Addresses
@@ -77,7 +77,7 @@ function releasePaymentCrossChain(
 ### On NOWJC (Arbitrum)
 
 When NOWJC receives the release instruction:
-1. Calculates 1% commission
+1. Calculates commission from the live proxy's `commissionPercentage` and `minCommission`
 2. If recipient is on Arbitrum (domain 3): direct USDC transfer
 3. If recipient is on another chain: sends via CCTP
 
@@ -99,20 +99,20 @@ function lockNextMilestone(
 
 | Parameter | Value |
 |-----------|-------|
-| Commission rate | 1% (100 basis points) |
-| Minimum commission | 0.0001 USDC |
+| Live commission rate (audited 1 Aug 2026) | 0% (0 basis points) |
+| Live minimum commission (audited 1 Aug 2026) | 0 USDC |
 | Maximum configurable rate | 10% |
 
 ```solidity
 function calculateCommission(uint256 amount) public view returns (uint256) {
-    uint256 percentCommission = (amount * 100) / 10000;  // 1%
-    return percentCommission > 100 ? percentCommission : 100;  // min 0.0001 USDC
+    uint256 percentCommission = (amount * commissionPercentage) / 10000;
+    return percentCommission > minCommission ? percentCommission : minCommission;
 }
 ```
 
-**Example:** For a 1000 USDC milestone:
-- Commission: 10 USDC (1%)
-- Job taker receives: 990 USDC
+The V5 implementation source declares 1% / 1 USDC initial field values, but an upgrade does not overwrite the proxy's existing storage. The live proxy reads back `commissionPercentage() == 0` and `minCommission() == 0`; do not quote source initializers as production configuration.
+
+**Current example:** For a 1000 USDC milestone, NOWJC calculates 0 USDC commission and releases 1000 USDC before any Circle transfer fee effect. Always read the two live values again before presenting a fee quote.
 
 ## Combined Release + Lock
 

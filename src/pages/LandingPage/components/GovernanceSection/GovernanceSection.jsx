@@ -15,7 +15,7 @@ const GovernanceSection = () => {
           </p>
           <button 
             className="lp-blue-button"
-            onClick={() => navigate('/documentation')}
+            onClick={() => navigate('/docs')}
           >
             View Documentation
             <img src="/assets/lp7-arrow-icon.svg" alt="" className="lp-button-icon" />

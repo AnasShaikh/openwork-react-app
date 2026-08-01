@@ -6,10 +6,10 @@ OpenWork operates across four mainnet blockchains, each with a specific role. Cr
 
 | Chain | Role | What Lives Here |
 |-------|------|-----------------|
-| **Optimism** | Local chain (user-facing) | LOWJC, LocalAthena — where users submit transactions |
-| **XDC Network** | Local chain (user-facing) | LOWJC, LocalAthena — routes all application messages through Arbitrum |
-| **Arbitrum One** | Native chain (source of truth) | NOWJC, Genesis, NativeAthena, Rewards, Profiles — all state storage and business logic |
-| **Ethereum** | Main chain (governance) | ETHOpenworkDAO, ETHRewardsContract, OWORK token |
+| **Optimism** | Local chain (user-facing) | LOWJC, LocalAthena and the Optimism bridge |
+| **XDC Network** | Local chain (user-facing) | LOWJC, LocalAthena and the replacement XDC V2 bridge; application messages route through Arbitrum |
+| **Arbitrum One** | Native chain (source of truth) | NOWJC, Genesis, NativeAthena, Rewards, Profiles, Native DAO, VotingPowerCheckpoints, NativeDAOStakeSync and direct Arbitrum adapters |
+| **Ethereum** | Main chain (governance) | ETHOpenworkDAO, VotingPowerCheckpoints, ETHDAOMessaging, ETHRewardsContract and OWORK |
 
 ## Why Three Chains?
 
@@ -22,9 +22,13 @@ OpenWork operates across four mainnet blockchains, each with a specific role. Cr
 ```
 User on Optimism or XDC
   → LOWJC (minimal local state)
-    → LayerZero message → NativeBridge on Arbitrum
+    → LayerZero message → NativeBridge V3 on Arbitrum
       → NOWJC (full state in Genesis)
         → CCTP USDC transfer (if payment involved)
+
+User on Arbitrum
+  → NativeArbOpenWorkJobContract / NativeArbAthenaClient
+    → NOWJC / NativeAthena without a cross-chain application hop
 ```
 
 Users interact with Optimism or XDC. The system handles the Arbitrum state synchronization automatically.
@@ -54,10 +58,12 @@ LayerZero V2 handles all cross-chain state sync. Bridge contracts on each chain 
 
 | Chain | Bridge Contract | Address |
 |-------|----------------|---------|
-| Arbitrum | NativeLZOpenworkBridge V2 | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
+| Arbitrum | NativeLZOpenworkBridge V3 | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` |
 | Optimism | LocalLZOpenworkBridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` |
-| XDC | LocalLZOpenworkBridge | `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` |
+| XDC | LocalLZOpenworkBridge V2 | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` |
 | Ethereum | ETHLZOpenworkBridge | `0x20Fa268106A3C532cF9F733005Ab48624105c42F` |
+
+The former Arbitrum bridge `0x1bC57...` is retained only for rollback/in-flight compatibility. The former XDC bridge `0x745666...` is retired on XDC; that same address remains the active Optimism bridge.
 
 ### Message Types (Local Chain → Arbitrum)
 
@@ -83,22 +89,23 @@ LayerZero V2 handles all cross-chain state sync. Bridge contracts on each chain 
 
 | Direction | Action | Purpose |
 |-----------|--------|---------|
-| Arb → ETH | syncVotingPower | Sync user voting power to DAO |
+| Arb → ETH | syncVotingPower | Sync voting-power checkpoints to Ethereum |
 | Arb → ETH | syncClaimableRewards | Sync claimable OWORK balance |
-| ETH → Arb | incrementGovernanceAction | Record DAO votes/proposals |
+| ETH → Arb | ETHDAOMessaging operations | Route governance and stake messages to NativeDAOStakeSync / native modules |
 | ETH → Arb | updateUserClaimData | Mark tokens as claimed |
-| ETH → Arb | updateStakeData | Sync stake info to native chain |
 | ETH → Any | upgradeFromDAO | Cross-chain contract upgrade |
+
+Voting power is now checkpointed on both Arbitrum and Ethereum. The July 2026 architecture separates Ethereum DAO messaging from stake synchronization: `ETHDAOMessaging` is the Ethereum-side sender/receiver, while `NativeDAOStakeSync` applies stake-derived state on Arbitrum.
 
 ### LZ Gas Options
 
-Every cross-chain call requires `_nativeOptions` that encode gas for destination execution:
+Every cross-chain call requires `_nativeOptions` that encode destination execution gas. Options are operation-specific; quote with the exact payload and options used by the transaction. For example, this value encodes 500,000 gas:
 
 ```
 0x0003010011010000000000000000000000000007a120
 ```
 
-This encodes 500,000 gas (0x07a120). Standard for most operations.
+Do not treat that example as a universal production default.
 
 ### LZ Fee
 
@@ -161,4 +168,6 @@ function receive(
 - Current contracts use `maxFee = 1000` (0.001 USDC) — may result in slow-path transfers
 - NOWJC has a 0.01% fee tolerance for received amounts
 - XDC Standard Transfer attestations can take longer than fast-transfer routes
-- Direct XDC ↔ Ethereum application messaging is not enabled; XDC routes through Arbitrum
+- XDC ↔ Arbitrum is configured and passed a full production job lifecycle after the 19 July 2026 bridge cutover (`30365-3`)
+- Optimism ↔ Arbitrum and Ethereum ↔ Arbitrum are reciprocally configured, but no post-cutover application/governance end-to-end proof is recorded
+- Direct XDC ↔ Ethereum application messaging is disabled: the Ethereum peer still names the retired XDC bridge and the direct security stack is not installed. Route through Arbitrum

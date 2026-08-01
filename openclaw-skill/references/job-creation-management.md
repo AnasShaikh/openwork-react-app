@@ -151,7 +151,7 @@ function releasePaymentCrossChain(
 1. Clears `currentLockedAmount` on LOWJC
 2. If all milestones done → status = Completed
 3. Sends LZ message to NOWJC
-4. NOWJC deducts 1% commission and sends remaining USDC via CCTP to the recipient
+4. NOWJC applies its live commission configuration (currently 0 bps and 0 minimum, audited 1 Aug 2026) and sends the net USDC directly on Arbitrum or via CCTP to the recipient
 
 ## Step 6: Lock Next Milestone
 

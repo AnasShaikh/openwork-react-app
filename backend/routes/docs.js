@@ -5,6 +5,61 @@ const path = require('path');
 
 const SKILL_DIR = path.join(__dirname, '../../openclaw-skill');
 const REFS_DIR = path.join(SKILL_DIR, 'references');
+const CONTRACT_REGISTRY = require('../../docs/mainnet-contracts.json');
+
+const contractApiNames = {
+  'native-openwork-genesis': 'NativeOpenworkGenesis',
+  nowjc: 'NOWJC',
+  'native-arb-lowjc': 'NativeArbLOWJC',
+  'native-arb-athena-client': 'NativeArbAthenaClient',
+  'native-openwork-dao': 'NativeOpenworkDAO',
+  'native-athena': 'NativeAthena',
+  'native-profile-genesis': 'NativeProfileGenesis',
+  'native-athena-activity-tracker': 'NativeAthenaActivityTracker',
+  'native-athena-oracle-manager': 'NativeAthenaOracleManager',
+  'native-profile-manager': 'NativeProfileManager',
+  'native-voting-power-checkpoints': 'OpenworkVotingPowerCheckpoints',
+  'native-dao-stake-sync': 'NativeDAOStakeSync',
+  'native-lz-openwork-bridge': 'NativeLZOpenworkBridge',
+  'native-rewards': 'NativeRewardsContract',
+  'arbitrum-cctp-transceiver': 'CCTPTransceiver',
+  'native-contract-registry': 'NativeContractRegistry',
+  'native-genesis-reader': 'NativeGenesisReader',
+  'optimism-lowjc': 'LOWJC',
+  'optimism-local-athena': 'LocalAthena',
+  'optimism-local-bridge': 'LocalLZOpenworkBridge',
+  'optimism-cctp-transceiver': 'CCTPTransceiver',
+  'xdc-lowjc': 'LOWJC',
+  'xdc-local-athena': 'LocalAthena',
+  'xdc-local-bridge': 'LocalLZOpenworkBridge',
+  'xdc-cctp-transceiver': 'CCTPTransceiver',
+  'eth-openwork-dao': 'ETHOpenworkDAO',
+  'eth-voting-power-checkpoints': 'OpenworkVotingPowerCheckpoints',
+  'eth-dao-messaging': 'ETHDAOMessaging',
+  'eth-lz-openwork-bridge': 'ETHLZOpenworkBridge',
+  'eth-rewards': 'ETHRewardsContract',
+  'openwork-token': 'OpenworkToken'
+};
+
+function buildCompatibilityRegistry() {
+  return Object.fromEntries(CONTRACT_REGISTRY.chains.map(chain => [
+    chain.key,
+    {
+      chainId: chain.chainId,
+      lzEid: chain.lzEid,
+      cctpDomain: chain.cctpDomain,
+      role: chain.role,
+      contracts: Object.fromEntries(chain.contracts.map(contract => [
+        contractApiNames[contract.id] || contract.id,
+        contract.address
+      ])),
+      implementations: Object.fromEntries(chain.contracts
+        .filter(contract => contract.implementation)
+        .map(contract => [contractApiNames[contract.id] || contract.id, contract.implementation])),
+      dependencies: chain.dependencies
+    }
+  ]));
+}
 
 /**
  * Helper: read a markdown file and return its content
@@ -24,7 +79,10 @@ function readMarkdown(filePath) {
 router.get('/', (req, res) => {
   res.json({
     name: 'OpenWork Documentation API',
-    description: 'Machine-readable documentation for the OpenWork decentralized freelancing protocol. Designed for AI agents (OpenClaw, etc.) that cannot render client-side JavaScript.',
+    description: 'Machine-readable production documentation for the OpenWork decentralized freelancing protocol.',
+    lastAudited: CONTRACT_REGISTRY.lastAudited,
+    canonicalSource: CONTRACT_REGISTRY.canonicalSource,
+    publicDocs: CONTRACT_REGISTRY.publicDocsUrl,
     sections: {
       skill: {
         description: 'OpenClaw skill package — main overview with capabilities, workflows, and contract addresses',
@@ -47,7 +105,7 @@ router.get('/', (req, res) => {
         ]
       },
       contracts: {
-        description: 'Quick-reference contract addresses for all chains',
+        description: 'Live addresses, implementations, source files, verification status and pathway readiness for all production chains',
         endpoint: '/api/docs/contracts'
       },
       full: {
@@ -124,69 +182,24 @@ router.get('/references/:topic', (req, res) => {
  */
 router.get('/contracts', (req, res) => {
   res.json({
-    mainnet: {
-      arbitrum: {
-        chainId: 42161,
-        role: 'Native chain — source of truth, escrow, oracle',
-        contracts: {
-          NativeOpenworkGenesis: '0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294',
-          NOWJC: '0x8EfbF240240613803B9c9e716d4b5AD1388aFd99',
-          NativeOpenworkDAO: '0x24af98d763724362DC920507b351cC99170a5aa4',
-          NativeAthena: '0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf',
-          NativeProfileGenesis: '0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E',
-          NativeAthenaActivityTracker: '0x8C04840c3f5b5a8c44F9187F9205ca73509690EA',
-          NativeAthenaOracleManager: '0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15',
-          NativeProfileManager: '0x51285003A01319c2f46BB2954384BCb69AfB1b45',
-          NativeLZOpenworkBridge: '0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F',
-          NativeRewardsContract: '0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9',
-          CCTPTransceiver: '0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87',
-          NativeContractRegistry: '0x29D61B1a9E2837ABC0810925429Df641CBed58c3',
-          NativeGenesisReader: '0x72ee091C288512f0ee9eB42B8C152fbB127Dc782',
-          USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
-        }
-      },
-      optimism: {
-        chainId: 10,
-        role: 'Local chain — user-facing, low gas',
-        contracts: {
-          LOWJC: '0x620205A4Ff0E652fF03a890d2A677de878a1dB63',
-          LocalLZOpenworkBridge: '0x74566644782e98c87a12E8Fc6f7c4c72e2908a36',
-          CCTPTransceiver: '0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15',
-          LocalAthena: '0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d',
-          USDC: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
-        }
-      },
-      xdc: {
-        chainId: 50,
-        role: 'Local chain — user-facing, routes state through Arbitrum',
-        contracts: {
-          LOWJC: '0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7',
-          LocalLZOpenworkBridge: '0x74566644782e98c87a12E8Fc6f7c4c72e2908a36',
-          CCTPTransceiver: '0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510',
-          LocalAthena: '0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d',
-          USDC: '0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1'
-        }
-      },
-      ethereum: {
-        chainId: 1,
-        role: 'Main chain — governance, OWORK token',
-        contracts: {
-          ETHOpenworkDAO: '0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294',
-          ETHRewardsContract: '0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d',
-          OpenworkToken: '0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87',
-          ETHLZOpenworkBridge: '0x20Fa268106A3C532cF9F733005Ab48624105c42F'
-        }
-      }
-    },
+    schemaVersion: CONTRACT_REGISTRY.schemaVersion,
+    lastAudited: CONTRACT_REGISTRY.lastAudited,
+    canonicalSource: CONTRACT_REGISTRY.canonicalSource,
+    deploymentLedger: CONTRACT_REGISTRY.deploymentLedger,
+    summary: CONTRACT_REGISTRY.summary,
+    auditedBlocks: CONTRACT_REGISTRY.auditedBlocks,
+    mainnet: buildCompatibilityRegistry(),
     external: {
       LayerZeroEndpointV2: '0x1a44076050125825900e736c501f859c50fE728c',
-      chainIdentifiers: {
-        arbitrum: { chainId: 42161, lzEid: 30110, cctpDomain: 3 },
-        optimism: { chainId: 10, lzEid: 30111, cctpDomain: 2 },
-        xdc: { chainId: 50, lzEid: 30365, cctpDomain: 18 },
-        ethereum: { chainId: 1, lzEid: 30101, cctpDomain: 0 }
-      }
-    }
+      chainIdentifiers: Object.fromEntries(CONTRACT_REGISTRY.chains.map(chain => [
+        chain.key,
+        { chainId: chain.chainId, lzEid: chain.lzEid, cctpDomain: chain.cctpDomain }
+      ]))
+    },
+    chains: CONTRACT_REGISTRY.chains,
+    pathways: CONTRACT_REGISTRY.pathways,
+    legacyDeployments: CONTRACT_REGISTRY.legacyDeployments,
+    heldNotLive: CONTRACT_REGISTRY.heldNotLive
   });
 });
 
@@ -211,6 +224,7 @@ router.get('/full', (req, res) => {
   res.json({
     skill: skill || 'SKILL.md not found',
     references,
+    contractRegistry: CONTRACT_REGISTRY,
     repos: {
       app: 'https://github.com/AnasShaikh/openwork-react-app',
       skill: 'https://github.com/AnasShaikh/openwork-react-app/tree/main/openclaw-skill'

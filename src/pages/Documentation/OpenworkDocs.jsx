@@ -447,6 +447,9 @@ const OpenworkDocs = () => {
 
   return (
     <div className="docs-container">
+      <a className="docs-legacy-banner" href="/docs">
+        Legacy reference · View the audited mainnet documentation
+      </a>
       <div className="docs-sidebar">
         <div className="docs-sidebar-content">
           <div>

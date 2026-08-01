@@ -26,7 +26,7 @@ OpenWork is a multi-chain decentralized freelancing platform where:
 - **Oracle members** verify skills and resolve disputes
 - **Token holders** govern the protocol by staking OWORK and voting on proposals
 
-User-facing actions happen on **Optimism** or **XDC**. The system automatically syncs state to **Arbitrum** (source of truth) via LayerZero messaging, and moves USDC cross-chain via Circle CCTP. Governance and the OWORK token live on **Ethereum**.
+User-facing actions happen on **Optimism**, **XDC**, or through the direct Arbitrum adapters. The system synchronizes canonical state to **Arbitrum** via LayerZero messaging and moves USDC cross-chain via Circle CCTP. Governance and the OWORK token live on **Ethereum**.
 
 ## Quick Start
 
@@ -43,7 +43,7 @@ User-facing actions happen on **Optimism** or **XDC**. The system automatically 
 |-------|----------|------|
 | Optimism | 10 | User-facing — post jobs, apply, pay, dispute |
 | XDC Network | 50 | User-facing — post jobs, apply, pay, dispute |
-| Arbitrum One | 42161 | Backend — stores all state, holds escrow |
+| Arbitrum One | 42161 | Native execution — direct entry, canonical state, escrow, disputes and profiles |
 | Ethereum | 1 | Governance — staking, voting, OWORK token |
 
 ### Key Contract (User Entry Point)
@@ -75,7 +75,7 @@ Skip the posting/application flow. Directly create a contract with a specific pe
 
 ### 3. USDC Payments & Escrow
 
-All payments use USDC with cross-chain escrow. Funds are locked on Arbitrum and released to the job taker's preferred chain. 1% platform commission.
+All payments use USDC with cross-chain escrow. Funds are locked on Arbitrum and released to the job taker's preferred chain. The live NOWJC proxy is currently configured for zero platform commission; the rate and minimum are governance/admin-configurable and must be read from chain.
 
 **Key actions:** Fund milestone, release payment, refund, check escrow balance
 
@@ -171,14 +171,15 @@ Create and manage on-chain profiles with IPFS-stored data, portfolio items, and 
 ## Cross-Chain Architecture
 
 ```
-User (Optimism or XDC)
+User (Optimism, XDC, or direct Arbitrum adapter)
   ├── LOWJC ──── LayerZero ────→ NOWJC (Arbitrum) ──→ Genesis (state storage)
   ├── USDC ───── Circle CCTP ──→ NOWJC (escrow)
   └── LocalAthena ── LayerZero → NativeAthena (Arbitrum)
 
 Governance (Ethereum)
-  ├── ETHOpenworkDAO ── LayerZero ──→ NOWJC (sync governance actions)
-  └── ETHRewardsContract ←── LayerZero ── NOWJC (sync claimable rewards)
+  ├── ETHOpenworkDAO ↔ VotingPowerCheckpoints (historical voting power)
+  ├── ETHDAOMessaging ── LayerZero/bridge ──→ NativeDAOStakeSync (Arbitrum)
+  └── ETHRewardsContract ←── LayerZero/bridge ── NativeRewards (Arbitrum)
 ```
 
 **Reference:** [references/cross-chain-architecture.md](references/cross-chain-architecture.md)
@@ -187,7 +188,7 @@ Governance (Ethereum)
 
 | Parameter | Value |
 |-----------|-------|
-| Platform commission | 1% |
+| Platform commission | Live proxy: 0 bps, minimum 0 USDC (configurable; read on-chain before quoting) |
 | USDC decimals | 6 |
 | LayerZero fee per operation | Live bridge quote; varies by chain and congestion |
 | Minimum stake | 100 OWORK |
@@ -211,7 +212,11 @@ Governance (Ethereum)
 | NativeAthena | Arbitrum | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` |
 | LocalAthena | Optimism | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` |
 | LocalAthena | XDC | `0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d` |
+| Native Bridge V3 | Arbitrum | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` |
+| Local Bridge V2 | XDC | `0xDae5036a1d9E7C6CE953604FF238E13BD2B83951` |
 | ETHOpenworkDAO | Ethereum | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` |
+| VotingPowerCheckpoints | Ethereum | `0x72ee091C288512f0ee9eB42B8C152fbB127Dc782` |
+| ETHDAOMessaging | Ethereum | `0xDCF7c77314E8F042C97EFB96991b7DAc5Dc79f0D` |
 | OWORK Token | Ethereum | `0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87` |
 | USDC | Optimism | `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` |
 | USDC | XDC | `0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1` |
@@ -233,7 +238,7 @@ Common issues and solutions:
 
 - Always approve USDC before calling functions that move funds (startJob, lockNextMilestone, startDirectContract)
 - Quote the live bridge fee for every LayerZero call and include the application's safety buffer; never assume a fixed fee
-- CCTP transfers need a manual `receive()` call on the destination chain to complete — check Circle's attestation API
+- CCTP transfers need a `receive()` call on the destination chain after Circle attestation; the production relayer normally performs it, but operators should verify completion
 - Job IDs follow the format `"{lzEid}-{counter}"` (for example, `"30111-44"` on Optimism or `"30365-1"` on XDC)
 - All USDC amounts use 6 decimals (e.g., 100 USDC = `100000000`)
 
