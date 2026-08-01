@@ -329,6 +329,16 @@ Production upload/read verification succeeded with recursively pinned CID `QmZDi
 
 The detailed infrastructure, security, capacity, cost and recovery record is maintained in the frontend repository at `docs/ipfs-aws-production-2026-07-19.md`.
 
+## Phase 13 — native Arbitrum payment verification and Rewards ProfileGenesis configuration
+
+Status: **complete**.
+
+Production web-app transaction `0x94062ead40b636aa80d1cbb5ab07ebcb6de055ccd2354753f9f7627c06aba387` released job `42161-22`. Its successful receipt contains the canonical Arbitrum USDC transfer of exactly `100,000` raw units from NOWJC to selected applicant `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`. ArbLOWJC and NOWJC both read back status `Completed` and `totalPaid = 100000`; ArbLOWJC additionally reports `currentLockedAmount = 0`, `totalEscrowed = 100000`, and `totalReleased = 100000`.
+
+NativeRewards `profileGenesis()` was then configured from zero to the current proxy `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` by owner transaction `0x16f8f091f1477a99da3b8e02a2772de7bf4fdb98d086f4e6fb55b8336df92859`. The receipt succeeded with nonce `253`, `46,861` gas and an actual fee of `0.0000009465922 ETH`, below the approved `0.00001 ETH` cap. Exact readback and signer-balance delta matched. No payment was replayed after configuration.
+
+The receipt, ERC-20 log, job-state tuple, fork rehearsal, backend recovery deployment and fee evidence are recorded in `references/deployments/arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md`.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
