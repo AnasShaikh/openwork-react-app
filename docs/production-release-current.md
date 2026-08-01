@@ -8,22 +8,23 @@ This file is the canonical application release pointer. It describes deployed ap
 |---|---|
 | Deployed at | 1 August 2026 UTC (1 August IST) |
 | Git branch | `main` |
-| Git commit | `ffa05619c3771121acbc04881bc2aaf4d0d3b9bf` |
-| GitHub CI | `30706332907` — succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-ffa05619c3771121acbc04881bc2aaf4d0d3b9bf.zip` |
-| Source archive SHA-256 | `a3d70f9633ef8d1d4f7584070950b866aea6151ce731c14535d620814fc6be8a` |
-| CodeBuild | `openwork-react-app-prod-build:e5250451-bddd-458b-998a-0cb5e188a264` — succeeded |
-| ECR image | `openwork-app:prod-ffa0561-20260801153911` |
-| ECR digest | `sha256:7f2b2c529e92768549b6643beba24241e9cc9afbfa569150e4314bc95e68f7d4` |
+| Git commit | `6426381b58f199511eff9a9d3919885507525574` |
+| GitHub CI | No workflow run is configured for this branch; local frontend/backend gates and CodeBuild passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-6426381b58f199511eff9a9d3919885507525574.zip` |
+| Source archive SHA-256 | `c6a9f9f3eb1d19d9f8f4f41556a417e0b8b4ce32513621ec3245ca99353ec6b3` |
+| CodeBuild | `openwork-react-app-prod-build:76b5762d-a7a6-4e22-9f69-55162854a580` — succeeded |
+| ECR image | `openwork-app:prod-6426381-20260801160952` |
+| ECR digest | `sha256:a0d2f88c41fb970aad3e83f3c7630dd3983a358e13abbce1bde1df4cb33c0d74` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `a0370a7a11f445fa859636b2d9d9df85` — succeeded |
+| App Runner operation | `daf7d10193fe432aa20466d42a44bb66` — succeeded |
 | Public application | `https://app.openwork.technology` |
 | Deployed JS asset | `/assets/index-DAYt2cu-.js` |
 
 ## Verification
 
-- GitHub CI, frontend tests/build, backend tests/audit checks and the production image build passed for the exact source commit. The backend dependency lock now resolves the newly disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
+- Frontend tests (`35/35`), backend tests (`17/17`), the frontend build and the production image build passed for the exact source commit. The backend dependency lock continues to resolve the disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
 - App Runner HTTP health checks passed. The production root and `/healthz` returned HTTP 200, and browser smoke checks passed for `/direct-contract` and the durable `/direct-contract-status/:transactionHash` fallback.
+- The backend now treats the indexed `PaymentReleased(string)` topic as an opaque hash instead of a decoded job ID, ignores native Arbitrum releases that require no cross-chain relay, accepts genuinely decoded cross-chain IDs, deduplicates by transaction and only marks processing complete after success. A 5,000-block production startup scan completed without replaying the malformed topic hash into the CCTP flow.
 - Native Arbitrum payment release now estimates the exact routed call through the configured Arbitrum HTTP RPC instead of the injected wallet provider. MetaMask receives only the signed write request and manages its own fee fields, avoiding the pre-confirmation `Internal JSON-RPC error` observed on job `42161-22`.
 - The Release Payment page now rejects a connected account that is not the recorded job giver before requesting any wallet transaction. Nested wallet/RPC errors are surfaced when providers return useful underlying details.
 - The exact production payment path was rehearsed on an Arbitrum fork at live state: `releasePayment("42161-22")` used `356,211` gas, moved exactly `100,000` raw USDC units from NOWJC to `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`, cleared the locked balance and completed the job. The fork was stopped and mainnet was read back unchanged afterward.
@@ -59,6 +60,10 @@ Commit `7f9c01deba2624fd308c3436b3fdc44d8e318791` implements the four applicatio
 
 Commit `ffa05619c3771121acbc04881bc2aaf4d0d3b9bf` fixes the production Release Payment path after MetaMask returned a generic `Internal JSON-RPC error` before opening its confirmation screen. Native Arbitrum gas estimation now uses the configured browser-safe RPC and omits application-specified fee fields, while the actual write remains entirely user-signed through the connected wallet. The change is application-only; it performs no automatic wallet, token or contract write.
 
+## PaymentReleased recovery correction
+
+Commit `6426381b58f199511eff9a9d3919885507525574` prevents the backend listener from interpreting the indexed hash of a dynamic `string` event field as a literal OpenWork job ID. Native Arbitrum payments remain final on Arbitrum and are not queued for CCTP; decoded cross-chain IDs still enter the relay path. The correction is covered by four focused classifier tests and the existing backend suite. Deployment and startup recovery performed no wallet, token or contract write.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -69,7 +74,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-8f1b250-20260731173844` |
-| ECR digest | `sha256:d0593e15e7bb3b5bd45acfe802118c8d864888833f0c9f891d712d80c22a3e65` |
+| ECR image | `openwork-app:prod-ffa0561-20260801153911` |
+| ECR digest | `sha256:7f2b2c529e92768549b6643beba24241e9cc9afbfa569150e4314bc95e68f7d4` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
