@@ -6,24 +6,27 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 31 July 2026 UTC (31 July IST) |
+| Deployed at | 1 August 2026 UTC (1 August IST) |
 | Git branch | `main` |
-| Git commit | `8f1b2503da38f288fd92453c649bf86ee1ca8eec` |
-| GitHub CI | `30651908896` — succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-8f1b2503da38f288fd92453c649bf86ee1ca8eec.zip` |
-| Source archive SHA-256 | `c5b033466f2075758fa374763112679c83ae987086498efb417bcbe454fbd256` |
-| CodeBuild | `openwork-react-app-prod-build:9c61b728-12d0-4d7d-94b8-4efed0d48b56` — succeeded |
-| ECR image | `openwork-app:prod-8f1b250-20260731173844` |
-| ECR digest | `sha256:d0593e15e7bb3b5bd45acfe802118c8d864888833f0c9f891d712d80c22a3e65` |
+| Git commit | `ffa05619c3771121acbc04881bc2aaf4d0d3b9bf` |
+| GitHub CI | `30706332907` — succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-ffa05619c3771121acbc04881bc2aaf4d0d3b9bf.zip` |
+| Source archive SHA-256 | `a3d70f9633ef8d1d4f7584070950b866aea6151ce731c14535d620814fc6be8a` |
+| CodeBuild | `openwork-react-app-prod-build:e5250451-bddd-458b-998a-0cb5e188a264` — succeeded |
+| ECR image | `openwork-app:prod-ffa0561-20260801153911` |
+| ECR digest | `sha256:7f2b2c529e92768549b6643beba24241e9cc9afbfa569150e4314bc95e68f7d4` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `ba0c040ea2d047dbad5c453ba41879ca` — succeeded |
+| App Runner operation | `a0370a7a11f445fa859636b2d9d9df85` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CeqKqcJ5.js` |
+| Deployed JS asset | `/assets/index-DAYt2cu-.js` |
 
 ## Verification
 
 - GitHub CI, frontend tests/build, backend tests/audit checks and the production image build passed for the exact source commit. The backend dependency lock now resolves the newly disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
 - App Runner HTTP health checks passed. The production root and `/healthz` returned HTTP 200, and browser smoke checks passed for `/direct-contract` and the durable `/direct-contract-status/:transactionHash` fallback.
+- Native Arbitrum payment release now estimates the exact routed call through the configured Arbitrum HTTP RPC instead of the injected wallet provider. MetaMask receives only the signed write request and manages its own fee fields, avoiding the pre-confirmation `Internal JSON-RPC error` observed on job `42161-22`.
+- The Release Payment page now rejects a connected account that is not the recorded job giver before requesting any wallet transaction. Nested wallet/RPC errors are surfaced when providers return useful underlying details.
+- The exact production payment path was rehearsed on an Arbitrum fork at live state: `releasePayment("42161-22")` used `356,211` gas, moved exactly `100,000` raw USDC units from NOWJC to `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`, cleared the locked balance and completed the job. The fork was stopped and mainnet was read back unchanged afterward.
 - The production Arbitrum RPC secret was rotated from the exhausted Alchemy endpoint to `https://arb1.arbitrum.io/rpc`, the canonical public Arbitrum endpoint already used by the frontend build. App Runner was recycled so its backend event listener and service-wallet health checks load the replacement endpoint.
 - The refreshed health check exposed that relay wallet `0x93514040f43aB16D52faAe7A3f380c4089D844F9` has `0 ETH` on Arbitrum. Automatic relay transactions that require this signer remain blocked until a separately authorized gas-funding transaction is completed; no funds were moved during this release.
 - Direct Contract now scopes placeholder styling to actual placeholders, makes the displayed milestone amount directly editable, renders progress states in orange instead of error red, prevents duplicate submission once a receipt is confirmed, and persists a transaction-hash progress route that can be revisited safely.
@@ -52,6 +55,10 @@ Commit `835098412e76ec580c91092969e123934f38d399` separates the XDC Network chai
 
 Commit `7f9c01deba2624fd308c3436b3fdc44d8e318791` implements the four application-owned experience corrections reported on 31 July 2026. Commit `8f1b2503da38f288fd92453c649bf86ee1ca8eec` refreshes only the backend dependency lock so the same source release passes the production audit gate. Receipt-confirmed transactions now leave the submission form and continue on a durable status route; retrying the wallet transaction is no longer the recovery path.
 
+## Native Arbitrum payment release preflight correction
+
+Commit `ffa05619c3771121acbc04881bc2aaf4d0d3b9bf` fixes the production Release Payment path after MetaMask returned a generic `Internal JSON-RPC error` before opening its confirmation screen. Native Arbitrum gas estimation now uses the configured browser-safe RPC and omits application-specified fee fields, while the actual write remains entirely user-signed through the connected wallet. The change is application-only; it performs no automatic wallet, token or contract write.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -62,7 +69,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-8350984-20260719185759` |
-| ECR digest | `sha256:82cd66daa07908fe2f4030b471726c20bd3c94cc1093c9a874b8eb472d2a5103` |
+| ECR image | `openwork-app:prod-8f1b250-20260731173844` |
+| ECR digest | `sha256:d0593e15e7bb3b5bd45acfe802118c8d864888833f0c9f891d712d80c22a3e65` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
