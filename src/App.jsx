@@ -109,6 +109,7 @@ import SkillVerification from "./pages/SkillVerification/SkillVerification";
 import LandingPage from "./pages/LandingPage/LandingPage";
 import Timeline from "./dev-tools/Timeline/Timeline";
 import OpenworkDocs from "./pages/Documentation/OpenworkDocs";
+import PublicDocs from "./pages/PublicDocs/PublicDocs";
 import AgentOppy from "./pages/AgentOppy/AgentOppy";
 // import OppyChat from "./pages/OppyChat/OppyChat"; // hidden — not in scope for v1
 
@@ -433,7 +434,9 @@ export default function App() {
               <Route path="/user-referral-signin" element={<UserReferralSignIn/>} />
               <Route path="/skill-verification-page" element={<SkillVerification/>} />
               <Route path="/dev/timeline" element={<Timeline/>} />
-              <Route path="/docs" element={<OpenworkDocs/>} />
+              <Route path="/docs" element={<PublicDocs />} />
+              <Route path="/documentation" element={<Navigate to="/docs" replace />} />
+              <Route path="/docs/legacy" element={<OpenworkDocs />} />
               {/* <Route path="/chat" element={<OppyChat/>} /> */}{/* hidden — not in scope for v1 */}
             </Routes>
           </Layout>

@@ -1,0 +1,567 @@
+{
+  "schemaVersion": "2.0.0",
+  "name": "OpenWork Mainnet Contract Registry",
+  "publicDocsUrl": "https://app.openwork.technology/docs",
+  "canonicalSource": "https://github.com/AnasShaikh/openwork-contracts-final/blob/main/references/logs/imp/live-contract-registry-19-mar-2026.md",
+  "deploymentLedger": "https://github.com/AnasShaikh/openwork-contracts-final/blob/main/references/deployments/confirmed-upgrades-mainnet-19-jul-2026.md",
+  "lastAudited": "2026-08-01",
+  "auditedBlocks": {
+    "ethereum": 25661615,
+    "arbitrum": 490059405,
+    "optimism": 155003860,
+    "xdc": 105610758
+  },
+  "summary": {
+    "activeNetworks": 4,
+    "activeContractRoles": 31,
+    "activeArtifacts": 50,
+    "explorerSourceVerifiedArtifacts": 31,
+    "explorerSourcePendingArtifacts": 19
+  },
+  "statusDefinitions": {
+    "live": "Runtime code and the configured production role were confirmed on-chain.",
+    "runtime-verified": "The deployed runtime and immutable-aware hash were checked against the release artifact.",
+    "source-verified": "The block explorer publishes matching source code.",
+    "source-pending": "Runtime is live, but matching source has not yet been published on the block explorer.",
+    "proxy-linked": "The explorer and ERC-1967 slot point at the current implementation."
+  },
+  "chains": [
+    {
+      "key": "arbitrum",
+      "name": "Arbitrum One",
+      "role": "Native execution and source-of-truth chain; job state, escrow, disputes, profiles, rewards and direct Arbitrum entry adapters.",
+      "chainId": 42161,
+      "lzEid": 30110,
+      "cctpDomain": 3,
+      "explorer": "https://arbiscan.io/address/",
+      "contracts": [
+        {
+          "id": "native-openwork-genesis",
+          "name": "NativeOpenworkGenesis",
+          "kind": "proxy",
+          "version": "V1",
+          "address": "0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294",
+          "implementation": "0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d",
+          "source": "src/suites/current-mainnet/native/native-openwork-genesis.sol",
+          "purpose": "Canonical job and lifecycle storage.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-verified",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "nowjc",
+          "name": "NativeOpenWorkJobContract (NOWJC)",
+          "kind": "proxy",
+          "version": "V5 (19 Jul 2026)",
+          "address": "0x8EfbF240240613803B9c9e716d4b5AD1388aFd99",
+          "implementation": "0x1a406176a9f5727689035eD82f4c28CACaCeDC96",
+          "source": "src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol",
+          "purpose": "Canonical job orchestration, Arbitrum escrow, payout routing and lifecycle validation.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked",
+          "notes": "Live commissionPercentage and minCommission are both zero; the July release preserved those proxy values."
+        },
+        {
+          "id": "native-arb-lowjc",
+          "name": "NativeArbOpenWorkJobContract",
+          "kind": "proxy",
+          "version": "V5 (19 Jul 2026)",
+          "address": "0x5727cA7326032a8644a49dECECB8388BEF122bef",
+          "implementation": "0xdd7BA6d8E92358AD7477b2f79fF83C78aC07F289",
+          "source": "src/suites/current-mainnet/native/native-arb-lowjc-v5.sol",
+          "purpose": "Direct Arbitrum user entry point; bypasses LayerZero and CCTP for same-chain operations.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-arb-athena-client",
+          "name": "NativeArbAthenaClient",
+          "kind": "proxy",
+          "version": "V3 (19 Jul 2026)",
+          "address": "0xB5d3F406089236ef9d4aB13306187aFCCA81f099",
+          "implementation": "0x6DE7D58FCffF98AF2E85e1976155f3D671F6756C",
+          "source": "src/suites/current-mainnet/native/native-arb-athena-client-v3.sol",
+          "purpose": "Direct Arbitrum dispute, skill-verification and Ask Athena entry point.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-openwork-dao",
+          "name": "NativeOpenworkDAO",
+          "kind": "proxy",
+          "version": "V2 (19 Jul 2026)",
+          "address": "0x24af98d763724362DC920507b351cC99170a5aa4",
+          "implementation": "0xeb1A8fB15d3Bf5E1bd1100AC2528962356c2a398",
+          "source": "src/suites/current-mainnet/native/native-openwork-dao-v2.sol",
+          "purpose": "Arbitrum governance mirror using historical voting-power checkpoints.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-athena",
+          "name": "NativeAthena",
+          "kind": "proxy",
+          "version": "V9 (19 Jul 2026)",
+          "address": "0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf",
+          "implementation": "0xB4ea3444517B5C11DDF47f8F6E9dA6EccCD17395",
+          "source": "src/suites/current-mainnet/native/native-athena-v9.sol",
+          "purpose": "Canonical disputes, oracle voting and EID-to-CCTP-domain routing, including XDC.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-profile-genesis",
+          "name": "NativeProfileGenesis",
+          "kind": "proxy",
+          "version": "V2 (19 Jul 2026)",
+          "address": "0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E",
+          "implementation": "0x9E8F58839aB114BbcA8A0c24f5BEC1C841294784",
+          "source": "src/suites/current-mainnet/native/native-profile-genesis-v2.sol",
+          "purpose": "Profile, portfolio and canonical per-job rating storage.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-athena-activity-tracker",
+          "name": "NativeAthenaActivityTracker",
+          "kind": "proxy",
+          "version": "V1",
+          "address": "0x8C04840c3f5b5a8c44F9187F9205ca73509690EA",
+          "implementation": "0x9588A78748a8bc82295bf44d87C4b9F924d11AE8",
+          "source": "src/suites/current-mainnet/native/native-athena-activity-tracker.sol",
+          "purpose": "Tracks oracle-member activity separately from NativeAthena.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-verified",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-athena-oracle-manager",
+          "name": "NativeAthenaOracleManager",
+          "kind": "proxy",
+          "version": "V1",
+          "address": "0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15",
+          "implementation": "0xE1e1Cc40897DDaeED44a3194B0e53DFb4171ef59",
+          "source": "src/suites/current-mainnet/native/native-athena-oracle-manager.sol",
+          "purpose": "Manages skill-oracle membership and lifecycle for NativeAthena.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-verified",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-profile-manager",
+          "name": "NativeProfileManager",
+          "kind": "proxy",
+          "version": "V3 (19 Jul 2026)",
+          "address": "0x51285003A01319c2f46BB2954384BCb69AfB1b45",
+          "implementation": "0xd30c9f6Bf3e6563a64AC32BD4Cc76407ed0e2fFf",
+          "source": "src/suites/current-mainnet/native/native-profile-manager-v3.sol",
+          "purpose": "Profile writes and rating authorization bound to canonical Job Genesis state.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-voting-power-checkpoints",
+          "name": "OpenworkVotingPowerCheckpoints (Native)",
+          "kind": "proxy",
+          "version": "V1 (19 Jul 2026)",
+          "address": "0x586cb49f19f93E5b9037CD22c539a7529b7bA1d9",
+          "implementation": "0x78C3E094a8Dba771c434E1258738cE9D4404C19e",
+          "source": "src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol",
+          "purpose": "Timestamped historical voting-power module for NativeOpenworkDAO.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-pending",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-dao-stake-sync",
+          "name": "NativeDAOStakeSync",
+          "kind": "proxy",
+          "version": "V1 (19 Jul 2026)",
+          "address": "0xe541c372bF4E91F9FFe3Bc2A2Fa45CC38A273d2B",
+          "implementation": "0xddF69B7C6a04C4972e27Dc2b3a9f88E8081bCf03",
+          "source": "src/suites/current-mainnet/native/native-dao-stake-sync-v1.sol",
+          "purpose": "Ordered, fail-closed application of Ethereum staking updates on Arbitrum.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-pending",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "native-lz-openwork-bridge",
+          "name": "NativeLZOpenworkBridge",
+          "kind": "standalone",
+          "version": "V3 (19 Jul 2026)",
+          "address": "0x9A0950594A699f5fb7decd7069F935100d39D9bF",
+          "source": "src/suites/current-mainnet/native/native-lz-openwork-bridge-v3.sol",
+          "purpose": "Active LayerZero router and applicant-milestone callback sender for Ethereum, Optimism and XDC.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-pending"
+        },
+        {
+          "id": "native-rewards",
+          "name": "NativeRewardsContract",
+          "kind": "standalone",
+          "version": "V2",
+          "address": "0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9",
+          "source": "src/suites/current-mainnet/native/native-rewards-contract.sol",
+          "purpose": "Calculates native reward earnings and voting-power contribution.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified",
+          "notes": "profileGenesis was configured to 0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E on 1 Aug 2026."
+        },
+        {
+          "id": "arbitrum-cctp-transceiver",
+          "name": "CCTPTransceiver",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87",
+          "source": "src/suites/current-mainnet/utilities/cctp-transceiver.sol",
+          "purpose": "Arbitrum-side Circle CCTP V2 USDC transport.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        },
+        {
+          "id": "native-contract-registry",
+          "name": "NativeContractRegistry",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x29D61B1a9E2837ABC0810925429Df641CBed58c3",
+          "source": "src/suites/current-mainnet/native/native-contract-registry.sol",
+          "purpose": "On-chain lookup helper; not the authoritative live address source.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        },
+        {
+          "id": "native-genesis-reader",
+          "name": "NativeGenesisReader",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x72ee091C288512f0ee9eB42B8C152fbB127Dc782",
+          "source": "src/suites/current-mainnet/native/native-genesis-reader.sol",
+          "purpose": "Read-optimized access to Genesis data.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        }
+      ],
+      "dependencies": {
+        "USDC": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "LayerZeroEndpointV2": "0x1a44076050125825900e736c501f859c50fE728c",
+        "CircleTokenMessengerV2": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+        "CircleMessageTransmitterV2": "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64"
+      }
+    },
+    {
+      "key": "optimism",
+      "name": "Optimism",
+      "role": "User-facing local job chain; low-gas job, profile, payment and Athena operations route to Arbitrum.",
+      "chainId": 10,
+      "lzEid": 30111,
+      "cctpDomain": 2,
+      "explorer": "https://optimistic.etherscan.io/address/",
+      "contracts": [
+        {
+          "id": "optimism-lowjc",
+          "name": "LocalOpenWorkJobContract Lite",
+          "kind": "proxy",
+          "version": "Lite V6",
+          "address": "0x620205A4Ff0E652fF03a890d2A677de878a1dB63",
+          "implementation": "0x74D6e1aDA0Dae53231298B24DeAf169647fd557d",
+          "source": "src/suites/current-mainnet/local/local-openwork-job-contract-lite-v2.sol",
+          "purpose": "Optimism job entry point and local security-critical escrow state.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-verified",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "optimism-local-athena",
+          "name": "LocalAthena",
+          "kind": "proxy",
+          "version": "V1",
+          "address": "0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d",
+          "implementation": "0xF78B688846673C3f6b93184BeC230d982c0db0c9",
+          "source": "src/suites/current-mainnet/local/local-athena.sol",
+          "purpose": "Optimism dispute and skill-oracle entry point.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-verified",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "optimism-local-bridge",
+          "name": "LocalLZOpenworkBridge",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x74566644782e98c87a12E8Fc6f7c4c72e2908a36",
+          "source": "src/suites/current-mainnet/local/local-lz-openwork-bridge.sol",
+          "purpose": "Optimism LayerZero router; its Arbitrum peer was cut over to the V3 Native bridge on 19 Jul 2026.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        },
+        {
+          "id": "optimism-cctp-transceiver",
+          "name": "CCTPTransceiver",
+          "kind": "standalone",
+          "version": "V2",
+          "address": "0x586C700ACFA1D129Ba2C6a6E673c55d586c32f15",
+          "source": "src/suites/current-mainnet/utilities/cctp-transceiver.sol",
+          "purpose": "Optimism-side Circle CCTP V2 USDC transport.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        }
+      ],
+      "dependencies": {
+        "USDC": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+        "LayerZeroEndpointV2": "0x1a44076050125825900e736c501f859c50fE728c",
+        "CircleTokenMessengerV2": "0x2B4069517957735bE00ceE0fadAE88a26365528f",
+        "CircleMessageTransmitterV2": "0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8"
+      }
+    },
+    {
+      "key": "xdc",
+      "name": "XDC Network",
+      "role": "User-facing local job chain using XDC for LayerZero fees and native XDC USDC for escrow and payouts.",
+      "chainId": 50,
+      "lzEid": 30365,
+      "cctpDomain": 18,
+      "explorer": "https://xdcscan.com/address/",
+      "contracts": [
+        {
+          "id": "xdc-lowjc",
+          "name": "LocalOpenWorkJobContract Lite",
+          "kind": "proxy",
+          "version": "V3 (19 Jul 2026)",
+          "address": "0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7",
+          "implementation": "0x7898B41BB04428bf3ccaC5a321d1513D4A00A47D",
+          "source": "src/suites/current-mainnet/local/local-openwork-job-contract-lite-v3.sol",
+          "purpose": "XDC job entry point with synchronized applicant-milestone callbacks.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "xdc-local-athena",
+          "name": "LocalAthena",
+          "kind": "proxy",
+          "version": "V1",
+          "address": "0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d",
+          "implementation": "0xF78B688846673C3f6b93184BeC230d982c0db0c9",
+          "source": "src/suites/current-mainnet/local/local-athena.sol",
+          "purpose": "XDC dispute and skill-oracle entry point.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-verified",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "xdc-local-bridge",
+          "name": "LocalLZOpenworkBridge",
+          "kind": "standalone",
+          "version": "V2 (19 Jul 2026)",
+          "address": "0xDae5036a1d9E7C6CE953604FF238E13BD2B83951",
+          "source": "src/suites/current-mainnet/local/local-lz-openwork-bridge-v2.sol",
+          "purpose": "Active XDC LayerZero router with applicant-milestone callback handling.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-pending"
+        },
+        {
+          "id": "xdc-cctp-transceiver",
+          "name": "CCTPTransceiverXdcStandard12Jul2026",
+          "kind": "standalone",
+          "version": "XDC Standard Transfer (13 Jul 2026)",
+          "address": "0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510",
+          "source": "src/suites/current-mainnet/xdc/cctp-transceiver-xdc-standard-12-jul-2026.sol",
+          "purpose": "XDC Circle CCTP adapter; preserves the legacy selector while using Standard Transfer finality.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        }
+      ],
+      "dependencies": {
+        "USDC": "0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1",
+        "LayerZeroEndpointV2": "0x1a44076050125825900e736c501f859c50fE728c"
+      }
+    },
+    {
+      "key": "ethereum",
+      "name": "Ethereum Mainnet",
+      "role": "Governance and token chain; staking, historical voting power, governance messaging, rewards and OWORK.",
+      "chainId": 1,
+      "lzEid": 30101,
+      "cctpDomain": 0,
+      "explorer": "https://etherscan.io/address/",
+      "contracts": [
+        {
+          "id": "eth-openwork-dao",
+          "name": "ETHOpenworkDAO",
+          "kind": "proxy",
+          "version": "V3 (19 Jul 2026)",
+          "address": "0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294",
+          "implementation": "0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15",
+          "source": "src/suites/current-mainnet/eth/eth-openwork-dao-v3.sol",
+          "purpose": "Staking, delegation and governance using historical checkpoints and separated messaging.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-verified",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "eth-voting-power-checkpoints",
+          "name": "OpenworkVotingPowerCheckpoints (Ethereum)",
+          "kind": "proxy",
+          "version": "V1 (19 Jul 2026)",
+          "address": "0x72ee091C288512f0ee9eB42B8C152fbB127Dc782",
+          "implementation": "0x51285003A01319c2f46BB2954384BCb69AfB1b45",
+          "source": "src/suites/current-mainnet/utilities/openwork-voting-power-checkpoints-v1.sol",
+          "purpose": "Timestamped historical voting-power module for ETHOpenworkDAO.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-pending",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "eth-dao-messaging",
+          "name": "ETHDAOMessaging",
+          "kind": "proxy",
+          "version": "V1 (19 Jul 2026)",
+          "address": "0xDCF7c77314E8F042C97EFB96991b7DAc5Dc79f0D",
+          "implementation": "0x532fAB0b8Ca0dD7c14ca1324e7502534E5c8b9AE",
+          "source": "src/suites/current-mainnet/eth/eth-dao-messaging-v1.sol",
+          "purpose": "Exactly-once, retryable, fail-closed outbound DAO messaging separated for EIP-170 size safety.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "proxySource": "source-pending",
+          "implementationSource": "source-pending",
+          "proxyLink": "proxy-linked"
+        },
+        {
+          "id": "eth-lz-openwork-bridge",
+          "name": "ETHLZOpenworkBridge",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x20Fa268106A3C532cF9F733005Ab48624105c42F",
+          "source": "src/suites/current-mainnet/eth/eth-lz-openwork-bridge.sol",
+          "purpose": "Ethereum LayerZero router; its Arbitrum peer was cut over to the V3 Native bridge on 19 Jul 2026.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        },
+        {
+          "id": "eth-rewards",
+          "name": "ETHRewardsContract",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d",
+          "source": "src/suites/current-mainnet/eth/eth-rewards-contract.sol",
+          "purpose": "Ethereum reward claims and OWORK distribution.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        },
+        {
+          "id": "openwork-token",
+          "name": "OpenworkToken (OWORK)",
+          "kind": "standalone",
+          "version": "V1",
+          "address": "0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87",
+          "source": "src/suites/current-mainnet/utilities/openwork-token.sol",
+          "purpose": "ERC-20 governance and rewards token.",
+          "status": "live",
+          "runtimeVerification": "runtime-verified",
+          "sourceVerification": "source-verified"
+        }
+      ],
+      "dependencies": {
+        "LayerZeroEndpointV2": "0x1a44076050125825900e736c501f859c50fE728c"
+      }
+    }
+  ],
+  "pathways": [
+    {
+      "name": "XDC ↔ Arbitrum",
+      "status": "end-to-end-tested",
+      "detail": "Reciprocal peers, explicit four-DVN security configuration and production job 30365-3 completed after the 19 Jul bridge cutover."
+    },
+    {
+      "name": "Optimism ↔ Arbitrum",
+      "status": "configured",
+      "detail": "Reciprocal peers point to the active bridges and the V3 Native-bridge security stack was read back; no post-cutover end-to-end application test is recorded."
+    },
+    {
+      "name": "Ethereum ↔ Arbitrum",
+      "status": "configured",
+      "detail": "Reciprocal peers point to the active bridges and the V3 Native-bridge security stack was read back; no post-cutover governance delivery test is recorded."
+    },
+    {
+      "name": "XDC ↔ Ethereum (direct)",
+      "status": "disabled",
+      "detail": "The direct security stack is not installed and the Ethereum-side peer still names the retired XDC bridge. Route through Arbitrum instead."
+    }
+  ],
+  "legacyDeployments": [
+    {
+      "chain": "Arbitrum One",
+      "name": "NativeLZOpenworkBridge V2",
+      "address": "0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F",
+      "status": "retained for rollback and in-flight compatibility; not the active production pointer"
+    },
+    {
+      "chain": "XDC Network",
+      "name": "LocalLZOpenworkBridge V1",
+      "address": "0x74566644782e98c87a12E8Fc6f7c4c72e2908a36",
+      "status": "retired after the 19 Jul cutover; not the active XDC production pointer"
+    }
+  ],
+  "heldNotLive": [
+    {
+      "name": "LocalAthena V2",
+      "source": "src/suites/current-mainnet/local/local-athena-v2.sol",
+      "status": "prepared but intentionally not deployed or activated pending a production dispute-minimum decision"
+    }
+  ]
+}

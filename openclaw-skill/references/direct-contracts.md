@@ -97,7 +97,7 @@ LOWJC.releasePaymentCrossChain(_jobId, 2, takerAddress, _nativeOptions, { value:
 - The job giver only needs to approve USDC for the **first milestone** when creating the contract
 - Subsequent milestones require separate `lockNextMilestone()` and `releasePaymentCrossChain()` calls
 - Two CCTP transfers happen on creation: one for escrow (OP → Arb) and one for auto-release (Arb → destination)
-- 1% platform commission is deducted from each payment release
+- The live NOWJC proxy currently charges zero platform commission (`0` bps and `0` minimum, audited 1 Aug 2026); these values are configurable, so read them on-chain before quoting a payout
 
 ## CCTP Note
 

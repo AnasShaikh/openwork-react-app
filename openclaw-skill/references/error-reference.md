@@ -23,7 +23,7 @@ Common errors across OpenWork contracts, what causes them, and how to fix them.
 | "Invalid recipient" | Target recipient is zero address | Provide a valid payment address |
 | "No applicant" | Job has no selected applicant | Start the job first to select an applicant |
 | "Job not in progress" | Job status != InProgress | Job must be in InProgress state |
-| "Amount insufficient for commission" | Payment too small to cover 1% commission | Increase the milestone amount |
+| "Amount insufficient for commission" | Payment is not greater than the commission produced by the live configuration | Read `commissionPercentage` and `minCommission`; both were zero on 1 Aug 2026, so this error would currently indicate changed configuration or unexpected state |
 | "Invalid milestone" | `currentMilestone` out of range | Check milestone count and current progress |
 | "All completed" | No more milestones to lock | All milestones have been processed |
 

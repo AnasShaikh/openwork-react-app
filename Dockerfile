@@ -57,6 +57,10 @@ WORKDIR /app
 # Copy built frontend from builder stage
 COPY --from=frontend-builder /app/dist ./dist
 
+# Public documentation consumed by backend routes at runtime
+COPY openclaw-skill /app/openclaw-skill
+COPY docs/mainnet-contracts.json /app/docs/mainnet-contracts.json
+
 # Setup backend
 WORKDIR /app/backend
 COPY backend/package*.json ./
