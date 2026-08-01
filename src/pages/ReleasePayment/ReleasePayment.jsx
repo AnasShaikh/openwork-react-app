@@ -12,7 +12,11 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
 import { getChainConfig, extractChainIdFromJobId, getNativeChain, isMainnet, buildLzOptions, DESTINATION_GAS_ESTIMATES } from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
-import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  getLOWJCContract,
+  getReadOnlyLOWJCContract,
+  isNativeArbChain,
+} from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
   buildEstimatedWriteSendOptions,
@@ -333,6 +337,14 @@ export default function ReleasePayment() {
       return;
     }
 
+    if (
+      job.jobGiver
+      && walletAddress.toLowerCase() !== job.jobGiver.toLowerCase()
+    ) {
+      setTransactionStatus("❌ Only the job giver can release this payment. Connect the job-giver wallet and try again.");
+      return;
+    }
+
     // CRITICAL: Validate user is on POSTING chain
     if (!jobChainId || !jobChainConfig) {
       setTransactionStatus("❌ Could not determine job posting chain from job ID");
@@ -400,8 +412,6 @@ export default function ReleasePayment() {
         setTransactionStatus(`Releasing payment directly through Arbitrum — Please confirm in MetaMask`);
       }
 
-      const gasPrice = await web3.eth.getGasPrice();
-
       const releaseMethod = createLOWJCWrite(
         lowjcContract,
         jobChainConfig,
@@ -409,11 +419,41 @@ export default function ReleasePayment() {
         [jobId, destinationDomain, job.selectedApplicant],
         nativeOptions
       );
-      const releasePaymentTx = await releaseMethod.send(await buildEstimatedWriteSendOptions(releaseMethod, jobChainConfig, {
-        from: walletAddress,
-        value: layerZeroFee,
-        gasPrice: gasPrice.toString()
-      }));
+
+      let releaseSendOptions;
+      if (isNativeArbitrum) {
+        // Native Arbitrum writes do not need a LayerZero fee. Estimate the
+        // exact call through the configured public RPC, then let MetaMask set
+        // EIP-1559/legacy fee fields when it opens the confirmation screen.
+        // This keeps wallet provider middleware out of the read-only preflight
+        // path and avoids generic "Internal JSON-RPC error" failures.
+        const readOnlyLowjcContract = await getReadOnlyLOWJCContract(jobChainId);
+        const readOnlyReleaseMethod = createLOWJCWrite(
+          readOnlyLowjcContract,
+          jobChainConfig,
+          LOWJC_OPERATIONS.RELEASE_PAYMENT,
+          [jobId, destinationDomain, job.selectedApplicant],
+          nativeOptions
+        );
+        releaseSendOptions = await buildEstimatedWriteSendOptions(
+          readOnlyReleaseMethod,
+          jobChainConfig,
+          { from: walletAddress }
+        );
+      } else {
+        const gasPrice = await web3.eth.getGasPrice();
+        releaseSendOptions = await buildEstimatedWriteSendOptions(
+          releaseMethod,
+          jobChainConfig,
+          {
+            from: walletAddress,
+            value: layerZeroFee,
+            gasPrice: gasPrice.toString()
+          }
+        );
+      }
+
+      const releasePaymentTx = await releaseMethod.send(releaseSendOptions);
 
       if (isNativeArbitrum) {
         setPaymentStepState(null);
@@ -545,12 +585,17 @@ export default function ReleasePayment() {
     } catch (error) {
       console.error("❌ Error releasing payment:", error);
       
-      let errorMessage = error.message;
+      const nestedErrorMessage =
+        error?.data?.originalError?.message
+        || error?.data?.message
+        || error?.cause?.message;
+      let errorMessage = nestedErrorMessage || error.message || "Wallet transaction failed";
+      const normalizedErrorMessage = String(errorMessage).toLowerCase();
       if (error.code === 4001) {
         errorMessage = "Transaction cancelled by user";
-      } else if (error.message.includes("insufficient funds")) {
+      } else if (normalizedErrorMessage.includes("insufficient funds")) {
         errorMessage = "Insufficient ETH for gas fees";
-      } else if (error.message.includes("network")) {
+      } else if (normalizedErrorMessage.includes("network")) {
         errorMessage = "Network switching failed - please switch to OP Sepolia manually";
       }
       

@@ -109,6 +109,31 @@ export async function getLOWJCContract(chainId) {
 }
 
 /**
+ * Build a LOWJC instance backed by the configured HTTP RPC. This is only for
+ * reads and gas estimation; writes must still be submitted through the user's
+ * injected wallet provider.
+ *
+ * Keeping wallet-independent preflight calls off window.ethereum avoids
+ * MetaMask/Brave provider middleware failures that can otherwise prevent the
+ * confirmation screen from opening even when the call is valid on-chain.
+ */
+export async function getReadOnlyLOWJCContract(chainId) {
+  if (!isChainAllowed(chainId)) {
+    const config = getChainConfig(chainId);
+    throw new Error(config?.reason || "Transactions not allowed on this chain");
+  }
+
+  const config = getChainConfig(chainId);
+  if (!config?.contracts?.lowjc || !config?.rpcUrl) {
+    throw new Error(`Read-only LOWJC contract not configured for chain ${chainId}`);
+  }
+
+  const web3 = getReadOnlyWeb3(chainId);
+  const abi = isNativeArbChain(chainId) ? NATIVE_ARB_LOWJC_ABI : LOWJC_ABI;
+  return new web3.eth.Contract(abi, config.contracts.lowjc);
+}
+
+/**
  * Get Athena Client contract instance for a specific chain
  * @param {number} chainId - Chain ID
  * @returns {object} Web3 contract instance

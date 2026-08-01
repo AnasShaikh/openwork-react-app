@@ -180,3 +180,16 @@ test('direct-contract confirmation is duplicate-safe and reload-safe', () => {
   assert.match(statusPage, /Do not submit/);
   assert.match(app, /path="\/direct-contract-status\/:jobId"/);
 });
+
+test('native Arbitrum payment release preflights through the configured RPC', () => {
+  const releasePayment = source('src/pages/ReleasePayment/ReleasePayment.jsx');
+  const localChainService = source('src/services/localChainService.js');
+
+  assert.match(releasePayment, /getReadOnlyLOWJCContract/);
+  assert.match(releasePayment, /readOnlyReleaseMethod/);
+  assert.match(releasePayment, /buildEstimatedWriteSendOptions\([\s\S]*readOnlyReleaseMethod/);
+  assert.match(releasePayment, /\{ from: walletAddress \}/);
+  assert.match(releasePayment, /Only the job giver can release this payment/);
+  assert.match(localChainService, /export async function getReadOnlyLOWJCContract/);
+  assert.match(localChainService, /getReadOnlyWeb3\(chainId\)/);
+});
