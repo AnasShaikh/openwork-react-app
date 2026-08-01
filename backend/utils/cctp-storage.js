@@ -25,7 +25,15 @@ async function saveCCTPTransfer(operation, jobId, sourceTxHash, sourceChain, sou
     return result;
   } catch (err) {
     dbWarn('saveCCTPTransfer', err);
-    memStore.set(`${operation}:${jobId}`, { operation, jobId, sourceTxHash, status: 'pending', step: 'initiated' });
+    memStore.set(`${operation}:${jobId}`, {
+      operation,
+      jobId,
+      sourceTxHash,
+      sourceChain,
+      sourceDomain,
+      status: 'pending',
+      step: 'initiated'
+    });
     return { lastInsertRowid: null };
   }
 }
@@ -38,8 +46,8 @@ async function updateCCTPStatus(jobId, operation, updates) {
       fields.push(`status = $${values.length + 1}`); values.push(updates.status);
       if (updates.status === 'completed') fields.push(`completed_at = CURRENT_TIMESTAMP`);
     }
-    if (updates.step)               { fields.push(`step = $${values.length + 1}`);                values.push(updates.step); }
-    if (updates.lastError)          { fields.push(`last_error = $${values.length + 1}`);          values.push(updates.lastError); }
+    if (updates.step !== undefined) { fields.push(`step = $${values.length + 1}`);                values.push(updates.step); }
+    if (updates.lastError !== undefined) { fields.push(`last_error = $${values.length + 1}`);     values.push(updates.lastError); }
     if (updates.completionTxHash)   { fields.push(`completion_tx_hash = $${values.length + 1}`);  values.push(updates.completionTxHash); }
     if (updates.attestationMessage) { fields.push(`attestation_message = $${values.length + 1}`); values.push(updates.attestationMessage); }
     if (updates.attestationSignature){ fields.push(`attestation_signature = $${values.length+1}`);values.push(updates.attestationSignature); }
@@ -86,7 +94,14 @@ async function saveCCTPTransferByTxHash(operation, jobId, sourceTxHash, sourceCh
     return result;
   } catch (err) {
     dbWarn('saveCCTPTransferByTxHash', err);
-    memStore.set(`${operation}:tx:${sourceTxHash}`, { operation, jobId, sourceTxHash, status: 'pending' });
+    memStore.set(`${operation}:tx:${sourceTxHash}`, {
+      operation,
+      jobId,
+      sourceTxHash,
+      sourceChain,
+      sourceDomain,
+      status: 'pending'
+    });
     return { lastInsertRowid: null };
   }
 }
@@ -99,8 +114,8 @@ async function updateCCTPStatusByTxHash(sourceTxHash, operation, updates) {
       fields.push(`status = $${values.length + 1}`); values.push(updates.status);
       if (updates.status === 'completed') fields.push(`completed_at = CURRENT_TIMESTAMP`);
     }
-    if (updates.step)               { fields.push(`step = $${values.length + 1}`);                values.push(updates.step); }
-    if (updates.lastError)          { fields.push(`last_error = $${values.length + 1}`);          values.push(updates.lastError); }
+    if (updates.step !== undefined) { fields.push(`step = $${values.length + 1}`);                values.push(updates.step); }
+    if (updates.lastError !== undefined) { fields.push(`last_error = $${values.length + 1}`);     values.push(updates.lastError); }
     if (updates.completionTxHash)   { fields.push(`completion_tx_hash = $${values.length + 1}`);  values.push(updates.completionTxHash); }
     if (updates.attestationMessage) { fields.push(`attestation_message = $${values.length + 1}`); values.push(updates.attestationMessage); }
     if (updates.attestationSignature){ fields.push(`attestation_signature = $${values.length+1}`);values.push(updates.attestationSignature); }

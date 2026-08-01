@@ -1,5 +1,19 @@
 const { Web3 } = require('web3');
 const config = require('../config');
+const { isCCTPMessageConsumed } = require('./cctp-reconciliation');
+
+async function wasCCTPMessageConsumed(attestationData, context) {
+  try {
+    const consumed = await isCCTPMessageConsumed(attestationData);
+    if (consumed) {
+      console.log(`✅ ${context}: Circle destination nonce is consumed; delivery is already complete.`);
+    }
+    return consumed;
+  } catch (error) {
+    console.warn(`⚠️ ${context}: could not reconcile Circle destination nonce: ${error.message}`);
+    return false;
+  }
+}
 
 /**
  * Execute receiveMessage() on ARB MessageTransmitter for Start Job flow (OP → ARB)
@@ -16,6 +30,14 @@ const config = require('../config');
 async function executeReceiveOnArbitrum(attestationData) {
   console.log('🔗 Executing receiveMessage() on ARB MessageTransmitter (OP→ARB startJob)...');
   console.log(`   Network Mode: ${config.NETWORK_MODE}`);
+
+  if (await wasCCTPMessageConsumed(attestationData, 'Arbitrum receive preflight')) {
+    return { transactionHash: null, alreadyCompleted: true };
+  }
+
+  if (!config.WALL2_PRIVATE_KEY) {
+    throw new Error('Service wallet private key is not configured');
+  }
 
   const web3 = new Web3(config.ARBITRUM_RPC);
   const privateKey = config.WALL2_PRIVATE_KEY.startsWith('0x')
@@ -77,7 +99,10 @@ async function executeReceiveOnArbitrum(attestationData) {
 
   } catch (error) {
     console.log('⚠️ ARB receiveMessage failed:', error.message);
-    if (error.message.includes('Nonce already used')) {
+    if (
+      error.message.includes('Nonce already used') ||
+      await wasCCTPMessageConsumed(attestationData, 'Arbitrum receive failure')
+    ) {
       console.log('✅ USDC transfer already completed (nonce already used).');
       return { transactionHash: null, alreadyCompleted: true };
     }
@@ -96,6 +121,10 @@ async function executeReceiveMessage(attestationData, destinationChain = 'Optimi
   console.log(`\n🔗 ========== EXECUTING RECEIVE MESSAGE ==========`);
   console.log(`   Destination Chain: ${destinationChain}`);
   console.log(`   Network Mode: ${config.NETWORK_MODE}`);
+
+  if (await wasCCTPMessageConsumed(attestationData, `${destinationChain} receive preflight`)) {
+    return { transactionHash: null, alreadyCompleted: true };
+  }
 
   // Select RPC and MessageTransmitter based on chain (supports both testnet and mainnet names)
   let rpcUrl;
@@ -136,6 +165,10 @@ async function executeReceiveMessage(attestationData, destinationChain = 'Optimi
 
   if (!rpcUrl) {
     throw new Error(`RPC URL not configured for ${destinationChain}. Check .env file.`);
+  }
+
+  if (!config.WALL2_PRIVATE_KEY) {
+    throw new Error('Service wallet private key is not configured');
   }
 
   const web3 = new Web3(rpcUrl);
@@ -220,9 +253,12 @@ async function executeReceiveMessage(attestationData, destinationChain = 'Optimi
       console.log(`   Error Code: ${error.code}`);
     }
 
-    // Only treat "Nonce already used" as already completed — that specifically means
-    // the CCTP message was already relayed. Other reverts are real failures.
-    if (error.message.includes('Nonce already used')) {
+    // Relayer races do not always preserve Circle's revert reason through the
+    // destination wrapper, so confirm the authoritative destination nonce too.
+    if (
+      error.message.includes('Nonce already used') ||
+      await wasCCTPMessageConsumed(attestationData, `${destinationChain} receive failure`)
+    ) {
       console.log('✅ Payment was already completed by CCTP (nonce already used). Applicant has received USDC.');
       return {
         transactionHash: null,
@@ -246,6 +282,11 @@ async function executeReceiveOnCctpTransceiver(
   if (!rpcUrl || !transceiverAddress) {
     throw new Error(`${chainName} CCTP receive configuration is incomplete`);
   }
+
+  if (await wasCCTPMessageConsumed(attestationData, `${chainName} transceiver preflight`)) {
+    return { transactionHash: null, alreadyCompleted: true };
+  }
+
   if (!config.WALL2_PRIVATE_KEY) {
     throw new Error('Service wallet private key is not configured');
   }
@@ -271,7 +312,11 @@ async function executeReceiveOnCctpTransceiver(
     await web3.eth.call({ to: transceiverAddress, from: account.address, data: calldata });
     console.log('   Static call: ✅ would succeed');
   } catch (staticErr) {
-    if (staticErr.message.includes('Nonce already used') || staticErr.message.includes('Already processed')) {
+    if (
+      staticErr.message.includes('Nonce already used') ||
+      staticErr.message.includes('Already processed') ||
+      await wasCCTPMessageConsumed(attestationData, `${chainName} transceiver static-call failure`)
+    ) {
       console.log('✅ Already completed');
       return { transactionHash: null, alreadyCompleted: true };
     }
@@ -313,7 +358,11 @@ async function executeReceiveOnCctpTransceiver(
     });
     return { transactionHash: receipt.transactionHash, alreadyCompleted: false };
   } catch (error) {
-    if (error.message.includes('Nonce already used') || error.message.includes('Already processed')) {
+    if (
+      error.message.includes('Nonce already used') ||
+      error.message.includes('Already processed') ||
+      await wasCCTPMessageConsumed(attestationData, `${chainName} transceiver send failure`)
+    ) {
       console.log('✅ Already completed');
       return { transactionHash: null, alreadyCompleted: true };
     }

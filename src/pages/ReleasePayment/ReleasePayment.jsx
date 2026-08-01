@@ -253,27 +253,6 @@ export default function ReleasePayment() {
     return () => clearInterval(interval);
   }, [jobId]);
 
-  // Retry CCTP transfer
-  const handleRetryCCTP = async () => {
-    try {
-      setTransactionStatus('🔄 Retrying CCTP transfer...');
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-      const response = await fetch(`${backendUrl}/api/cctp-retry/releasePayment/${jobId}`, {
-        method: 'POST'
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        setTransactionStatus(`✅ Retry initiated (Attempt ${data.retryCount}). Monitoring...`);
-      } else {
-        setTransactionStatus(`❌ Retry failed: ${data.error}`);
-      }
-    } catch (error) {
-      setTransactionStatus(`❌ Retry error: ${error.message}`);
-    }
-  };
-
-
   // Multi-gateway IPFS fetch function
   const fetchFromIPFS = async (hash, timeout = 5000) => {
     const gateways = [
@@ -1160,26 +1139,28 @@ export default function ReleasePayment() {
             {cctpStatus?.status === 'pending' && (
               <div className="warning-form">
                 <Warning 
-                  content={`⏳ Cross-chain transfer processing: ${cctpStatus.step || 'waiting for event'}...`}
-                  icon="/info.svg"
+                  content={`Cross-chain delivery is being verified (${cctpStatus.step || 'waiting for event'}). Do not submit another payment.`}
+                  variant="info"
+                />
+              </div>
+            )}
+
+            {cctpStatus?.status === 'completed' && (
+              <div className="warning-form">
+                <Warning
+                  content="Payment delivery confirmed on the destination chain."
+                  variant="success"
                 />
               </div>
             )}
             
             {cctpStatus?.status === 'failed' && (
-              <>
-                <div className="warning-form">
-                  <Warning 
-                    content={`⚠️ Transfer incomplete: ${cctpStatus.lastError}. Retry attempts: ${cctpStatus.retryCount}`}
-                    icon="/orange-warning.svg"
-                  />
-                </div>
-                <BlueButton 
-                  label="Retry CCTP Transfer"
-                  onClick={handleRetryCCTP}
-                  style={{width: '100%', justifyContent: 'center', marginTop: '12px'}}
+              <div className="warning-form">
+                <Warning
+                  content={`Delivery verification is delayed. We will keep checking the destination chain automatically; do not submit another payment. ${cctpStatus.lastError || 'No additional details are available yet.'}`}
+                  variant="warning"
                 />
-              </>
+              </div>
             )}
             
             {jobChainConfig && userChainId !== jobChainId && (

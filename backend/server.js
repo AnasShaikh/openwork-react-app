@@ -29,7 +29,9 @@ const {
   getCCTPStatusByTxHash,
   getPendingTransfers,
   getFailedTransfers,
+  updateCCTPStatus,
 } = require('./utils/cctp-storage');
+const { reconcileCCTPTransfer } = require('./utils/cctp-reconciliation');
 const { classifyPaymentReleasedJobId } = require('./utils/payment-released-event');
 
 // Initialize Express
@@ -184,6 +186,57 @@ app.get('/stats', requireOpsToken, (req, res) => {
  * GET /api/payment-log/pending  → jobs with pending/failed CCTP steps
  */
 const paymentStore = require('./utils/payment-store');
+
+async function reconcileStoredCCTPStatus(status) {
+  const shouldReconcile = status && (
+    status.status === 'failed' ||
+    (status.status === 'pending' && status.step === 'executing_receive')
+  );
+  if (!shouldReconcile) return status;
+
+  try {
+    const storedJobId = status.job_id || status.jobId;
+    const reconciliation = await reconcileCCTPTransfer(status);
+    if (!reconciliation.completed) return status;
+
+    await updateCCTPStatus(storedJobId, status.operation, {
+      status: 'completed',
+      step: 'completed',
+      lastError: null,
+    });
+
+    const paymentEvent = {
+      startJob: 'startJob_burn',
+      releasePayment: 'release_burn',
+      lockMilestone: 'lockMilestone_burn',
+      settleDispute: 'settleDispute_burn',
+    }[status.operation];
+    if (paymentEvent) paymentStore.updateTxStatus(storedJobId, paymentEvent, 'completed');
+
+    console.log(
+      `✅ Reconciled ${status.operation}/${storedJobId}: ` +
+      `Circle nonce ${reconciliation.eventNonce} is consumed on domain ${reconciliation.destinationDomain}`
+    );
+
+    return {
+      ...status,
+      status: 'completed',
+      step: 'completed',
+      last_error: null,
+      completed_at: status.completed_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      reconciled: true,
+      destination_domain: reconciliation.destinationDomain,
+      mint_recipient: reconciliation.mintRecipient,
+      amount: reconciliation.amount,
+    };
+  } catch (error) {
+    console.warn(
+      `⚠️ CCTP reconciliation unavailable for ${status.operation}/${status.job_id || status.jobId}: ${error.message}`
+    );
+    return status;
+  }
+}
 
 app.get('/api/payment-log', (req, res) => {
   res.json({ success: true, records: paymentStore.getAllRecords() });
@@ -661,8 +714,7 @@ app.post('/api/stop-listener', (req, res) => {
 app.get('/api/cctp-status/:operation/:jobId', async (req, res) => {
   const { operation, jobId } = req.params;
 
-  const { getCCTPStatus } = require('./utils/cctp-storage');
-  const status = await getCCTPStatus(jobId, operation);
+  let status = await getCCTPStatus(jobId, operation);
   
   if (!status) {
     return res.json({ 
@@ -671,6 +723,8 @@ app.get('/api/cctp-status/:operation/:jobId', async (req, res) => {
       operation
     });
   }
+
+  status = await reconcileStoredCCTPStatus(status);
   
   res.json({
     found: true,
@@ -678,14 +732,19 @@ app.get('/api/cctp-status/:operation/:jobId', async (req, res) => {
     operation,
     status: status.status,
     step: status.step,
-    lastError: status.last_error,
-    sourceChain: status.source_chain,
-    sourceTxHash: status.source_tx_hash,
-    completionTxHash: status.completion_tx_hash,
-    retryCount: status.retry_count,
-    createdAt: status.created_at,
-    updatedAt: status.updated_at,
-    completedAt: status.completed_at
+    lastError: status.last_error || status.lastError || null,
+    sourceChain: status.source_chain || status.sourceChain || null,
+    sourceTxHash: status.source_tx_hash || status.sourceTxHash || null,
+    completionTxHash: status.completion_tx_hash || status.completionTxHash || null,
+    retryCount: status.retry_count ?? status.retryCount ?? 0,
+    createdAt: status.created_at || status.createdAt || null,
+    updatedAt: status.updated_at || status.updatedAt || null,
+    completedAt: status.completed_at || status.completedAt || null,
+    deliveryConfirmed: status.status === 'completed',
+    reconciled: Boolean(status.reconciled),
+    destinationDomain: status.destination_domain ?? null,
+    mintRecipient: status.mint_recipient || null,
+    amount: status.amount || null
   });
 });
 

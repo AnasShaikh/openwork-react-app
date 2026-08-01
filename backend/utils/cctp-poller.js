@@ -53,6 +53,7 @@ async function pollCCTPAttestation(txHash, sourceDomain, timeout = config.CCTP_A
           return {
             message: message.message,
             attestation: message.attestation,
+            eventNonce: message.eventNonce,
             mintRecipient: message.decodedMessage?.decodedMessageBody?.mintRecipient,
             amount: message.decodedMessage?.decodedMessageBody?.amount,
             destinationDomain: message.destinationDomain ?? message.decodedMessage?.destinationDomain

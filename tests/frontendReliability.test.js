@@ -194,6 +194,19 @@ test('native Arbitrum payment release preflights through the configured RPC', ()
   assert.match(localChainService, /getReadOnlyWeb3\(chainId\)/);
 });
 
+test('release-payment status is destination-confirmed and never exposes operator retry', () => {
+  const releasePayment = source('src/pages/ReleasePayment/ReleasePayment.jsx');
+  const backend = source('backend/server.js');
+
+  assert.match(releasePayment, /Payment delivery confirmed on the destination chain/);
+  assert.match(releasePayment, /No additional details are available yet/);
+  assert.match(releasePayment, /do not submit another payment/);
+  assert.doesNotMatch(releasePayment, /\/api\/cctp-retry/);
+  assert.doesNotMatch(releasePayment, /Retry attempts:/);
+  assert.match(backend, /reconcileStoredCCTPStatus/);
+  assert.match(backend, /deliveryConfirmed: status\.status === 'completed'/);
+});
+
 test('direct-contract validates USDC and keeps XDC preflight off the injected wallet RPC', () => {
   const directContract = source('src/pages/DirectContractForm/DirectContractForm.jsx');
 
