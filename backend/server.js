@@ -30,6 +30,7 @@ const {
   getPendingTransfers,
   getFailedTransfers,
 } = require('./utils/cctp-storage');
+const { classifyPaymentReleasedJobId } = require('./utils/payment-released-event');
 
 // Initialize Express
 const app = express();
@@ -1029,6 +1030,39 @@ async function processLockMilestoneCCTP(jobId, sourceTxHash, statusKey) {
 /**
  * Monitor NOWJC contract for events (used for release payment)
  */
+function queueObservedPaymentReleasedEvent(event, sourceLabel) {
+  const classification = classifyPaymentReleasedJobId(event?.returnValues?.jobId);
+
+  if (!classification.shouldProcess) {
+    const txHash = event?.transactionHash || 'unknown';
+    console.log(
+      `ℹ️  PaymentReleased observed (${sourceLabel}, tx: ${txHash}) but not queued: ${classification.reason}. ` +
+      'Job-specific API monitoring or persisted recovery owns cross-chain relay processing.'
+    );
+    return false;
+  }
+
+  const { jobId } = classification;
+  const key = `payment-${jobId}-${event.transactionHash}`;
+  if (processingJobs.has(key) || completedJobs.has(key)) return false;
+
+  console.log(`\n🔔 ${sourceLabel}: PaymentReleased for job ${jobId} | TX: ${event.transactionHash}`);
+  processingJobs.add(key);
+  processReleasePaymentFlow(jobId, jobStatuses, null, event.transactionHash)
+    .then(() => {
+      completedJobs.set(key, Date.now());
+      if (completedJobs.size > 100) completedJobs.delete(completedJobs.keys().next().value);
+    })
+    .catch((error) => {
+      console.error(`PaymentReleased recovery failed for ${jobId}:`, error.message);
+    })
+    .finally(() => {
+      processingJobs.delete(key);
+    });
+
+  return true;
+}
+
 async function startEventListener() {
   const redactUrl = (value) => {
     if (!value) return 'not configured';
@@ -1068,17 +1102,7 @@ async function startEventListener() {
       const to = b + 9n < BigInt(currentBlock) ? b + 9n : BigInt(currentBlock);
       const events = await nowjcContract.getPastEvents('PaymentReleased', { fromBlock: b, toBlock: to });
       for (const event of events) {
-        const jobId = event.returnValues.jobId;
-        const key = `payment-${jobId}`;
-        if (!processingJobs.has(key) && !completedJobs.has(key)) {
-          console.log(`🔄 Startup recovery: missed PaymentReleased for job ${jobId} (tx: ${event.transactionHash})`);
-          processingJobs.add(key);
-          processReleasePaymentFlow(jobId, jobStatuses, null, event.transactionHash)
-            .finally(() => {
-              processingJobs.delete(key);
-              completedJobs.set(key, Date.now());
-            });
-        }
+        queueObservedPaymentReleasedEvent(event, 'Startup recovery');
       }
     }
     console.log(`✅ Startup scan complete.`);
@@ -1104,19 +1128,7 @@ async function startEventListener() {
       });
 
       for (const event of paymentReleasedEvents) {
-        const jobId = event.returnValues.jobId;
-        const key = `payment-${jobId}`;
-        if (!processingJobs.has(key) && !completedJobs.has(key)) {
-          console.log(`\n🔔 NEW EVENT: PaymentReleased for job ${jobId} | TX: ${event.transactionHash}`);
-          processingJobs.add(key);
-          // ✅ Pass known tx hash — skips redundant event scan in processReleasePayment
-          processReleasePaymentFlow(jobId, jobStatuses, null, event.transactionHash)
-            .finally(() => {
-              processingJobs.delete(key);
-              completedJobs.set(key, Date.now());
-              if (completedJobs.size > 100) completedJobs.delete(completedJobs.keys().next().value);
-            });
-        }
+        queueObservedPaymentReleasedEvent(event, 'New event');
       }
 
       lastProcessedBlock = latestBlock;
@@ -1135,6 +1147,7 @@ async function processReleasePaymentFlow(jobId, statusMap, statusKey, knownTxHas
     await processReleasePayment(jobId, statusMap, statusKey, knownTxHash);
   } catch (error) {
     console.error(`Failed to process Release Payment for ${jobId}:`, error.message);
+    throw error;
   }
 }
 
