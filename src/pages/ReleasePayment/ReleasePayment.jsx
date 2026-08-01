@@ -213,6 +213,10 @@ export default function ReleasePayment() {
           description: jobDetails.description || '',
           ...jobDetails,
         });
+
+        if (Number(jobData.status) === 2) {
+          setTransactionStatus('Payment release is recorded on OpenWork. No further payment action is required.');
+        }
         
         // Set the current milestone number (already 1-indexed from contract, 0 means no milestone)
         setCurrentMilestoneNumber(currentMilestone);
@@ -969,6 +973,14 @@ export default function ReleasePayment() {
     );
   }
 
+  const hasNextMilestone = (
+    job.jobStatus !== 2 &&
+    job.currentMilestone < job.milestonePayments.length
+  );
+  const hasPaymentAction = job.jobStatus !== 2 && (
+    job.currentLockedAmount !== '0' || hasNextMilestone
+  );
+
   return (
     <>
       <div className="newTitle">
@@ -1100,33 +1112,33 @@ export default function ReleasePayment() {
                   justifyContent:'center', 
                   padding: '8px 16px', 
                   borderRadius: '12px',
-                  opacity: (isProcessing || job.currentLockedAmount === '0') ? 0.7 : 1,
-                  cursor: (isProcessing || job.currentLockedAmount === '0') ? 'not-allowed' : 'pointer'
+                  opacity: (isProcessing || job.jobStatus === 2 || job.currentLockedAmount === '0') ? 0.7 : 1,
+                  cursor: (isProcessing || job.jobStatus === 2 || job.currentLockedAmount === '0') ? 'not-allowed' : 'pointer'
                 }} 
                 onClick={handleReleasePayment}
-                disabled={isProcessing || job.currentLockedAmount === '0'}
+                disabled={isProcessing || job.jobStatus === 2 || job.currentLockedAmount === '0'}
               />
               <BlueButton 
                 label={isLocking ? 'Locking...' : 'Lock Next'} 
-                amount={job.currentMilestone < job.milestonePayments.length ? formatAmount(safeNumber(job.milestonePayments[job.currentMilestone].amount) / 1000000) : '0'} 
+                amount={hasNextMilestone ? formatAmount(safeNumber(job.milestonePayments[job.currentMilestone].amount) / 1000000) : '0'}
                 style={{
                   width: '198px', 
                   justifyContent:'center', 
                   padding: '8px 16px', 
                   borderRadius: '12px',
-                  opacity: isLocking ? 0.7 : 1,
-                  cursor: isLocking ? 'not-allowed' : 'pointer'
+                  opacity: (isLocking || !hasNextMilestone) ? 0.7 : 1,
+                  cursor: (isLocking || !hasNextMilestone) ? 'not-allowed' : 'pointer'
                 }}
                 onClick={handleLockNextMilestone}
-                disabled={isLocking}
+                disabled={isLocking || !hasNextMilestone}
               />
             </div>
             <div className="warning-form">
-              <Warning content={transactionStatus} />
+              <Warning content={transactionStatus} variant={job.jobStatus === 2 ? 'success' : 'warning'} />
             </div>
             
             {/* Permission Check */}
-            {walletAddress && job.jobGiver && walletAddress.toLowerCase() !== job.jobGiver.toLowerCase() && (
+            {job.jobStatus !== 2 && walletAddress && job.jobGiver && walletAddress.toLowerCase() !== job.jobGiver.toLowerCase() && (
               <div className="warning-form">
                 <Warning 
                   content="⚠️ Only the job giver can release payments. You are not the job giver for this job."
@@ -1163,7 +1175,7 @@ export default function ReleasePayment() {
               </div>
             )}
             
-            {jobChainConfig && userChainId !== jobChainId && (
+            {hasPaymentAction && jobChainConfig && userChainId !== jobChainId && (
               <div className="warning-form">
                 <Warning 
                   content={`⚠️ Payment operations require ${jobChainConfig.name}. You are on ${userChainConfig?.name || 'unknown chain'}. Please switch networks.`} 

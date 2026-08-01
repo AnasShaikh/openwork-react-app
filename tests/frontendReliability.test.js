@@ -209,6 +209,10 @@ test('release-payment status is destination-confirmed and never exposes operator
   assert.doesNotMatch(startJob, /\/api\/cctp-retry/);
   assert.doesNotMatch(releasePayment, /Retry attempts:/);
   assert.doesNotMatch(startJob, /Retry attempts:/);
+  assert.match(releasePayment, /Payment release is recorded on OpenWork/);
+  assert.match(releasePayment, /disabled=\{isLocking \|\| !hasNextMilestone\}/);
+  assert.match(releasePayment, /variant=\{job\.jobStatus === 2 \? 'success' : 'warning'\}/);
+  assert.match(releasePayment, /hasPaymentAction && jobChainConfig/);
   assert.match(backend, /reconcileStoredCCTPStatus/);
   assert.match(backend, /deliveryConfirmed: status\.status === 'completed'/);
 });
