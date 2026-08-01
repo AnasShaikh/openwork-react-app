@@ -400,25 +400,6 @@ export default function ViewReceivedApplication() {
     return () => clearInterval(interval);
   }, [jobId]);
 
-  // Retry CCTP transfer
-  const handleRetryCCTP = async () => {
-    try {
-      setTransactionStatus('🔄 Retrying CCTP transfer...');
-      const response = await fetch(`${BACKEND_URL}/api/cctp-retry/startJob/${jobId}`, {
-        method: 'POST'
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        setTransactionStatus(`✅ Retry initiated (Attempt ${data.retryCount}). Monitoring...`);
-      } else {
-        setTransactionStatus(`❌ Retry failed: ${data.error}`);
-      }
-    } catch (error) {
-      setTransactionStatus(`❌ Retry error: ${error.message}`);
-    }
-  };
-
   const formatWalletAddress = (address) => {
     if (!address) return "Unknown";
     return `${address.substring(0, 6)}...${address.substring(38)}`;
@@ -981,29 +962,28 @@ export default function ViewReceivedApplication() {
                    {cctpStatus?.status === 'pending' && (
                      <div className="warning-form">
                        <Warning
-                         content={`⏳ Cross-chain transfer processing: ${cctpStatus.step || 'polling attestation'}...`}
-                         icon="/info.svg"
+                         content={`Cross-chain delivery is being verified (${cctpStatus.step || 'polling attestation'}). Do not submit another transaction.`}
+                         variant="info"
+                       />
+                     </div>
+                   )}
+
+                   {cctpStatus?.status === 'completed' && (
+                     <div className="warning-form">
+                       <Warning
+                         content="Cross-chain escrow delivery confirmed on the destination chain."
+                         variant="success"
                        />
                      </div>
                    )}
 
                    {cctpStatus?.status === 'failed' && (
-                     <>
-                       <div className="warning-form">
-                         <Warning
-                           content={`⚠️ Transfer incomplete: ${cctpStatus.lastError}. Retry attempts: ${cctpStatus.retryCount}`}
-                           icon="/orange-warning.svg"
-                         />
-                       </div>
-                       <div style={{marginTop: '12px'}}>
-                         <Button
-                           label="Retry CCTP Transfer"
-                           buttonCss={'downvote-button upvote-button'}
-                           onClick={handleRetryCCTP}
-                           style={{ width: '100%' }}
-                         />
-                       </div>
-                     </>
+                     <div className="warning-form">
+                       <Warning
+                         content={`Delivery verification is delayed. We will keep checking the destination chain automatically; do not submit another transaction. ${cctpStatus.lastError || 'No additional details are available yet.'}`}
+                         variant="warning"
+                       />
+                     </div>
                    )}
 
                    {jobChainConfig && userChainId !== jobChainId && (

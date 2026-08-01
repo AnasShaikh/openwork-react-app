@@ -196,13 +196,19 @@ test('native Arbitrum payment release preflights through the configured RPC', ()
 
 test('release-payment status is destination-confirmed and never exposes operator retry', () => {
   const releasePayment = source('src/pages/ReleasePayment/ReleasePayment.jsx');
+  const startJob = source('src/pages/ViewReceivedApplication/ViewReceivedApplication.jsx');
   const backend = source('backend/server.js');
 
   assert.match(releasePayment, /Payment delivery confirmed on the destination chain/);
+  assert.match(startJob, /Cross-chain escrow delivery confirmed on the destination chain/);
   assert.match(releasePayment, /No additional details are available yet/);
+  assert.match(startJob, /No additional details are available yet/);
   assert.match(releasePayment, /do not submit another payment/);
+  assert.match(startJob, /do not submit another transaction/);
   assert.doesNotMatch(releasePayment, /\/api\/cctp-retry/);
+  assert.doesNotMatch(startJob, /\/api\/cctp-retry/);
   assert.doesNotMatch(releasePayment, /Retry attempts:/);
+  assert.doesNotMatch(startJob, /Retry attempts:/);
   assert.match(backend, /reconcileStoredCCTPStatus/);
   assert.match(backend, /deliveryConfirmed: status\.status === 'completed'/);
 });

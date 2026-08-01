@@ -35,7 +35,7 @@ export const multiChainIntegrationGuide = {
         'Happens automatically in the background',
         'Completion time depends on the CCTP route and finality mode',
         'Status shows in blue info boxes',
-        'Retry available if something goes wrong'
+        'Destination-chain reconciliation handles relayer races automatically'
       ],
 
       statusMessages: {
@@ -61,37 +61,37 @@ export const multiChainIntegrationGuide = {
           color: 'Green (success)'
         },
         failed: {
-          message: '⚠️ Transfer incomplete: [error]. Retry attempts: X',
-          meaning: 'CCTP transfer encountered an error',
-          action: 'Click "Retry CCTP Transfer" button',
+          message: 'Delivery verification is delayed',
+          meaning: 'The backend has not yet confirmed the destination nonce',
+          action: 'Wait for automatic reconciliation and do not resubmit the wallet transaction',
           icon: '/orange-warning.svg',
           color: 'Orange (warning)'
         }
       },
 
       retryMechanism: {
-        title: 'How to Retry Failed Transfers',
+        title: 'How Delayed Transfers Recover',
         steps: [
-          'You\'ll see an orange warning: "⚠️ Transfer incomplete"',
-          'Below it, a "Retry CCTP Transfer" button appears',
-          'Click the button - backend will re-attempt',
-          'Status updates automatically (polls every 5 seconds)',
-          'You can retry multiple times if needed',
-          'Status persists even if you close the page'
+          'The page keeps polling transfer status automatically',
+          'The backend checks Circle attestation state',
+          'The destination MessageTransmitter nonce is the delivery authority',
+          'A consumed nonce overrides a stale relay error',
+          'Do not submit another wallet transaction',
+          'Contact support with the job ID if verification remains delayed'
         ],
         notes: [
-          'Retries are free (no additional blockchain tx)',
-          'Uses saved attestation data from first attempt',
-          'Retry count is tracked and displayed',
-          'If retries keep failing, contact support'
+          'Users never receive an operator API token',
+          'Reconciliation is read-only and does not spend wallet funds',
+          'A success status requires the destination nonce to be consumed',
+          'Operator recovery remains protected and is not exposed in the browser'
         ]
       },
 
       whenToWorry: [
         '✅ Normal: Pending for 1-2 minutes',
-        '✅ Normal: One retry succeeds',
+        '✅ Normal: Automatic reconciliation confirms delivery',
         '⚠️ Investigate: Pending for 10+ minutes',
-        '⚠️ Investigate: 3+ retries all failing',
+        '⚠️ Investigate: Destination verification delayed for 10+ minutes',
         '🚨 Contact support: Still failed after 24 hours'
       ]
     },
@@ -116,7 +116,7 @@ export const multiChainIntegrationGuide = {
         },
         {
           question: 'What if CCTP transfer shows "incomplete" for several minutes?',
-          answer: 'First, wait 2-3 minutes (sometimes Circle API is slow). Then click "Retry CCTP Transfer" button. If retry fails 3 times, contact support.',
+          answer: 'Wait 2-3 minutes because Circle finality can be slow. The app checks the destination chain automatically. Do not resubmit; contact support with the job ID if verification stays delayed.',
           example: 'Normal: 30-120s pending → Concerning: 10+ minutes stuck'
         },
         {
@@ -161,8 +161,8 @@ export const multiChainIntegrationGuide = {
           solutions: [
             'Wait 2-3 minutes first (normal delay)',
             'Check the page - status updates every 5 seconds',
-            'If stuck 10+ minutes, click "Retry CCTP Transfer"',
-            'If retry fails 3 times, contact support with job ID'
+            'Do not resubmit the wallet transaction',
+            'If stuck 10+ minutes, contact support with the job ID'
           ]
         },
         {
@@ -211,9 +211,9 @@ export const multiChainIntegrationGuide = {
         title: 'CCTP Transfers',
         tips: [
           '⏱️ Expect 1-2 minute delays (normal)',
-          '🔄 Use retry button if stuck > 5 minutes',
+          '🔄 Let destination-chain reconciliation run if status is delayed',
           '📊 Status updates automatically every 5 seconds',
-          '💾 Status persists - safe to close page and check later'
+          '💾 Keep the job ID so support can verify destination-chain delivery'
         ]
       }
     ]
