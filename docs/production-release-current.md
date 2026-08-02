@@ -6,23 +6,28 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 1 August 2026 19:27:28 UTC (2 August 2026 00:57:28 IST) |
+| Deployed at | 2 August 2026 14:54:55 UTC (2 August 2026 20:24:55 IST) |
 | Git branch | `main` |
-| Git commit | `fec743f07cbc56659bb623830208fed82d38929d` |
+| Git commit | `0aa0f5fef72b35861a8741ac92abe4ad7b3bd502` |
 | GitHub CI | No workflow run was registered for this commit; local frontend/backend tests and the production CodeBuild gate passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-fec743f07cbc56659bb623830208fed82d38929d.zip` |
-| Source archive SHA-256 | `9bc90b2e7f51d0d4a290b02c4fcf022617f71feae6cd5feaf52bf4d4c7d22369` |
-| CodeBuild | `openwork-react-app-prod-build:9b916750-e9c1-4d13-972a-a045c283e56b` — succeeded |
-| ECR image | `openwork-app:prod-fec743f-20260801191945` |
-| ECR digest | `sha256:a36c87803e5ae853cab26c5d057ca68bf0f9e747bd65a590fb194448b0fc8189` |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-0aa0f5fef72b35861a8741ac92abe4ad7b3bd502.zip` |
+| Source archive SHA-256 | `fde13ae7cafe4bff588054e35172588b4323b107dceceee360249101494d1dff` |
+| CodeBuild | `openwork-react-app-prod-build:cbb34290-e522-4395-ac82-cf45c99b554e` — succeeded |
+| ECR image | `openwork-app:prod-0aa0f5f-20260802144804` |
+| ECR digest | `sha256:c6489fbb0bb5abe8ad149dddb64ffd6adc876734a7f4d44b1bf226f5ea59abd0` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `dec3e3f9674246828a392b82358e473d` — succeeded |
+| App Runner operation | `78d7446fc0f74adbb8e0c407f9d75fad` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-Baoy7gR-.js` |
+| Deployed JS asset | `/assets/index-wVg6oo-r.js` |
 
 ## Verification
 
-- Frontend tests (`42/42`), backend tests (`21/21`), the mainnet frontend build, CodeBuild and the production image build passed for the exact source commit.
+- Frontend tests (`45/45`), backend tests (`21/21`), the mainnet frontend build, CodeBuild and the production image build passed for the exact source commit.
+- MetaMask connection is now provider-authoritative after reload or disconnect, handles delayed extension injection, and renders rejected, pending and missing-extension errors in the page instead of leaving an inert wallet choice.
+- Job metadata now retries the managed same-origin IPFS gateway before a public fallback, never settles on `Untitled Job`, and exposes a safe display-only retry. Production browser verification loaded job `42161-22` as `Arb Dev` without a metadata warning.
+- Completed jobs no longer expose release-payment or dispute actions. Work submission is limited to an in-progress job and its selected applicant, and its LayerZero quote plus exact gas preflight use the configured chain RPC before the final user-signed MetaMask write.
+- Switching Direct Contract between single and multiple milestones preserves the amount already entered instead of silently resetting compensation. Production browser verification passed `/connect-wallet`, `/direct-contract`, `/job-details/42161-22`, `/add-update/42161-22` and `/release-payment/42161-22`; every HTTP gate returned `200`.
+- This release changed application code only. It sent no smart-contract transaction and changed no contract, wallet, token balance or on-chain state.
 - CCTP receive execution now reconciles generic provider or duplicate-relay errors against Circle's destination `usedNonces(bytes32)` state. A consumed nonce is recorded as delivered instead of a false failure; an unused nonce is never presented as success.
 - Release Payment and Start Job no longer expose protected operator retry endpoints in the browser or interpolate missing backend fields into `undefined` error messages. Job `30365-5` now renders its contract-recorded final state: `Completed`, `0.10 USDC` released, `0` locked, both payment buttons disabled and a definitive success notice.
 - Production browser verification of `/release-payment/30365-5` found no console warnings or errors. The deployed bundle contains the final-state message and contains neither browser CCTP retry endpoint nor the obsolete retry-attempt text.
@@ -105,7 +110,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-b48281f-20260801190752` |
-| ECR digest | `sha256:18644cd7fa5f55e72b68270e925b7e805f14be2bc287460a303f9a046b495046` |
+| ECR image | `openwork-app:prod-fec743f-20260801191945` |
+| ECR digest | `sha256:a36c87803e5ae853cab26c5d057ca68bf0f9e747bd65a590fb194448b0fc8189` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
