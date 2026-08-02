@@ -1,27 +1,27 @@
-[submodule "lib/forge-std"]
-	path = lib/forge-std
+[submodule "contracts/lib/forge-std"]
+	path = contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "lib/openzeppelin-contracts"]
-	path = lib/openzeppelin-contracts
+[submodule "contracts/lib/openzeppelin-contracts"]
+	path = contracts/lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
-[submodule "lib/LayerZero-v2"]
-	path = lib/LayerZero-v2
+[submodule "contracts/lib/LayerZero-v2"]
+	path = contracts/lib/LayerZero-v2
 	url = https://github.com/LayerZero-Labs/LayerZero-v2
-[submodule "lib/devtools"]
-	path = lib/devtools
+[submodule "contracts/lib/devtools"]
+	path = contracts/lib/devtools
 	url = https://github.com/LayerZero-Labs/devtools
-[submodule "lib/openzeppelin-contracts-upgradeable"]
-	path = lib/openzeppelin-contracts-upgradeable
+[submodule "contracts/lib/openzeppelin-contracts-upgradeable"]
+	path = contracts/lib/openzeppelin-contracts-upgradeable
 	url = https://github.com/openzeppelin/openzeppelin-contracts-upgradeable
-[submodule "lib/contracts"]
-	path = lib/contracts
+[submodule "contracts/lib/contracts"]
+	path = contracts/lib/contracts
 	url = https://github.com/across-protocol/contracts
-[submodule "lib/wormhole-solidity-sdk"]
-	path = lib/wormhole-solidity-sdk
+[submodule "contracts/lib/wormhole-solidity-sdk"]
+	path = contracts/lib/wormhole-solidity-sdk
 	url = https://github.com/wormhole-foundation/wormhole-solidity-sdk
-[submodule "lib/evm-cctp-contracts"]
-	path = lib/evm-cctp-contracts
+[submodule "contracts/lib/evm-cctp-contracts"]
+	path = contracts/lib/evm-cctp-contracts
 	url = https://github.com/circlefin/evm-cctp-contracts
-[submodule "lib/hyperlane-monorepo"]
-	path = lib/hyperlane-monorepo
+[submodule "contracts/lib/hyperlane-monorepo"]
+	path = contracts/lib/hyperlane-monorepo
 	url = https://github.com/hyperlane-xyz/hyperlane-monorepo
