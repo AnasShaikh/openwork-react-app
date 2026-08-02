@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
 import nowjcABI from "../../ABIs/nowjc_ABI.json";
 import { getNativeChain } from "../../config/chainConfig";
+import { useWalletConnection } from "../../functions/useWalletConnection";
 import "./JobUpdate.css";
 
 import JobItem from "../../components/JobItem/JobItem";
@@ -14,6 +15,14 @@ export default function JobUpdate() {
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { walletAddress } = useWalletConnection();
+
+  const canAddUpdate = Boolean(
+    walletAddress
+    && job?.selectedApplicant
+    && Number(job.status) === 1
+    && walletAddress.toLowerCase() === job.selectedApplicant.toLowerCase()
+  );
 
   function formatWalletAddressH(address) {
     if (!address) return "";
@@ -148,7 +157,9 @@ export default function JobUpdate() {
                   className="add-update-image"
                 />
               </Link> */}
-              <BlueButton icon={'/plus.svg'} label={'Add New Update'} style={{padding: '8px 16px'}} onClick={goAddUpdate}/>
+              {canAddUpdate && (
+                <BlueButton icon={'/plus.svg'} label={'Add New Update'} style={{padding: '8px 16px'}} onClick={goAddUpdate}/>
+              )}
             {/* )} */}
           </div>
 

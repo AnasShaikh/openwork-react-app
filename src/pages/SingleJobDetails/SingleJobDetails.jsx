@@ -9,6 +9,8 @@ import "./SingleJobDetails.css";
 import MenuItem from "../../components/MenuItem";
 import ToolTipContent from "../../components/ToolTipContent/ToolTipContent";
 import ToolTipMilestone from "../../components/ToolTipMilestone/ToolTipMilestone";
+import Warning from "../../components/Warning/Warning";
+import { useWalletConnection } from "../../functions/useWalletConnection";
 import { getNativeChain, isMainnet } from "../../config/chainConfig";
 
 const COMMISSION_ABI = [
@@ -46,13 +48,58 @@ function getArbitrumRpc() {
     : import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL;
 }
 
+const IPFS_METADATA_RETRY_DELAYS_MS = [0, 600, 1500, 3000];
+
+async function fetchJsonWithTimeout(url, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`IPFS gateway returned ${response.status}`);
+    const data = await response.json();
+    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+      throw new Error("IPFS metadata was empty");
+    }
+    return data;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function fetchJobMetadata(hash) {
+  if (!hash) throw new Error("The job does not contain a metadata identifier");
+
+  const gateways = [
+    `/api/ipfs/content/${hash}`,
+    `https://w3s.link/ipfs/${hash}`,
+  ];
+  let lastError = null;
+
+  for (const delay of IPFS_METADATA_RETRY_DELAYS_MS) {
+    if (delay > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, delay));
+    }
+
+    for (const gateway of gateways) {
+      try {
+        return await fetchJsonWithTimeout(gateway);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  throw lastError || new Error("Job metadata is temporarily unavailable");
+}
+
 export default function SingleJobDetails() {
   const [buttonFlex2, setButtonFlex2] = useState(false);
   const { jobId } = useParams();
   const [job, setJob] = useState(null);
-  const [walletAddress, setWalletAddress] = useState("");
-  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const { walletAddress } = useWalletConnection();
   const [loading, setLoading] = useState(true);
+  const [metadataError, setMetadataError] = useState("");
+  const [metadataReloadToken, setMetadataReloadToken] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountReceived, setAmountReceived] = useState(0);
   const [amountLocked, setAmountLocked] = useState(0);
@@ -123,34 +170,11 @@ export default function SingleJobDetails() {
       });
   };
 
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-        setWalletAddress(accounts[0]);
-      } catch (error) {
-        console.error("Failed to connect wallet:", error);
-      }
-    } else {
-      console.error("MetaMask is not installed.");
-    }
-  };
-
-  const toggleDropdown = () => {
-    setDropdownVisible(!dropdownVisible);
-  };
-
-  const disconnectWallet = () => {
-    setWalletAddress("");
-    setDropdownVisible(false);
-  };
-
   useEffect(() => {
     async function fetchJobDetails() {
       try {
         setLoading(true);
+        setMetadataError("");
         const rpcUrl = getArbitrumRpc();
         const genesisAddress = getGenesisAddress();
 
@@ -164,35 +188,17 @@ export default function SingleJobDetails() {
         // Fetch job details from the contract
         const jobData = await contract.methods.getJob(jobId).call();
 
-        // Fetch job details from IPFS
+        // Fetch job details from the managed same-origin gateway first. Newly
+        // pinned metadata can take a moment to become readable, so retry here
+        // instead of presenting a permanent placeholder until reload.
         let jobDetails = {};
         try {
           if (jobData.jobDetailHash) {
-            // Try multiple IPFS gateways in case of rate limiting
-            const gateways = [
-              `https://ipfs.io/ipfs/${jobData.jobDetailHash}`,
-              `/api/ipfs/content/${jobData.jobDetailHash}`,
-              `https://dweb.link/ipfs/${jobData.jobDetailHash}`,
-              `https://w3s.link/ipfs/${jobData.jobDetailHash}`
-            ];
-            
-            let ipfsResponse = null;
-            for (const gateway of gateways) {
-              try {
-                ipfsResponse = await fetch(gateway);
-                if (ipfsResponse.ok) {
-                  break;
-                }
-              } catch (e) {
-                continue;
-              }
-            }
-            if (ipfsResponse && ipfsResponse.ok) {
-              jobDetails = await ipfsResponse.json();
-            }
+            jobDetails = await fetchJobMetadata(jobData.jobDetailHash);
           }
         } catch (ipfsError) {
           console.warn("Failed to fetch IPFS data:", ipfsError);
+          setMetadataError("Job metadata is still syncing. The on-chain contract is available, and retrying this display is safe.");
         }
 
         // Fetch job giver and job taker profiles
@@ -314,7 +320,7 @@ export default function SingleJobDetails() {
         // Set the job state
         setJob({
           jobId: jobData.id,
-          title: jobDetails.title || "Untitled Job",
+          title: jobDetails.title || `Job ${jobId}`,
           description: jobDetails.description || "",
           skills: jobDetails.skills || [],
           jobGiver: jobData.jobGiver,
@@ -349,37 +355,7 @@ export default function SingleJobDetails() {
     if (jobId) {
       fetchJobDetails();
     }
-  }, [jobId]);
-
-  const fetchFromIPFS = async (hash) => {
-    try {
-      const response = await fetch(`/api/ipfs/content/${hash}`);
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching data from IPFS:", error);
-      return {};
-    }
-  };
-
-  // Check if user is already connected to MetaMask
-  useEffect(() => {
-    const checkWalletConnection = async () => {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({
-            method: "eth_accounts",
-          });
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0]);
-          }
-        } catch (error) {
-          console.error("Failed to check wallet connection:", error);
-        }
-      }
-    };
-
-    checkWalletConnection();
-  }, []);
+  }, [jobId, metadataReloadToken]);
 
   const handleNavigation = () => {
     window.open(
@@ -443,6 +419,13 @@ export default function SingleJobDetails() {
     );
   }
 
+  const connectedAddress = walletAddress?.toLowerCase() || "";
+  const isJobGiver = connectedAddress === job.jobGiver?.toLowerCase();
+  const isSelectedApplicant = connectedAddress === job.selectedApplicant?.toLowerCase();
+  const isJobInProgress = Number(job.status) === 1;
+  const canReleasePayment = isJobGiver && isJobInProgress && amountLocked > 0;
+  const canRaiseDispute = isJobInProgress && (isJobGiver || isSelectedApplicant);
+
   return (
     <main className="container">
       <div className="single-job-details">
@@ -504,6 +487,28 @@ export default function SingleJobDetails() {
             </Tooltip>
           </div>
         </div>
+
+        {metadataError && (
+          <div style={{ margin: "0 auto 20px", maxWidth: "680px" }}>
+            <Warning content={metadataError} variant="warning" />
+            <button
+              type="button"
+              onClick={() => setMetadataReloadToken((value) => value + 1)}
+              style={{
+                display: "block",
+                margin: "10px auto 0",
+                border: "1px solid #2465ff",
+                borderRadius: "10px",
+                background: "#fff",
+                color: "#2465ff",
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Retry job details
+            </button>
+          </div>
+        )}
 
         <div className="radialMenu" id="radialMenu">
           <img src="/RadiantGlow.png" alt="Radiant Glow" id="radiantGlow" />
@@ -660,22 +665,24 @@ export default function SingleJobDetails() {
             <img src="/info.svg" alt="Pay Icon" className="buttonIconHover" />
             <span className="buttonText">Job Details</span>
           </Link>
-          <Link
-            to={`/release-payment/${job.jobId}`}
-            id="buttonBottomS"
-            className={`buttonContainerS ${hovered ? "visible-home" : ""}`}
-            style={{ display: buttonFlex2 ? "flex" : "none" }}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-          >
-            <img
-              src="/radial-button.svg"
-              alt="Button Top"
-              className="buttonImageS"
-            />
-            <img src="/pay.svg" alt="Pay Icon" className="buttonIconHover" />
-            <span className="buttonText">Pay Now</span>
-          </Link>
+          {canReleasePayment && (
+            <Link
+              to={`/release-payment/${job.jobId}`}
+              id="buttonBottomS"
+              className={`buttonContainerS ${hovered ? "visible-home" : ""}`}
+              style={{ display: buttonFlex2 ? "flex" : "none" }}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <img
+                src="/radial-button.svg"
+                alt="Button Top"
+                className="buttonImageS"
+              />
+              <img src="/pay.svg" alt="Pay Icon" className="buttonIconHover" />
+              <span className="buttonText">Pay Now</span>
+            </Link>
+          )}
           <Link
             to={`/job-update/${job.jobId}`}
             id="buttonBottomLeftS"
@@ -696,26 +703,28 @@ export default function SingleJobDetails() {
             />
             <span className="buttonText">Job Update</span>
           </Link>
-          <Link
-            to={`/raise-dispute/${job.jobId}`}
-            id="buttonBottomRightS"
-            className={`buttonContainerS ${hovered ? "visible-home" : ""}`}
-            style={{ display: buttonFlex2 ? "flex" : "none" }}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-          >
-            <img
-              src="/radial-button.svg"
-              alt="Button Bottom Right"
-              className="buttonImageS"
-            />
-            <img
-              src="/dispute.svg"
-              alt="Dispute Icon"
-              className="buttonIconHover"
-            />
-            <span className="buttonText">Raise Dispute</span>
-          </Link>
+          {canRaiseDispute && (
+            <Link
+              to={`/raise-dispute/${job.jobId}`}
+              id="buttonBottomRightS"
+              className={`buttonContainerS ${hovered ? "visible-home" : ""}`}
+              style={{ display: buttonFlex2 ? "flex" : "none" }}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <img
+                src="/radial-button.svg"
+                alt="Button Bottom Right"
+                className="buttonImageS"
+              />
+              <img
+                src="/dispute.svg"
+                alt="Dispute Icon"
+                className="buttonIconHover"
+              />
+              <span className="buttonText">Raise Dispute</span>
+            </Link>
+          )}
           <div
             id="core"
             className="coreContainer"

@@ -52,6 +52,7 @@ export const DESTINATION_GAS_ESTIMATES = {
   APPLY_JOB: 800000,
   POST_JOB: 800000,
   RELEASE_PAYMENT: 800000,
+  SUBMIT_WORK: 800000,
   LOCK_MILESTONE: 500000,
   START_JOB: 800000,
   // Includes canonical application lookup plus the native-to-local callback send.

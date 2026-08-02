@@ -143,6 +143,7 @@ test('the XDC chain logo is distinct from the USDC payment icon', () => {
 test('direct-contract placeholders and amounts are visibly editable', () => {
   const applyNowCss = source('src/pages/ApplyNow/ApplyNow.css');
   const directContractCss = source('src/pages/DirectContractForm/DirectContractForm.css');
+  const directContract = source('src/pages/DirectContractForm/DirectContractForm.jsx');
   const milestone = source('src/components/Milestone/Milestone.jsx');
 
   assert.match(applyNowCss, /\.apply-now-form ::placeholder/);
@@ -150,6 +151,54 @@ test('direct-contract placeholders and amounts are visibly editable', () => {
   assert.match(directContractCss, /\.form-groupDC input::placeholder,[\s\S]*font-weight: 400/);
   assert.match(milestone, /className="milestone-inline-amount"/);
   assert.match(milestone, /onUpdate\?\.\("amount", nextAmount\)/);
+  assert.match(directContract, /selectMilestoneType/);
+  assert.match(directContract, /const firstMilestone = currentMilestones\[0\]/);
+  assert.match(directContract, /return \[firstMilestone\]/);
+});
+
+test('wallet reconnects are provider-authoritative and failures are visible', () => {
+  const walletContext = source('src/context/WalletContext.jsx');
+  const connectWallet = source('src/components/ConnectWallet/ConnectWallet.jsx');
+
+  assert.doesNotMatch(walletContext, /localStorage\.getItem\("ow_wallet_address"\)/);
+  assert.match(walletContext, /method: "eth_accounts"/);
+  assert.match(walletContext, /ethereum#initialized/);
+  assert.match(walletContext, /wallet_revokePermissions/);
+  assert.match(walletContext, /walletError/);
+  assert.match(connectWallet, /<button/);
+  assert.match(connectWallet, /Waiting for MetaMask approval/);
+  assert.doesNotMatch(connectWallet, /CoinBase Wallet|Binance Wallet/);
+});
+
+test('job details retry managed IPFS reads without an untitled final state', () => {
+  const jobDetails = source('src/pages/SingleJobDetails/SingleJobDetails.jsx');
+
+  assert.match(jobDetails, /IPFS_METADATA_RETRY_DELAYS_MS/);
+  assert.match(jobDetails, /`\/api\/ipfs\/content\/\$\{hash\}`/);
+  assert.match(jobDetails, /fetchJobMetadata\(jobData\.jobDetailHash\)/);
+  assert.match(jobDetails, /Retry job details/);
+  assert.match(jobDetails, /title: jobDetails\.title \|\| `Job \$\{jobId\}`/);
+  assert.doesNotMatch(jobDetails, /Untitled Job/);
+});
+
+test('work submission is role-gated and preflights outside MetaMask', () => {
+  const addUpdate = source('src/pages/AddUpdate/AddUpdate.jsx');
+  const jobUpdate = source('src/pages/JobUpdate/JobUpdate.jsx');
+  const jobDetails = source('src/pages/SingleJobDetails/SingleJobDetails.jsx');
+  const chainConfig = source('src/config/chainConfig.js');
+
+  assert.match(addUpdate, /Only the selected applicant can submit work/);
+  assert.match(addUpdate, /Work can only be submitted while this job is in progress/);
+  assert.match(addUpdate, /getReadOnlyLOWJCContract/);
+  assert.match(addUpdate, /const readOnlyWriteMethod = createLOWJCWrite/);
+  assert.match(addUpdate, /buildEstimatedWriteSendOptions\(readOnlyWriteMethod/);
+  assert.match(addUpdate, /estimateLayerZeroFee\(requiredChainId, "SUBMIT_WORK"/);
+  assert.match(addUpdate, /userChainId !== requiredChainId/);
+  assert.match(chainConfig, /SUBMIT_WORK: 800000/);
+  assert.match(jobUpdate, /const canAddUpdate = Boolean/);
+  assert.match(jobUpdate, /Number\(job\.status\) === 1/);
+  assert.match(jobDetails, /const canReleasePayment = isJobGiver && isJobInProgress/);
+  assert.match(jobDetails, /const canRaiseDispute = isJobInProgress/);
 });
 
 test('transaction notices use semantic colors instead of treating progress as an error', () => {

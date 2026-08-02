@@ -10,9 +10,21 @@ import BlueButton from "../../components/BlueButton/BlueButton";
 import Warning from "../../components/Warning/Warning";
 import FileUpload from "../../components/FileUpload/FileUpload";
 import { useChainDetection, useWalletAddress } from "../../hooks/useChainDetection";
-import { getChainConfig, extractChainIdFromJobId, getNativeChain } from "../../config/chainConfig";
+import {
+  DESTINATION_GAS_ESTIMATES,
+  buildLzOptions,
+  getChainConfig,
+  extractChainIdFromJobId,
+  getNativeChain,
+} from "../../config/chainConfig";
 import { switchToChain } from "../../utils/switchNetwork";
-import { getLOWJCContract, isNativeArbChain } from "../../services/localChainService";
+import {
+  estimateLayerZeroFee,
+  getLOWJCContract,
+  getReadOnlyLOWJCContract,
+  getReadOnlyWeb3,
+  isNativeArbChain,
+} from "../../services/localChainService";
 import {
   LOWJC_OPERATIONS,
   buildEstimatedWriteSendOptions,
@@ -58,7 +70,17 @@ export default function AddUpdate() {
   
   // Get job posting chain
   const jobChainId = jobId ? extractChainIdFromJobId(jobId) : null;
+  const requiredChainId = applierOriginChainId || jobChainId;
+  const requiredChainConfig = requiredChainId ? getChainConfig(requiredChainId) : null;
   const isMobile = useMobileDetection();
+
+  const isActiveJob = Number(job?.status) === 1;
+  const isSelectedApplicant = Boolean(
+    walletAddress
+    && job?.selectedApplicant
+    && walletAddress.toLowerCase() === job.selectedApplicant.toLowerCase()
+  );
+  const canAttemptSubmission = Boolean(walletAddress && job && isActiveJob && isSelectedApplicant);
 
   const [copiedAddress, setCopiedAddress] = useState(null);
 
@@ -98,12 +120,24 @@ export default function AddUpdate() {
       return;
     }
 
+    if (!job) {
+      setTransactionStatus("❌ Job data is still loading. Please try again in a moment.");
+      return;
+    }
+
+    if (!isActiveJob) {
+      setTransactionStatus("❌ Work can only be submitted while this job is in progress.");
+      return;
+    }
+
+    if (!isSelectedApplicant) {
+      setTransactionStatus("❌ Only the selected applicant can submit work for this job.");
+      return;
+    }
+
     // Determine the chain for work submission:
     // Prefer the applier's origin chain (stored in Genesis contract) if known.
     // Fall back to the job's posting chain.
-    const requiredChainId = applierOriginChainId || jobChainId;
-    const requiredChainConfig = requiredChainId ? getChainConfig(requiredChainId) : null;
-
     if (!requiredChainId || !requiredChainConfig) {
       setTransactionStatus("❌ Could not determine required chain for work submission");
       return;
@@ -162,35 +196,25 @@ export default function AddUpdate() {
 
       const submissionHash = ipfsData.IpfsHash;
 
-      const web3 = new Web3(window.ethereum);
       const lowjcContract = await getLOWJCContract(requiredChainId);
+      const readOnlyLowjcContract = await getReadOnlyLOWJCContract(requiredChainId);
+      const readOnlyWeb3 = getReadOnlyWeb3(requiredChainId);
       const isNativeArbitrum = isNativeArbChain(requiredChainId);
       let quotedFee;
       
-      const lzOptions = requiredChainConfig.layerzero?.options;
+      const lzOptions = isNativeArbitrum
+        ? null
+        : buildLzOptions(DESTINATION_GAS_ESTIMATES.SUBMIT_WORK);
       if (!isNativeArbitrum) {
         setTransactionStatus(`💰 Getting LayerZero fee quote on ${requiredChainConfig.name}...`);
-        if (!lzOptions) throw new Error(`LayerZero options not configured for ${requiredChainConfig.name}`);
-        const bridgeAddress = await lowjcContract.methods.bridge().call();
-        if (!bridgeAddress || bridgeAddress === '0x0000000000000000000000000000000000000000') {
-          throw new Error("Bridge contract not configured on LOWJC");
-        }
-        const bridgeABI = [{
-          "inputs": [
-            {"type": "bytes", "name": "_payload"},
-            {"type": "bytes", "name": "_options"}
-          ],
-          "name": "quoteNativeChain",
-          "outputs": [{"type": "uint256", "name": "fee"}],
-          "stateMutability": "view",
-          "type": "function"
-        }];
-        const bridgeContract = new web3.eth.Contract(bridgeABI, bridgeAddress);
-        const payload = web3.eth.abi.encodeParameters(
+        const payload = readOnlyWeb3.eth.abi.encodeParameters(
           ['string', 'address', 'string', 'string'],
           ['submitWork', walletAddress, jobId, submissionHash]
         );
-        quotedFee = (await bridgeContract.methods.quoteNativeChain(payload, lzOptions).call()).toString();
+        quotedFee = await estimateLayerZeroFee(requiredChainId, "SUBMIT_WORK", {
+          encodedPayload: payload,
+          nativeOptions: lzOptions,
+        });
       }
 
       // Submit work
@@ -203,10 +227,18 @@ export default function AddUpdate() {
         [jobId, submissionHash],
         lzOptions
       );
-      const tx = await writeMethod.send(await buildEstimatedWriteSendOptions(writeMethod, requiredChainConfig, {
+      const readOnlyWriteMethod = createLOWJCWrite(
+        readOnlyLowjcContract,
+        requiredChainConfig,
+        LOWJC_OPERATIONS.SUBMIT_WORK,
+        [jobId, submissionHash],
+        lzOptions
+      );
+      const sendOptions = await buildEstimatedWriteSendOptions(readOnlyWriteMethod, requiredChainConfig, {
         from: walletAddress,
         value: quotedFee,
-      }));
+      });
+      const tx = await writeMethod.send(sendOptions);
 
       if (isNativeArbitrum) {
         setCrossChainSteps(null);
@@ -301,6 +333,7 @@ export default function AddUpdate() {
           jobId,
           jobGiver: jobData.jobGiver,
           selectedApplicant: jobData.selectedApplicant,
+          status: jobData.status,
           title: jobDetails.title || `Job ${jobId}`,
           ...jobDetails
         });
@@ -377,14 +410,32 @@ export default function AddUpdate() {
                 <Warning content={transactionStatus} icon="/info.svg" />
               </div>
             )}
+
+            {job && !isActiveJob && (
+              <div className="form-groupDC warning-form">
+                <Warning
+                  content="This job is not in progress, so new work submissions are disabled."
+                  variant="warning"
+                />
+              </div>
+            )}
+
+            {job && walletAddress && isActiveJob && !isSelectedApplicant && (
+              <div className="form-groupDC warning-form">
+                <Warning
+                  content="Only the selected applicant wallet can submit work for this job."
+                  variant="error"
+                />
+              </div>
+            )}
             {crossChainSteps && (
               <CrossChainStatus title="Work submission cross-chain status" steps={crossChainSteps} />
             )}
             
-            {userChainId && jobChainId && userChainId !== jobChainId && (
+            {userChainId && requiredChainId && userChainId !== requiredChainId && (
               <div className="form-groupDC warning-form">
                 <Warning 
-                  content={`⚠️ SubmitWork should be called from ${getChainConfig(jobChainId)?.name || 'application chain'}. You are on ${userChainConfig?.name || 'unknown chain'}.`}
+                  content={`Submit Work must be called from ${requiredChainConfig?.name || 'the applicant chain'}. You are on ${userChainConfig?.name || 'an unsupported chain'}. Select Submit Work to switch networks.`}
                   icon="/triangle_warning.svg"
                 />
               </div>
@@ -412,8 +463,10 @@ export default function AddUpdate() {
               ></textarea>
             </div>
             <BlueButton 
-              label={'Submit Work'} 
-              disabled={!walletAddress || (userChainId && jobChainId && userChainId !== jobChainId)}
+              label={userChainId && requiredChainId && userChainId !== requiredChainId
+                ? `Switch to ${requiredChainConfig?.name || 'Required Network'}`
+                : 'Submit Work'}
+              disabled={!canAttemptSubmission}
               style={{padding: '8px 16px', width: '100%', justifyContent: 'center'}}
             />
           </form>

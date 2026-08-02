@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import "./ConnectWallet.css";
-import { useWalletConnection } from "../../functions/useWalletConnection"; // Manages wallet connection logic
-import { formatWalletAddress } from "../../functions/formatWalletAddress"; // Utility function to format wallet address
+import { useWalletConnection } from "../../functions/useWalletConnection";
 
 import BackButton from "../../components/BackButton/BackButton";
+import Warning from "../../components/Warning/Warning";
 
 
 const WALLETITEMS = [
@@ -11,30 +11,27 @@ const WALLETITEMS = [
       icon: 'metamask.svg',
       label: 'Metamask Wallet'  
     },
-    {
-        icon: 'coinbase.svg',
-        label: 'CoinBase Wallet'  
-    },
-    {
-        icon: 'binance.svg',
-        label: 'Binance Wallet'  
-    },
 ]
 
-function WalletButton({icon, label, onClick}) {
+function WalletButton({icon, label, onClick, disabled}) {
     return (
-      <div onClick={onClick} className="wallet-button">
+      <button
+        type="button"
+        onClick={onClick}
+        className="wallet-button"
+        disabled={disabled}
+      >
         <div className="wallet">
             <img src={icon} alt="" />
             <span>{label}</span>
         </div>
         <img src="/arrowRight.svg" alt="" />
-      </div>  
+      </button>
     )
 }
 
 export default function ConnectWallet() {
-    const {walletAddress, connectWallet, disconnectWallet} = useWalletConnection();
+    const { walletAddress, walletError, isConnecting, connectWallet } = useWalletConnection();
     
   return (
     <>
@@ -49,10 +46,25 @@ export default function ConnectWallet() {
           <div className="wallet-list">
               {
                   WALLETITEMS.map((item, index) => (
-                      <WalletButton key={index} label={item.label} icon={item.icon} onClick={connectWallet}/>
+                      <WalletButton
+                        key={index}
+                        label={item.label}
+                        icon={item.icon}
+                        onClick={connectWallet}
+                        disabled={isConnecting}
+                      />
                   ))
               }
           </div>
+          {isConnecting && (
+            <Warning content="Waiting for MetaMask approval…" variant="info" />
+          )}
+          {walletError && (
+            <Warning content={walletError} variant="error" />
+          )}
+          {walletAddress && (
+            <Warning content="MetaMask is connected. You can return to the job flow." variant="success" />
+          )}
         </div>
       </div>
     </>

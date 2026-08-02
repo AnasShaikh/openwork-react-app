@@ -327,31 +327,33 @@ export default function DirectContractForm() {
   const submissionLockRef = useRef(false);
   const transactionInProgress = !["idle", "error"].includes(transactionState.phase);
 
-  // Update milestones based on selected option
-  useEffect(() => {
-    if (selectedOption === "Single Milestone") {
-      setMilestones([
-        {
-          title: "Milestone 1",
-          content: "",
-          amount: 1,
-        },
-      ]);
-    } else {
-      setMilestones([
-        {
-          title: "Milestone 1",
-          content: "",
-          amount: 1,
-        },
+  const selectMilestoneType = (option) => {
+    setSelectedOption(option);
+    setMilestones((currentMilestones) => {
+      const firstMilestone = currentMilestones[0] || {
+        title: "Milestone 1",
+        content: "",
+        amount: 1,
+      };
+
+      if (option === "Single Milestone") {
+        return [firstMilestone];
+      }
+
+      if (currentMilestones.length > 1) {
+        return currentMilestones;
+      }
+
+      return [
+        firstMilestone,
         {
           title: "Milestone 2",
           content: "",
           amount: 1,
         },
-      ]);
-    }
-  }, [selectedOption]);
+      ];
+    });
+  };
 
   // Fetch platform fee from NOWJC contract on Arbitrum
   useEffect(() => {
@@ -900,12 +902,12 @@ export default function DirectContractForm() {
               <RadioButton
                 label="Single Milestone"
                 isSelected={selectedOption === 'Single Milestone'}
-                onChange={() => setSelectedOption('Single Milestone')}
+                onChange={() => selectMilestoneType('Single Milestone')}
               />
               <RadioButton
                 label="Multiple Milestones"
                 isSelected={selectedOption === 'Multiple Milestones'}
-                onChange={() => setSelectedOption('Multiple Milestones')}
+                onChange={() => selectMilestoneType('Multiple Milestones')}
               />
             </div>
             <div className="form-groupDC milestone-section">
