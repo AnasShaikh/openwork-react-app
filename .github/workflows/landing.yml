@@ -17,6 +17,12 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  LANDING_BUCKET: openwork-technology-landing-prod-256309399568
+  LANDING_DISTRIBUTION: E1ANKLS7O4YGAE
 
 concurrency:
   group: landing-ci-${{ github.ref }}
@@ -38,3 +44,44 @@ jobs:
           cache-dependency-path: landing/package-lock.json
       - run: npm ci
       - run: npm run build
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::256309399568:role/OpenWorkLandingGitHubDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Publish landing site
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          aws s3 sync dist "s3://${LANDING_BUCKET}" \
+            --delete \
+            --exclude 'index.html' \
+            --cache-control 'public,max-age=31536000,immutable'
+
+          for file in dist/assets/*.js.gz; do
+            [ -e "$file" ] || continue
+            aws s3 cp "$file" "s3://${LANDING_BUCKET}/assets/$(basename "$file")" \
+              --content-type 'text/javascript' \
+              --cache-control 'public,max-age=31536000,immutable'
+          done
+
+          for file in dist/assets/*.css.gz; do
+            [ -e "$file" ] || continue
+            aws s3 cp "$file" "s3://${LANDING_BUCKET}/assets/$(basename "$file")" \
+              --content-type 'text/css' \
+              --cache-control 'public,max-age=31536000,immutable'
+          done
+
+          aws s3 cp dist/index.html "s3://${LANDING_BUCKET}/index.html" \
+            --content-type 'text/html' \
+            --cache-control 'no-cache, no-store, must-revalidate'
+
+          invalidation_id=$(aws cloudfront create-invalidation \
+            --distribution-id "${LANDING_DISTRIBUTION}" \
+            --paths '/*' \
+            --query 'Invalidation.Id' \
+            --output text)
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "${LANDING_DISTRIBUTION}" \
+            --id "$invalidation_id"
