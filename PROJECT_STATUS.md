@@ -6,14 +6,17 @@ _Last code audit update: 2026-07-18_
 
 | Item | Canonical value |
 |---|---|
-| App repository | `https://github.com/AnasShaikh/openwork-react-app` |
-| App release branch | `main` |
-| Contract repository | `https://github.com/AnasShaikh/openwork-contracts-final` |
-| Contract release branch | `main` |
+| Repository | `https://github.com/AnasShaikh/openwork-react-app` |
+| Release branch | `main` |
+| Application source | `src/`, `backend/` |
+| Contract source | `contracts/` |
+| Live contract registry | `contracts/references/logs/imp/live-contract-registry-19-mar-2026.md` |
 | App URL | `https://app.openwork.technology` |
 | Backend | `https://openwork-823072243332.us-central1.run.app` |
 
 Production had previously moved ahead of the default branch. That history is now consolidated on `main`. Do not deploy an unmerged branch or an untagged local commit.
+
+The contracts were a separate `openwork-contracts-final` repository until 3 August 2026, when they were merged into `contracts/` with full history. That repository is retired: it is a historical archive, not a source of truth, and it must not receive new commits. Links to it in dated records below are preserved deliberately because they describe what was true when those records were written.
 
 ## Current chain roles
 

@@ -2,8 +2,8 @@
   "schemaVersion": "2.0.0",
   "name": "OpenWork Mainnet Contract Registry",
   "publicDocsUrl": "https://app.openwork.technology/docs",
-  "canonicalSource": "https://github.com/AnasShaikh/openwork-contracts-final/blob/main/references/logs/imp/live-contract-registry-19-mar-2026.md",
-  "deploymentLedger": "https://github.com/AnasShaikh/openwork-contracts-final/blob/main/references/deployments/confirmed-upgrades-mainnet-19-jul-2026.md",
+  "canonicalSource": "https://github.com/AnasShaikh/openwork-react-app/blob/main/contracts/references/logs/imp/live-contract-registry-19-mar-2026.md",
+  "deploymentLedger": "https://github.com/AnasShaikh/openwork-react-app/blob/main/contracts/references/deployments/confirmed-upgrades-mainnet-19-jul-2026.md",
   "lastAudited": "2026-08-01",
   "auditedBlocks": {
     "ethereum": 25661615,

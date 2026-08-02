@@ -9,16 +9,27 @@ Use this skill as the operating procedure for Openwork contract work. Treat ever
 
 ## Start Here
 
-When the repository is available, work from `/Users/anas/openwork-manual`. Discover an alternate checkout only if that path is absent.
+These contracts live in the OpenWork monorepo alongside the web application and its
+backend. Work from the repository root; the contract tree is `contracts/` and all
+Foundry commands run from there. Paths below are written from the repository root.
+
+The contracts were a standalone `openwork-contracts-final` repository, checked out at
+`/Users/anas/openwork-manual`, until 3 August 2026. That repository is retired. If you
+find that checkout on disk, do not work in it and do not treat it as current — see
+`docs/repository-consolidation-2026-08-03.md`.
 
 Read these repository sources before proposing or executing changes:
 
-1. `references/logs/imp/live-contract-registry-19-mar-2026.md` — canonical live address, implementation, source-file, peer, and verification registry.
-2. `references/logs/imp/mainnet-verification-tracker.md` — verification history and explorer links.
-3. The newest relevant dated log in `references/logs/`.
-4. The exact current source under `src/suites/current-mainnet/` and any related deployment script or broadcast receipt.
+1. `contracts/references/logs/imp/live-contract-registry-19-mar-2026.md` — canonical live address, implementation, source-file, peer, and verification registry.
+2. `contracts/references/logs/imp/mainnet-verification-tracker.md` — verification history and explorer links.
+3. The newest relevant dated log in `contracts/references/logs/`.
+4. The exact current source under `contracts/src/suites/current-mainnet/` and any related deployment script or broadcast receipt.
 
 Do not use older address summaries, snapshots, or historical logs as the live source of truth merely because their filenames look relevant.
+
+Because the application ships its own copies of the addresses, an address change is not
+complete until `src/config/chainConfig.js`, `docs/mainnet-contracts.json`, and
+`backend/config.js` all agree with the live registry.
 
 Load the references in this skill according to the task:
 

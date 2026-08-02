@@ -7,6 +7,7 @@ This is the canonical, append-only operational record for the July 19, 2026 conf
 - Explicit deployment and prudent-spend approval: user instruction in the deployment task on July 19, 2026.
 - Authorized signer: `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C`.
 - Repository: `AnasShaikh/openwork-contracts-final`.
+  - _Annotation added 3 August 2026: that repository was merged into the OpenWork monorepo `AnasShaikh/openwork-react-app` under `contracts/` and is now retired. The commit hashes recorded below were not rewritten by the merge and still resolve. The statement above is preserved as the accurate record of where this rollout was performed from._
 - Branch: `main`; no deployment branch is used.
 - Deployment package commit: `50e51ede29dd6c3f2b62eae648b544b362cd6ed7`.
 - Successor-source and baseline commit: `cc4e45c6a436805dfcde67ac50bce611f39576c0`.
