@@ -24,7 +24,7 @@
 # Deploy to Arbitrum Sepolia
 forge create --broadcast \
   src/current/cctp/cctp-lz-combined-transceiver.sol:CCTPLayerZeroCombinedTransceiver \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY \
   --constructor-args \
     0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA \
@@ -36,7 +36,7 @@ forge create --broadcast \
 # Deploy to OP Sepolia
 forge create --broadcast \
   src/current/cctp/cctp-lz-combined-transceiver.sol:CCTPLayerZeroCombinedTransceiver \
-  --rpc-url https://optimism-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://optimism-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY \
   --constructor-args \
     0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA \
@@ -53,14 +53,14 @@ forge create --broadcast \
 cast send 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
   "setChainConfig(uint32,uint32,uint32,bool)" \
   11155420 2 40232 true \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 
 # Configure Arbitrum Sepolia mapping on OP contract  
 cast send 0x683950bf3BB544Eb8FfC70BF0dc1f5C7EBA91270 \
   "setChainConfig(uint32,uint32,uint32,bool)" \
   421614 3 40231 true \
-  --rpc-url https://optimism-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://optimism-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 ```
 
@@ -72,7 +72,7 @@ cast send 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
   "setPeer(uint32,bytes32)" \
   40232 \
   0x000000000000000000000000683950bf3BB544Eb8FfC70BF0dc1f5C7EBA91270 \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 
 # Set OP → Arbitrum peer
@@ -80,7 +80,7 @@ cast send 0x683950bf3BB544Eb8FfC70BF0dc1f5C7EBA91270 \
   "setPeer(uint32,bytes32)" \
   40231 \
   0x0000000000000000000000005e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
-  --rpc-url https://optimism-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://optimism-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 ```
 
@@ -90,21 +90,21 @@ cast send 0x683950bf3BB544Eb8FfC70BF0dc1f5C7EBA91270 \
 # Check balance first (optional)
 cast call 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d \
   "balanceOf(address)" 0xfD08836eeE6242092a9c869237a8d122275b024A \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 
 # Approve USDC spending
 cast send 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d \
   "approve(address,uint256)" \
   0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
   500000 \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 
 # Convert recipient to bytes32
 cast call 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
   "addressToBytes32(address)" \
   0xfD08836eeE6242092a9c869237a8d122275b024A \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 
 # Get LayerZero fee quote (optional)
 cast call 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
@@ -113,7 +113,7 @@ cast call 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
   "Your message here!" \
   "[42,100,200]" \
   "0x00030100110100000000000000000000000000030d40" \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 
 # Execute combined transfer 🚀
 cast send 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
@@ -126,7 +126,7 @@ cast send 0x5e533F0fD6A3b192ecb8c97b3aF93162650c9FA5 \
   "[42,100,200]" \
   "0x00030100110100000000000000000000000000030d40" \
   --value 0.01ether \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 ```
 
@@ -141,14 +141,14 @@ cast send 0x683950bf3BB544Eb8FfC70BF0dc1f5C7EBA91270 \
   "receiveCCTP(bytes,bytes)" \
   "MESSAGE_FROM_API" \
   "ATTESTATION_FROM_API" \
-  --rpc-url https://optimism-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0 \
+  --rpc-url https://optimism-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID \
   --private-key $WALL2_KEY
 
 # Verify USDC received
 cast call 0x5fd84259d66Cd46123540766Be93DFE6D43130D7 \
   "balanceOf(address)" \
   0xfD08836eeE6242092a9c869237a8d122275b024A \
-  --rpc-url https://optimism-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://optimism-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 ```
 
 ## 🔧 Key Configuration Values

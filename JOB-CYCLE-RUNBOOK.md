@@ -27,8 +27,8 @@ NOWJC        = '0x8EfbF240240613803B9c9e716d4b5AD1388aFd99'
 USDC_ARB     = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
 
 // RPCs
-OP_RPC  = 'https://opt-mainnet.g.alchemy.com/v2/ECvjGU_6M0Jrw6wlFkPo2ZbonbfW5oIZ'
-ARB_RPC = 'https://arb-mainnet.g.alchemy.com/v2/ECvjGU_6M0Jrw6wlFkPo2ZbonbfW5oIZ'
+OP_RPC  = 'https://opt-mainnet.g.alchemy.com/v2/YOUR-ALCHEMY-KEY'
+ARB_RPC = 'https://arb-mainnet.g.alchemy.com/v2/YOUR-ALCHEMY-KEY'
 
 // Backend
 BACKEND = 'https://openwork-823072243332.us-central1.run.app'

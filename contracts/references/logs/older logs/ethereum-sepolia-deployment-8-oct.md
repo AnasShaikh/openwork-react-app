@@ -4,7 +4,7 @@ This document records the exact deployment commands used for deploying contracts
 
 ## Environment Variables Used
 ```bash
-ETHEREUM_SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+ETHEREUM_SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 PRIVATE_KEY=<REDACTED_ROTATE_IF_USED>
 OWNER_ADDRESS=0xaA6816876280c5A685Baf3D9c214A092c7f3F6Ef
 ETHERSCAN_API_KEY=ZSTW4J27DSINYUY8KR98WN7C34CX5GFIQW

@@ -57,10 +57,10 @@ source .env && curl "https://api-sepolia-optimistic.etherscan.io/api?module=cont
 https://sepolia.optimism.io
 
 # Arbitrum Sepolia  
-https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 
 # Base Sepolia
-https://base-sepolia.g.alchemy.com/v2/ECvjGU_6M0Jrw6wlFkPo2ZbonbfW5oIZ
+https://base-sepolia.g.alchemy.com/v2/YOUR-ALCHEMY-KEY
 ```
 
 ### 2. Verify Implementation Contract

@@ -12,7 +12,7 @@
 
 ## RPC URL
 ```
-https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 ```
 
 ## Method 1: Query Events (Recommended)
@@ -24,7 +24,7 @@ Query `OracleCreated` events from Oracle Manager:
 // Using ethers.js v6
 import { ethers } from 'ethers';
 
-const provider = new ethers.JsonRpcProvider('https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0');
+const provider = new ethers.JsonRpcProvider('https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID');
 
 // Oracle Manager ABI (only need the event)
 const oracleManagerABI = [
@@ -149,12 +149,12 @@ Use this cast command to verify oracle names exist:
 cast logs --from-block 0 --to-block latest \
   --address 0x70F6fa515120efeA3e404234C318b7745D23ADD4 \
   --signature "OracleCreated(string,uint256)" \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 
 # Get specific oracle details
 cast call 0xB4f27990af3F186976307953506A4d5759cf36EA \
   "getOracle(string)" "General" \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 ```
 
 ## Known Oracles

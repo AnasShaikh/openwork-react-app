@@ -412,7 +412,7 @@ source .env && forge verify-contract 0x3b2AC1d1281cA4a1188d9F09A5Af9a9E6a114D6c 
 ```bash
 cast storage 0x21451dCE07Ad3Ab638Ec71299C1D2BD2064b90E5 \
   0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 # Output: 0x00000000000000000000000018d2ec7459eff0de9495be21525e0742890b5065
 ```
 
@@ -443,7 +443,7 @@ source .env && forge verify-contract 0x21451dCE07Ad3Ab638Ec71299C1D2BD2064b90E5 
 ```bash
 cast storage 0x1e6c32ad4ab15acd59c66fbcdd70cc442d64993e \
   0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 # Output: 0x00000000000000000000000091852bbe9d41f329d1641c0447e0c2405825a95e
 ```
 
@@ -474,7 +474,7 @@ source .env && forge verify-contract 0x1e6c32ad4ab15acd59c66fbcdd70cc442d64993e 
 ```bash
 cast storage 0x9E39B37275854449782F1a2a4524405cE79d6C1e \
   0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc \
-  --rpc-url https://arbitrum-sepolia.infura.io/v3/c74477fe73794a5b897b6037f564c7d0
+  --rpc-url https://arbitrum-sepolia.infura.io/v3/YOUR-INFURA-PROJECT-ID
 # Output: 0x00000000000000000000000044fb5fd2d48473347715fd1133b55de27b87647f
 ```
 
