@@ -32,6 +32,13 @@ Three deployables live here and they do **not** share a pipeline:
 
 A commit here does not deploy everything. Each target has its own trigger.
 
+> **The landing pipeline has not been repointed yet.** It still builds from
+> `krishnaprasath-k/openwork-landing`, not from `landing/` in this repository. Until
+> that changes, edits to `landing/` here do **not** reach production, and that
+> repository remains canonical for the marketing site. Tracked as item 1 in
+> [PROJECT_STATUS.md](PROJECT_STATUS.md#open-items-carried-over-from-the-3-august-2026-consolidation),
+> which lists every known open item from the consolidation.
+
 ## Source of truth
 
 - `main` is the consolidated production branch. There is no separate contracts branch.

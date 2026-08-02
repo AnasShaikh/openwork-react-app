@@ -82,6 +82,29 @@ All secrets belong in the deployment platform, never in `VITE_*` variables or co
 
 `ENABLE_MAINNET_TEST_ROUTES` must remain `false` in normal production operation.
 
+## Open items carried over from the 3 August 2026 consolidation
+
+These are known, deliberate loose ends. They are recorded here so nobody has to
+rediscover them. Full background: [docs/repository-consolidation-2026-08-03.md](docs/repository-consolidation-2026-08-03.md).
+
+| # | Item | Risk if ignored | Owner action |
+|---|---|---|---|
+| 1 | **The landing deploy still builds from `krishnaprasath-k/openwork-landing`, not from `landing/` here.** It publishes to S3 `openwork-technology-landing-prod-256309399568` behind CloudFront `E1ANKLS7O4YGAE`. | Two live copies of the marketing site. Edits made here never reach production, and edits made there silently diverge from this repository. This is worse than before the merge, when there was one source. | Repoint the pipeline at `landing/`, or archive the original repository. Until then, treat the original as canonical for the landing site. |
+| 2 | **The Alchemy key rotation may be incomplete on App Runner.** The previous key leaked publicly and is revoked; it now returns HTTP 401. | Backend RPC for Ethereum, Optimism and Arbitrum fails against the dead key. | Update `ETHEREUM_MAINNET_RPC_URL`, `OPTIMISM_MAINNET_RPC_URL` and `ARBITRUM_MAINNET_RPC_URL` on the `openwork-react-app-prod` service. |
+| 3 | **`OPTIMISM_MAINNET_RPC_URL` was defined twice in `backend/.env`**, and dotenv used the second definition, which held a different already-dead key. Fixed locally on 3 August. | Optimism RPC was silently broken and would stay broken after a key rotation, because the rotation replaces only the leaked value. | Confirm the App Runner service defines each RPC variable exactly once and that Optimism uses the same key as Ethereum and Arbitrum. |
+| 4 | **This repository is public and its history contains the revoked Alchemy and Infura credentials.** Redaction removed them from the working tree only. | Anyone reading history finds them. They are revoked, so exposure is historical rather than active. | No action if both remain revoked. Never restore either value. |
+| 5 | `backend/config.js` still carries stale mainnet addresses for `NATIVE_BRIDGE` and `LOCAL_BRIDGE_XDC`. Neither key is read at runtime. | A future reader may treat them as live. | Reconcile against the live registry and delete or correct them. |
+| 6 | Root `references/` and `contracts/references/` share nine duplicate filenames. | Ambiguity about which copy is authoritative. | Collapse to one copy. |
+| 7 | Nothing enforces agreement between the live registry, `src/config/chainConfig.js`, `docs/mainnet-contracts.json` and `backend/config.js`. | The drift that motivated the merge can recur. | Add a CI check comparing all four. |
+
+## Retired repositories — do not commit to these
+
+| Repository | Status |
+|---|---|
+| `AnasShaikh/openwork-contracts-final` | Absorbed into `contracts/` on 3 August 2026. Historical archive only. A local checkout may still exist at `/Users/anas/openwork-manual`; it is not current. |
+| `krishnaprasath-k/openwork-landing-page` | Older variant of the marketing site, last touched November 2025, deployed nowhere. Deliberately not merged. |
+| `krishnaprasath-k/openwork-landing` | Merged into `landing/`, but **still the live deploy source** until item 1 above is resolved. Not yet safe to archive. |
+
 ## External items that still require verification or operator action
 
 - Confirm the production environment contains the new operator/health tokens and the correct CORS origin list before deploying the backend hardening commit.
