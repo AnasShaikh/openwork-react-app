@@ -166,8 +166,28 @@ Report current bytes used against the 20 GiB cap and the pin count. Do not displ
 `/etc/nginx/conf.d/openwork-ipfs.conf`; it contains the proxy bearer secret.
 
 Then add a CloudWatch alarm on the data volume so this is monitored rather than
-discovered. Application-side protection — a per-address quota and a disk circuit
-breaker — is being implemented separately.
+discovered.
+
+**Also needed — expose `/api/v0/repo/stat` through the node's nginx proxy.**
+
+The application now has a disk circuit breaker that refuses uploads once the Kubo
+repository passes 85% of its cap. It reads usage from `/api/v0/repo/stat`, which
+the proxy does not currently allow:
+
+```
+POST https://d3srbkj28cvt4z.cloudfront.net/api/v0/repo/stat  -> 404
+POST https://d3srbkj28cvt4z.cloudfront.net/api/v0/add        -> 401
+```
+
+The 404 means the path is not proxied at all. Until it is, the breaker logs
+`IPFS disk headroom unknown` and allows the upload — it cannot protect what it
+cannot measure. Add `repo/stat` to the allowed paths in
+`/etc/nginx/conf.d/openwork-ipfs.conf`, behind the same bearer-token auth as
+`add`, and reload nginx. It is a read-only Kubo endpoint that returns
+`RepoSize` and `StorageMax`.
+
+Verify afterwards that it returns 401 unauthenticated, like `add` does, rather
+than 404. The breaker then activates with no application change.
 
 ---
 

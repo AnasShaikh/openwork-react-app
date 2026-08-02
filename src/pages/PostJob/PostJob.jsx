@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
@@ -340,6 +341,7 @@ export default function PostJob() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -371,6 +373,7 @@ export default function PostJob() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

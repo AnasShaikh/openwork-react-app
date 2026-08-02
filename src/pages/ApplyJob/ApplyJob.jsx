@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
@@ -131,6 +132,7 @@ export default function ApplyJob() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -164,6 +166,7 @@ export default function ApplyJob() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

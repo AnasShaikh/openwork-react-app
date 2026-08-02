@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../../components/BackButton/BackButton';
@@ -86,6 +87,7 @@ const NewGeneralOracleStep2 = () => {
       const response = await fetch(`${BACKEND_URL}/api/ipfs/upload-json`, {
         method: 'POST',
         headers: {
+            ...(await uploadAuthHeaders()),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

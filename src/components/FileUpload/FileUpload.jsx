@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState } from "react";
 import "./FileUpload.css";
 
@@ -81,6 +82,7 @@ export default function FileUpload({ onFilesUploaded, uploadedFiles = [] }) {
         // Use backend API instead of direct Pinata call
         const response = await fetch(`${BACKEND_URL}/api/ipfs/upload-file`, {
           method: 'POST',
+          headers: await uploadAuthHeaders(),
           body: formData,
         });
 

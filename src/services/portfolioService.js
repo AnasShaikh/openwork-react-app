@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../services/uploadAuth';
 import Web3 from 'web3';
 import ProfileGenesisABI from '../ABIs/profile-genesis_ABI.json';
 import { getLOWJCContract, isNativeArbChain } from './localChainService';
@@ -63,6 +64,7 @@ export const uploadFileToIPFS = async (file) => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
     const response = await fetch(`${BACKEND_URL}/api/ipfs/upload-file`, {
       method: 'POST',
+      headers: await uploadAuthHeaders(),
       body: formData
     });
 
@@ -87,6 +89,7 @@ export const uploadJSONToIPFS = async (jsonData, filename = 'data.json') => {
     const response = await fetch(`${BACKEND_URL}/api/ipfs/upload-json`, {
       method: 'POST',
       headers: {
+            ...(await uploadAuthHeaders()),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Web3 from "web3";
@@ -340,6 +341,7 @@ export default function RaiseDispute() {
           `${BACKEND_URL}/api/ipfs/upload-file`,
           {
             method: 'POST',
+            headers: await uploadAuthHeaders(),
             body: formData,
           }
         );
@@ -356,6 +358,7 @@ export default function RaiseDispute() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

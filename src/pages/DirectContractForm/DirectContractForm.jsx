@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useRef, useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
@@ -135,6 +136,7 @@ function FileUpload({ onFilesUploaded, uploadedFiles }) {
           `${BACKEND_URL}/api/ipfs/upload-file`,
           {
             method: 'POST',
+            headers: await uploadAuthHeaders(),
             body: formData,
           }
         );
@@ -438,6 +440,7 @@ export default function DirectContractForm() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -469,6 +472,7 @@ export default function DirectContractForm() {
         {
           method: "POST",
           headers: {
+            ...(await uploadAuthHeaders()),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

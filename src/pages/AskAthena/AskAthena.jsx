@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Web3 from "web3";
@@ -236,6 +237,7 @@ export default function AskAthena() {
 
         const fileResponse = await fetch(`${BACKEND_URL}/api/ipfs/upload-file`, {
           method: "POST",
+          headers: await uploadAuthHeaders(),
           body: formData,
         });
 
@@ -247,7 +249,8 @@ export default function AskAthena() {
 
       const response = await fetch(`${BACKEND_URL}/api/ipfs/upload-json`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            ...(await uploadAuthHeaders()), "Content-Type": "application/json" },
         body: JSON.stringify({
           pinataContent: inquiryData,
           pinataMetadata: {

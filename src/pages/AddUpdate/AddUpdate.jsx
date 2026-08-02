@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
@@ -175,7 +176,8 @@ export default function AddUpdate() {
       setTransactionStatus("📤 Uploading work details to IPFS...");
       const ipfsResponse = await fetch(`${BACKEND_URL}/api/ipfs/upload-json`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            ...(await uploadAuthHeaders()), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pinataContent: updateDetails,
           pinataMetadata: {

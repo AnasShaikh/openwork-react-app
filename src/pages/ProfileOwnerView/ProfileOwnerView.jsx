@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
@@ -119,6 +120,7 @@ export default function ProfileOwnerView() {
                 `${BACKEND_URL}/api/ipfs/upload-file`,
                 {
                     method: "POST",
+                    headers: await uploadAuthHeaders(),
                     body: formData,
                 }
             );
@@ -175,6 +177,7 @@ export default function ProfileOwnerView() {
                 {
                     method: "POST",
                     headers: {
+            ...(await uploadAuthHeaders()),
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({

@@ -4,6 +4,8 @@ const multer = require('multer');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
 const { createRateLimiter } = require('../middleware/security');
+const { walletSignature } = require('../middleware/wallet-auth');
+const { uploadBudget } = require('../middleware/upload-budget');
 
 // Configure multer for memory storage
 const MAX_IPFS_BYTES = 10 * 1024 * 1024;
@@ -135,7 +137,7 @@ function getReadGateways(hash, env = process.env) {
 }
 
 // ── POST /api/ipfs/upload-file ────────────────────────────────────────────────
-router.post('/upload-file', uploadRateLimit, receiveSingleFile, async (req, res) => {
+router.post('/upload-file', uploadRateLimit, walletSignature(), uploadBudget(), receiveSingleFile, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
     const result = await uploadToIPFS(req.file.buffer, req.file.originalname);
@@ -148,7 +150,7 @@ router.post('/upload-file', uploadRateLimit, receiveSingleFile, async (req, res)
 
 // ── POST /api/ipfs/upload-json ────────────────────────────────────────────────
 // Accepts Pinata-format body for backwards compatibility
-router.post('/upload-json', uploadRateLimit, async (req, res) => {
+router.post('/upload-json', uploadRateLimit, walletSignature(), uploadBudget(), async (req, res) => {
   try {
     const content  = req.body.pinataContent || req.body;
     const metadata = req.body.pinataMetadata || {};

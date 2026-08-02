@@ -1,3 +1,4 @@
+import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Send, Bot } from 'lucide-react';
@@ -370,7 +371,8 @@ const OppyChat = () => {
       const uploadToIPFS = async (data) => {
         const res = await fetch(`${BACKEND_URL}/api/ipfs/upload`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            ...(await uploadAuthHeaders()), 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
         if (!res.ok) throw new Error('IPFS upload failed');
