@@ -45,14 +45,24 @@ const relayRateLimit = createRateLimiter({
   max: 30,
   message: 'Too many relay requests',
 });
+const { walletSignature } = require('./middleware/wallet-auth');
+const { boundInFlight } = require('./middleware/relay-guard');
+
 const requireOpsToken = requireConfiguredToken({
   envName: 'OPS_API_TOKEN',
   headerName: 'x-ops-token',
 });
 
+// Relay routes are event-driven and the contracts enforce authorisation, so
+// these guards address resource exhaustion rather than theft: rate limit, then
+// attribute the caller, then refuse to exceed a ceiling of concurrent watchers.
+// Signature enforcement is opt-in via RELAY_REQUIRE_SIGNATURE so the backend can
+// deploy before every caller signs; signatures are recorded either way.
 app.use(
   ['/api/start-job', '/api/release-payment', '/api/lock-milestone', '/api/settle-dispute'],
-  relayRateLimit
+  relayRateLimit,
+  walletSignature({ required: process.env.RELAY_REQUIRE_SIGNATURE === 'true' }),
+  boundInFlight(() => processingJobs.size)
 );
 app.use(
   ['/api/start-listener', '/api/stop-listener', '/api/cctp-retry', '/api/compile'],

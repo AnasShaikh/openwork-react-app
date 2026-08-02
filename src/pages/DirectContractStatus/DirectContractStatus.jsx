@@ -1,3 +1,4 @@
+import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Web3 from "web3";
@@ -91,14 +92,19 @@ export default function DirectContractStatus() {
       navigate(`/job-details/${jobId}`, { replace: true });
     };
 
-    fetch(`${BACKEND_URL}/api/start-job`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jobId,
-        txHash: progress.sourceTxHash,
-      }),
-    }).catch((error) => {
+    // Deliberately not awaited: on-chain confirmation is monitored regardless of
+    // whether the relay notification lands. Chained rather than awaited so the
+    // enclosing handler stays synchronous.
+    walletAuthHeaders().then((authHeaders) =>
+      fetch(`${BACKEND_URL}/api/start-job`, {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          txHash: progress.sourceTxHash,
+        }),
+      })
+    ).catch((error) => {
       console.warn("Could not start the backend relay monitor:", error);
       setNotice({
         message: "The relay service is temporarily unavailable, but on-chain confirmation is still being monitored. Do not submit the contract again.",

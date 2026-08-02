@@ -1,3 +1,4 @@
+import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
@@ -548,7 +549,8 @@ export default function ReleasePayment() {
       try {
         const response = await fetch(`${backendUrl}/api/release-payment`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+          ...(await walletAuthHeaders()), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             jobId,
             opSepoliaTxHash: srcTxHash
@@ -902,7 +904,8 @@ export default function ReleasePayment() {
       try {
         const relayRes = await fetch(`${backendUrl}/api/lock-milestone`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+          ...(await walletAuthHeaders()), 'Content-Type': 'application/json' },
           body: JSON.stringify({ jobId, txHash: lockTxHash })
         });
         const relayResult = await relayRes.json();

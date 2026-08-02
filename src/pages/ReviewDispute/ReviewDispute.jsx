@@ -1,3 +1,4 @@
+import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Web3 from "web3";
@@ -450,7 +451,8 @@ export default function ReviewDispute() {
       // Send to backend for CCTP completion
       const backendResponse = await fetch(`${BACKEND_URL}/api/settle-dispute`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...(await walletAuthHeaders()), 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           disputeId,
           jobId,

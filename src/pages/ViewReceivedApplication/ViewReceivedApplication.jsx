@@ -1,3 +1,4 @@
+import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import Web3 from "web3";
@@ -705,15 +706,17 @@ export default function ViewReceivedApplication() {
         // ─────────────────────────────────────────────────────────────────
 
         // Also notify backend (belt + suspenders — non-blocking)
-        fetch(`${BACKEND_URL}/api/start-job`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jobId,
-            txHash: srcTxHash,
-            asyncApplicantMilestones: asyncApplicantMilestoneStart,
+        walletAuthHeaders().then((authHeaders) =>
+          fetch(`${BACKEND_URL}/api/start-job`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jobId,
+              txHash: srcTxHash,
+              asyncApplicantMilestones: asyncApplicantMilestoneStart,
+            })
           })
-        }).catch(err => console.warn('Backend notify failed (non-fatal):', err.message));
+        ).catch(err => console.warn('Backend notify failed (non-fatal):', err.message));
       })
       .on('receipt', () => {
         if (isNativeArbitrum) {

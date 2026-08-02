@@ -98,6 +98,14 @@ export async function uploadAuthHeaders() {
   };
 }
 
+/**
+ * Same signature, used to attribute relay calls (start job, release payment,
+ * lock milestone, settle dispute). Shares the cache deliberately, so a user who
+ * has signed once for an upload does not get a second prompt when the same flow
+ * then triggers a relay.
+ */
+export const walletAuthHeaders = uploadAuthHeaders;
+
 /** Clears the cached signature. Call when the wallet account changes. */
 export function clearUploadAuth() {
   try {
