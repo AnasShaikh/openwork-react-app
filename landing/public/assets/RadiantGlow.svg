@@ -1,0 +1,35 @@
+<svg width="561" height="560" viewBox="0 0 561 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    /* Rule: On screens 1440px or smaller, make the line thinner */
+    @media (max-width: 1440px) {
+      .base-circle {
+        stroke-width: 1.5px !important;
+      }
+    }
+  </style>
+
+  <circle class="base-circle" cx="280" cy="280.176" stroke="url(#a)" stroke-width="1.3" r="220"/>
+  
+  <g filter="url(#b)">
+    <circle cx="280.333" cy="280.021" stroke="url(#c)" stroke-width="15" r="220"/>
+  </g>
+  
+  <defs>
+    <linearGradient id="a" x1="280" y1="50.958" x2="228.38" y2="430.12" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1246ff" style="stop-color:#1246ff;stop-color:color(display-p3 .0706 .2745 1);stop-opacity:1"/>
+      <stop offset=".5" stop-color="#d1e4f7" style="stop-color:#d1e4f7;stop-color:color(display-p3 .8196 .8941 .9686);stop-opacity:1"/>
+      <stop offset="1" stop-color="#fefefe" style="stop-color:#fefefe;stop-color:color(display-p3 .9958 .9958 .9958);stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="c" x1="332.568" y1="34.21" x2="236.702" y2="500.021" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1246ff" style="stop-color:#1246ff;stop-color:color(display-p3 .0706 .2745 1);stop-opacity:1"/>
+      <stop offset=".5" stop-color="#d1e4f7" style="stop-color:#d1e4f7;stop-color:color(display-p3 .8196 .8941 .9686);stop-opacity:1"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0" style="stop-color:none;stop-opacity:0"/>
+    </linearGradient>
+    
+    <filter id="b" x=".456" y=".143" width="55.755" height="55.755" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="26.939" result="effect1_foregroundBlur_2267_572"/>
+    </filter>
+  </defs>
+</svg>

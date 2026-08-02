@@ -1,0 +1,275 @@
+/* ============================================
+   LANDING PAGE - ESSENTIAL BASE STYLES ONLY
+   ============================================
+   
+   This file contains ONLY essential base styles.
+   All component-specific styles are in their
+   respective component CSS files.
+   ============================================ */
+
+/* Main Landing Page Container */
+
+.landing-page {
+  margin-top: 0px;
+  width: 100%;
+  min-height: 100vh;
+  background: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+  scroll-behavior: smooth;
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Page-level Radiant Glow - Fixed position, visible when sidebar expanded */
+.page-radiant-glow {
+  position: fixed;
+  left: -160px;
+  top: 54%;
+  transform: translateY(-50%);
+  width: 2100px;
+  height: 2500px;
+  background: url('/assets/RadiantGlow.svg') center/contain no-repeat;
+  animation: rotate-page-glow 8s linear infinite;
+  pointer-events: none;
+  z-index: 998;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+body.sidebar-expanded .page-radiant-glow {
+  /* When the page expands via interactions, we keep the page glow invisible instead of enlarging it */
+  opacity: 0 !important;
+  visibility: hidden !important;
+  display: none !important;
+  transition: none !important;
+} 
+
+@keyframes rotate-page-glow {
+  from {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+
+/* Content EXPANDS from CENTER - used when clicking from hero/front page */
+@keyframes expandFromCenter {
+  0% {
+    opacity: 0;
+    transform: scale(0.1);
+    transform-origin: center center;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    transform-origin: center center;
+  }
+}
+
+/* Content expands from center when coming from hero page */
+.page-transition-from-hero {
+  animation: expandFromCenter 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+/* Content slides OUT to LEFT + SHRINKS */
+@keyframes slideOutToLeft {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20%) scale(0.94);
+  }
+}
+
+/* Content slides IN from RIGHT + EXPANDS */
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(20%) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Content slides OUT to RIGHT + SHRINKS */
+@keyframes slideOutToRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20%) scale(0.94);
+  }
+}
+
+/* Content slides IN from LEFT + EXPANDS */
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-20%) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Going DOWN (top to bottom) - new page slides in from RIGHT */
+.page-transition-down {
+  animation: slideInFromRight 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Going UP (bottom to top) - new page slides in from LEFT */
+.page-transition-up {
+  animation: slideInFromLeft 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Going DOWN - current page slides out to LEFT */
+
+.page-slide-out-left {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 999;
+  animation: slideOutToLeft 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Going UP - current page slides out to RIGHT */
+.page-slide-out-right {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 999;
+  animation: slideOutToRight 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Sidebar curve stays fixed - only icons move along it */
+.page-slide-out-left .floating-icons,
+.page-slide-out-right .floating-icons,
+.page-transition-down .floating-icons,
+.page-transition-up .floating-icons {
+  position: fixed !important;
+  transform: translateY(-50%) !important;
+}
+
+/* Base Section Wrapper - Applied to all LP sections */
+.lp-section {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 60px;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1440px) {
+  .lp-section {
+    padding: 60px 40px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .landing-page {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  
+  .lp-section {
+    padding: 40px 30px;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .lp-section {
+    padding: 40px 20px;
+  }
+}
+
+
+/* Shared Blue Button Style for Landing Page */
+.lp-blue-button {
+  background:  #1246FF;
+  border: 4px solid #2755fdff;
+  border-radius: 12px;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  height: 40px;
+  width: fit-content;
+  font-family: 'Satoshi', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 24px;
+  color: white;
+  text-decoration: none;
+  transition: opacity 0.2s;
+  outline: none;
+}
+
+/* Centralized mobile variant: move changes to the mobile query below */
+/* `.lp-blue-button-1` is defined in the `@media (max-width: 480px)` block near the end of this file */
+
+
+
+.lp-blue-button:hover {
+  opacity: 0.9;
+}
+
+.lp-blue-button:active {
+  opacity: 0.8;
+}
+
+.lp-button-icon {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .lp-section {
+    padding: 30px 16px;
+  }
+
+  /* Hide all section action buttons on mobile */
+  .section-action-button {
+    display: none !important;
+  }
+
+   .lp-blue-button-1 {
+    color: var(--Base-White, #FFF);
+    font-family: Satoshi,sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    line-height: 24px; 
+    display: flex;
+    height: 45px;
+    padding: 8px 16px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-radius: 12px;
+   background:  #1c4dfdff !important;
+  border: 4px solid #2755fdff !important;
+  box-shadow: 0 0 0.386px 1.158px rgba(0, 0, 0, 0.05), 0 4.634px 5.02px -2.317px rgba(0, 0, 0, 0.20);
+  } 
+}

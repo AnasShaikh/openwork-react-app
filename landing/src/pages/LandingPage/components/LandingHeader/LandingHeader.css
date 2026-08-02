@@ -1,0 +1,199 @@
+/* Landing Header */
+.landing-header {
+  background-color: black;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 62px;
+  z-index: 2000;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  animation: header-fade-in 0.4s ease-out forwards;
+}
+
+@keyframes header-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logo-wrapper {
+  background-color: black;
+  width: 180px;
+  height: 21.247px;
+
+  display: flex;
+  align-items: center;
+  background: transparent;
+  cursor: pointer;
+  outline: none; /* suppress default focus ring for mouse */
+}
+
+/* Show a visible focus ring only for keyboard users */
+.logo-wrapper:focus-visible {
+  outline: 2px solid rgba(18, 70, 255, 0.18);
+  border-radius: 6px;
+  outline-offset: 2px;
+}
+
+/* Ensure mouse click doesn't leave a visible outline */
+.logo-wrapper:focus {
+  outline: none;
+}
+
+.logo {
+  width: 105%;
+  height: auto;
+  
+  object-fit: contain;
+}
+
+.logo-mobile {
+  display: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon-btn img {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Responsive */
+@media (max-width: 1440px) {
+  .landing-header {
+    padding: 0 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-header {
+    padding: 0 20px;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  /* Hide all icon buttons by default */
+  .header-icon-btn {
+    display: none !important;
+  }
+
+  /* Bot and Doc icons - hidden by default with smooth transition */
+  .header-icon-btn.mobile-scroll-icon {
+    display: flex !important;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  /* Show Bot icon and Doc icon only after scrolling past hero */
+  .header-icon-btn.mobile-scroll-icon.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-header {
+    padding: 0 12px; /* give more room for logo + button */
+  }
+
+  .logo-wrapper {
+    width: auto;
+    min-width: 84px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo-desktop {
+    display: none;
+  }
+
+  /* Ensure mobile logo doesn't get pushed off-screen */
+  .logo-mobile {
+    margin-left: 0; /* remove negative offset */
+    display: block;
+    width: auto;
+    height: 100%;
+    max-width: 140px;
+    object-fit: contain;
+  }
+
+  .logo {
+    width: auto;
+    max-width: 140px;
+    height: auto;
+  }
+
+  .lp-launch-arrow {
+    display: none;
+  }
+
+  /* Hide all icon buttons by default in mobile */
+  .header-icon-btn {
+    display: none !important;
+  }
+
+  /* Bot and Doc icons - hidden by default with smooth transition */
+  .header-icon-btn.mobile-scroll-icon {
+    display: flex !important;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  /* Show Bot icon and Doc icon only after scrolling past hero */
+  .header-icon-btn.mobile-scroll-icon.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* Keep the Launch App label on a single line and fit nicely */
+  .landing-header .lp-blue-button {
+    white-space: nowrap; /* prevent wrapping to two lines */
+    padding: 6px 10px; /* slightly smaller padding for mobile */
+    font-size: 13px; /* compact on small screens */
+    height: 40px;
+    min-width: 80px; /* ensure enough width for the label */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* hide arrow icon already declared as .lp-launch-arrow; ensure it doesn't reserve space */
+  .landing-header .lp-button-icon {
+    display: none;
+  }
+}
