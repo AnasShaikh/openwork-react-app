@@ -82,6 +82,47 @@ All secrets belong in the deployment platform, never in `VITE_*` variables or co
 
 `ENABLE_MAINNET_TEST_ROUTES` must remain `false` in normal production operation.
 
+## Launch readiness — 3 August 2026
+
+Application-code findings from the launch-readiness audit are closed. What
+remains needs AWS access and is tracked in
+[docs/DEV_AGENT_TASKS_2026-08-03.md](docs/DEV_AGENT_TASKS_2026-08-03.md).
+
+| Finding | State |
+|---|---|
+| Escrow rendered `0` when the balance read failed | Fixed — renders `—`, failure logged |
+| No React error boundary; any throw blanked the app | Fixed |
+| `alert()` used for 40 user-facing messages | Fixed — in-page toasts |
+| Anonymous, unmetered IPFS uploads | Fixed — wallet signature, per-address quota, disk breaker |
+| Unbounded concurrent relay watchers | Fixed — ceiling on in-flight flows |
+| Anonymous relay calls | Fixed — same signature, off by default pending rollout |
+| `localhost` allow-listed in production CORS | Fixed |
+| Bridge role mismatches in `backend/config.js` | Fixed |
+| Two high dependency advisories | Fixed; production bundle hash unchanged |
+| Lighthouse live as a silent upload fallback | Removed |
+| Weekly IPFS snapshots failing since 19 July | Template fixed; **needs a stack deploy** |
+| Production running pre-fix code | **Needs a build and deploy** |
+| `HEALTH_SECRET` / `OPS_API_TOKEN` unset | **Needs configuring** |
+| Landing site has two deploy sources | **Needs the pipeline repointed** |
+
+Two protections are deployed but inert until acted on, and should not be
+described as active:
+
+- **IPFS and relay signature enforcement** are behind `IPFS_REQUIRE_SIGNATURE`
+  and `RELAY_REQUIRE_SIGNATURE`, both defaulting to false. Signatures are
+  verified and metered when present, but an unsigned request still succeeds.
+  Turn them on after confirming signing works in production.
+- **The IPFS disk circuit breaker** reads Kubo's `/api/v0/repo/stat`, which the
+  node's nginx does not proxy. It logs `IPFS disk headroom unknown` and allows
+  the upload until that path is exposed.
+
+Two items were examined and deliberately not changed: the remaining React Router
+advisories are SSR-specific and this is a client-only SPA with no non-major fix
+available, and the nine duplicate filenames across `references/` and
+`contracts/references/` are byte-identical but the root copies are the ones that
+resolve from the repository root, so deleting them would break working links to
+tidy a cosmetic one.
+
 ## Open items carried over from the 3 August 2026 consolidation
 
 These are known, deliberate loose ends. They are recorded here so nobody has to
