@@ -12,7 +12,7 @@ _Last code audit update: 2026-07-18_
 | Contract source | `contracts/` |
 | Live contract registry | `contracts/references/logs/imp/live-contract-registry-19-mar-2026.md` |
 | App URL | `https://app.openwork.technology` |
-| Backend | `https://openwork-823072243332.us-central1.run.app` |
+| Backend | `https://app.openwork.technology` |
 
 Production had previously moved ahead of the default branch. That history is now consolidated on `main`. Do not deploy an unmerged branch or an untagged local commit.
 

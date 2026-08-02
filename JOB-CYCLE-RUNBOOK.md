@@ -31,7 +31,7 @@ OP_RPC  = 'https://opt-mainnet.g.alchemy.com/v2/YOUR-ALCHEMY-KEY'
 ARB_RPC = 'https://arb-mainnet.g.alchemy.com/v2/YOUR-ALCHEMY-KEY'
 
 // Backend
-BACKEND = 'https://openwork-823072243332.us-central1.run.app'
+BACKEND = 'https://app.openwork.technology'
 
 // LayerZero
 LZ_OPTIONS        = '0x0003010011010000000000000000000000000007a120'  // 500k gas

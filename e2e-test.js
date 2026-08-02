@@ -17,7 +17,7 @@ const fs = require('fs');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const OPTIMISM_RPC = 'https://mainnet.optimism.io';
-const BACKEND_URL = 'https://openwork-823072243332.us-central1.run.app';
+const BACKEND_URL = 'https://app.openwork.technology';
 const RESULTS_FILE = '/data/.openclaw/workspace/e2e-test-results.md';
 
 // Contract addresses (Optimism mainnet)

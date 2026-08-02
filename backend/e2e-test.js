@@ -61,7 +61,7 @@ const DOMAIN_OP  = 2;
 const DOMAIN_ARB = 3;
 
 // Backend URL (live Cloud Run service)
-const BACKEND_URL = 'https://openwork-823072243332.us-central1.run.app';
+const BACKEND_URL = 'https://app.openwork.technology';
 
 // Circle attestation API
 const CIRCLE_API = 'https://iris-api.circle.com/v2/messages';

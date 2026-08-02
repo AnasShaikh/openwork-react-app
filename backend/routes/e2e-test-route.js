@@ -119,7 +119,7 @@ router.post('/', async (req, res) => {
     step(`startDirectContract TX: ${srcTxHash} (gas: ${directTx.gasUsed})`);
 
     const fetch = require('node-fetch');
-    const backendUrl = 'https://openwork-823072243332.us-central1.run.app';
+    const backendUrl = 'https://app.openwork.technology';
     await fetch(`${backendUrl}/api/start-job`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ jobId, txHash: srcTxHash }),
@@ -196,7 +196,7 @@ router.post('/release', async (req, res) => {
     step(`View: https://optimistic.etherscan.io/tx/${releaseTxHash}`);
 
     const fetch = require('node-fetch');
-    const backendUrl = 'https://openwork-823072243332.us-central1.run.app';
+    const backendUrl = 'https://app.openwork.technology';
     const statusKey = `${targetJob}-${releaseTxHash}`;
     await fetch(`${backendUrl}/api/release-payment`, {
       method: 'POST', headers: {'Content-Type':'application/json'},

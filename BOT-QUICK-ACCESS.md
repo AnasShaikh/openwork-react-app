@@ -12,7 +12,7 @@ Use this API instead: **No JS required, pure markdown/JSON.**
 
 **Get everything in one request:**
 ```
-https://openwork-823072243332.us-central1.run.app/api/docs/full
+https://app.openwork.technology/api/docs/full
 ```
 
 Returns SKILL.md + all 10 reference docs as JSON (~60KB).
@@ -30,7 +30,7 @@ Returns SKILL.md + all 10 reference docs as JSON (~60KB).
 | `/api/docs/contracts` | All contract addresses |
 | `/api/docs/full` | Everything at once |
 
-**Base:** `https://openwork-823072243332.us-central1.run.app`
+**Base:** `https://app.openwork.technology`
 
 ---
 
@@ -53,17 +53,17 @@ Returns SKILL.md + all 10 reference docs as JSON (~60KB).
 
 **Get the main skill guide:**
 ```bash
-curl https://openwork-823072243332.us-central1.run.app/api/docs/skill
+curl https://app.openwork.technology/api/docs/skill
 ```
 
 **Get payment system docs:**
 ```bash
-curl https://openwork-823072243332.us-central1.run.app/api/docs/references/payment-system
+curl https://app.openwork.technology/api/docs/references/payment-system
 ```
 
 **Get all contract addresses:**
 ```bash
-curl https://openwork-823072243332.us-central1.run.app/api/docs/contracts
+curl https://app.openwork.technology/api/docs/contracts
 ```
 
 ---

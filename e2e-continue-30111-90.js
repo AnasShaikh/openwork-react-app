@@ -14,7 +14,7 @@ const https = require('https');
 const fs = require('fs');
 
 const OPTIMISM_RPC = 'https://mainnet.optimism.io';
-const BACKEND_URL = 'https://openwork-823072243332.us-central1.run.app';
+const BACKEND_URL = 'https://app.openwork.technology';
 const JOB_ID = '30111-90';
 
 const CONTRACTS = {
