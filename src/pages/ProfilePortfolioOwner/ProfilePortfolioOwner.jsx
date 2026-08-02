@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useWalletConnection } from "../../functions/useWalletConnection";
@@ -104,10 +105,10 @@ export default function ProfilePortfolioOwner() {
       const portfolios = await fetchUserPortfolios(walletAddress);
       setPortfolioItems(portfolios);
       
-      alert('Portfolio item deleted successfully!');
+      notify('Portfolio item deleted successfully!');
     } catch (error) {
       console.error('Error deleting portfolio:', error);
-      alert('Failed to delete portfolio item. Please try again.');
+      notify('Failed to delete portfolio item. Please try again.');
     } finally {
       setLoading(false);
     }

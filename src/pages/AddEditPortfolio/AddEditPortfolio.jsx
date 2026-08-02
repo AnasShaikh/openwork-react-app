@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import React, { useState, useEffect, useRef } from "react";
 import Web3 from "web3";
 import { useWalletConnection } from "../../functions/useWalletConnection";
@@ -69,7 +70,7 @@ export default function AddEditPortfolio() {
       setImages([...images, ...ipfsHashes]);
     } catch (error) {
       console.error('Error uploading images:', error);
-      alert('Failed to upload images. Please try again.');
+      notify('Failed to upload images. Please try again.');
     } finally {
       setUploadingImages(false);
     }
@@ -90,7 +91,7 @@ export default function AddEditPortfolio() {
           setImages(updatedImages);
         } catch (error) {
           console.error('Error uploading image:', error);
-          alert('Failed to upload image.');
+          notify('Failed to upload image.');
         } finally {
           setUploadingImages(false);
         }

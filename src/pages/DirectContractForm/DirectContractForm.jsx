@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useRef, useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -402,7 +403,7 @@ export default function DirectContractForm() {
 
   const handleDeleteMilestone = (index) => {
     if (selectedOption === "Multiple Milestones" && milestones.length <= 1) {
-      alert("You must have at least one milestone");
+      notify("You must have at least one milestone");
       return;
     }
     const updatedMilestones = milestones.filter((_, i) => i !== index);
@@ -505,17 +506,17 @@ export default function DirectContractForm() {
     }
 
     if (!jobTitle.trim()) {
-      alert("Please enter a job title");
+      notify("Please enter a job title");
       return;
     }
 
     if (!jobDescription.trim()) {
-      alert("Please enter job requirements");
+      notify("Please enter job requirements");
       return;
     }
 
     if (!Web3.utils.isAddress(jobTaker.trim())) {
-      alert("Please enter a valid job taker address");
+      notify("Please enter a valid job taker address");
       return;
     }
 

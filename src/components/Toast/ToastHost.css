@@ -1,0 +1,70 @@
+.ow-toast-host {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.ow-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #3a3a45;
+  background: #16161c;
+  color: #e8e8ed;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  animation: ow-toast-in 160ms ease-out;
+}
+
+@keyframes ow-toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Colour carries meaning, so pair it with a left bar rather than relying on hue
+   alone — the distinction survives colour-blindness and greyscale. */
+.ow-toast--success { border-left: 4px solid #34d399; }
+.ow-toast--error   { border-left: 4px solid #f87171; }
+.ow-toast--info    { border-left: 4px solid #60a5fa; }
+
+.ow-toast__message {
+  flex: 1;
+  word-break: break-word;
+}
+
+.ow-toast__close {
+  flex: none;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.ow-toast__close:hover { opacity: 1; }
+
+@media (max-width: 520px) {
+  .ow-toast-host {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ow-toast { animation: none; }
+}

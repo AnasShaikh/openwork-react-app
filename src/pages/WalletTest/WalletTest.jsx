@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 
@@ -49,7 +50,7 @@ export default function WalletTest() {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      alert("MetaMask is not installed!");
+      notify("MetaMask is not installed!");
       return;
     }
 
@@ -60,7 +61,7 @@ export default function WalletTest() {
       await getChainId();
     } catch (error) {
       console.error("Error connecting wallet:", error);
-      alert("Failed to connect wallet");
+      notify("Failed to connect wallet");
     } finally {
       setIsConnecting(false);
     }

@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 import Web3 from "web3";
@@ -39,13 +40,13 @@ function ImageUpload() {
         body: formData,
       });
       if (response.ok) {
-        alert('Image uploaded successfully!');
+        notify('Image uploaded successfully!');
       } else {
-        alert('Upload failed.');
+        notify('Upload failed.');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
-      alert('An error occurred while uploading.');
+      notify('An error occurred while uploading.');
     }
   };
 

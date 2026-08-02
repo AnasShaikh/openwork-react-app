@@ -1,3 +1,4 @@
+import { notify } from '../services/notify';
 import { useState, useEffect } from 'react';
 import { getChainConfig, isChainAllowed, getBlockedChainMessage } from '../config/chainConfig';
 
@@ -198,7 +199,7 @@ export function useWalletAddress() {
 
   const connect = async () => {
     if (!window.ethereum) {
-      alert("Please install MetaMask or another Web3 wallet.");
+      notify("Please install MetaMask or another Web3 wallet.");
       return;
     }
 

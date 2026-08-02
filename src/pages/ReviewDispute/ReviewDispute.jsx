@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -559,19 +560,19 @@ export default function ReviewDispute() {
     //       })
     //       .on("receipt", function (receipt) {
     //         console.log("Transaction successful:", receipt);
-    //         alert("Payment released successfully!");
+    //         notify("Payment released successfully!");
     //         navigate(-1);
     //       })
     //       .on("error", function (error) {
     //         console.error("Error releasing payment:", error);
-    //         alert("Error releasing payment. Check the console for details.");
+    //         notify("Error releasing payment. Check the console for details.");
     //       })
     //       .finally(() => {
     //         setLoadingT(false); // Stop loader
     //       });
     //   } catch (error) {
     //     console.error("Error releasing payment:", error);
-    //     alert("Error releasing payment. Check the console for details.");
+    //     notify("Error releasing payment. Check the console for details.");
     //     setLoadingT(false); // Stop loader on error
     //   }
     // } else {

@@ -1,3 +1,4 @@
+import { notify } from '../../services/notify';
 import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, Code, TestTube, Play, Database, History, ArrowRight, Edit2, Rocket, ChevronDown, ChevronRight, MessageSquare, Send, X, Copy, Check, Wallet, AlertCircle, ExternalLink, Workflow, Lock, Unlock } from 'lucide-react';
 import './OpenworkDocs.css';
@@ -1584,16 +1585,16 @@ const OpenworkDocs = () => {
                                     }
                                   }));
                                   setIsEditingAdvanced(false);
-                                  alert('✅ Full contract data saved! Please reload the page to see changes.');
+                                  notify('✅ Full contract data saved! Please reload the page to see changes.');
                                   window.location.reload();
                                 } else {
-                                  alert('Failed to save: ' + data.error);
+                                  notify('Failed to save: ' + data.error);
                                 }
                               } catch (error) {
                                 if (error instanceof SyntaxError) {
-                                  alert('❌ Invalid JSON: ' + error.message);
+                                  notify('❌ Invalid JSON: ' + error.message);
                                 } else {
-                                  alert('Error: ' + error.message);
+                                  notify('Error: ' + error.message);
                                 }
                               }
                             }}
@@ -1663,12 +1664,12 @@ const OpenworkDocs = () => {
                                     [selectedContract]: { ...prev[selectedContract], documentation: editedDocs }
                                   }));
                                   setIsEditingDocs(false);
-                                  alert('✅ Documentation saved successfully!');
+                                  notify('✅ Documentation saved successfully!');
                                 } else {
-                                  alert('Failed to save: ' + data.error);
+                                  notify('Failed to save: ' + data.error);
                                 }
                               } catch (error) {
-                                alert('Error: ' + error.message);
+                                notify('Error: ' + error.message);
                               }
                             }}
                             className="docs-deployment-set-current-btn"
@@ -1959,12 +1960,12 @@ const OpenworkDocs = () => {
                                     }
                                   }));
                                   setIsEditingCode(false);
-                                  alert('✅ Code saved successfully!');
+                                  notify('✅ Code saved successfully!');
                                 } else {
-                                  alert('Failed to save: ' + data.error);
+                                  notify('Failed to save: ' + data.error);
                                 }
                               } catch (error) {
-                                alert('Error: ' + error.message);
+                                notify('Error: ' + error.message);
                               }
                             }}
                             className="docs-deployment-set-current-btn"
@@ -2201,7 +2202,7 @@ const OpenworkDocs = () => {
                                 });
                                 setDeployParams(params);
                               } else {
-                                alert('Please install MetaMask!');
+                                notify('Please install MetaMask!');
                               }
                             } catch (error) {
                               console.error('Error connecting wallet:', error);
@@ -2539,7 +2540,7 @@ const OpenworkDocs = () => {
                                     console.log('✅ Proxy initialized successfully!');
 
                                     setShowInitializeForm(false);
-                                    alert('✅ Proxy initialized successfully! The contract is now ready for use.');
+                                    notify('✅ Proxy initialized successfully! The contract is now ready for use.');
 
                                   } catch (error) {
                                     console.error('❌ Initialize error:', error);
@@ -3362,11 +3363,11 @@ const OpenworkDocs = () => {
                                                   await loadDeploymentHistory(selectedContract);
                                                 } else {
                                                   console.error('Failed to set as current:', data.error);
-                                                  alert('Failed to set as current: ' + data.error);
+                                                  notify('Failed to set as current: ' + data.error);
                                                 }
                                               } catch (error) {
                                                 console.error('Error setting as current:', error);
-                                                alert('Error: ' + error.message);
+                                                notify('Error: ' + error.message);
                                               }
                                             }}
                                             className="docs-deployment-set-current-btn"

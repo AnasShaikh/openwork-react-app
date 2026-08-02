@@ -1,3 +1,4 @@
+import { notify } from '../services/notify';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getActiveChainConfig,
@@ -110,7 +111,7 @@ export function useChainDetection(walletAddress) {
     console.log('🔄 switchToChain called with:', targetChainId, isMainnet() ? '(mainnet)' : '(testnet)');
 
     if (!window.ethereum) {
-      alert('Please install MetaMask');
+      notify('Please install MetaMask');
       return false;
     }
 
@@ -118,7 +119,7 @@ export function useChainDetection(walletAddress) {
     try {
       const accounts = await window.ethereum.request({ method: 'eth_accounts' });
       if (!accounts || accounts.length === 0) {
-        alert('Please connect your wallet first');
+        notify('Please connect your wallet first');
         return false;
       }
     } catch (error) {
@@ -156,7 +157,7 @@ export function useChainDetection(walletAddress) {
 
         try {
           if (!walletConfig) {
-            alert('Chain configuration not found');
+            notify('Chain configuration not found');
             return false;
           }
 
@@ -186,9 +187,9 @@ export function useChainDetection(walletAddress) {
         } catch (addError) {
           console.error('🔴 Error adding chain:', addError);
           if (addError?.code === 'WALLET_REQUEST_TIMEOUT' || isPendingWalletRequest(addError)) {
-            alert(`Open MetaMask and approve the pending ${chainName} network request. The page has stopped waiting and will update automatically after approval.`);
+            notify(`Open MetaMask and approve the pending ${chainName} network request. The page has stopped waiting and will update automatically after approval.`);
           } else if (getWalletErrorCode(addError) !== 4001) {
-            alert(`Failed to add ${chainName}. Please add it manually in MetaMask.`);
+            notify(`Failed to add ${chainName}. Please add it manually in MetaMask.`);
           }
           return false;
         }
@@ -200,17 +201,17 @@ export function useChainDetection(walletAddress) {
       }
       // MetaMask already has an unanswered request open.
       else if (isPendingWalletRequest(switchError)) {
-        alert(`A MetaMask network request is already pending. Open MetaMask and approve or reject it, then try again.`);
+        notify(`A MetaMask network request is already pending. Open MetaMask and approve or reject it, then try again.`);
         return false;
       }
       else if (switchError?.code === 'WALLET_REQUEST_TIMEOUT') {
-        alert(`Open MetaMask and finish the pending switch to ${chainName}. The page has stopped waiting.`);
+        notify(`Open MetaMask and finish the pending switch to ${chainName}. The page has stopped waiting.`);
         return false;
       }
       // Other errors
       else {
         console.error('🔴 Error switching chain:', switchError);
-        alert(`Failed to switch network: ${switchError.message}`);
+        notify(`Failed to switch network: ${switchError.message}`);
         return false;
       }
     } finally {

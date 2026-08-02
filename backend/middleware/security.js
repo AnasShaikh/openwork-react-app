@@ -2,13 +2,24 @@
 
 const crypto = require('crypto');
 
-const DEFAULT_ALLOWED_ORIGINS = [
+// Production origins only. Local development origins are added below when
+// NODE_ENV is not production, so a deployed service never accepts an origin that
+// an attacker could host on a victim's own machine.
+const PRODUCTION_ALLOWED_ORIGINS = [
   'https://openwork.technology',
   'https://www.openwork.technology',
   'https://app.openwork.technology',
+];
+
+const DEVELOPMENT_ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ];
+
+const DEFAULT_ALLOWED_ORIGINS =
+  process.env.NODE_ENV === 'production'
+    ? PRODUCTION_ALLOWED_ORIGINS
+    : [...PRODUCTION_ALLOWED_ORIGINS, ...DEVELOPMENT_ALLOWED_ORIGINS];
 
 function safeEqual(left, right) {
   if (typeof left !== 'string' || typeof right !== 'string') return false;
@@ -97,6 +108,8 @@ function createRateLimiter({ windowMs, max, message = 'Too many requests' }) {
 
 module.exports = {
   DEFAULT_ALLOWED_ORIGINS,
+  PRODUCTION_ALLOWED_ORIGINS,
+  DEVELOPMENT_ALLOWED_ORIGINS,
   configuredOrigins,
   createCorsOptions,
   createRateLimiter,
