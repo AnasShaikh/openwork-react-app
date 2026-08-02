@@ -1,0 +1,221 @@
+# General Oracle Creation Through DAO - Mainnet - February 3, 2026
+
+**Date:** February 3, 2026
+**Status:** COMPLETE
+**Network:** Arbitrum One (Mainnet)
+
+---
+
+## Objective
+
+Create a "General" oracle for dispute resolution through NativeDAO governance on mainnet.
+
+## Contracts (Mainnet)
+
+| Contract | Address |
+|----------|---------|
+| **NativeDAO Proxy** | `0x24af98d763724362DC920507b351cC99170a5aa4` |
+| **NativeAthenaOracleManager Proxy** | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` |
+| **NativeAthena Proxy** | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` |
+| **Genesis Proxy** | `0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294` |
+| **ActivityTracker Proxy** | `0x8C04840c3f5b5a8c44F9187F9205ca73509690EA` |
+
+## Oracle Specifications
+
+- **Name:** "General"
+- **Members (4):**
+  - `0xEbfb0691C113978A584B4544c28613A0B4BccB06`
+  - `0x117D1EC24ac547f4Ea20A5561007aE5d4Cb47F63`
+  - `0xf7faeD39870dF78dea45159a4Db597A94a96dB87`
+  - `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724`
+- **Description:** "An oracle for disputes that do not fall under any mentioned category. There needs to be some oracle to go to for uncategorised jobs."
+- **IPFS Hash:** `QmW9H5Ym3ZAJdjfRzPo2L9hz7ZEzCjKroVcnSuj9ZX9SFZ`
+- **Skill Verified By:** Same as members
+
+---
+
+## Pre-Configuration Required
+
+Before executing the proposal, the following configurations were needed:
+
+### 1. Set ActivityTracker on NativeAthena
+
+```bash
+source .env && cast send 0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf \
+  "setActivityTracker(address)" \
+  0x8C04840c3f5b5a8c44F9187F9205ca73509690EA \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $YOUR_KEY
+```
+
+**TX Hash:** `0x47aad1e2a69a8df957f2dfcfbb50fbb6788e88436c0e5baf3af0843de8ec4064`
+
+**Status:** ✅ Configured
+
+### 2. Authorize NativeAthena on ActivityTracker
+
+```bash
+source .env && cast send 0x8C04840c3f5b5a8c44F9187F9205ca73509690EA \
+  "setAuthorizedCaller(address,bool)" \
+  0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf \
+  true \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $YOUR_KEY
+```
+
+**Status:** ✅ Configured
+
+---
+
+## Phase 1: Create DAO Proposal
+
+### Step 1: Generate Calldata
+
+```bash
+cast calldata "addSingleOracle(string,address[],string,string,address[])" \
+  "General" \
+  "[0xEbfb0691C113978A584B4544c28613A0B4BccB06,0x117D1EC24ac547f4Ea20A5561007aE5d4Cb47F63,0xf7faeD39870dF78dea45159a4Db597A94a96dB87,0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724]" \
+  "An oracle for disputes that do not fall under any mentioned category. There needs to be some oracle to go to for uncategorised jobs." \
+  "QmW9H5Ym3ZAJdjfRzPo2L9hz7ZEzCjKroVcnSuj9ZX9SFZ" \
+  "[0xEbfb0691C113978A584B4544c28613A0B4BccB06,0x117D1EC24ac547f4Ea20A5561007aE5d4Cb47F63,0xf7faeD39870dF78dea45159a4Db597A94a96dB87,0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724]"
+```
+
+### Step 2: Create Proposal
+
+```bash
+source .env && cast send 0x24af98d763724362DC920507b351cC99170a5aa4 \
+  "propose(address[],uint256[],bytes[],string)" \
+  '[0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15]' \
+  '[0]' \
+  '[0x4a9fe8f900000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000180000000000000000000000000000000000000000000000000000000000000024000000000000000000000000000000000000000000000000000000000000002a0000000000000000000000000000000000000000000000000000000000000000747656e6572616c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000ebfb0691c113978a584b4544c28613a0b4bccb06000000000000000000000000117d1ec24ac547f4ea20a5561007ae5d4cb47f63000000000000000000000000f7faed39870df78dea45159a4db597a94a96db87000000000000000000000000c28455b90eeea6d95b6f0cd01a0b03f9d50a77240000000000000000000000000000000000000000000000000000000000000084416e206f7261636c6520666f72206469737075746573207468617420646f206e6f742066616c6c20756e64657220616e79206d656e74696f6e65642063617465676f72792e205468657265206e6565647320746f20626520736f6d65206f7261636c6520746f20676f20746f20666f7220756e63617465676f7269736564206a6f62732e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002e516d57394835596d335a414a646a66527a506f324c39687a375a457a436a4b726f56636e53756a395a583953465a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000ebfb0691c113978a584b4544c28613a0b4bccb06000000000000000000000000117d1ec24ac547f4ea20a5561007ae5d4cb47f63000000000000000000000000f7faed39870df78dea45159a4db597a94a96db87000000000000000000000000c28455b90eeea6d95b6f0cd01a0b03f9d50a7724]' \
+  "Create General Oracle" \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $YOUR_KEY
+```
+
+**TX Hash:** `0x52df4e543dde421b8366b191dae2519c4b8fa2c944f328864cad24eafb83c9f3`
+
+**Proposal ID (hex):** `0xf037fc722300c0e94f7ec93ce20e1a88b4955fd1d20c71a471a5cdf614d640c8`
+
+**Block:** 428136491
+
+**Status:** ✅ Created
+
+---
+
+## Phase 2: Vote on Proposal
+
+### Step 3: Cast Vote FOR
+
+```bash
+source .env && cast send 0x24af98d763724362DC920507b351cC99170a5aa4 \
+  "castVote(uint256,uint8)" \
+  0xf037fc722300c0e94f7ec93ce20e1a88b4955fd1d20c71a471a5cdf614d640c8 \
+  1 \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $YOUR_KEY
+```
+
+**Vote:** `1` = FOR
+
+**Status:** ✅ Voted
+
+---
+
+## Phase 3: Execute Proposal
+
+### Step 4a: Get Description Hash
+
+```bash
+cast keccak "Create General Oracle"
+```
+
+**Result:** `0xa3e519867d9bc99052657d8f0eb3914f7fbf8b408f1cf87646c871f54a65b0ec`
+
+### Step 4b: Execute Proposal
+
+```bash
+source .env && cast send 0x24af98d763724362DC920507b351cC99170a5aa4 \
+  "execute(address[],uint256[],bytes[],bytes32)" \
+  '[0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15]' \
+  '[0]' \
+  '[0x4a9fe8f900000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000180000000000000000000000000000000000000000000000000000000000000024000000000000000000000000000000000000000000000000000000000000002a0000000000000000000000000000000000000000000000000000000000000000747656e6572616c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000ebfb0691c113978a584b4544c28613a0b4bccb06000000000000000000000000117d1ec24ac547f4ea20a5561007ae5d4cb47f63000000000000000000000000f7faed39870df78dea45159a4db597a94a96db87000000000000000000000000c28455b90eeea6d95b6f0cd01a0b03f9d50a77240000000000000000000000000000000000000000000000000000000000000084416e206f7261636c6520666f72206469737075746573207468617420646f206e6f742066616c6c20756e64657220616e79206d656e74696f6e65642063617465676f72792e205468657265206e6565647320746f20626520736f6d65206f7261636c6520746f20676f20746f20666f7220756e63617465676f7269736564206a6f62732e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002e516d57394835596d335a414a646a66527a506f324c39687a375a457a436a4b726f56636e53756a395a583953465a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000ebfb0691c113978a584b4544c28613a0b4bccb06000000000000000000000000117d1ec24ac547f4ea20a5561007ae5d4cb47f63000000000000000000000000f7faed39870df78dea45159a4db597a94a96db87000000000000000000000000c28455b90eeea6d95b6f0cd01a0b03f9d50a7724]' \
+  0xa3e519867d9bc99052657d8f0eb3914f7fbf8b408f1cf87646c871f54a65b0ec \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL \
+  --private-key $YOUR_KEY
+```
+
+**Status:** ✅ Executed
+
+---
+
+## Phase 4: Verification
+
+### Verify Oracle in OracleManager
+
+```bash
+source .env && cast call 0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15 \
+  "getOracle(string)" "General" \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+```
+
+**Status:** ✅ Oracle exists with 4 members
+
+### Verify Oracle in Genesis
+
+```bash
+source .env && cast call 0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294 \
+  "getOracle(string)" "General" \
+  --rpc-url $ARBITRUM_MAINNET_RPC_URL
+```
+
+**Status:** ✅ Oracle exists with 4 members
+
+---
+
+## Transaction Summary
+
+| Step | Action | TX Hash | Status |
+|------|--------|---------|--------|
+| Pre-1 | Set ActivityTracker on NativeAthena | `0x47aad1e2a69a8df957f2dfcfbb50fbb6788e88436c0e5baf3af0843de8ec4064` | ✅ |
+| Pre-2 | Authorize NativeAthena on ActivityTracker | - | ✅ |
+| 1 | Create Proposal | `0x52df4e543dde421b8366b191dae2519c4b8fa2c944f328864cad24eafb83c9f3` | ✅ |
+| 2 | Vote FOR | - | ✅ |
+| 3 | Execute Proposal | - | ✅ |
+| 4 | Verify Oracle | - | ✅ |
+
+---
+
+## Configuration Summary
+
+| Check | Contract | Status |
+|-------|----------|--------|
+| NativeDAO authorized on OracleManager | OracleManager | ✅ |
+| OracleManager authorized on Genesis | Genesis | ✅ |
+| OracleManager set on NativeAthena | NativeAthena | ✅ |
+| ActivityTracker set on NativeAthena | NativeAthena | ✅ |
+| NativeAthena authorized on ActivityTracker | ActivityTracker | ✅ |
+
+---
+
+## Oracle Metadata (IPFS)
+
+**IPFS Hash:** `QmW9H5Ym3ZAJdjfRzPo2L9hz7ZEzCjKroVcnSuj9ZX9SFZ`
+
+**Content:**
+```json
+{
+  "name": "General",
+  "description": "An oracle for disputes that do not fall under any mentioned category. There needs to be some oracle to go to for uncategorised jobs.",
+  "category": "general",
+  "version": "1.0"
+}
+```
+
+**IPFS Gateway:** https://gateway.pinata.cloud/ipfs/QmW9H5Ym3ZAJdjfRzPo2L9hz7ZEzCjKroVcnSuj9ZX9SFZ
+
+---
+
+**Log Created:** February 3, 2026
+**Last Updated:** February 3, 2026
+**Final Status:** COMPLETE

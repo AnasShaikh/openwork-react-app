@@ -1,0 +1,35 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+remappings = [
+    "@across-protocol/contracts/=lib/contracts/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@hyperlane-xyz/core/=lib/hyperlane-monorepo/solidity/contracts/"
+]
+
+# LayerZero's bundled TestHelper does not compile through the production 0.8.23
+# via-IR pipeline. Keep its bridge round-trip harness isolated from release
+# artifacts and the exact-version production tests.
+[profile.layerzero_harness]
+src = "src/suites/current-mainnet/local"
+test = "test/layerzero-harness"
+script = "test/layerzero-harness"
+out = "out/layerzero-harness"
+cache_path = "cache/layerzero-harness"
+solc_version = "0.8.29"
+
+[rpc_endpoints]
+arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
+optimism_sepolia = "https://sepolia.optimism.io"
+xdc_mainnet = "https://rpc.xdc.network"
+xdc_apothem = "https://rpc.apothem.network"
+
+[etherscan]
+arbitrum_sepolia = { key = "${ARBISCAN_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }
+optimism_sepolia = { key = "${OPSCAN_API_KEY}", url = "https://api-sepolia-optimistic.etherscan.io/api" }
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
