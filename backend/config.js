@@ -20,10 +20,14 @@ const RPC_URLS = {
     ARBITRUM: process.env.ARBITRUM_SEPOLIA_RPC_URL,
     BASE: process.env.BASE_SEPOLIA_RPC_URL
   },
+  // Mainnet entries fall back to public endpoints. A missing, throttled, or revoked
+  // provider key then degrades read throughput instead of handing `undefined` to
+  // `new Web3(...)`, which previously took the Ethereum, Optimism and Arbitrum paths
+  // down entirely. XDC already worked this way.
   mainnet: {
-    ETHEREUM: process.env.ETHEREUM_MAINNET_RPC_URL,
-    OPTIMISM: process.env.OPTIMISM_MAINNET_RPC_URL,
-    ARBITRUM: process.env.ARBITRUM_MAINNET_RPC_URL,
+    ETHEREUM: process.env.ETHEREUM_MAINNET_RPC_URL || 'https://cloudflare-eth.com',
+    OPTIMISM: process.env.OPTIMISM_MAINNET_RPC_URL || 'https://mainnet.optimism.io',
+    ARBITRUM: process.env.ARBITRUM_MAINNET_RPC_URL || 'https://arb1.arbitrum.io/rpc',
     XDC: process.env.XDC_MAINNET_RPC_URL || 'https://rpc.xdc.network'
   }
 };
