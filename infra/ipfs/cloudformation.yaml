@@ -410,8 +410,11 @@ Resources:
                 Value: app.openwork.technology
               - Key: Repository
                 Value: openwork-react-app
-              - Key: ManagedBy
-                Value: DataLifecycleManager
+              # ManagedBy is deliberately NOT set here. CopyTags above copies the
+              # source volume's ManagedBy=CloudFormation onto each snapshot, and
+              # adding a second ManagedBy made the key duplicate. DLM rejected the
+              # policy with "Duplicate tag key 'ManagedBy' specified" and stopped
+              # taking snapshots between 19 July and 3 August 2026.
               - Key: TrackingScope
                 Value: OpenWorkAppDedicated
               - Key: BackupType
