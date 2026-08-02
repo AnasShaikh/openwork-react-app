@@ -6,26 +6,26 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 2 August 2026 23:20:04 UTC (3 August 2026 04:50:04 IST) |
+| Deployed at | 2 August 2026 23:53:04 UTC (3 August 2026 05:23:04 IST) |
 | Git branch | `main` |
-| Git commit | `3fe08c7597821079d5bbe9e72ef8261227a37d02` |
-| GitHub CI | Local frontend tests (`45/45`), backend tests (`31/31`), the mainnet frontend build and the production CodeBuild gate passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-3fe08c7597821079d5bbe9e72ef8261227a37d02.zip` |
-| Source archive SHA-256 | `206bc66eb56ddab209daac682a42a0554e8af60ee957a9ebd97dfd566c71c058` |
-| CodeBuild | `openwork-react-app-prod-build:23429ce7-5008-40d8-baab-1bc043419dc9` — succeeded |
-| ECR image | `openwork-app:prod-3fe08c7-20260802231234` |
-| ECR digest | `sha256:8e2ba8b0604594c1da23f74efaaaec4015c6e3c34b78542cd072ac80337b9581` |
+| Git commit | `90ebc3a6e693a11108d6be56263b832367cceee1` |
+| GitHub CI | Run `30772925645` — frontend tests (`51/51`), backend tests (`37/37`), audit, parse checks and the frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-90ebc3a6e693a11108d6be56263b832367cceee1.zip` |
+| Source archive SHA-256 | `62faad244b16f96713044a385882b75560981ec035e8cc114966c35afb91a0d1` |
+| CodeBuild | `openwork-react-app-prod-build:24084ed1-b5a5-4b36-856a-32a70f07893f` — succeeded |
+| ECR image | `openwork-app:prod-90ebc3a-20260802234539` |
+| ECR digest | `sha256:038e11f1ebb2752a16a57d1f007ae5d77a997a31ac061acca3a7c802082c6349` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `7c6272a65c7e4756b5839863f0297675` — succeeded |
+| App Runner operation | `6605c2c395be429bbf73588a05d2342b` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-AezwwYZ3.js` |
+| Deployed JS asset | `/assets/index-BG-Kua3N.js` |
 
 ## Verification
 
-- The exact consolidated `main` source at `3fe08c7` passed `45/45` frontend tests, `31/31` backend tests, a mainnet frontend build and CodeBuild before the immutable image was deployed.
+- The exact consolidated `main` source at `90ebc3a` passed `51/51` frontend tests, `37/37` backend tests, the backend dependency audit and parse checks, the frontend build and CodeBuild before the immutable image was deployed.
 - App Runner's HTTP health gate passed, and read-only production checks returned HTTP 200 for `/`, `/health`, `/healthz`, `/docs`, `/documentation` and `/api/docs`. No wallet transaction or other on-chain write was submitted.
 - The deployed backend startup log selected the masked Alchemy Arbitrum host (`arb-mainnet.g.alchemy.com/***`). The public `arb1.arbitrum.io` fallback did not engage, confirming that the production RPC secret reaches the newly deployed fallback-capable code.
-- The release includes wallet-attributed IPFS upload metering and the disk-headroom circuit breaker from `3fe08c7`. Signature enforcement remains controlled by `IPFS_REQUIRE_SIGNATURE`; the node-side authenticated `repo/stat` route is tracked in the 3 August infrastructure task record.
+- The release includes wallet-attributed IPFS upload metering, bounded relay waiters, in-page toast errors and the disk-headroom circuit breaker. Signature enforcement remains controlled by `IPFS_REQUIRE_SIGNATURE`; the node-side authenticated `repo/stat` route is live and preserved in the IPFS CloudFormation source.
 - Frontend tests (`45/45`), backend tests (`21/21`), the mainnet frontend build, CodeBuild and the production image build passed for the exact source commit.
 - MetaMask connection is now provider-authoritative after reload or disconnect, handles delayed extension injection, and renders rejected, pending and missing-extension errors in the page instead of leaving an inert wallet choice.
 - Job metadata now retries the managed same-origin IPFS gateway before a public fallback, never settles on `Untitled Job`, and exposes a safe display-only retry. Production browser verification loaded job `42161-22` as `Arb Dev` without a metadata warning.
@@ -114,7 +114,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-0aa0f5f-20260802144804` |
-| ECR digest | `sha256:c6489fbb0bb5abe8ad149dddb64ffd6adc876734a7f4d44b1bf226f5ea59abd0` |
+| ECR image | `openwork-app:prod-3fe08c7-20260802231234` |
+| ECR digest | `sha256:8e2ba8b0604594c1da23f74efaaaec4015c6e3c34b78542cd072ac80337b9581` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
