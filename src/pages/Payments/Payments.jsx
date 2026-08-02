@@ -59,8 +59,14 @@ export default function Payments() {
   }, [isElementReady]);
 
   const formatAmount = (amount) => {
-    if (parseFloat(amount) === 0) return "0"; // Handle zero value without decimal
-    const roundedAmount = parseFloat(amount).toFixed(2); // Rounds to 2 decimal places
+    // null/undefined means the value could not be read, which is not the same as
+    // zero. Rendering "0" for a failed escrow read tells the user their money is
+    // gone; render a dash instead.
+    if (amount === null || amount === undefined) return "—";
+    const parsed = parseFloat(amount);
+    if (Number.isNaN(parsed)) return "—";
+    if (parsed === 0) return "0"; // Handle zero value without decimal
+    const roundedAmount = parsed.toFixed(2); // Rounds to 2 decimal places
     return roundedAmount.length > 5 ? roundedAmount.slice(0, 8) : roundedAmount;
   };
 
@@ -111,12 +117,17 @@ export default function Payments() {
         const ipfsHash = jobData.jobDetailHash || jobData[2];
         const ipfsData = ipfsHash ? await fetchFromIPFS(ipfsHash) : {};
 
-        let escrowBalance = 0;
+        // A failed escrow read must not render as a zero balance. On a payments
+        // screen the two are indistinguishable to the user, and "0" reads as
+        // "your funds are gone". Keep it null and let the UI say it could not load.
+        let escrowBalance = null;
         let totalBudget = 0;
         try {
           const rawEscrow = await contract.methods.getEscrowBalance(jobId).call();
           escrowBalance = Number(rawEscrow) / 1e6;
-        } catch (_) {}
+        } catch (err) {
+          console.error(`Failed to read escrow balance for job ${jobId}:`, err);
+        }
         totalBudget = Number(jobData.totalBudget || jobData[4] || 0) / 1e6;
         const totalPaid = Number(jobData.totalPaid || jobData[7] || 0) / 1e6;
 

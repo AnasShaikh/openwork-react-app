@@ -97,7 +97,29 @@ rediscover them. Full background: [docs/repository-consolidation-2026-08-03.md](
 | 6 | Root `references/` and `contracts/references/` share nine duplicate filenames. | Ambiguity about which copy is authoritative. | Collapse to one copy. |
 | 7 | Nothing enforces agreement between the live registry, `src/config/chainConfig.js`, `docs/mainnet-contracts.json` and `backend/config.js`. | The drift that motivated the merge can recur. | Add a CI check comparing all four. |
 
-## Retired repositories — do not commit to these
+## Accepted risk: privileged control is a single externally-owned account
+
+This is a deliberate transitional decision, recorded so that a reviewer finds a
+stated position rather than an apparent oversight.
+
+Verified on Arbitrum at block `490463122`:
+
+| Check | Result |
+|---|---|
+| `NOWJC.owner()` (`0x8EfbF240…`) | `0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C` |
+| `Genesis.owner()` (`0xE8f7963f…`) | same address |
+| `cast code` on that address | `0x` — externally-owned account, not a multisig |
+
+That single key can transfer any USDC held by NOWJC through
+[`emergencyWithdrawUSDC`](contracts/src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol:466)
+with no timelock, and can replace the implementation through
+[`_authorizeUpgrade`](contracts/src/suites/current-mainnet/native/native-openwork-job-contract-v5.sol:312),
+which also accepts the bridge as a second upgrade path.
+
+Do not describe the protocol as having multisig or timelock protection. It does
+not. The accurate statement is that privileged control is currently a single key,
+accepted while balances are small, with multisig ownership planned. Attach the
+target date here when it is agreed.
 
 | Repository | Status |
 |---|---|

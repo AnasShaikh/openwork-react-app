@@ -32,9 +32,12 @@ function receiveSingleFile(req, res, next) {
  *
  * Strategy (in priority order):
  *   1. Self-hosted IPFS proxy  — if IPFS_API_URL + IPFS_PROXY_SECRET are set
- *   2. Lighthouse              — if LIGHTHOUSE_API_KEY is set
- *   3. Pinata REST API         — if PINATA_JWT is set
- *   4. Error                   — nothing configured
+ *   2. Pinata REST API         — if PINATA_JWT is set (fallback only)
+ *   3. Error                   — nothing configured
+ *
+ * Lighthouse was removed when storage moved to the self-hosted AWS node.
+ * `gateway.lighthouse.storage` remains in the *read* gateway list below; that is
+ * a public IPFS gateway that can resolve any CID and implies no account there.
  *
  * Response format: { success: true, IpfsHash: "Qm...", PinSize: 12345, Timestamp: "..." }
  */
@@ -42,12 +45,6 @@ async function uploadToIPFS(buffer, filename, dependencies = {}) {
   const env = dependencies.env || process.env;
   const request = dependencies.fetch || fetch;
   const logger = dependencies.logger || console;
-  const uploadLighthouse = dependencies.uploadLighthouse || (async (contents, apiKey, name) => {
-    const lighthouse = require('@lighthouse-web3/sdk');
-    return lighthouse.uploadBuffer(contents, apiKey, name);
-  });
-
-  const LIGHTHOUSE_KEY = env.LIGHTHOUSE_API_KEY;
   const PINATA_JWT     = env.PINATA_JWT;
   const IPFS_API_URL   = env.IPFS_API_URL;
   const IPFS_SECRET    = env.IPFS_PROXY_SECRET;
@@ -81,21 +78,12 @@ async function uploadToIPFS(buffer, filename, dependencies = {}) {
     }
   }
 
-  // ── Strategy 2: Lighthouse ────────────────────────────────────────────────
-  if (LIGHTHOUSE_KEY && !LIGHTHOUSE_KEY.startsWith('dummy')) {
-    try {
-      const name = filename || `upload-${Date.now()}`;
-      // Lighthouse SDK uploadBuffer: uploadBuffer(buffer, apiKey, fileName)
-      const resp = await uploadLighthouse(buffer, LIGHTHOUSE_KEY, name);
-      const hash = resp?.data?.Hash || resp?.Hash;
-      if (!hash) throw new Error(`response did not contain a content hash`);
-      return { IpfsHash: hash, PinSize: parseInt(resp?.data?.Size || resp?.Size) || buffer.length };
-    } catch (error) {
-      recordFailure('Lighthouse', error);
-    }
-  }
+  // Lighthouse was removed as a provider when storage moved to the self-hosted
+  // AWS IPFS node. It previously sat here as strategy 2, which meant a proxy
+  // outage silently routed uploads to a retired provider. If LIGHTHOUSE_API_KEY
+  // is still set in any deployed environment, unset it — nothing reads it now.
 
-  // ── Strategy 3: Pinata REST API ───────────────────────────────────────────
+  // ── Strategy 2: Pinata REST API ───────────────────────────────────────────
   if (PINATA_JWT && !PINATA_JWT.startsWith('dummy')) {
     try {
       const form = new FormData();
@@ -120,7 +108,7 @@ async function uploadToIPFS(buffer, filename, dependencies = {}) {
   if (failures.length) {
     throw new Error(`All configured IPFS providers failed (${failures.join('; ')})`);
   }
-  throw new Error('No IPFS provider configured (set LIGHTHOUSE_API_KEY, PINATA_JWT, or IPFS_API_URL+IPFS_PROXY_SECRET)');
+  throw new Error('No IPFS provider configured (set IPFS_API_URL+IPFS_PROXY_SECRET, or PINATA_JWT as fallback)');
 }
 
 async function uploadTextToIPFS(content, name) {

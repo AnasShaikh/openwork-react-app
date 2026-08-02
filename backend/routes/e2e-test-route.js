@@ -337,11 +337,15 @@ router.post('/recover', async (req, res) => {
 router.get('/ipfs-debug', async (req, res) => {
   const IPFS_API_URL   = process.env.IPFS_API_URL;
   const IPFS_SECRET    = process.env.IPFS_PROXY_SECRET;
+  const PINATA_JWT     = process.env.PINATA_JWT;
   const LIGHTHOUSE_KEY = process.env.LIGHTHOUSE_API_KEY;
   res.json({
     IPFS_API_URL: IPFS_API_URL || null,
     IPFS_SECRET_SET: !!IPFS_SECRET,
-    LIGHTHOUSE_SET: !!LIGHTHOUSE_KEY,
-    will_use: (IPFS_API_URL && IPFS_SECRET) ? 'proxy' : LIGHTHOUSE_KEY ? 'lighthouse' : 'none'
+    PINATA_SET: !!PINATA_JWT,
+    will_use: (IPFS_API_URL && IPFS_SECRET) ? 'proxy' : PINATA_JWT ? 'pinata' : 'none',
+    // Lighthouse is no longer an upload provider. Surfaced only so a stale key
+    // left in the environment is visible and can be removed.
+    retired_lighthouse_key_still_set: !!LIGHTHOUSE_KEY
   });
 });

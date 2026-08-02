@@ -67,7 +67,9 @@ const CONTRACT_ADDRESSES = {
     NOWJC: '0x8EfbF240240613803B9c9e716d4b5AD1388aFd99',
     NATIVE_ATHENA: '0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf',
     NATIVE_REWARDS: '0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9', // V2 (Jan 23) - Graceful referrer fix
-    NATIVE_BRIDGE: '0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F', // V2 (Jan 24) - User refund address fix
+    // V3. The live registry marks the previous 0x1bC57d93 bridge as deployed for
+    // rollback only and "not the active pointer"; this config pointed at it.
+    NATIVE_BRIDGE: '0x9A0950594A699f5fb7decd7069F935100d39D9bF',
     CCTP_ARB: '0x765D70496Ef775F6ba1cB7465c2e0B296eB50d87',
     // Optimism (Local Chain)
     LOWJC_OP: '0x620205A4Ff0E652fF03a890d2A677de878a1dB63', // V4 Proxy with impl V3 (Jan 23)
@@ -77,7 +79,9 @@ const CONTRACT_ADDRESSES = {
     // XDC Network (Local Chain)
     LOWJC_XDC: '0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7',
     LOCAL_ATHENA_XDC: '0x4756294bE516f73e8D1984E7a94E4ABaffA94c4d',
-    LOCAL_BRIDGE_XDC: '0x74566644782e98c87a12E8Fc6f7c4c72e2908a36',
+    // XDC's LocalLZOpenworkBridge V2. This previously held 0x74566644, which is
+    // Optimism's bridge — a role mismatch, not a stale version.
+    LOCAL_BRIDGE_XDC: '0xDae5036a1d9E7C6CE953604FF238E13BD2B83951',
     CCTP_XDC: '0x00c70838cA0de7F1Eb192Bd7a11A7F2e14407510',
     // Ethereum Mainnet (Main Chain - governance only)
     MAIN_DAO: '0xE8f7963fF3cE9f7dB129e3f619abd71cBB5Bb294',
