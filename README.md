@@ -15,11 +15,22 @@ why, and what to watch for.
 
 | Path | Contents |
 |---|---|
-| `src/` | React application. `src/config/chainConfig.js` is the runtime address manifest. |
+| `src/` | React application served at `app.openwork.technology`. `src/config/chainConfig.js` is the runtime address manifest. |
 | `backend/` | Managed Node backend, tested and deployed separately from the frontend. |
 | `contracts/` | Foundry project: Solidity sources, tests, deploy scripts, broadcast receipts, and the deployment reference library under `contracts/references/`. |
+| `landing/` | Marketing site served at `www.openwork.technology`. Its own Vite project with its own lockfile. |
 | `docs/` | Application-side records: production releases, dated integration and audit notes, and `mainnet-contracts.json`. |
 | `public/`, `tests/`, `scripts/`, `infra/` | Static assets, frontend tests, operational scripts, and infrastructure definitions. |
+
+Three deployables live here and they do **not** share a pipeline:
+
+| Deployable | Host | Delivery |
+|---|---|---|
+| App + backend | `app.openwork.technology` | CodeBuild → ECR → App Runner |
+| Landing site | `www.openwork.technology` | S3 `openwork-technology-landing-prod-256309399568` → CloudFront `E1ANKLS7O4YGAE` |
+| Contracts | Arbitrum, Optimism, XDC, Ethereum | Foundry scripts, recorded in `contracts/references/deployments/` |
+
+A commit here does not deploy everything. Each target has its own trigger.
 
 ## Source of truth
 
@@ -62,6 +73,14 @@ git submodule update --init --recursive
 cd contracts
 forge build
 forge test --contracts src/suites/current-mainnet --match-path 'test/CurrentMainnet*.t.sol'
+```
+
+The landing site is a separate Vite project with its own lockfile:
+
+```sh
+cd landing
+npm ci
+npm run build
 ```
 
 `contracts/skills/openwork-contracts/` holds the working procedures for contract

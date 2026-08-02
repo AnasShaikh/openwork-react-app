@@ -107,6 +107,31 @@ Three files existed only as uncommitted working-tree changes in the contract rep
 and did not come along: a `fundraising/` directory, an Arbitrum relay wallet funding
 record, and an IPFS verification SVG.
 
+## Landing site, merged the same day
+
+`krishnaprasath-k/openwork-landing` was merged into `landing/` with its 13 commits.
+It is the exact source of `www.openwork.technology`: commit `5d68562`, confirmed by
+rebuilding from `landing/` inside this repository and byte-comparing the output against
+the live bundle. `index-D93FVCTK.js` and `index-Dc0ogmOU.css` match production exactly.
+
+`krishnaprasath-k/openwork-landing-page` was evaluated and **excluded**. It is an older
+variant of the same site — last commit November 2025, 96 filenames shared with the live
+repository — and is not deployed anywhere. Merging it would have imported a second,
+dead copy of the marketing site.
+
+Two stale worktrees were also removed, `public-docs-current-mainnet` and
+`public-docs-release-record`. Each held exactly one unique commit and both were
+superseded: one recorded the 1 August release when `main` already had 2 August, and the
+other documented a "Retry CCTP Transfer" control that `b48281f` had removed in favour of
+automatic reconciliation. Merging either would have regressed the documentation. Their
+branches are retained locally as trace.
+
+**The landing deploy still points at the original repository.** It publishes to S3
+`openwork-technology-landing-prod-256309399568` behind CloudFront `E1ANKLS7O4YGAE`,
+entirely separate from the App Runner pipeline. Until that pipeline is repointed at
+`landing/` here, or the original repository is archived, the two copies will drift —
+the same failure this consolidation was carried out to end.
+
 ## Known follow-ups
 
 - The stale `NATIVE_BRIDGE` and `LOCAL_BRIDGE_XDC` entries in `backend/config.js` are
