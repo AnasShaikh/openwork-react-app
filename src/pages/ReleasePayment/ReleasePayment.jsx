@@ -1,4 +1,4 @@
-import { applyTxTimeouts, explainSendFailure, findStuckTransaction } from '../../services/txReliability';
+import { applyTxTimeouts, explainSendFailure, findStuckTransaction, watchPendingTransaction } from '../../services/txReliability';
 import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -63,6 +63,9 @@ export default function ReleasePayment() {
   const [cctpStatus, setCctpStatus] = useState(null);
   // Client-side cross-chain status tracking (fallback when backend is down)
   const [paymentStepState, setPaymentStepState] = useState(null);
+  // Set when a send is unresolved and resending could pay twice. Drives the
+  // buttons, so the UI never tells the user "do not resend" beside a live button.
+  const [retryBlocked, setRetryBlocked] = useState(false);
 
   // Multi-chain hooks
   const { chainId: userChainId, chainConfig: userChainConfig } = useChainDetection();
@@ -348,6 +351,7 @@ export default function ReleasePayment() {
     }
 
     try {
+      if (retryBlocked) return;
       setIsProcessing(true);
       setTransactionStatus(`🔄 Step 1/2: Releasing payment on ${jobChainConfig.name}...`);
       
@@ -604,7 +608,9 @@ export default function ReleasePayment() {
         // whether their money moved and whether retrying is safe, rather than
         // "it might still be mined".
         try {
-          const verdict = await explainSendFailure(new Web3(window.ethereum), error);
+          const diagnosticWeb3 = new Web3(window.ethereum);
+          applyTxTimeouts(diagnosticWeb3, jobChainId);
+          const verdict = await explainSendFailure(diagnosticWeb3, error);
           if (verdict.outcome !== 'unknown') {
             const label =
               verdict.outcome === 'succeeded' ? '✅'
@@ -612,8 +618,29 @@ export default function ReleasePayment() {
               : '⚠️';
             setTransactionStatus(`${label} ${verdict.message}`);
             setIsProcessing(false);
+            // Block the buttons whenever resending could double-pay, so the
+            // warning and the controls agree.
+            setRetryBlocked(!verdict.safeToRetry);
+
             if (verdict.outcome === 'succeeded') {
               setTimeout(() => window.location.reload(), 4000);
+            } else if (verdict.outcome === 'pending' && verdict.txHash) {
+              // Pending is not an outcome. Keep watching so the user is not left
+              // with a "do not resend" warning after the transaction has quietly
+              // been dropped and retrying has become safe again.
+              watchPendingTransaction(diagnosticWeb3, verdict.txHash, (resolved) => {
+                const resolvedLabel =
+                  resolved.outcome === 'succeeded' ? '✅'
+                  : resolved.outcome === 'pending' ? '⏳'
+                  : '⚠️';
+                setTransactionStatus(`${resolvedLabel} ${resolved.message}`);
+                setRetryBlocked(!resolved.safeToRetry);
+                if (resolved.outcome === 'succeeded') {
+                  setTimeout(() => window.location.reload(), 4000);
+                }
+              }).catch((watchError) => {
+                console.warn('Stopped watching the pending transaction:', watchError);
+              });
             }
             return;
           }
@@ -1155,8 +1182,8 @@ export default function ReleasePayment() {
                   justifyContent:'center', 
                   padding: '8px 16px', 
                   borderRadius: '12px',
-                  opacity: (isProcessing || job.jobStatus === 2 || job.currentLockedAmount === '0') ? 0.7 : 1,
-                  cursor: (isProcessing || job.jobStatus === 2 || job.currentLockedAmount === '0') ? 'not-allowed' : 'pointer'
+                  opacity: (isProcessing || retryBlocked || job.jobStatus === 2 || job.currentLockedAmount === '0') ? 0.7 : 1,
+                  cursor: (isProcessing || retryBlocked || job.jobStatus === 2 || job.currentLockedAmount === '0') ? 'not-allowed' : 'pointer'
                 }} 
                 onClick={handleReleasePayment}
                 disabled={isProcessing || job.jobStatus === 2 || job.currentLockedAmount === '0'}
@@ -1169,8 +1196,8 @@ export default function ReleasePayment() {
                   justifyContent:'center', 
                   padding: '8px 16px', 
                   borderRadius: '12px',
-                  opacity: (isLocking || !hasNextMilestone) ? 0.7 : 1,
-                  cursor: (isLocking || !hasNextMilestone) ? 'not-allowed' : 'pointer'
+                  opacity: (isLocking || retryBlocked || !hasNextMilestone) ? 0.7 : 1,
+                  cursor: (isLocking || retryBlocked || !hasNextMilestone) ? 'not-allowed' : 'pointer'
                 }}
                 onClick={handleLockNextMilestone}
                 disabled={isLocking || !hasNextMilestone}

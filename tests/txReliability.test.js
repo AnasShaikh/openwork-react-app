@@ -108,3 +108,48 @@ test('a provider that cannot answer the pending count never blocks a payment', a
   const s = await findStuckTransaction(broken, '0xabc');
   assert.equal(s.stuck, false);
 });
+
+test('a pending transaction that later confirms is reported as success', async () => {
+  const { watchPendingTransaction } = await import('../src/services/txReliability.js');
+  let calls = 0;
+  const web3 = {
+    eth: {
+      getTransactionReceipt: async () => (++calls >= 2 ? { status: true } : null),
+      getTransaction: async () => ({ hash: HASH }),
+    },
+  };
+  const updates = [];
+  const v = await watchPendingTransaction(web3, HASH, (u) => updates.push(u), { intervalMs: 1 });
+  assert.equal(v.outcome, 'succeeded');
+  assert.equal(v.safeToRetry, false);
+  assert.equal(updates.length, 1);
+});
+
+test('a pending transaction that is later dropped becomes safe to retry', async () => {
+  // The production gap: the user was told "do not resend", the transaction was
+  // then dropped, and nothing ever told them retrying had become safe.
+  const web3 = {
+    eth: {
+      getTransactionReceipt: async () => null,
+      getTransaction: async () => null,
+    },
+  };
+  const { watchPendingTransaction } = await import('../src/services/txReliability.js');
+  const v = await watchPendingTransaction(web3, HASH, () => {}, { intervalMs: 1 });
+  assert.equal(v.outcome, 'dropped');
+  assert.equal(v.safeToRetry, true);
+});
+
+test('a single missed poll does not declare a live transaction dropped', async () => {
+  let n = 0;
+  const web3 = {
+    eth: {
+      getTransactionReceipt: async () => (n > 4 ? { status: true } : null),
+      // Missing once, then present again — a node blip, not a drop.
+      getTransaction: async () => (++n === 1 ? null : { hash: HASH }),
+    },
+  };
+  const { watchPendingTransaction } = await import('../src/services/txReliability.js');
+  const v = await watchPendingTransaction(web3, HASH, () => {}, { intervalMs: 1 });
+  assert.equal(v.outcome, 'succeeded');
+});

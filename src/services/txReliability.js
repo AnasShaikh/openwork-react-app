@@ -178,6 +178,92 @@ export async function findStuckTransaction(web3, address) {
   return { stuck: false, gap: 0, message: null };
 }
 
+/**
+ * Watches a pending transaction until it actually resolves.
+ *
+ * "Pending" is not a terminal state, and treating it as one strands the user:
+ * observed in production, a release payment was correctly reported as pending,
+ * was then dropped from the mempool, and nothing ever told the user — leaving a
+ * "do not resend" warning on screen while retrying had in fact become safe.
+ *
+ * A transaction is only declared dropped once it has been missing from both the
+ * mempool and the chain for several consecutive polls, because a node can briefly
+ * fail to return a transaction it still holds.
+ *
+ * @param onUpdate called with the same shape explainSendFailure returns
+ */
+export async function watchPendingTransaction(web3, txHash, onUpdate, options = {}) {
+  const { intervalMs = 4000, timeoutMs = 900000, missesBeforeDropped = 3 } = options;
+  const deadline = Date.now() + timeoutMs;
+  let consecutiveMisses = 0;
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+
+    let receipt = null;
+    try {
+      receipt = await web3.eth.getTransactionReceipt(txHash);
+    } catch {
+      receipt = null;
+    }
+
+    if (receipt) {
+      const ok = receipt.status === true || receipt.status === 1n || receipt.status === '0x1';
+      const verdict = ok
+        ? {
+            outcome: 'succeeded',
+            txHash,
+            safeToRetry: false,
+            message: 'Confirmed on-chain. Reloading to show the updated state.',
+          }
+        : {
+            outcome: 'reverted',
+            txHash,
+            safeToRetry: true,
+            message:
+              'The transaction was mined but reverted, so nothing changed on-chain and no funds moved. Safe to try again.',
+          };
+      onUpdate(verdict);
+      return verdict;
+    }
+
+    let known = null;
+    try {
+      known = await web3.eth.getTransaction(txHash);
+    } catch {
+      known = null;
+    }
+
+    if (known) {
+      consecutiveMisses = 0;
+      continue;
+    }
+
+    consecutiveMisses += 1;
+    if (consecutiveMisses >= missesBeforeDropped) {
+      const verdict = {
+        outcome: 'dropped',
+        txHash,
+        safeToRetry: true,
+        message:
+          'The transaction was dropped by the network without being mined. Nothing was charged and nothing changed on-chain. Safe to try again.',
+      };
+      onUpdate(verdict);
+      return verdict;
+    }
+  }
+
+  const verdict = {
+    outcome: 'pending',
+    txHash,
+    safeToRetry: false,
+    message:
+      'Still unresolved after 15 minutes. Check the transaction in your wallet or a block explorer before sending another.',
+  };
+  onUpdate(verdict);
+  return verdict;
+}
+
 /** Rough native-currency cost of a write, for a pre-flight affordability check. */
 export async function hasEnoughGas(web3, address, gasLimit) {
   try {
