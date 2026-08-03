@@ -6,20 +6,20 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 4 August 2026 01:51:39 IST |
+| Deployed at | 4 August 2026 02:19 IST |
 | Git branch | `main` |
-| Git commit | `367f8e52931880cb6d6c145f4f0bfe25f178f624` |
-| GitHub CI | frontend tests (`63/63`), backend tests (`37/37`), mainnet frontend build passed on this commit |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-367f8e52931880cb6d6c145f4f0bfe25f178f624.zip` |
-| Source archive SHA-256 | `07c22a71a31eeeec89beacbdb1375df7823797e0b6befd54a203013eaba931f6` |
-| CodeBuild | `openwork-react-app-prod-build:8fc6b4d4-5b34-450a-a677-d711a4089a9f` — succeeded |
-| ECR image | `openwork-app:prod-367f8e5-20260804014519` |
-| ECR digest | `sha256:ae524713443991e647faa40ef95262a07b0221928d3e1ca6eea2bad1d9828a93` |
+| Git commit | `99f53af605658713dd18aed53ce51355f3bf339d` |
+| GitHub CI | frontend tests (`71/71`), backend tests (`37/37`), mainnet frontend build passed on this commit |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-99f53af605658713dd18aed53ce51355f3bf339d.zip` |
+| Source archive SHA-256 | `5d20452c26e5eecbd852280e985e41787c4a9efd6848820fbbaa2ba259679321` |
+| CodeBuild | `openwork-react-app-prod-build:8447e941-fc3f-400c-88c4-da6b32a3c283` — succeeded |
+| ECR image | `openwork-app:prod-99f53af-20260804021405` |
+| ECR digest | `sha256:519e3aeff23c112183c5d10ec44c45ed2c047a01c4f6e5f6bccc8aa52fbf6ce2` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `7d857d01e45c459381fa62723dfadf9a` — succeeded |
+| App Runner operation | `b5d10ffaa0cb42f5b0fc3610544d108d` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-fyrJnKGP.js` |
-| Rollback target | `openwork-app:prod-90ebc3a-20260802234539`, digest `sha256:038e11f1ebb2752a16a57d1f007ae5d77a997a31ac061acca3a7c802082c6349` |
+| Deployed JS asset | `/assets/index-_yILMMBh.js` |
+| Rollback target | `openwork-app:prod-367f8e5-20260804014519`, digest `sha256:ae524713443991e647faa40ef95262a07b0221928d3e1ca6eea2bad1d9828a93` |
 
 ## What this release fixes
 
@@ -39,8 +39,24 @@ twice.
 - Sending is now preceded by a check for unconfirmed transactions from the same
   wallet, since a queued nonce is the most likely way to reach the timeout at all.
 
-Applied to both the release and lock-milestone paths, with thirteen tests covering the
-classification including the dropped case observed in this incident.
+Applied to both the release and lock-milestone paths.
+
+Three follow-up corrections after review, all in this release:
+
+- The first version of the timeout fix was **inert**. It tuned a `Web3` created in
+  the page, but `getLOWJCContract` builds its own internally and returns a contract
+  from that one, so the sending object kept the default. The tuning now happens
+  inside `getLOWJCContract` and `getAthenaClientContract`, and a source-level test
+  fails if either getter stops doing it.
+- The buttons now follow the verdict. Previously the warning said "do NOT send it
+  again" beside a live Release button, so the interface contradicted itself.
+- Nothing diagnosed anything until `send()` settled, so a wallet retrying against
+  an unreachable RPC left the user on a spinner for minutes. `verifyBroadcast` now
+  runs as soon as a hash exists, in parallel with the send, and reports within 30
+  seconds if the network never received the transaction.
+
+Twenty-one tests cover this area, including the dropped, pending-then-dropped and
+hash-without-broadcast cases observed on job 42161-23.
 
 ## Verification
 
