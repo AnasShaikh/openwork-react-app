@@ -6,20 +6,20 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 4 August 2026 02:19 IST |
+| Deployed at | 4 August 2026 03:00 IST |
 | Git branch | `main` |
-| Git commit | `99f53af605658713dd18aed53ce51355f3bf339d` |
-| GitHub CI | frontend tests (`71/71`), backend tests (`37/37`), mainnet frontend build passed on this commit |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-99f53af605658713dd18aed53ce51355f3bf339d.zip` |
-| Source archive SHA-256 | `5d20452c26e5eecbd852280e985e41787c4a9efd6848820fbbaa2ba259679321` |
-| CodeBuild | `openwork-react-app-prod-build:8447e941-fc3f-400c-88c4-da6b32a3c283` — succeeded |
-| ECR image | `openwork-app:prod-99f53af-20260804021405` |
-| ECR digest | `sha256:519e3aeff23c112183c5d10ec44c45ed2c047a01c4f6e5f6bccc8aa52fbf6ce2` |
+| Git commit | `4cf9234` (see repository for the full hash) |
+| GitHub CI | frontend tests (`78/78`), backend tests (`37/37`), mainnet frontend build passed on this commit |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-4cf9234.zip` |
+| Source archive SHA-256 | `adc1da645ba3583f28550d6c44e2bc3bd8464f10062b3fc08aa2560fac0c4b79` |
+| CodeBuild | `openwork-react-app-prod-build:3c6a48ce-11af-4b7c-b7fd-c0e8f2a48011` — succeeded |
+| ECR image | `openwork-app:prod-4cf9234-20260804025604` |
+| ECR digest | `sha256:acfb3b1b20aeeb355839b1a2df89c5bfeb2fed4b84de75845e6702c093698ca5` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `b5d10ffaa0cb42f5b0fc3610544d108d` — succeeded |
+| App Runner operation | `2480de0385c545e09a747ad845167305` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-_yILMMBh.js` |
-| Rollback target | `openwork-app:prod-367f8e5-20260804014519`, digest `sha256:ae524713443991e647faa40ef95262a07b0221928d3e1ca6eea2bad1d9828a93` |
+| Deployed JS asset | `/assets/index-1B2_mmLH.js` |
+| Rollback target | `openwork-app:prod-b84e40d-20260804023425` |
 
 ## What this release fixes
 
@@ -57,6 +57,29 @@ Three follow-up corrections after review, all in this release:
 
 Twenty-one tests cover this area, including the dropped, pending-then-dropped and
 hash-without-broadcast cases observed on job 42161-23.
+
+### Fee ceiling, now set in one place
+
+Two opposite defects produced the same symptom, a transaction that never mines.
+
+Release payment set no ceiling at all, so the wallet padded maxFeePerGas into the
+low gwei range and reserved roughly a hundred times the real cost, then refused
+the transaction for insufficient funds against a balance that could pay it many
+times over.
+
+Post job, apply to job and start job set `maxFeePerGas` to `eth_gasPrice`. On
+Arbitrum `eth_gasPrice` equals `baseFeePerGas` exactly — both measured at
+20000000 wei — so the ceiling sat on the base fee with no headroom, and any rise
+between estimate and inclusion left the transaction unmineable until it dropped.
+
+`buildEstimatedWriteSendOptions` now derives the ceiling from the chain's live
+base fee with a 5x multiplier and a 0.01 gwei floor, sets no priority fee because
+Arbitrum's sequencer orders by arrival, and applies it only when the caller
+expressed no fee preference so deliberate legacy `gasPrice` on cross-chain paths
+is untouched. Thirteen files and twenty-three call sites route through that
+function, so they are fixed together rather than one page at a time. The
+per-page fee fields were removed from the three audited paths, and a regression
+test fails if any of them pins the ceiling to `eth_gasPrice` again.
 
 ## Verification
 
