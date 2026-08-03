@@ -6,20 +6,20 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 4 August 2026 03:00 IST |
+| Deployed at | 4 August 2026 04:24 IST |
 | Git branch | `main` |
-| Git commit | `4cf9234` (see repository for the full hash) |
+| Git commit | `24838fb` |
 | GitHub CI | frontend tests (`78/78`), backend tests (`37/37`), mainnet frontend build passed on this commit |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-4cf9234.zip` |
-| Source archive SHA-256 | `adc1da645ba3583f28550d6c44e2bc3bd8464f10062b3fc08aa2560fac0c4b79` |
-| CodeBuild | `openwork-react-app-prod-build:3c6a48ce-11af-4b7c-b7fd-c0e8f2a48011` — succeeded |
-| ECR image | `openwork-app:prod-4cf9234-20260804025604` |
-| ECR digest | `sha256:acfb3b1b20aeeb355839b1a2df89c5bfeb2fed4b84de75845e6702c093698ca5` |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-24838fb.zip` |
+| Source archive SHA-256 | `5c73af2df49c5da21a8d05e4e24defa5d7b5ee0caedb5feea071096d218d23bf` |
+| CodeBuild | `openwork-react-app-prod-build:62eda86e-e8a2-48b3-b5f0-769396362604` — succeeded |
+| ECR image | `openwork-app:prod-24838fb-20260804041924` |
+| ECR digest | `sha256:98d7ca7cb035ce2ecf8a17d04c089f45a0a9e1f9db421810eb711a5a09e47d77` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `2480de0385c545e09a747ad845167305` — succeeded |
+| App Runner operation | `e5a89eafc54947009ad850507422acc1` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-1B2_mmLH.js` |
-| Rollback target | `openwork-app:prod-b84e40d-20260804023425` |
+| Deployed JS asset | `/assets/index-FTOH7o-s.js` |
+| Rollback target | `openwork-app:prod-4cf9234-20260804025604` |
 
 ## What this release fixes
 
@@ -80,6 +80,32 @@ is untouched. Thirteen files and twenty-three call sites route through that
 function, so they are fixed together rather than one page at a time. The
 per-page fee fields were removed from the three audited paths, and a regression
 test fails if any of them pins the ceiling to `eth_gasPrice` again.
+
+### Public documentation rebuilt around a relationship diagram
+
+`/docs` previously showed what exists — chain cards and a contract table — but not
+what talks to what. It now leads with an interactive diagram: selecting one of
+eleven flows dims the uninvolved contracts and draws the path between the rest,
+coloured by transport, so the difference between a job that crosses a bridge, one
+that runs both transports at once, and one that crosses nothing is visible rather
+than described.
+
+Nodes carry a contract id into `docs/mainnet-contracts.json`, so address, explorer
+link and verification status come from the registry and cannot drift from
+deployment. Verified on the deployed page: 11 flows, 28 nodes, 28 explorer links
+with none malformed, and the release-payment flow drawing 4 wires of which 2 are
+the CCTP legs.
+
+It replaces `openwork-complete-architecture.html`, correcting three claims that
+file carried: governance labelled "Main Chain (Base)" when it is Ethereum, XDC
+omitted entirely, and no Arbitrum direct adapters. Arrows are measured from
+rendered node positions rather than hardcoded on a fixed canvas, so the layout
+reflows; below 720px the wires are hidden and uninvolved contracts are removed,
+because curves computed for a wide layout do not survive a single-column reflow.
+
+`lastAudited` moves to 4 August and the page now records the Arbitrum direct cycle
+verified with job 42161-23, the permissionless bounty-incentivised nature of CCTP
+relaying, and the XDC reward-cap correction.
 
 ## Verification
 
