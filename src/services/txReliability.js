@@ -300,6 +300,43 @@ export async function verifyBroadcast(web3, txHash, options = {}) {
   return false;
 }
 
+/**
+ * Explicit EIP-1559 fee fields derived from the chain's live base fee.
+ *
+ * Left to itself, MetaMask pads maxFeePerGas to a default in the low gwei range.
+ * On Arbitrum, where the base fee is around 0.02 gwei, that reserves roughly a
+ * hundred times the real cost — and the wallet then refuses the transaction for
+ * "insufficient funds" against a balance that could pay for it a hundred times
+ * over. Observed on job 42161-23: a real cost of 0.0000099 ETH was rejected
+ * against a 0.00107 ETH balance because the wallet wanted to reserve 0.000987.
+ *
+ * The multiplier gives headroom for the base fee rising between estimate and
+ * inclusion. Returns an empty object on any failure, so callers fall back to the
+ * wallet's own values rather than losing the ability to transact.
+ */
+export async function buildFeeOverrides(web3, options = {}) {
+  const { multiplier = 5n, floorWei = 10000000n } = options; // floor 0.01 gwei
+  try {
+    const block = await web3.eth.getBlock('latest');
+    const baseFee = block?.baseFeePerGas;
+    if (baseFee === undefined || baseFee === null) return {};
+
+    const base = BigInt(baseFee);
+    if (base <= 0n) return {};
+
+    const maxFeePerGas = base * multiplier > floorWei ? base * multiplier : floorWei;
+
+    return {
+      maxFeePerGas: maxFeePerGas.toString(),
+      // Arbitrum's sequencer orders by arrival, not by tip, so a priority fee
+      // buys nothing and only inflates the amount the wallet reserves.
+      maxPriorityFeePerGas: '0',
+    };
+  } catch {
+    return {};
+  }
+}
+
 /** Rough native-currency cost of a write, for a pre-flight affordability check. */
 export async function hasEnoughGas(web3, address, gasLimit) {
   try {

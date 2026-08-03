@@ -206,3 +206,33 @@ test('verifyBroadcast survives an RPC that throws', async () => {
   const web3 = { eth: { getTransaction: async () => { throw new Error('rpc down'); }, getTransactionReceipt: async () => { throw new Error('rpc down'); } } };
   assert.equal(await verifyBroadcast(web3, HASH, { windowMs: 20, intervalMs: 1 }), false);
 });
+
+test('fee overrides are derived from the live base fee, not a wallet default', async () => {
+  const { buildFeeOverrides } = await import('../src/services/txReliability.js');
+  // Arbitrum-like: 0.02 gwei base fee.
+  const web3 = { eth: { getBlock: async () => ({ baseFeePerGas: 20000000n }) } };
+  const f = await buildFeeOverrides(web3);
+  assert.equal(f.maxFeePerGas, String(20000000n * 5n)); // 0.1 gwei
+  assert.equal(f.maxPriorityFeePerGas, '0');
+  // Must be far below the ~2 gwei a wallet would otherwise reserve.
+  assert.ok(BigInt(f.maxFeePerGas) < 2000000000n / 10n);
+});
+
+test('fee overrides never fall below the floor on a near-zero base fee', async () => {
+  const { buildFeeOverrides } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getBlock: async () => ({ baseFeePerGas: 1n }) } };
+  const f = await buildFeeOverrides(web3);
+  assert.equal(BigInt(f.maxFeePerGas), 10000000n);
+});
+
+test('a chain without EIP-1559 yields no overrides, so the wallet decides', async () => {
+  const { buildFeeOverrides } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getBlock: async () => ({}) } };
+  assert.deepEqual(await buildFeeOverrides(web3), {});
+});
+
+test('an RPC failure yields no overrides rather than blocking the transaction', async () => {
+  const { buildFeeOverrides } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getBlock: async () => { throw new Error('rpc down'); } } };
+  assert.deepEqual(await buildFeeOverrides(web3), {});
+});

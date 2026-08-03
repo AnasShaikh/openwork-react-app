@@ -1,4 +1,4 @@
-import { applyTxTimeouts, explainSendFailure, findStuckTransaction, watchPendingTransaction, verifyBroadcast } from '../../services/txReliability';
+import { applyTxTimeouts, explainSendFailure, findStuckTransaction, watchPendingTransaction, verifyBroadcast, buildFeeOverrides } from '../../services/txReliability';
 import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -444,6 +444,14 @@ export default function ReleasePayment() {
           jobChainConfig,
           { from: walletAddress }
         );
+        // Set the fee ceiling from the chain's live base fee rather than letting
+        // the wallet pad it. On Arbitrum the wallet's default reserves roughly a
+        // hundred times the real cost and then refuses the transaction for
+        // insufficient funds against a balance that could pay it many times over.
+        const feeOverrides = await buildFeeOverrides(
+          new Web3(jobChainConfig.rpcUrl)
+        );
+        releaseSendOptions = { ...releaseSendOptions, ...feeOverrides };
       } else {
         const gasPrice = await web3.eth.getGasPrice();
         releaseSendOptions = await buildEstimatedWriteSendOptions(
