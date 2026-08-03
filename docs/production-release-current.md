@@ -6,19 +6,41 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 2 August 2026 23:53:04 UTC (3 August 2026 05:23:04 IST) |
+| Deployed at | 4 August 2026 01:51:39 IST |
 | Git branch | `main` |
-| Git commit | `90ebc3a6e693a11108d6be56263b832367cceee1` |
-| GitHub CI | Run `30772925645` — frontend tests (`51/51`), backend tests (`37/37`), audit, parse checks and the frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-90ebc3a6e693a11108d6be56263b832367cceee1.zip` |
-| Source archive SHA-256 | `62faad244b16f96713044a385882b75560981ec035e8cc114966c35afb91a0d1` |
-| CodeBuild | `openwork-react-app-prod-build:24084ed1-b5a5-4b36-856a-32a70f07893f` — succeeded |
-| ECR image | `openwork-app:prod-90ebc3a-20260802234539` |
-| ECR digest | `sha256:038e11f1ebb2752a16a57d1f007ae5d77a997a31ac061acca3a7c802082c6349` |
+| Git commit | `367f8e52931880cb6d6c145f4f0bfe25f178f624` |
+| GitHub CI | frontend tests (`63/63`), backend tests (`37/37`), mainnet frontend build passed on this commit |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-367f8e52931880cb6d6c145f4f0bfe25f178f624.zip` |
+| Source archive SHA-256 | `07c22a71a31eeeec89beacbdb1375df7823797e0b6befd54a203013eaba931f6` |
+| CodeBuild | `openwork-react-app-prod-build:8fc6b4d4-5b34-450a-a677-d711a4089a9f` — succeeded |
+| ECR image | `openwork-app:prod-367f8e5-20260804014519` |
+| ECR digest | `sha256:ae524713443991e647faa40ef95262a07b0221928d3e1ca6eea2bad1d9828a93` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `6605c2c395be429bbf73588a05d2342b` — succeeded |
+| App Runner operation | `7d857d01e45c459381fa62723dfadf9a` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BG-Kua3N.js` |
+| Deployed JS asset | `/assets/index-fyrJnKGP.js` |
+| Rollback target | `openwork-app:prod-90ebc3a-20260802234539`, digest `sha256:038e11f1ebb2752a16a57d1f007ae5d77a997a31ac061acca3a7c802082c6349` |
+
+## What this release fixes
+
+Payment screens previously reported a healthy transaction as failed. Job `42161-23`
+showed a release payment as "not mined within 80 blocks… might still be mined" when
+the transaction did not exist at all — neither mined nor in the mempool — so nothing
+had moved, but the user had no way to know that and retrying appeared to risk paying
+twice.
+
+- web3 counts its block timeout in blocks, and Arbitrum produces one every ~0.25s, so
+  80 blocks was 20 seconds, with the countdown starting at `send()` before the wallet
+  prompt was answered. The budget is now wall-clock and converted per chain: 2400
+  blocks on Arbitrum against 50 on Ethereum.
+- A timeout is no longer treated as an outcome. The failure path queries the chain and
+  distinguishes already-succeeded, mined-but-reverted, still-pending and dropped,
+  telling the user in each case whether funds moved and whether retrying is safe.
+- Sending is now preceded by a check for unconfirmed transactions from the same
+  wallet, since a queued nonce is the most likely way to reach the timeout at all.
+
+Applied to both the release and lock-milestone paths, with thirteen tests covering the
+classification including the dropped case observed in this incident.
 
 ## Verification
 
