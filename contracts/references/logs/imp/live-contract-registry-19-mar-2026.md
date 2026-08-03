@@ -10,6 +10,8 @@
 
 **Latest configuration record:** [arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md](../../deployments/arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md)
 
+**Relayer and keeper-bounty funding:** [multichain-transceiver-reward-funding-4-aug-2026.md](../../deployments/multichain-transceiver-reward-funding-4-aug-2026.md), preceded by [arbitrum-relay-wallet-funding-2-aug-2026.md](../../deployments/arbitrum-relay-wallet-funding-2-aug-2026.md). Relaying a CCTP message is permissionless, and each transceiver pays the caller a gas-based bounty, so third parties relay these transfers whenever it is profitable. When the transceivers emptied, that stopped silently — nothing errored. On XDC the reward was additionally capped below the keeper's own gas cost until `maxRewardAmount` was raised to `1e16` on 4 August. Treat transceiver balances as operational state worth monitoring, not a one-off setup step.
+
 This historical filename is retained for stable links. This file is the canonical production address-to-source registry. “Runtime verified” means the live bytecode, proxy slot, pointers or configuration were read back successfully. “Source verified” means source is published on the relevant block explorer. Those are separate claims.
 
 ## Audit snapshot
