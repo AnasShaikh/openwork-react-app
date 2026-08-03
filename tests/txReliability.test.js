@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   blockTimeoutForChain,
@@ -152,4 +155,29 @@ test('a single missed poll does not declare a live transaction dropped', async (
   const { watchPendingTransaction } = await import('../src/services/txReliability.js');
   const v = await watchPendingTransaction(web3, HASH, () => {}, { intervalMs: 1 });
   assert.equal(v.outcome, 'succeeded');
+});
+
+test('wallet-backed contract getters tune the instance they return', () => {
+  // Regression guard. The first version of this fix applied applyTxTimeouts to a
+  // Web3 instance created in the page, while getLOWJCContract builds its own
+  // internally — so the tuning never reached the object that sends, and the fix
+  // was inert in production. Assert the tuning happens where the contract is made.
+  const source = fs.readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/services/localChainService.js'),
+    'utf8',
+  );
+
+  for (const getter of ['getLOWJCContract', 'getAthenaClientContract']) {
+    const start = source.indexOf(`export async function ${getter}`);
+    assert.ok(start > -1, `${getter} not found`);
+    const body = source.slice(start, source.indexOf('\n}', start));
+    assert.ok(
+      /new web3\.eth\.Contract\(/.test(body),
+      `${getter} should build a contract`,
+    );
+    assert.ok(
+      /applyTxTimeouts\(contract,/.test(body),
+      `${getter} must call applyTxTimeouts on the contract it returns, not on a caller's Web3`,
+    );
+  }
 });

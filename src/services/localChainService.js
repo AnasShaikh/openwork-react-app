@@ -16,6 +16,7 @@
  */
 
 import Web3 from "web3";
+import { applyTxTimeouts } from './txReliability';
 import {
   getChainConfig,
   isChainAllowed,
@@ -105,7 +106,14 @@ export async function getLOWJCContract(chainId) {
 
   const web3 = new Web3(window.ethereum);
   const abi = isNativeArbChain(chainId) ? NATIVE_ARB_LOWJC_ABI : LOWJC_ABI;
-  return new web3.eth.Contract(abi, config.contracts.lowjc);
+  const contract = new web3.eth.Contract(abi, config.contracts.lowjc);
+  // Tune the instance that actually sends. Callers cannot do this themselves:
+  // this function builds its own Web3, so timeouts applied to a caller's
+  // instance never reach the sending contract. web3 counts its block timeout in
+  // blocks, and Arbitrum produces one every ~0.25s, so the default is ~20s and
+  // expires while the wallet prompt is still open.
+  applyTxTimeouts(contract, chainId);
+  return contract;
 }
 
 /**
@@ -151,7 +159,9 @@ export async function getAthenaClientContract(chainId) {
   
   const web3 = new Web3(window.ethereum);
   const abi = isNativeArbChain(chainId) ? NATIVE_ARB_ATHENA_CLIENT_ABI : ATHENA_CLIENT_ABI;
-  return new web3.eth.Contract(abi, config.contracts.athenaClient);
+  const contract = new web3.eth.Contract(abi, config.contracts.athenaClient);
+  applyTxTimeouts(contract, chainId);
+  return contract;
 }
 
 /**
