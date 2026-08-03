@@ -64,24 +64,53 @@ jobs:
           [ "$asset_count" -ge 2 ] || { echo "only $asset_count assets built; refusing to publish" >&2; exit 1; }
           echo "publishing $asset_count assets"
 
-          # The pre-compressed .gz files are deliberately not published. Nothing
-          # references them: index.html points at the uncompressed filenames, and
-          # S3 does not negotiate encodings. They were previously uploaded with
-          # Content-Type text/javascript and no Content-Encoding, so a request for
+          # Publish everything except the files handled explicitly below. The
+          # .gz siblings are never published under their own names: nothing
+          # references them, and they were previously uploaded as
+          # Content-Type text/javascript with no Content-Encoding, so requesting
           # one returned gzip bytes labelled as plain JavaScript.
           aws s3 sync dist "s3://${LANDING_BUCKET}" \
             --delete \
             --exclude 'index.html' \
             --exclude '*.gz' \
+            --exclude '*.js' \
+            --exclude '*.css' \
             --cache-control 'public,max-age=31536000,immutable'
 
-          # One-time cleanup of the mislabelled objects already in the bucket.
-          # --exclude above stops sync --delete from removing them, because the
-          # filter applies to the destination listing too.
-          aws s3 rm "s3://${LANDING_BUCKET}" \
-            --recursive \
-            --exclude '*' \
-            --include '*.gz'
+          # Remove objects the exclusions above stop --delete from clearing.
+          aws s3 rm "s3://${LANDING_BUCKET}" --recursive \
+            --exclude '*' --include '*.gz' --include '*.backup'
+
+          # Serve JS and CSS pre-compressed.
+          #
+          # CloudFront's automatic compression is enabled on this distribution
+          # (Compress: true, CachingOptimized with gzip and brotli) but does not
+          # actually compress: a verified cache miss with Accept-Encoding: gzip
+          # returned the full 313,600-byte bundle with no Content-Encoding. Rather
+          # than depend on it, upload the gzipped bytes under the plain key with
+          # Content-Encoding: gzip, which every browser decodes transparently.
+          # Uncompressed this build is 442 KB of JS+CSS; compressed it is 115 KB.
+          for plain in dist/assets/*.js dist/assets/*.css; do
+            [ -e "$plain" ] || continue
+            key="assets/$(basename "$plain")"
+            case "$plain" in
+              *.js)  ctype='text/javascript' ;;
+              *.css) ctype='text/css' ;;
+            esac
+            if [ -e "$plain.gz" ]; then
+              aws s3 cp "$plain.gz" "s3://${LANDING_BUCKET}/${key}" \
+                --content-type "$ctype" \
+                --content-encoding 'gzip' \
+                --cache-control 'public,max-age=31536000,immutable'
+              echo "published ${key} gzipped ($(wc -c < "$plain.gz" | tr -d ' ') bytes)"
+            else
+              # No .gz produced: publish uncompressed rather than skip the asset.
+              aws s3 cp "$plain" "s3://${LANDING_BUCKET}/${key}" \
+                --content-type "$ctype" \
+                --cache-control 'public,max-age=31536000,immutable'
+              echo "published ${key} uncompressed"
+            fi
+          done
 
           aws s3 cp dist/index.html "s3://${LANDING_BUCKET}/index.html" \
             --content-type 'text/html' \
