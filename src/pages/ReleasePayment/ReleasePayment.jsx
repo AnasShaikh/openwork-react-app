@@ -1,3 +1,4 @@
+import { applyTxTimeouts, explainSendFailure, findStuckTransaction } from '../../services/txReliability';
 import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -351,6 +352,21 @@ export default function ReleasePayment() {
       setTransactionStatus(`🔄 Step 1/2: Releasing payment on ${jobChainConfig.name}...`);
       
       const web3 = new Web3(window.ethereum);
+      // Arbitrum produces a block every ~0.25s, so web3's default block timeout
+      // is roughly 12–20 seconds and the countdown starts before the user has
+      // confirmed in their wallet. Without this, a healthy payment reports
+      // "not mined within 80 blocks" while still in the MetaMask prompt.
+      applyTxTimeouts(web3, jobChainId);
+
+      // A queued earlier transaction is the most common reason a payment appears
+      // to hang. Say so up front instead of letting it look like a failure.
+      const stuck = await findStuckTransaction(web3, walletAddress);
+      if (stuck.stuck) {
+        setTransactionStatus(`⏳ ${stuck.message}`);
+        setIsProcessing(false);
+        return;
+      }
+
       const lowjcContract = await getLOWJCContract(jobChainId);
       const isNativeArbitrum = isNativeArbChain(jobChainId);
       
@@ -582,8 +598,30 @@ export default function ReleasePayment() {
         errorMessage = "Insufficient ETH for gas fees";
       } else if (normalizedErrorMessage.includes("network")) {
         errorMessage = "Network switching failed - please switch to OP Sepolia manually";
+      } else {
+        // A block-timeout is not an outcome — it only means the app stopped
+        // watching. Ask the chain what actually happened, so the user is told
+        // whether their money moved and whether retrying is safe, rather than
+        // "it might still be mined".
+        try {
+          const verdict = await explainSendFailure(new Web3(window.ethereum), error);
+          if (verdict.outcome !== 'unknown') {
+            const label =
+              verdict.outcome === 'succeeded' ? '✅'
+              : verdict.outcome === 'pending' ? '⏳'
+              : '⚠️';
+            setTransactionStatus(`${label} ${verdict.message}`);
+            setIsProcessing(false);
+            if (verdict.outcome === 'succeeded') {
+              setTimeout(() => window.location.reload(), 4000);
+            }
+            return;
+          }
+        } catch (diagnosisError) {
+          console.warn('Could not classify the transaction outcome:', diagnosisError);
+        }
       }
-      
+
       setTransactionStatus(`❌ Error: ${errorMessage}`);
       setIsProcessing(false);
     }
@@ -735,6 +773,8 @@ export default function ReleasePayment() {
       const USDC_ADDRESS = jobChainConfig.contracts.usdc;
       const LOWJC_ADDRESS = jobChainConfig.contracts.lowjc;
       const web3 = new Web3(window.ethereum);
+      // Same short-block-timeout problem as the release path above.
+      applyTxTimeouts(web3, jobChainId);
       const isNativeArbitrum = isNativeArbChain(jobChainId);
 
       // Get next milestone amount from job data

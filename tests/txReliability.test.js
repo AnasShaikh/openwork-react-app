@@ -1,0 +1,110 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  blockTimeoutForChain,
+  applyTxTimeouts,
+  explainSendFailure,
+  findStuckTransaction,
+} from '../src/services/txReliability.js';
+
+const TIMEOUT_ERROR = (hash) => ({
+  message: `Transaction started at 490777013 but was not mined within 80 blocks. Please make sure your transaction was properly sent. Transaction Hash: ${hash}`,
+});
+
+const HASH = '0x62892cc2b63bf5b70506746bbffa5a5d4ecc4e9f511a6071758b1d189789cd77';
+
+function fakeWeb3({ receipt = null, transaction = null, latest = 5, pending = 5 } = {}) {
+  return {
+    eth: {
+      getTransactionReceipt: async () => receipt,
+      getTransaction: async () => transaction,
+      getTransactionCount: async (_a, block) => (block === 'pending' ? pending : latest),
+    },
+  };
+}
+
+test('Arbitrum gets a far larger block budget than Ethereum', () => {
+  // The whole bug: 80 blocks is ~20s on Arbitrum. Budget must be in wall-clock.
+  const arb = blockTimeoutForChain(42161);
+  const eth = blockTimeoutForChain(1);
+  assert.ok(arb >= 2400, `Arbitrum budget too small: ${arb}`);
+  assert.ok(arb > eth * 10, 'Arbitrum needs far more blocks than Ethereum for equal time');
+});
+
+test('an unknown chain still gets a usable budget', () => {
+  assert.ok(blockTimeoutForChain(999999) >= 50);
+});
+
+test('applyTxTimeouts sets the properties and never throws on a frozen object', () => {
+  const w = {};
+  applyTxTimeouts(w, 42161);
+  assert.equal(w.transactionBlockTimeout, blockTimeoutForChain(42161));
+  assert.equal(w.transactionConfirmationBlocks, 1);
+  assert.doesNotThrow(() => applyTxTimeouts(Object.freeze({}), 42161));
+});
+
+test('a timed-out transaction that actually succeeded is reported as success, not retryable', async () => {
+  const v = await explainSendFailure(fakeWeb3({ receipt: { status: true } }), TIMEOUT_ERROR(HASH));
+  assert.equal(v.outcome, 'succeeded');
+  assert.equal(v.safeToRetry, false);
+  assert.match(v.message, /Do not send it again/i);
+});
+
+test('a mined-but-reverted transaction is retryable and states no funds moved', async () => {
+  const v = await explainSendFailure(fakeWeb3({ receipt: { status: false } }), TIMEOUT_ERROR(HASH));
+  assert.equal(v.outcome, 'reverted');
+  assert.equal(v.safeToRetry, true);
+  assert.match(v.message, /no funds moved/i);
+});
+
+test('a still-pending transaction warns against resubmitting', async () => {
+  // The dangerous case: retrying here can pay twice.
+  const v = await explainSendFailure(
+    fakeWeb3({ receipt: null, transaction: { hash: HASH } }),
+    TIMEOUT_ERROR(HASH),
+  );
+  assert.equal(v.outcome, 'pending');
+  assert.equal(v.safeToRetry, false);
+  assert.match(v.message, /do NOT send it again/i);
+});
+
+test('a dropped transaction is identified as safe to retry — the 42161-23 case', async () => {
+  const v = await explainSendFailure(
+    fakeWeb3({ receipt: null, transaction: null }),
+    TIMEOUT_ERROR(HASH),
+  );
+  assert.equal(v.outcome, 'dropped');
+  assert.equal(v.safeToRetry, true);
+  assert.match(v.message, /never reached the network/i);
+  assert.equal(v.txHash, HASH);
+});
+
+test('a non-timeout error is passed through unchanged', async () => {
+  const v = await explainSendFailure(fakeWeb3(), { message: 'user rejected the request' });
+  assert.equal(v.outcome, 'unknown');
+  assert.match(v.message, /user rejected/);
+});
+
+test('a timeout with no recoverable hash does not claim to know the outcome', async () => {
+  const v = await explainSendFailure(fakeWeb3(), { message: 'was not mined within 80 blocks' });
+  assert.equal(v.outcome, 'unknown');
+  assert.equal(v.txHash, null);
+});
+
+test('a nonce gap is reported as a queued transaction', async () => {
+  const s = await findStuckTransaction(fakeWeb3({ latest: 258, pending: 260 }), '0xabc');
+  assert.equal(s.stuck, true);
+  assert.equal(s.gap, 2);
+  assert.match(s.message, /2 unconfirmed transactions/);
+});
+
+test('no nonce gap reports clear', async () => {
+  const s = await findStuckTransaction(fakeWeb3({ latest: 258, pending: 258 }), '0xabc');
+  assert.equal(s.stuck, false);
+});
+
+test('a provider that cannot answer the pending count never blocks a payment', async () => {
+  const broken = { eth: { getTransactionCount: async () => { throw new Error('unsupported'); } } };
+  const s = await findStuckTransaction(broken, '0xabc');
+  assert.equal(s.stuck, false);
+});
