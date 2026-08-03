@@ -38,11 +38,11 @@ The contracts were a separate `openwork-contracts-final` repository until 3 Augu
 | NativeAthena | `0xE6B9d996b56162cD7eDec3a83aE72943ee7C46Bf` |
 | NativeDAO | `0x24af98d763724362DC920507b351cC99170a5aa4` |
 | NativeRewards | `0x5E80B57E1C465498F3E0B4360397c79A64A67Ce9` |
-| NativeBridge | `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` |
+| NativeBridge | `0x9A0950594A699f5fb7decd7069F935100d39D9bF` |
 | ProfileManager | `0x51285003A01319c2f46BB2954384BCb69AfB1b45` |
 | ProfileGenesis | `0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E` |
 | OracleManager | `0xEdF3Bcf87716bE05e35E12bA7C0Fc6e1879c0f15` |
-| USDC | `0xaf88d065e77c8c2239327c5edb3a432268e5831` |
+| USDC | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
 
 The two frontend adapter addresses are required for Arbitrum writes. NOWJC and NativeAthena expose different function signatures and must not be substituted for them.
 
@@ -100,21 +100,27 @@ remains needs AWS access and is tracked in
 | Bridge role mismatches in `backend/config.js` | Fixed |
 | Two high dependency advisories | Fixed; production bundle hash unchanged |
 | Lighthouse live as a silent upload fallback | Removed |
-| Weekly IPFS snapshots failing since 19 July | Template fixed; **needs a stack deploy** |
-| Production running pre-fix code | **Needs a build and deploy** |
-| `HEALTH_SECRET` / `OPS_API_TOKEN` unset | **Needs configuring** |
-| Landing site has two deploy sources | **Needs the pipeline repointed** |
+| Weekly IPFS snapshots failing since 19 July | Fixed and deployed — policy `ENABLED`, validation snapshot completed |
+| Production running pre-fix code | Deployed — `prod-90ebc3a-20260802234539` |
+| `HEALTH_SECRET` / `OPS_API_TOKEN` unset | Configured |
+| Landing site has two deploy sources | Repointed to `landing/` via `.github/workflows/landing.yml` |
 
-Two protections are deployed but inert until acted on, and should not be
-described as active:
+Verified independently on 3 August 2026: App Runner runs
+`prod-90ebc3a-20260802234539` and that commit contains the RPC fallbacks; DLM
+policy `policy-032c9d33e1f0e9598` is `ENABLED` with a completed snapshot;
+`HEALTH_SECRET` and `OPS_API_TOKEN` are present; `LIGHTHOUSE_API_KEY` is gone and
+`PINATA_JWT` retained; `POST /api/v0/repo/stat` returns 401 rather than 404.
 
-- **IPFS and relay signature enforcement** are behind `IPFS_REQUIRE_SIGNATURE`
-  and `RELAY_REQUIRE_SIGNATURE`, both defaulting to false. Signatures are
-  verified and metered when present, but an unsigned request still succeeds.
-  Turn them on after confirming signing works in production.
-- **The IPFS disk circuit breaker** reads Kubo's `/api/v0/repo/stat`, which the
-  node's nginx does not proxy. It logs `IPFS disk headroom unknown` and allows
-  the upload until that path is exposed.
+**The IPFS disk circuit breaker is now active.** `repo/stat` is proxied, so it
+reads real usage and refuses uploads above 85% of the cap. It was inert until
+that change.
+
+**Signature enforcement is still off.** `IPFS_REQUIRE_SIGNATURE` and
+`RELAY_REQUIRE_SIGNATURE` both default to false. Signatures are verified and
+metered when present, but an unsigned request still succeeds, so uploads and
+relay calls remain effectively anonymous. This is the last protection that is
+built but not switched on. Turn both on once production traffic is confirmed to
+be signing, and do not describe uploads as authenticated until then.
 
 Two items were examined and deliberately not changed: the remaining React Router
 advisories are SSR-specific and this is a client-only SPA with no non-major fix
