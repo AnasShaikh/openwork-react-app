@@ -54,24 +54,34 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
+
+          # Refuse to publish an empty or partial build. `s3 sync --delete` would
+          # otherwise mirror the emptiness onto the bucket and take the public
+          # site down. A build that "succeeds" while producing nothing is exactly
+          # the case set -e cannot catch.
+          test -f dist/index.html || { echo 'dist/index.html missing; refusing to publish' >&2; exit 1; }
+          asset_count=$(find dist/assets -type f ! -name '*.gz' 2>/dev/null | wc -l | tr -d ' ')
+          [ "$asset_count" -ge 2 ] || { echo "only $asset_count assets built; refusing to publish" >&2; exit 1; }
+          echo "publishing $asset_count assets"
+
+          # The pre-compressed .gz files are deliberately not published. Nothing
+          # references them: index.html points at the uncompressed filenames, and
+          # S3 does not negotiate encodings. They were previously uploaded with
+          # Content-Type text/javascript and no Content-Encoding, so a request for
+          # one returned gzip bytes labelled as plain JavaScript.
           aws s3 sync dist "s3://${LANDING_BUCKET}" \
             --delete \
             --exclude 'index.html' \
+            --exclude '*.gz' \
             --cache-control 'public,max-age=31536000,immutable'
 
-          for file in dist/assets/*.js.gz; do
-            [ -e "$file" ] || continue
-            aws s3 cp "$file" "s3://${LANDING_BUCKET}/assets/$(basename "$file")" \
-              --content-type 'text/javascript' \
-              --cache-control 'public,max-age=31536000,immutable'
-          done
-
-          for file in dist/assets/*.css.gz; do
-            [ -e "$file" ] || continue
-            aws s3 cp "$file" "s3://${LANDING_BUCKET}/assets/$(basename "$file")" \
-              --content-type 'text/css' \
-              --cache-control 'public,max-age=31536000,immutable'
-          done
+          # One-time cleanup of the mislabelled objects already in the bucket.
+          # --exclude above stops sync --delete from removing them, because the
+          # filter applies to the destination listing too.
+          aws s3 rm "s3://${LANDING_BUCKET}" \
+            --recursive \
+            --exclude '*' \
+            --include '*.gz'
 
           aws s3 cp dist/index.html "s3://${LANDING_BUCKET}/index.html" \
             --content-type 'text/html' \
