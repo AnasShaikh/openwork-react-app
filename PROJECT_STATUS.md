@@ -105,6 +105,17 @@ remains needs AWS access and is tracked in
 | `HEALTH_SECRET` / `OPS_API_TOKEN` unset | Configured |
 | Landing site has two deploy sources | Repointed to `landing/` via `.github/workflows/landing.yml` |
 
+The landing site now serves JS and CSS pre-compressed. CloudFront's automatic
+compression is enabled on distribution `E1ANKLS7O4YGAE` but demonstrably does not
+run — a verified cache miss with `Accept-Encoding: gzip` returned the full
+313,600-byte bundle with no `Content-Encoding`, and CSS and HTML behaved
+identically, so it is not content-type specific. Nothing in the readable
+configuration explains it. `.github/workflows/landing.yml` therefore uploads
+gzipped bytes under the plain keys with `Content-Encoding: gzip` rather than
+depending on edge behaviour. JS and CSS went from 442 KB to 115 KB on the wire,
+verified in a browser with no console errors. If someone later diagnoses the
+CloudFront behaviour, that workflow step can be simplified.
+
 Verified independently on 3 August 2026: App Runner runs
 `prod-90ebc3a-20260802234539` and that commit contains the RPC fallbacks; DLM
 policy `policy-032c9d33e1f0e9598` is `ENABLED` with a completed snapshot;
@@ -119,8 +130,40 @@ that change.
 `RELAY_REQUIRE_SIGNATURE` both default to false. Signatures are verified and
 metered when present, but an unsigned request still succeeds, so uploads and
 relay calls remain effectively anonymous. This is the last protection that is
-built but not switched on. Turn both on once production traffic is confirmed to
-be signing, and do not describe uploads as authenticated until then.
+built but not switched on. Do not describe uploads as authenticated until then.
+
+To turn them on safely, first confirm real traffic is signing. The backend logs
+`Wallet signature rejected (not enforced)` when a signature is present but
+invalid, and sets no wallet address when none is sent, so:
+
+```
+aws logs filter-log-events --region us-east-1 \
+  --log-group-name /aws/apprunner/openwork-react-app-prod/94e9a6cf2c054eac98cb4eb0a68445e6/application \
+  --filter-pattern '"Wallet signature rejected"'
+```
+
+An empty result over a period with real uploads means signing is working and the
+flags can be set to `true`. Any hits mean a client is sending malformed
+signatures, and enforcing would break that path.
+
+## Remaining before launch
+
+1. **Fund the relay wallet `0x93514040f43aB16D52faAe7A3f380c4089D844F9`.** Optimism
+   is nearly dry after 58 transactions and XDC has never transacted. If it stalls
+   mid-flow, a user's funds have already moved on-chain and the job does not
+   complete.
+2. **Fund the CCTP transceivers** to restore third-party relaying, which worked
+   for months and stopped silently when they emptied. On XDC, raise
+   `maxRewardAmount` first: the cap is `1e15` wei, which on XDC is 0.001 XDC while
+   a relay costs about 0.00297 XDC, so the bounty pays less than the keeper's own
+   gas and no one will take it.
+3. **Turn on signature enforcement** once the log check above is clean.
+4. **Commission is 0 on-chain.** A deliberate business decision, not a defect, but
+   the revenue mechanism is deployed and disabled — decide before anyone audits it.
+5. **Commission an external Solidity audit.** Access control, CCTP replay
+   protection and the cross-chain payment guards were spot-checked and are sound,
+   but dispute settlement maths and milestone accounting were not reviewed in
+   depth, and NOWJC has no reentrancy guards at all.
 
 Two items were examined and deliberately not changed: the remaining React Router
 advisories are SSR-specific and this is a client-only SPA with no non-major fix
