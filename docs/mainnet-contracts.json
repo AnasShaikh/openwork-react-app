@@ -4,7 +4,7 @@
   "publicDocsUrl": "https://app.openwork.technology/docs",
   "canonicalSource": "https://github.com/AnasShaikh/openwork-react-app/blob/main/contracts/references/logs/imp/live-contract-registry-19-mar-2026.md",
   "deploymentLedger": "https://github.com/AnasShaikh/openwork-react-app/blob/main/contracts/references/deployments/confirmed-upgrades-mainnet-19-jul-2026.md",
-  "lastAudited": "2026-08-01",
+  "lastAudited": "2026-08-04",
   "auditedBlocks": {
     "ethereum": 25661615,
     "arbitrum": 490059405,
@@ -523,22 +523,27 @@
   ],
   "pathways": [
     {
-      "name": "XDC ↔ Arbitrum",
+      "name": "Arbitrum direct (same chain)",
+      "status": "end-to-end-tested",
+      "detail": "Jobs posted through ArbLOWJC V5 settle against NOWJC on Arbitrum with no LayerZero message and no CCTP transfer. Verified end to end on 4 August 2026: job 42161-23 was posted, started and released, settling 0.10 USDC to the selected applicant."
+    },
+    {
+      "name": "XDC \u2194 Arbitrum",
       "status": "end-to-end-tested",
       "detail": "Reciprocal peers, explicit four-DVN security configuration and production job 30365-3 completed after the 19 Jul bridge cutover."
     },
     {
-      "name": "Optimism ↔ Arbitrum",
+      "name": "Optimism \u2194 Arbitrum",
       "status": "configured",
       "detail": "Reciprocal peers point to the active bridges and the V3 Native-bridge security stack was read back; no post-cutover end-to-end application test is recorded."
     },
     {
-      "name": "Ethereum ↔ Arbitrum",
+      "name": "Ethereum \u2194 Arbitrum",
       "status": "configured",
       "detail": "Reciprocal peers point to the active bridges and the V3 Native-bridge security stack was read back; no post-cutover governance delivery test is recorded."
     },
     {
-      "name": "XDC ↔ Ethereum (direct)",
+      "name": "XDC \u2194 Ethereum (direct)",
       "status": "disabled",
       "detail": "The direct security stack is not installed and the Ethereum-side peer still names the retired XDC bridge. Route through Arbitrum instead."
     }

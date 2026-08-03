@@ -1,0 +1,340 @@
+.ow-arch {
+  --ow-arch-message: #0047FF;
+  --ow-arch-usdc: #12A150;
+  --ow-arch-local: #9AA3B2;
+  font-family: 'Satoshi', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Flow selector ──────────────────────────────────────────────────────── */
+
+.ow-arch__flows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ow-arch__flow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 2px solid #f7f7f7;
+  background: #fff;
+  color: #4D4D4D;
+  color: color(display-p3 0.302 0.302 0.302);
+  font-family: 'Satoshi', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ow-arch__flow:hover {
+  border-color: #EAECF0;
+  transform: translateY(-1px);
+}
+
+.ow-arch__flow.is-active {
+  background: linear-gradient(180deg, #0047FF -23.96%, #3971FF 134.37%);
+  background: linear-gradient(180deg, color(display-p3 0.0706 0.2745 1) -23.96%, color(display-p3 0.2793 0.4374 1) 134.37%);
+  border-color: #3f69ff;
+  color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 71, 255, 0.18);
+}
+
+.ow-arch__flow-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 71, 255, 0.08);
+  color: #0047FF;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ow-arch__flow.is-active .ow-arch__flow-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* ── Brief and steps ────────────────────────────────────────────────────── */
+
+.ow-arch__brief {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 2px solid #f7f7f7;
+  border-radius: 24px;
+  background: #fff;
+}
+
+.ow-arch__summary {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: #4D4D4D;
+  color: color(display-p3 0.302 0.302 0.302);
+}
+
+.ow-arch__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.ow-arch__steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #868686;
+  color: color(display-p3 0.525 0.525 0.525);
+}
+
+.ow-arch__step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(0, 71, 255, 0.08);
+  color: #0047FF;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Legend ─────────────────────────────────────────────────────────────── */
+
+.ow-arch__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.ow-arch__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #868686;
+  color: color(display-p3 0.525 0.525 0.525);
+}
+
+.ow-arch__legend-item::before {
+  content: '';
+  width: 18px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+}
+
+.ow-arch__legend-item--message::before { border-top-color: var(--ow-arch-message); }
+.ow-arch__legend-item--usdc::before { border-top-color: var(--ow-arch-usdc); }
+.ow-arch__legend-item--local::before {
+  border-top-color: var(--ow-arch-local);
+  border-top-style: dashed;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────────────────── */
+
+.ow-arch__canvas {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ow-arch__wires {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.ow-arch__wire {
+  fill: none;
+  stroke-width: 2;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.ow-arch__wire--message { stroke: var(--ow-arch-message); }
+.ow-arch__wire--usdc { stroke: var(--ow-arch-usdc); }
+.ow-arch__wire--local {
+  stroke: var(--ow-arch-local);
+  stroke-dasharray: 5 5;
+}
+
+/* ── Zones ──────────────────────────────────────────────────────────────── */
+
+.ow-arch__zone {
+  position: relative;
+  z-index: 2;
+  padding: 20px;
+  border: 2px solid #f7f7f7;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #FDFDFE 0%, #FFFFFF 100%);
+}
+
+.ow-arch__zone-head h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  color: #4D4D4D;
+  color: color(display-p3 0.302 0.302 0.302);
+}
+
+.ow-arch__zone-head p {
+  margin: 4px 0 16px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #868686;
+  color: color(display-p3 0.525 0.525 0.525);
+}
+
+.ow-arch__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.ow-arch__column-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #868686;
+  color: color(display-p3 0.525 0.525 0.525);
+}
+
+.ow-arch__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Nodes ──────────────────────────────────────────────────────────────── */
+
+.ow-arch__node {
+  position: relative;
+  border-radius: 12px;
+  border: 2px solid #f7f7f7;
+  background: #fff;
+  transition: opacity 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+}
+
+.ow-arch__node a,
+.ow-arch__node > img {
+  text-decoration: none;
+}
+
+.ow-arch__node a,
+.ow-arch__node {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  grid-template-areas:
+    'icon label address'
+    'icon role  address';
+  align-items: center;
+  gap: 2px 10px;
+  padding: 10px 12px;
+  color: inherit;
+}
+
+.ow-arch__node a { padding: 0; }
+
+.ow-arch__node-icon {
+  grid-area: icon;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.ow-arch__node-label {
+  grid-area: label;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #4D4D4D;
+  color: color(display-p3 0.302 0.302 0.302);
+}
+
+.ow-arch__node-role {
+  grid-area: role;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #868686;
+  color: color(display-p3 0.525 0.525 0.525);
+}
+
+.ow-arch__node-address {
+  grid-area: address;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: #0047FF;
+  color: color(display-p3 0.0706 0.2745 1);
+  white-space: nowrap;
+}
+
+.ow-arch__node.is-involved {
+  border-color: rgba(0, 71, 255, 0.35);
+  box-shadow: 0 2px 10px rgba(0, 71, 255, 0.08);
+}
+
+.ow-arch__node.is-emphasis.is-involved {
+  border-color: #0047FF;
+  box-shadow: 0 4px 14px rgba(0, 71, 255, 0.16);
+}
+
+.ow-arch__node.is-dimmed {
+  opacity: 0.42;
+}
+
+.ow-arch__node:hover {
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
+/* ── Narrow screens ────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  /* Curves computed from a wider layout do not survive a single-column reflow,
+     so hide the wires and let the numbered steps carry the sequence instead. */
+  .ow-arch__wires { display: none; }
+
+  .ow-arch__columns { grid-template-columns: 1fr; }
+
+  .ow-arch__node.is-dimmed { display: none; }
+
+  .ow-arch__zone { padding: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ow-arch__flow,
+  .ow-arch__node,
+  .ow-arch__wire {
+    transition: none;
+  }
+}

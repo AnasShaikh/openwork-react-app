@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import registry from '../../../docs/mainnet-contracts.json';
+import ArchitectureDiagram from '../../components/ArchitectureDiagram/ArchitectureDiagram';
 import './PublicDocs.css';
 
 const CONTRACT_SOURCE_ROOT = 'https://github.com/AnasShaikh/openwork-contracts-final/blob/main/';
@@ -196,53 +197,19 @@ const PublicDocs = () => {
         </span>
       </aside>
 
-      <section className="public-docs-section" id="architecture">
+      <section className="public-docs-section public-docs-section--feature" id="architecture">
         <div className="public-docs-section-heading">
           <p className="public-docs-eyebrow">Current production topology</p>
-          <h2>Four chains, two transport layers</h2>
+          <h2>How the contracts work together</h2>
           <p>
-            LayerZero carries application messages. Circle CCTP moves native USDC. Job metadata
-            and payments deliberately travel independently and are reconciled by the Arbitrum hub.
+            Four chains and two transport layers. LayerZero carries application messages,
+            Circle CCTP moves native USDC, and the two travel independently so the Arbitrum
+            hub reconciles them. Pick an action below to see which contracts it touches and
+            over which transport. Every contract links to its address on the explorer.
           </p>
         </div>
 
-        <div className="public-docs-architecture">
-          <article className="public-docs-chain-card public-docs-chain-local">
-            <span>Local execution</span>
-            <h3>Optimism</h3>
-            <p>LOWJC and LocalAthena provide low-gas job, profile, escrow and dispute entry points.</p>
-          </article>
-          <article className="public-docs-chain-card public-docs-chain-local">
-            <span>Local execution</span>
-            <h3>XDC</h3>
-            <p>LOWJC V3 and the replacement bridge support applicant milestone callbacks and XDC-native fees.</p>
-          </article>
-          <article className="public-docs-chain-card public-docs-chain-native">
-            <span>Canonical hub</span>
-            <h3>Arbitrum One</h3>
-            <p>NOWJC, Genesis, NativeAthena, profiles and rewards hold canonical state and escrow. Direct Arbitrum adapters avoid a cross-chain hop.</p>
-          </article>
-          <article className="public-docs-chain-card public-docs-chain-governance">
-            <span>Governance</span>
-            <h3>Ethereum</h3>
-            <p>ETHOpenworkDAO, OWORK, rewards, checkpoints and DAO messaging handle staking and protocol governance.</p>
-          </article>
-        </div>
-
-        <div className="public-docs-flow-grid">
-          <article>
-            <h3>Job and profile messages</h3>
-            <p>Optimism/XDC Local Bridge → Arbitrum Native Bridge V3 → NOWJC, NativeAthena or ProfileManager.</p>
-          </article>
-          <article>
-            <h3>USDC escrow and payout</h3>
-            <p>Local CCTP Transceiver → Arbitrum NOWJC escrow → direct Arbitrum transfer or CCTP payout to the selected chain.</p>
-          </article>
-          <article>
-            <h3>Governance synchronization</h3>
-            <p>ETH DAO + DAO Messaging → ETH Bridge → Native Bridge → StakeSync + Native DAO, with timestamped checkpoints on both chains.</p>
-          </article>
-        </div>
+        <ArchitectureDiagram registry={registry} />
       </section>
 
       <section className="public-docs-section" id="registry">
@@ -296,7 +263,7 @@ const PublicDocs = () => {
 
       <section className="public-docs-section" id="changes">
         <div className="public-docs-section-heading">
-          <p className="public-docs-eyebrow">July 19 and August 1</p>
+          <p className="public-docs-eyebrow">July 19 to August 4</p>
           <h2>Architecture changes now represented here</h2>
         </div>
         <div className="public-docs-change-grid">
@@ -306,6 +273,9 @@ const PublicDocs = () => {
           <article><h3>Ordered stake sync</h3><p>NativeDAOStakeSync V1 applies Ethereum staking updates on Arbitrum in order and fails closed instead of silently losing updates.</p></article>
           <article><h3>Lifecycle and rating fixes</h3><p>NOWJC V5, ArbLOWJC V5, NativeAthena V9, ProfileGenesis V2 and ProfileManager V3 add lifecycle validation, XDC routing and canonical job-bound rating checks.</p></article>
           <article><h3>Rewards configuration</h3><p>On August 1, NativeRewards.profileGenesis was configured to the current ProfileGenesis proxy. No new contract was deployed for that correction.</p></article>
+          <article><h3>Arbitrum direct execution verified</h3><p>On August 4 a full job cycle ran end to end on Arbitrum through ArbLOWJC V5 — posted, started and released — settling 0.10 USDC to the selected applicant. Same-chain jobs use neither LayerZero nor CCTP, so there is nothing to relay and nothing to reconcile.</p></article>
+          <article><h3>Keeper bounties funded</h3><p>Relaying a CCTP message is permissionless, and each transceiver pays the caller a gas-based reward, which is why third parties complete these transfers. All three transceivers were funded on August 4 after running empty, which had silently removed that incentive without producing any error.</p></article>
+          <article><h3>XDC reward cap corrected</h3><p>The XDC transceiver reward was capped below the cost of the relay itself, so no rational keeper would take it. maxRewardAmount was raised to 0.01 XDC on August 4, restoring a reward of roughly twice the gas spent.</p></article>
         </div>
       </section>
 

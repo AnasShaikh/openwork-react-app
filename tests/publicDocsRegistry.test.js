@@ -68,6 +68,9 @@ test('pathway claims distinguish tested, configured and disabled routes', () => 
   assert.deepEqual(
     Object.fromEntries(registry.pathways.map(({ name, status }) => [name, status])),
     {
+      // Same-chain execution: no LayerZero message, no CCTP transfer. Verified
+      // end to end on 4 August 2026 with job 42161-23.
+      'Arbitrum direct (same chain)': 'end-to-end-tested',
       'XDC ↔ Arbitrum': 'end-to-end-tested',
       'Optimism ↔ Arbitrum': 'configured',
       'Ethereum ↔ Arbitrum': 'configured',
