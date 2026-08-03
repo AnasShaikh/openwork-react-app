@@ -306,11 +306,12 @@ export default function ApplyJob() {
         [jobId, applicationHash, milestoneHashes, amounts, chainConfig.cctpDomain],
         lzOptions
       );
+      // Fee ceiling comes from buildEstimatedWriteSendOptions, derived from the
+      // chain's base fee with headroom. maxFeePerGas: gasPrice pinned it at exactly
+      // the base fee on Arbitrum, leaving no room for it to rise.
       const sendOptions = await buildEstimatedWriteSendOptions(writeMethod, chainConfig, {
         from: walletAddress,
         value: lzFee,
-        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-        maxFeePerGas: gasPrice
       });
       writeMethod.send(sendOptions)
       .on('transactionHash', (hash) => {

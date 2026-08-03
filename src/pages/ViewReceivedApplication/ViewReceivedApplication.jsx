@@ -576,11 +576,11 @@ export default function ViewReceivedApplication() {
         [jobId, parseInt(applicationId), effectiveUseAppMilestones],
         lzOptions
       );
+      // Fee ceiling comes from buildEstimatedWriteSendOptions. See ApplyJob: the
+      // previous maxFeePerGas: gasPrice left zero headroom above the base fee.
       const sendOptions = await buildEstimatedWriteSendOptions(startMethod, jobChainConfig, {
         from: walletAddress,
         value: layerZeroFee,
-        maxPriorityFeePerGas: web3.utils.toWei('0.001', 'gwei'),
-        maxFeePerGas: gasPrice
       });
       startMethod.send(sendOptions)
       .on('transactionHash', (srcTxHash) => {

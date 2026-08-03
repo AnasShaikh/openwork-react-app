@@ -541,10 +541,14 @@ export default function PostJob() {
             layerzeroOptions
           );
 
+          // Fee ceiling is set centrally in buildEstimatedWriteSendOptions from
+          // the chain's base fee with headroom. Passing eth_gasPrice here pinned
+          // maxFeePerGas at exactly the base fee — on Arbitrum the two are equal —
+          // so any rise between estimate and inclusion left the transaction
+          // unmineable until it was dropped.
           const sendOptions = await buildEstimatedWriteSendOptions(writeMethod, chainConfig, {
               from: fromAddress,
               value: layerZeroFee,
-              gasPrice: await quoteWeb3.eth.getGasPrice(),
             });
 
           writeMethod

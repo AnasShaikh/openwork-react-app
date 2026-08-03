@@ -194,8 +194,68 @@ export async function buildEstimatedWriteSendOptions(
     estimatedGas * (basisPoints + BigInt(bufferBps)) + basisPoints - 1n
   ) / basisPoints;
 
-  return { ...sendOptions, gas: bufferedGas.toString() };
+  const withGas = { ...sendOptions, gas: bufferedGas.toString() };
+
+  // Wallets reserve gasLimit multiplied by maxFeePerGas, and pad that ceiling to
+  // a default in the low gwei range. On Arbitrum, where the base fee is about
+  // 0.02 gwei, that reserves roughly a hundred times the real cost and the wallet
+  // then refuses the transaction for insufficient funds against a balance that
+  // could pay for it many times over. Deriving the ceiling from the chain's own
+  // base fee fixes every caller that routes through here at once.
+  //
+  // Only applied when the caller has expressed no fee preference. Cross-chain
+  // paths set an explicit legacy gasPrice and must not be overridden.
+  const callerChoseFees =
+    withGas.gasPrice !== undefined ||
+    withGas.maxFeePerGas !== undefined ||
+    withGas.maxPriorityFeePerGas !== undefined;
+
+  if (callerChoseFees) return withGas;
+
+  return { ...withGas, ...(await deriveFeeCeiling(chainConfig)) };
 }
+
+/**
+ * Fee ceiling from the chain's live base fee, read through the configured RPC
+ * rather than the wallet provider so wallet middleware stays out of the
+ * preflight. Returns an empty object on a non-EIP-1559 chain or any failure, so
+ * a diagnostic problem can never stop a transaction being sent.
+ */
+async function deriveFeeCeiling(chainConfig, dependencies = {}) {
+  const rpcUrl = chainConfig?.rpcUrl;
+  if (!rpcUrl) return {};
+
+  try {
+    const readBaseFee =
+      dependencies.readBaseFee ||
+      (async (url) => {
+        const { default: Web3 } = await import("web3");
+        const block = await new Web3(url).eth.getBlock("latest");
+        return block?.baseFeePerGas;
+      });
+
+    const raw = await readBaseFee(rpcUrl);
+    if (raw === undefined || raw === null) return {};
+
+    const baseFee = BigInt(raw);
+    if (baseFee <= 0n) return {};
+
+    const headroomMultiplier = 5n;
+    const floorWei = 10000000n; // 0.01 gwei, Arbitrum's practical minimum
+    const ceiling = baseFee * headroomMultiplier;
+
+    return {
+      maxFeePerGas: (ceiling > floorWei ? ceiling : floorWei).toString(),
+      // Arbitrum's sequencer orders by arrival rather than by tip, so a priority
+      // fee buys nothing and only inflates what the wallet reserves.
+      maxPriorityFeePerGas: "0",
+    };
+  } catch {
+    return {};
+  }
+}
+
+export { deriveFeeCeiling };
 
 export function getLOWJCRoute(chainConfig, operation) {
   return { ...getRoute(lowjcRoutes, chainConfig, operation) };

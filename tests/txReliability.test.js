@@ -236,3 +236,54 @@ test('an RPC failure yields no overrides rather than blocking the transaction', 
   const web3 = { eth: { getBlock: async () => { throw new Error('rpc down'); } } };
   assert.deepEqual(await buildFeeOverrides(web3), {});
 });
+
+test('the shared builder derives a fee ceiling with real headroom', async () => {
+  const { deriveFeeCeiling } = await import('../src/services/contractWriteRouter.js');
+  const f = await deriveFeeCeiling(
+    { rpcUrl: 'https://example.invalid' },
+    { readBaseFee: async () => 20000000n },   // Arbitrum's 0.02 gwei
+  );
+  // The previous code set maxFeePerGas = eth_gasPrice, which equals the base fee
+  // on Arbitrum — zero headroom, so any rise stalled the transaction.
+  assert.ok(BigInt(f.maxFeePerGas) > 20000000n, 'ceiling must exceed the base fee');
+  assert.equal(f.maxFeePerGas, String(20000000n * 5n));
+  assert.equal(f.maxPriorityFeePerGas, '0');
+});
+
+test('the shared builder yields nothing without an RPC or base fee', async () => {
+  const { deriveFeeCeiling } = await import('../src/services/contractWriteRouter.js');
+  assert.deepEqual(await deriveFeeCeiling({}), {});
+  assert.deepEqual(
+    await deriveFeeCeiling({ rpcUrl: 'x' }, { readBaseFee: async () => null }),
+    {},
+  );
+  assert.deepEqual(
+    await deriveFeeCeiling({ rpcUrl: 'x' }, { readBaseFee: async () => { throw new Error('down'); } }),
+    {},
+  );
+});
+
+test('post job, apply and start job no longer pin the ceiling to the base fee', () => {
+  // Regression guard for the three paths audited on 4 August.
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const files = [
+    'src/pages/PostJob/PostJob.jsx',
+    'src/pages/ApplyJob/ApplyJob.jsx',
+    'src/pages/ViewReceivedApplication/ViewReceivedApplication.jsx',
+  ];
+  for (const file of files) {
+    // Strip line comments; the fix is documented in prose that mentions the old code.
+    const source = fs.readFileSync(path.join(root, file), 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+    assert.ok(
+      !/maxFeePerGas:\s*gasPrice/.test(source),
+      `${file} must not pin maxFeePerGas to eth_gasPrice`,
+    );
+    assert.ok(
+      !/gasPrice:\s*await\s+\w+\.eth\.getGasPrice\(\)/.test(source),
+      `${file} must not pass a zero-headroom legacy gasPrice`,
+    );
+  }
+});
