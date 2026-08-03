@@ -181,3 +181,28 @@ test('wallet-backed contract getters tune the instance they return', () => {
     );
   }
 });
+
+test('verifyBroadcast confirms a transaction the network holds', async () => {
+  const { verifyBroadcast } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getTransaction: async () => ({ hash: HASH }), getTransactionReceipt: async () => null } };
+  assert.equal(await verifyBroadcast(web3, HASH, { windowMs: 50, intervalMs: 1 }), true);
+});
+
+test('verifyBroadcast reports a hash the network never received', async () => {
+  // The 42161-23 case: the wallet returned a hash, the network never had it.
+  const { verifyBroadcast } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getTransaction: async () => null, getTransactionReceipt: async () => null } };
+  assert.equal(await verifyBroadcast(web3, HASH, { windowMs: 30, intervalMs: 1 }), false);
+});
+
+test('verifyBroadcast accepts an already-mined transaction', async () => {
+  const { verifyBroadcast } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getTransaction: async () => null, getTransactionReceipt: async () => ({ status: true }) } };
+  assert.equal(await verifyBroadcast(web3, HASH, { windowMs: 50, intervalMs: 1 }), true);
+});
+
+test('verifyBroadcast survives an RPC that throws', async () => {
+  const { verifyBroadcast } = await import('../src/services/txReliability.js');
+  const web3 = { eth: { getTransaction: async () => { throw new Error('rpc down'); }, getTransactionReceipt: async () => { throw new Error('rpc down'); } } };
+  assert.equal(await verifyBroadcast(web3, HASH, { windowMs: 20, intervalMs: 1 }), false);
+});

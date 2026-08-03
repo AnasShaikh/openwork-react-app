@@ -264,6 +264,42 @@ export async function watchPendingTransaction(web3, txHash, onUpdate, options = 
   return verdict;
 }
 
+/**
+ * Confirms the network actually received a transaction the wallet claims to have
+ * sent.
+ *
+ * A wallet can return a transaction hash and still fail to propagate it — seen on
+ * job 42161-23, where the hash existed, the nonce never advanced and the network
+ * never held the transaction. Waiting for `send()` to settle hides this for
+ * minutes while the wallet retries internally, so check independently as soon as
+ * a hash exists rather than after the send promise gives up.
+ *
+ * Resolves true if the network knows the transaction, false if it does not know
+ * it within the window.
+ */
+export async function verifyBroadcast(web3, txHash, options = {}) {
+  const { windowMs = 30000, intervalMs = 3000 } = options;
+  const deadline = Date.now() + windowMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const known = await web3.eth.getTransaction(txHash);
+      if (known) return true;
+    } catch {
+      // Treat a failed lookup as inconclusive and keep trying.
+    }
+    try {
+      const receipt = await web3.eth.getTransactionReceipt(txHash);
+      if (receipt) return true;
+    } catch {
+      // Same.
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  return false;
+}
+
 /** Rough native-currency cost of a write, for a pre-flight affordability check. */
 export async function hasEnoughGas(web3, address, gasLimit) {
   try {

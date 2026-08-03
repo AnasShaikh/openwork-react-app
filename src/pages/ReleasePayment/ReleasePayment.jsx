@@ -1,4 +1,4 @@
-import { applyTxTimeouts, explainSendFailure, findStuckTransaction, watchPendingTransaction } from '../../services/txReliability';
+import { applyTxTimeouts, explainSendFailure, findStuckTransaction, watchPendingTransaction, verifyBroadcast } from '../../services/txReliability';
 import { walletAuthHeaders } from '../../services/uploadAuth';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -457,7 +457,27 @@ export default function ReleasePayment() {
         );
       }
 
-      const releasePaymentTx = await releaseMethod.send(releaseSendOptions);
+      // Do not wait for send() to settle before diagnosing. A wallet that
+      // cannot reach its RPC will retry internally for minutes, and the user is
+      // left staring at a spinner. As soon as a hash exists, independently check
+      // that the network actually received it, in parallel with the send.
+      const releaseSend = releaseMethod.send(releaseSendOptions);
+      releaseSend.on?.('transactionHash', (hash) => {
+        setTransactionStatus(`🔄 Submitted ${String(hash).slice(0, 10)}… confirming the network received it...`);
+        verifyBroadcast(web3, hash)
+          .then((reachedNetwork) => {
+            if (!reachedNetwork) {
+              setTransactionStatus(
+                `⚠️ Your wallet reported this transaction but the network never received it, so nothing was charged and nothing changed on-chain. This is usually a bad RPC endpoint in your wallet's network settings. Check it, then retry.`
+              );
+              setIsProcessing(false);
+              setRetryBlocked(false);
+            }
+          })
+          .catch(() => { /* inconclusive; the normal paths still apply */ });
+      });
+
+      const releasePaymentTx = await releaseSend;
 
       if (isNativeArbitrum) {
         setPaymentStepState(null);
