@@ -216,33 +216,34 @@ const PublicDocs = () => {
         <div className="public-docs-section-heading">
           <p className="public-docs-eyebrow">Live contracts</p>
           <h2>Addresses, implementations and source status</h2>
-          <p>Addresses below were compared with live code, ERC-1967 slots and the latest deployment ledger.</p>
+          <p>Every address was compared with live code, ERC-1967 slots and the latest deployment ledger. Open a chain for its full table; the diagram above links to each contract directly.</p>
         </div>
 
         {registry.chains.map((chain) => (
-          <article className="public-docs-chain-registry" key={chain.key} id={`chain-${chain.key}`}>
-            <div className="public-docs-chain-heading">
-              <div>
-                <p className="public-docs-eyebrow">{chain.role}</p>
-                <h3>{chain.name}</h3>
-              </div>
-              <dl>
-                <div><dt>Chain ID</dt><dd>{chain.chainId}</dd></div>
-                <div><dt>LZ EID</dt><dd>{chain.lzEid}</dd></div>
-                <div><dt>CCTP domain</dt><dd>{chain.cctpDomain}</dd></div>
-                <div><dt>Audit block</dt><dd>{registry.auditedBlocks[chain.key]}</dd></div>
-              </dl>
-            </div>
+          <details className="public-docs-chain-registry" key={chain.key} id={`chain-${chain.key}`}>
+            <summary className="public-docs-chain-summary">
+              <span className="public-docs-chain-summary-main">
+                <span className="public-docs-eyebrow">{chain.role}</span>
+                <strong>{chain.name}</strong>
+              </span>
+              <span className="public-docs-chain-summary-meta">
+                <span>{chain.contracts.length} contracts</span>
+                <span>Chain ID {chain.chainId}</span>
+                <span>LZ EID {chain.lzEid}</span>
+                <span>CCTP domain {chain.cctpDomain}</span>
+                <span>Audit block {registry.auditedBlocks[chain.key]}</span>
+              </span>
+            </summary>
             <RegistryTable chain={chain} />
-            <details className="public-docs-dependencies">
-              <summary>External dependencies</summary>
+            <div className="public-docs-dependencies">
+              <h4>External dependencies</h4>
               <dl>
                 {Object.entries(chain.dependencies).map(([name, address]) => (
                   <div key={name}><dt>{name}</dt><dd>{address}</dd></div>
                 ))}
               </dl>
-            </details>
-          </article>
+            </div>
+          </details>
         ))}
       </section>
 
