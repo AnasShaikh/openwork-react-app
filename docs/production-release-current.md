@@ -6,20 +6,20 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 4 August 2026 04:24 IST |
+| Deployed at | 4 August 2026 05:58 IST |
 | Git branch | `main` |
-| Git commit | `24838fb` |
+| Git commit | `faf9135` |
 | GitHub CI | frontend tests (`78/78`), backend tests (`37/37`), mainnet frontend build passed on this commit |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-24838fb.zip` |
-| Source archive SHA-256 | `5c73af2df49c5da21a8d05e4e24defa5d7b5ee0caedb5feea071096d218d23bf` |
-| CodeBuild | `openwork-react-app-prod-build:62eda86e-e8a2-48b3-b5f0-769396362604` — succeeded |
-| ECR image | `openwork-app:prod-24838fb-20260804041924` |
-| ECR digest | `sha256:98d7ca7cb035ce2ecf8a17d04c089f45a0a9e1f9db421810eb711a5a09e47d77` |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-faf9135.zip` |
+| Source archive SHA-256 | `e96770d04c8b80019929eff1bbb502f96a814cb1908ee534440b8d74c3737989` |
+| CodeBuild | `openwork-react-app-prod-build (faf9135)` — succeeded |
+| ECR image | `openwork-app:prod-faf9135-20260804055558` |
+| ECR digest | `sha256:12f22a1e8bf8edf5da2df96ce80cd38bf4b7138227264ef39b391227ad183318` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `e5a89eafc54947009ad850507422acc1` — succeeded |
+| App Runner operation | `ea3c1f2f0a5643b1b74da79e17823e60` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-FTOH7o-s.js` |
-| Rollback target | `openwork-app:prod-4cf9234-20260804025604` |
+| Deployed JS asset | `/assets/index-CZ8TitQk.js` |
+| Rollback target | `openwork-app:prod-24838fb-20260804041924` |
 
 ## What this release fixes
 
@@ -106,6 +106,16 @@ because curves computed for a wide layout do not survive a single-column reflow.
 `lastAudited` moves to 4 August and the page now records the Arbitrum direct cycle
 verified with job 42161-23, the permissionless bounty-incentivised nature of CCTP
 relaying, and the XDC reward-cap correction.
+
+### Page length halved
+
+Measured at 1440x900 the documentation page ran to 11,634px, about thirteen
+screens, of which the contract tables were 6,006px and the stacked architecture
+zones a further 2,222px. Each chain registry now collapses, costing 782px closed,
+and above 1100px the zones lay out as columns rather than stacking, taking the
+diagram to 1,406px. Total is 5,595px, 6.2 screens, verified on the deployed page
+with no horizontal overflow at either 1440px or 375px and no degenerate or
+out-of-bounds arrows in either layout.
 
 ## Verification
 
