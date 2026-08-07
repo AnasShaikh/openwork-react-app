@@ -44,6 +44,26 @@ test('mainnet registry reconciles active roles, artifacts and explorer status', 
   });
 });
 
+test('registry audit metadata and per-role configuration are current and complete', () => {
+  const contracts = registry.chains.flatMap((entry) => entry.contracts);
+
+  assert.equal(registry.lastAudited, '2026-08-07');
+  assert.deepEqual(registry.auditedBlocks, {
+    arbitrum: 492040533,
+    optimism: 155252419,
+    xdc: 105824712,
+    ethereum: 25702915,
+  });
+  assert.equal(Object.keys(registry.configurationByContract).length, 31);
+
+  for (const entry of contracts) {
+    assert.ok(
+      registry.configurationByContract[entry.id],
+      `missing configuration status for ${entry.id}`,
+    );
+  }
+});
+
 test('active bridge cutover and live proxy implementations are explicit', () => {
   assert.equal(
     contract('Arbitrum One', 'native-lz-openwork-bridge').address,
@@ -68,8 +88,8 @@ test('pathway claims distinguish tested, configured and disabled routes', () => 
   assert.deepEqual(
     Object.fromEntries(registry.pathways.map(({ name, status }) => [name, status])),
     {
-      // Same-chain execution: no LayerZero message, no CCTP transfer. Verified
-      // end to end on 4 August 2026 with job 42161-23.
+      // Same-chain execution: no LayerZero message, no CCTP transfer.
+      // Reconfirmed end to end on 7 August 2026 with job 42161-24.
       'Arbitrum direct (same chain)': 'end-to-end-tested',
       'XDC ↔ Arbitrum': 'end-to-end-tested',
       'Optimism ↔ Arbitrum': 'configured',
@@ -77,7 +97,18 @@ test('pathway claims distinguish tested, configured and disabled routes', () => 
       'XDC ↔ Ethereum (direct)': 'disabled',
     },
   );
+  assert.match(registry.pathways[0].detail, /7 August 2026.*42161-24/);
   assert.match(registry.heldNotLive[0].status, /not deployed or activated/);
+});
+
+test('Agent Oppy is grounded in the canonical live registry, not legacy contract data', () => {
+  const knowledge = source('src/pages/Documentation/data/oppyKnowledge.js');
+
+  assert.match(knowledge, /mainnet-contracts\.json/);
+  assert.doesNotMatch(knowledge, /contractsData/);
+  assert.doesNotMatch(knowledge, /Platform commission is 1%/);
+  assert.doesNotMatch(knowledge, /Main DAO \(Base\)/);
+  assert.doesNotMatch(knowledge, /OpenWork Token \(Base\)/);
 });
 
 test('public page, API and production image consume the same registry', () => {

@@ -119,6 +119,15 @@ out-of-bounds arrows in either layout.
 
 ## Verification
 
+- A user-authorized live follow-up on 7 August completed native-Arbitrum Direct
+  Contract job `42161-24`: exact approval and escrow of `0.10 USDC`, followed by
+  a same-chain `0.10 USDC` release to the selected applicant 23 seconds after
+  contract start. ArbLOWJC and Genesis both report `Completed`; the local adapter
+  reports `0` locked and `0.10 USDC` released, and the production page displays
+  the definitive final-state notice with both payment buttons disabled. This was
+  a user wallet test after deployment, not an automatic deployment write. The
+  full evidence record is
+  `contracts/references/deployments/arbitrum-direct-contract-job-42161-24-7-aug-2026.md`.
 - The exact consolidated `main` source at `90ebc3a` passed `51/51` frontend tests, `37/37` backend tests, the backend dependency audit and parse checks, the frontend build and CodeBuild before the immutable image was deployed.
 - App Runner's HTTP health gate passed, and read-only production checks returned HTTP 200 for `/`, `/health`, `/healthz`, `/docs`, `/documentation` and `/api/docs`. No wallet transaction or other on-chain write was submitted.
 - The deployed backend startup log selected the masked Alchemy Arbitrum host (`arb-mainnet.g.alchemy.com/***`). The public `arb1.arbitrum.io` fallback did not engage, confirming that the production RPC secret reaches the newly deployed fallback-capable code.

@@ -1,27 +1,34 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  ArrowRight,
+  Braces,
+  ExternalLink,
+  FileCheck2,
+  GitBranch,
+  MessageSquare,
+  Network,
+  ShieldCheck,
+  Workflow,
+} from 'lucide-react';
 import registry from '../../../docs/mainnet-contracts.json';
-import ArchitectureDiagram from '../../components/ArchitectureDiagram/ArchitectureDiagram';
+import ContractNetwork, { ContractDrawer } from '../../components/ContractNetwork/ContractNetwork';
+import { CONTRACT_PRESENTATION, FLOWS, NODES, indexContracts } from './architecture';
+import OppyPanel from './OppyPanel';
 import './PublicDocs.css';
 
-const CONTRACT_SOURCE_ROOT = 'https://github.com/AnasShaikh/openwork-contracts-final/blob/main/';
-
-const statusLabel = (value) => ({
+const STATUS_LABELS = {
   live: 'Live',
   'runtime-verified': 'Runtime verified',
   'source-verified': 'Source verified',
   'source-pending': 'Source pending',
   'proxy-linked': 'Proxy linked',
-  'end-to-end-tested': 'End-to-end tested',
   configured: 'Configured',
-  disabled: 'Disabled'
-}[value] || value);
+  'end-to-end-tested': 'End-to-end tested',
+  disabled: 'Disabled',
+};
 
-const StatusBadge = ({ value }) => (
-  <span className={`public-docs-status public-docs-status-${value}`}>
-    {statusLabel(value)}
-  </span>
-);
+const statusLabel = (status) => STATUS_LABELS[status] || status;
 
 const formatAuditDate = (value) => new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
@@ -30,290 +37,296 @@ const formatAuditDate = (value) => new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 }).format(new Date(`${value}T00:00:00Z`));
 
-const compactAddress = (address) => `${address.slice(0, 8)}…${address.slice(-6)}`;
+const viewTabs = [
+  { id: 'network', label: 'Network', icon: Network },
+  { id: 'flows', label: 'Function flows', icon: Workflow },
+  { id: 'oppy', label: 'Agent Oppy', icon: MessageSquare },
+  { id: 'status', label: 'Status & changes', icon: ShieldCheck },
+];
 
-const AddressLink = ({ chain, address, label }) => (
-  <span className="public-docs-address-row">
-    <a
-      className="public-docs-address"
-      href={`${chain.explorer}${address}#code`}
-      target="_blank"
-      rel="noreferrer"
-      aria-label={`${label || address} on ${chain.name} explorer`}
-      title={address}
-    >
-      {compactAddress(address)}
-    </a>
-    <CopyAddressButton address={address} label={label || address} />
-  </span>
-);
+function StatusBadge({ value }) {
+  return <span className={`public-docs-status public-docs-status--${value}`}>{statusLabel(value)}</span>;
+}
 
-const CopyAddressButton = ({ address, label }) => {
-  const [copied, setCopied] = useState(false);
+function FunctionFlowsView({ registry: productionRegistry, onSelectContract }) {
+  const flows = FLOWS.filter((flow) => flow.id !== 'overview');
+  const [activeFlowId, setActiveFlowId] = useState('direct');
+  const activeFlow = flows.find((flow) => flow.id === activeFlowId) || flows[0];
+  const contracts = useMemo(() => indexContracts(productionRegistry), [productionRegistry]);
+  const usedContracts = activeFlow.nodes
+    .map((nodeId) => NODES[nodeId]?.contractId)
+    .filter(Boolean)
+    .map((contractId) => contracts[contractId])
+    .filter(Boolean);
 
-  const copyAddress = async () => {
-    await navigator.clipboard.writeText(address);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+  return (
+    <section className="public-docs-flows" aria-labelledby="public-docs-flows-title">
+      <header className="public-docs-view-heading">
+        <div>
+          <p className="public-docs-kicker">Action-by-action routes</p>
+          <h2 id="public-docs-flows-title">Follow one protocol operation</h2>
+        </div>
+        <p>Each view lists only the contracts and transports involved—no overlapping architecture lines.</p>
+      </header>
+
+      <div className="public-docs-flow-tabs" role="tablist" aria-label="OpenWork function flows">
+        {flows.map((flow) => (
+          <button
+            key={flow.id}
+            type="button"
+            role="tab"
+            aria-selected={flow.id === activeFlow.id}
+            className={flow.id === activeFlow.id ? 'is-active' : ''}
+            onClick={() => setActiveFlowId(flow.id)}
+          >
+            {flow.label}
+            {flow.badge && <span>{flow.badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      <article className="public-docs-flow-detail">
+        <header>
+          <div>
+            <span>Selected flow</span>
+            <h3>{activeFlow.label}</h3>
+          </div>
+          {activeFlow.badge && <StatusBadge value={activeFlow.id === 'direct' ? 'end-to-end-tested' : 'configured'} />}
+        </header>
+        <p>{activeFlow.summary}</p>
+
+        <div className="public-docs-flow-steps">
+          {(activeFlow.steps || []).map((step, index) => (
+            <React.Fragment key={step}>
+              <div>
+                <span>{index + 1}</span>
+                <strong>{step}</strong>
+              </div>
+              {index < activeFlow.steps.length - 1 && <ArrowRight aria-hidden="true" />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="public-docs-flow-contracts">
+          <span>Contracts touched</span>
+          <div>
+            {usedContracts.map((contract) => (
+              <button key={contract.id} type="button" onClick={() => onSelectContract(contract)}>
+                <img src={`/${CONTRACT_PRESENTATION[contract.id]?.icon || 'file-icon.svg'}`} alt="" />
+                <span>
+                  <strong>{CONTRACT_PRESENTATION[contract.id]?.label || contract.name}</strong>
+                  <small>{contract.chainName}</small>
+                </span>
+                <ArrowRight aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </article>
+
+      <aside className="public-docs-flow-legend">
+        <span className="is-message">LayerZero carries application messages</span>
+        <span className="is-usdc">Circle CCTP carries native USDC</span>
+        <span className="is-local">Same-chain calls use neither transport</span>
+      </aside>
+    </section>
+  );
+}
+function StatusPanel({ registry: productionRegistry, onSelectContract }) {
+  const contracts = useMemo(() => indexContracts(productionRegistry), [productionRegistry]);
+  const commission = productionRegistry.liveConfiguration.commission;
+
+  return (
+    <section className="public-docs-status-view" aria-labelledby="public-docs-status-title">
+      <header className="public-docs-view-heading">
+        <div>
+          <p className="public-docs-kicker">Evidence, not inference</p>
+          <h2 id="public-docs-status-title">Live production status</h2>
+        </div>
+        <p>{productionRegistry.liveConfiguration.verificationScope}</p>
+      </header>
+
+      <div className="public-docs-status-summary">
+        <article><strong>{productionRegistry.summary.activeContractRoles}</strong><span>live roles</span></article>
+        <article><strong>19 / 19</strong><span>proxy slots matched</span></article>
+        <article><strong>{productionRegistry.summary.explorerSourceVerifiedArtifacts}</strong><span>source verified</span></article>
+        <article className="is-warning"><strong>{productionRegistry.summary.explorerSourcePendingArtifacts}</strong><span>source pending</span></article>
+      </div>
+
+      <div className="public-docs-status-grid">
+        <section className="public-docs-status-section">
+          <div className="public-docs-status-section__heading">
+            <div><GitBranch aria-hidden="true" /><h3>Cross-chain pathways</h3></div>
+            <span>{productionRegistry.pathways.length} tracked routes</span>
+          </div>
+          <div className="public-docs-pathways">
+            {productionRegistry.pathways.map((pathway) => (
+              <article key={pathway.name}>
+                <div><strong>{pathway.name}</strong><StatusBadge value={pathway.status} /></div>
+                <p>{pathway.detail}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="public-docs-status-section">
+          <div className="public-docs-status-section__heading">
+            <div><FileCheck2 aria-hidden="true" /><h3>Configuration readbacks</h3></div>
+            <span>{productionRegistry.liveConfiguration.verifiedAt}</span>
+          </div>
+          <div className="public-docs-config-cards">
+            <article>
+              <span>NOWJC fees</span>
+              <strong>{commission.commissionBasisPoints} bps · {commission.minimumUsdcUnits} minimum</strong>
+              <p>The live proxy values are authoritative; the source initializers are not current production behavior.</p>
+              <button type="button" onClick={() => onSelectContract(contracts.nowjc)}>Open NOWJC</button>
+            </article>
+            <article>
+              <span>LayerZero security</span>
+              <strong>Four required DVNs</strong>
+              <p>Active Arbitrum routes have locked libraries, executor and ULN configuration. Direct XDC/Ethereum remains disabled.</p>
+              <button type="button" onClick={() => onSelectContract(contracts['native-lz-openwork-bridge'])}>Open Native bridge</button>
+            </article>
+            <article>
+              <span>CCTP keeper incentives</span>
+              <strong>3 funded reward pools</strong>
+              <p>Arbitrum, Optimism and XDC caps and pool balances matched the 7 August readback. Balances remain operational state.</p>
+              <button type="button" onClick={() => onSelectContract(contracts['xdc-cctp-transceiver'])}>Open XDC CCTP</button>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <div className="public-docs-status-lower">
+        <section className="public-docs-status-section">
+          <div className="public-docs-status-section__heading">
+            <div><ShieldCheck aria-hidden="true" /><h3>Recent proven changes</h3></div>
+          </div>
+          <ol className="public-docs-changes">
+            {productionRegistry.recentChanges.map((change) => (
+              <li key={`${change.date}-${change.title}`}>
+                <time dateTime={change.date}>{change.date}</time>
+                <div><strong>{change.title}</strong><p>{change.detail}</p></div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="public-docs-status-section public-docs-limitations">
+          <div className="public-docs-status-section__heading">
+            <div><ShieldCheck aria-hidden="true" /><h3>Known limitations</h3></div>
+          </div>
+          <ul>
+            {productionRegistry.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+          </ul>
+          <details>
+            <summary>Legacy bridge deployments</summary>
+            {productionRegistry.legacyDeployments.map((contract) => (
+              <p key={`${contract.chain}-${contract.address}`}>
+                <strong>{contract.chain}: {contract.name}</strong><br />
+                <code>{contract.address}</code><br />{contract.status}.
+              </p>
+            ))}
+          </details>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+export default function PublicDocs() {
+  const [activeView, setActiveView] = useState('network');
+  const [selectedContract, setSelectedContract] = useState(null);
+
+  const selectView = (viewId) => {
+    setActiveView(viewId);
+    setSelectedContract(null);
   };
 
   return (
-    <button
-      className="public-docs-copy"
-      type="button"
-      onClick={copyAddress}
-      aria-label={`Copy ${label} address`}
-      title={`Copy ${address}`}
-    >
-      {copied ? 'Copied' : 'Copy'}
-    </button>
-  );
-};
-
-const VerificationStatus = ({ contract }) => (
-  <div className="public-docs-verification">
-    <div>
-      <span>Runtime</span>
-      <StatusBadge value={contract.runtimeVerification} />
-    </div>
-    {contract.kind === 'proxy' ? (
-      <>
-        <div>
-          <span>Proxy source</span>
-          <StatusBadge value={contract.proxySource} />
+    <main className="public-docs-shell" id="top">
+      <header className="public-docs-header">
+        <div className="public-docs-header__intro">
+          <p className="public-docs-kicker">OpenWork production documentation</p>
+          <h1>OpenWork mainnet contracts</h1>
+          <p>A compact, audited view of the complete four-chain protocol and every live contract role.</p>
         </div>
-        <div>
-          <span>Implementation</span>
-          <StatusBadge value={contract.implementationSource} />
+
+        <div className="public-docs-header__facts" aria-label="Registry summary">
+          <div><strong>{registry.summary.activeNetworks}</strong><span>networks</span></div>
+          <div><strong>{registry.summary.activeContractRoles}</strong><span>live roles</span></div>
+          <div><strong>{registry.summary.activeArtifacts}</strong><span>artifacts</span></div>
+          <div className="is-audit"><strong><ShieldCheck aria-hidden="true" /> {formatAuditDate(registry.lastAudited)}</strong><span>last audited</span></div>
         </div>
-        <div>
-          <span>Explorer link</span>
-          <StatusBadge value={contract.proxyLink} />
-        </div>
-      </>
-    ) : (
-      <div>
-        <span>Explorer source</span>
-        <StatusBadge value={contract.sourceVerification} />
-      </div>
-    )}
-  </div>
-);
 
-const RegistryTable = ({ chain }) => (
-  <div className="public-docs-table-wrap">
-    <table className="public-docs-table">
-      <thead>
-        <tr>
-          <th>Contract</th>
-          <th>Proxy / address</th>
-          <th>Implementation</th>
-          <th>Version</th>
-          <th>Explorer status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {chain.contracts.map((contract) => (
-          <tr key={contract.id}>
-            <td data-label="Contract">
-              <strong>{contract.name}</strong>
-              <span className="public-docs-purpose">{contract.purpose}</span>
-              <a
-                className="public-docs-source-link"
-                href={`${CONTRACT_SOURCE_ROOT}${contract.source}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Source
-              </a>
-            </td>
-            <td data-label="Proxy / address">
-              <span className="public-docs-kind">{contract.kind === 'proxy' ? 'UUPS proxy' : 'Standalone'}</span>
-              <AddressLink chain={chain} address={contract.address} label={contract.name} />
-            </td>
-            <td data-label="Implementation">
-              {contract.implementation ? (
-                <AddressLink
-                  chain={chain}
-                  address={contract.implementation}
-                  label={`${contract.name} implementation`}
-                />
-              ) : <span className="public-docs-muted">Not applicable</span>}
-            </td>
-            <td data-label="Version">{contract.version}</td>
-            <td data-label="Verification">
-              <VerificationStatus contract={contract} />
-              {contract.notes && <p className="public-docs-note">{contract.notes}</p>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-const PublicDocs = () => {
-  const { summary } = registry;
-
-  return (
-    <main className="public-docs-shell">
-      <header className="public-docs-hero" id="top">
-        <p className="public-docs-eyebrow">OpenWork production documentation</p>
-        <h1>OpenWork protocol architecture and mainnet contracts</h1>
-        <p className="public-docs-lead">
-          A verified reference for OpenWork&apos;s production architecture, deployed contracts,
-          cross-chain pathways and explorer status.
-        </p>
-        <div className="public-docs-meta">
-          <span>Last audited: {formatAuditDate(registry.lastAudited)}</span>
-          <a href={registry.canonicalSource} target="_blank" rel="noreferrer">Canonical registry</a>
-          <a href={registry.deploymentLedger} target="_blank" rel="noreferrer">July 19 deployment ledger</a>
-          <a href="/api/docs/contracts">Machine-readable JSON</a>
+        <div className="public-docs-header__links">
+          <a href={registry.canonicalSource} target="_blank" rel="noreferrer"><FileCheck2 aria-hidden="true" /> Registry <ExternalLink aria-hidden="true" /></a>
+          <a href={registry.deploymentLedger} target="_blank" rel="noreferrer"><GitBranch aria-hidden="true" /> Deployment ledger <ExternalLink aria-hidden="true" /></a>
+          <a href="/api/docs/contracts"><Braces aria-hidden="true" /> JSON</a>
         </div>
       </header>
 
-      <nav className="public-docs-nav" aria-label="Documentation sections">
-        <a href="#architecture">Architecture</a>
-        <a href="#registry">Contracts</a>
-        <a href="#pathways">Cross-chain status</a>
-        <a href="#changes">Recent changes</a>
-        <a href="#limitations">Known limitations</a>
+      <nav className="public-docs-tabs" role="tablist" aria-label="Documentation views">
+        {viewTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeView === tab.id}
+              className={activeView === tab.id ? 'is-active' : ''}
+              onClick={() => selectView(tab.id)}
+            >
+              <Icon aria-hidden="true" />
+              {tab.label}
+              {tab.id === 'network' && <span>31</span>}
+            </button>
+          );
+        })}
+        <span className="public-docs-tabs__note">All addresses link to the relevant explorer.</span>
       </nav>
 
-      <section className="public-docs-summary" aria-label="Registry summary">
-        <article><strong>{summary.activeNetworks}</strong><span>active networks</span></article>
-        <article><strong>{summary.activeContractRoles}</strong><span>active contract roles</span></article>
-        <article><strong>{summary.activeArtifacts}</strong><span>tracked live artifacts</span></article>
-        <article><strong>{summary.explorerSourceVerifiedArtifacts}</strong><span>source verified</span></article>
-        <article className="public-docs-summary-warning"><strong>{summary.explorerSourcePendingArtifacts}</strong><span>source publication pending</span></article>
-      </section>
+      <section className="public-docs-workspace">
+        {activeView === 'network' && (
+          <section aria-labelledby="public-docs-network-title">
+            <header className="public-docs-view-heading public-docs-view-heading--compact">
+              <div>
+                <p className="public-docs-kicker">Complete production topology</p>
+                <h2 id="public-docs-network-title">The whole contract network</h2>
+              </div>
+              <p>Four chains, 31 active roles. Select any tile to inspect its live address, implementation, source and configuration.</p>
+            </header>
+            <ContractNetwork
+              registry={registry}
+              selectedContract={selectedContract}
+              onSelectContract={setSelectedContract}
+            />
+          </section>
+        )}
 
-      <aside className="public-docs-alert">
-        <strong>Verification status is intentionally explicit.</strong>
-        <span>
-          All 19 artifacts deployed on July 19 are live and runtime-verified, but their source is
-          not yet published on the relevant explorer. Existing linked proxies continue to point to
-          those implementations through their audited ERC-1967 slots.
-        </span>
-      </aside>
-
-      <section className="public-docs-section public-docs-section--feature" id="architecture">
-        <div className="public-docs-section-heading">
-          <p className="public-docs-eyebrow">Current production topology</p>
-          <h2>How the contracts work together</h2>
-          <p>
-            Four chains and two transport layers. LayerZero carries application messages,
-            Circle CCTP moves native USDC, and the two travel independently so the Arbitrum
-            hub reconciles them. Pick an action below to see which contracts it touches and
-            over which transport. Every contract links to its address on the explorer.
-          </p>
-        </div>
-
-        <ArchitectureDiagram registry={registry} />
-      </section>
-
-      <section className="public-docs-section" id="registry">
-        <div className="public-docs-section-heading">
-          <p className="public-docs-eyebrow">Live contracts</p>
-          <h2>Addresses, implementations and source status</h2>
-          <p>Every address was compared with live code, ERC-1967 slots and the latest deployment ledger. Open a chain for its full table; the diagram above links to each contract directly.</p>
-        </div>
-
-        {registry.chains.map((chain) => (
-          <details className="public-docs-chain-registry" key={chain.key} id={`chain-${chain.key}`}>
-            <summary className="public-docs-chain-summary">
-              <span className="public-docs-chain-summary-main">
-                <span className="public-docs-eyebrow">{chain.role}</span>
-                <strong>{chain.name}</strong>
-              </span>
-              <span className="public-docs-chain-summary-meta">
-                <span>{chain.contracts.length} contracts</span>
-                <span>Chain ID {chain.chainId}</span>
-                <span>LZ EID {chain.lzEid}</span>
-                <span>CCTP domain {chain.cctpDomain}</span>
-                <span>Audit block {registry.auditedBlocks[chain.key]}</span>
-              </span>
-            </summary>
-            <RegistryTable chain={chain} />
-            <div className="public-docs-dependencies">
-              <h4>External dependencies</h4>
-              <dl>
-                {Object.entries(chain.dependencies).map(([name, address]) => (
-                  <div key={name}><dt>{name}</dt><dd>{address}</dd></div>
-                ))}
-              </dl>
-            </div>
-          </details>
-        ))}
-      </section>
-
-      <section className="public-docs-section" id="pathways">
-        <div className="public-docs-section-heading">
-          <p className="public-docs-eyebrow">Cross-chain readiness</p>
-          <h2>Connected is not the same as tested</h2>
-        </div>
-        <div className="public-docs-pathways">
-          {registry.pathways.map((pathway) => (
-            <article key={pathway.name}>
-              <div><h3>{pathway.name}</h3><StatusBadge value={pathway.status} /></div>
-              <p>{pathway.detail}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="public-docs-section" id="changes">
-        <div className="public-docs-section-heading">
-          <p className="public-docs-eyebrow">July 19 to August 4</p>
-          <h2>Architecture changes now represented here</h2>
-        </div>
-        <div className="public-docs-change-grid">
-          <article><h3>Replacement bridges</h3><p>NativeLZOpenworkBridge V3 on Arbitrum and LocalLZOpenworkBridge V2 on XDC replaced the active production pointers and added applicant-milestone callbacks.</p></article>
-          <article><h3>Historical governance power</h3><p>OpenworkVotingPowerCheckpoints V1 was deployed behind separate proxies on Ethereum and Arbitrum, then seeded from audited live accounts.</p></article>
-          <article><h3>Reliable DAO messaging</h3><p>ETHDAOMessaging V1 now owns retryable, exactly-once outbound governance notifications outside the near-limit DAO implementation.</p></article>
-          <article><h3>Ordered stake sync</h3><p>NativeDAOStakeSync V1 applies Ethereum staking updates on Arbitrum in order and fails closed instead of silently losing updates.</p></article>
-          <article><h3>Lifecycle and rating fixes</h3><p>NOWJC V5, ArbLOWJC V5, NativeAthena V9, ProfileGenesis V2 and ProfileManager V3 add lifecycle validation, XDC routing and canonical job-bound rating checks.</p></article>
-          <article><h3>Rewards configuration</h3><p>On August 1, NativeRewards.profileGenesis was configured to the current ProfileGenesis proxy. No new contract was deployed for that correction.</p></article>
-          <article><h3>Arbitrum direct execution verified</h3><p>On August 4 a full job cycle ran end to end on Arbitrum through ArbLOWJC V5 — posted, started and released — settling 0.10 USDC to the selected applicant. Same-chain jobs use neither LayerZero nor CCTP, so there is nothing to relay and nothing to reconcile.</p></article>
-          <article><h3>Keeper bounties funded</h3><p>Relaying a CCTP message is permissionless, and each transceiver pays the caller a gas-based reward, which is why third parties complete these transfers. All three transceivers were funded on August 4 after running empty, which had silently removed that incentive without producing any error.</p></article>
-          <article><h3>XDC reward cap corrected</h3><p>The XDC transceiver reward was capped below the cost of the relay itself, so no rational keeper would take it. maxRewardAmount was raised to 0.01 XDC on August 4, restoring a reward of roughly twice the gas spent.</p></article>
-        </div>
-      </section>
-
-      <section className="public-docs-section" id="limitations">
-        <div className="public-docs-section-heading">
-          <p className="public-docs-eyebrow">Do not infer beyond these facts</p>
-          <h2>Known limitations and held work</h2>
-        </div>
-        <ul className="public-docs-limitations">
-          <li>The 19 artifacts deployed on July 19 remain pending explorer source publication even though live runtimes and proxy slots were verified.</li>
-          <li>The direct XDC/Ethereum LayerZero pathway is disabled; route application traffic through Arbitrum.</li>
-          <li>NOWJC currently calculates zero platform commission because both live proxy settings are zero. Historical 1%/$1 descriptions are not current production behavior.</li>
-          <li>LocalAthena V2 exists in source but is intentionally not live pending a production dispute-minimum decision.</li>
-          <li>The old Arbitrum and XDC bridges remain deployed for rollback/in-flight compatibility; they are not the active application pointers.</li>
-        </ul>
-
-        <details className="public-docs-legacy">
-          <summary>Legacy bridge deployments</summary>
-          {registry.legacyDeployments.map((contract) => (
-            <p key={`${contract.chain}-${contract.address}`}>
-              <strong>{contract.chain}: {contract.name}</strong> — <code>{contract.address}</code> — {contract.status}.
-            </p>
-          ))}
-        </details>
+        {activeView === 'flows' && <FunctionFlowsView registry={registry} onSelectContract={setSelectedContract} />}
+        {activeView === 'oppy' && <OppyPanel registry={registry} />}
+        {activeView === 'status' && <StatusPanel registry={registry} onSelectContract={setSelectedContract} />}
       </section>
 
       <footer className="public-docs-footer">
-        <p>This page is the public production summary. The previous interactive contract explorer is retained for historical reference only.</p>
+        <span>Audited production summary · Runtime and explorer verification are reported separately.</span>
         <div>
-          <a href={registry.canonicalSource} target="_blank" rel="noreferrer">Canonical registry</a>
           <a href="/api/docs/skill">Agent documentation</a>
-          <Link to="/docs/legacy">Open legacy explorer</Link>
+          <Link to="/docs/legacy">Legacy explorer</Link>
           <a href="#top">Back to top</a>
         </div>
       </footer>
+
+      {selectedContract && (
+        <ContractDrawer
+          registry={registry}
+          contract={selectedContract}
+          onClose={() => setSelectedContract(null)}
+          onSelect={setSelectedContract}
+        />
+      )}
     </main>
   );
-};
-
-export default PublicDocs;
+}

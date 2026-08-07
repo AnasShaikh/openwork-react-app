@@ -4,11 +4,13 @@
 
 **Current source tree:** `src/suites/current-mainnet/`
 
-**Last audited:** `1 August 2026`
+**Last audited:** `7 August 2026`
 
 **Current release ledger:** [confirmed-upgrades-mainnet-19-jul-2026.md](../../deployments/confirmed-upgrades-mainnet-19-jul-2026.md)
 
-**Latest configuration record:** [arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md](../../deployments/arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md)
+**Latest configuration record:** [multichain-transceiver-reward-funding-4-aug-2026.md](../../deployments/multichain-transceiver-reward-funding-4-aug-2026.md)
+
+**Latest production execution proof:** [arbitrum-direct-contract-job-42161-24-7-aug-2026.md](../../deployments/arbitrum-direct-contract-job-42161-24-7-aug-2026.md)
 
 **Relayer and keeper-bounty funding:** [multichain-transceiver-reward-funding-4-aug-2026.md](../../deployments/multichain-transceiver-reward-funding-4-aug-2026.md), preceded by [arbitrum-relay-wallet-funding-2-aug-2026.md](../../deployments/arbitrum-relay-wallet-funding-2-aug-2026.md). Relaying a CCTP message is permissionless, and each transceiver pays the caller a gas-based bounty, so third parties relay these transfers whenever it is profitable. When the transceivers emptied, that stopped silently — nothing errored. On XDC the reward was additionally capped below the keeper's own gas cost until `maxRewardAmount` was raised to `1e16` on 4 August. Treat transceiver balances as operational state worth monitoring, not a one-off setup step.
 
@@ -18,10 +20,10 @@ This historical filename is retained for stable links. This file is the canonica
 
 | Chain | Audit block |
 |---|---:|
-| Ethereum Mainnet | `25661615` |
-| Arbitrum One | `490059405` |
-| Optimism | `155003860` |
-| XDC Network | `105610758` |
+| Ethereum Mainnet | `25702915` |
+| Arbitrum One | `492040533` |
+| Optimism | `155252419` |
+| XDC Network | `105824712` |
 
 | Metric | Count |
 |---|---:|
@@ -31,6 +33,8 @@ This historical filename is retained for stable links. This file is the canonica
 | Explorer source pending | 19 |
 
 All 19 active proxy ERC-1967 implementation slots match this registry. The 19 artifacts deployed on 19 July are live and runtime-verified but still pending explorer source publication. Do not describe production as “fully explorer verified” until those submissions succeed.
+
+The 7 August read-only refresh confirmed non-empty runtime code for all 31 active roles, all 19 proxy implementation slots, the six reciprocal production LayerZero peers, NOWJC's live zero commission values, NativeRewards' current ProfileGenesis pointer, and the three CCTP reward caps and pools. Production job `42161-24` separately reconfirmed the complete same-chain ArbLOWJC → NOWJC → Genesis escrow and release path without LayerZero or CCTP. That execution changed no contract address, implementation, configuration or explorer status.
 
 ## Arbitrum One
 

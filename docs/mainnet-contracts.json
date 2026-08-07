@@ -1,15 +1,15 @@
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "name": "OpenWork Mainnet Contract Registry",
   "publicDocsUrl": "https://app.openwork.technology/docs",
   "canonicalSource": "https://github.com/AnasShaikh/openwork-react-app/blob/main/contracts/references/logs/imp/live-contract-registry-19-mar-2026.md",
   "deploymentLedger": "https://github.com/AnasShaikh/openwork-react-app/blob/main/contracts/references/deployments/confirmed-upgrades-mainnet-19-jul-2026.md",
-  "lastAudited": "2026-08-04",
+  "lastAudited": "2026-08-07",
   "auditedBlocks": {
-    "ethereum": 25661615,
-    "arbitrum": 490059405,
-    "optimism": 155003860,
-    "xdc": 105610758
+    "ethereum": 25702915,
+    "arbitrum": 492040533,
+    "optimism": 155252419,
+    "xdc": 105824712
   },
   "summary": {
     "activeNetworks": 4,
@@ -23,8 +23,185 @@
     "runtime-verified": "The deployed runtime and immutable-aware hash were checked against the release artifact.",
     "source-verified": "The block explorer publishes matching source code.",
     "source-pending": "Runtime is live, but matching source has not yet been published on the block explorer.",
-    "proxy-linked": "The explorer and ERC-1967 slot point at the current implementation."
+    "proxy-linked": "The explorer and ERC-1967 slot point at the current implementation.",
+    "configured": "Required production pointers, routes or parameters were read back from live contracts.",
+    "end-to-end-tested": "A production transaction completed and destination application state proved the full path.",
+    "disabled": "The route or feature is intentionally not enabled in production."
   },
+  "configurationByContract": {
+    "native-openwork-genesis": {
+      "status": "configured",
+      "detail": "Active canonical job and lifecycle store used by NOWJC, NativeAthena and the read layer."
+    },
+    "nowjc": {
+      "status": "configured",
+      "detail": "V5 is active with the replacement Native bridge authorized. Live commissionPercentage() and minCommission() both read zero."
+    },
+    "native-arb-lowjc": {
+      "status": "end-to-end-tested",
+      "detail": "The direct Arbitrum adapter completed production job 42161-24 through escrow and final release on 7 August 2026 without LayerZero or CCTP."
+    },
+    "native-arb-athena-client": {
+      "status": "configured",
+      "detail": "The V3 direct Arbitrum dispute, skill-verification and Ask Athena adapter is active against the canonical native contracts."
+    },
+    "native-openwork-dao": {
+      "status": "configured",
+      "detail": "V2 is active with historical checkpoints, the ordered stake-sync receiver and the replacement Native bridge."
+    },
+    "native-athena": {
+      "status": "configured",
+      "detail": "V9 is active with canonical dispute validation, XDC domain routing and the replacement Native bridge."
+    },
+    "native-profile-genesis": {
+      "status": "configured",
+      "detail": "V2 is the active profile, portfolio and canonical job-bound rating store."
+    },
+    "native-athena-activity-tracker": {
+      "status": "configured",
+      "detail": "The active tracker records oracle-member governance activity separately from NativeAthena."
+    },
+    "native-athena-oracle-manager": {
+      "status": "configured",
+      "detail": "The active manager controls skill-oracle membership and lifecycle used by NativeAthena."
+    },
+    "native-profile-manager": {
+      "status": "configured",
+      "detail": "V3 is active with canonical Job Genesis authorization and the replacement Native bridge pointer."
+    },
+    "native-voting-power-checkpoints": {
+      "status": "configured",
+      "detail": "The Arbitrum checkpoint proxy was initialized, linked to NativeOpenworkDAO and seeded during the 19 July rollout."
+    },
+    "native-dao-stake-sync": {
+      "status": "configured",
+      "detail": "The ordered, fail-closed stake receiver is initialized and routed from the replacement Native bridge into NativeOpenworkDAO and Genesis."
+    },
+    "native-lz-openwork-bridge": {
+      "status": "configured",
+      "detail": "V3 is the active Arbitrum LayerZero router. Ethereum, Optimism and XDC peers plus send/receive security stacks were read back; only the XDC application path has a post-cutover end-to-end proof."
+    },
+    "native-rewards": {
+      "status": "configured",
+      "detail": "The active rewards contract points to the current ProfileGenesis proxy and the replacement Native bridge."
+    },
+    "arbitrum-cctp-transceiver": {
+      "status": "configured",
+      "detail": "The verified Arbitrum CCTP V2 transceiver has a 0.001 ETH reward cap and a live reward pool of 0.0004 ETH at the 7 August audit block."
+    },
+    "native-contract-registry": {
+      "status": "configured",
+      "detail": "The on-chain lookup helper is live, but it is not the authoritative production address registry."
+    },
+    "native-genesis-reader": {
+      "status": "configured",
+      "detail": "The active standalone reader provides batch, read-only access to canonical Genesis state."
+    },
+    "optimism-lowjc": {
+      "status": "configured",
+      "detail": "The live Optimism job adapter retains its production pointers and routes application messages to Arbitrum. No post-cutover end-to-end application proof is recorded."
+    },
+    "optimism-local-athena": {
+      "status": "configured",
+      "detail": "The live Optimism dispute and skill-oracle adapter is wired to the local job, bridge and CCTP contracts."
+    },
+    "optimism-local-bridge": {
+      "status": "configured",
+      "detail": "The active Optimism LayerZero bridge peers with Native bridge V3 on Arbitrum; its production security stack was read back, but no post-cutover application delivery proof is recorded."
+    },
+    "optimism-cctp-transceiver": {
+      "status": "configured",
+      "detail": "The verified Optimism CCTP V2 transceiver has a 0.001 ETH reward cap and a live reward pool of 0.00002 ETH at the 7 August audit block."
+    },
+    "xdc-lowjc": {
+      "status": "end-to-end-tested",
+      "detail": "V3 is active with applicant-milestone callbacks and the replacement XDC bridge; production job 30365-3 completed after the cutover."
+    },
+    "xdc-local-athena": {
+      "status": "configured",
+      "detail": "The live XDC dispute and skill-oracle adapter points to the replacement XDC bridge. LocalAthena V2 remains intentionally undeployed."
+    },
+    "xdc-local-bridge": {
+      "status": "end-to-end-tested",
+      "detail": "V2 is the active XDC LayerZero router. The reciprocal Arbitrum path and four-DVN security stack are configured and production-tested; the direct Ethereum security path remains disabled."
+    },
+    "xdc-cctp-transceiver": {
+      "status": "configured",
+      "detail": "The verified Standard Transfer adapter preserves the legacy selector. Its reward cap is 0.01 XDC and its live reward pool was 0.30 XDC at the 7 August audit block."
+    },
+    "eth-openwork-dao": {
+      "status": "configured",
+      "detail": "V3 is active with snapshot voting power, the Ethereum checkpoint proxy and separated retryable DAO messaging."
+    },
+    "eth-voting-power-checkpoints": {
+      "status": "configured",
+      "detail": "The Ethereum checkpoint proxy was initialized, linked to ETHOpenworkDAO and seeded during the 19 July rollout."
+    },
+    "eth-dao-messaging": {
+      "status": "configured",
+      "detail": "The proxy is initialized as the exactly-once, retryable outbound governance messaging module for ETHOpenworkDAO."
+    },
+    "eth-lz-openwork-bridge": {
+      "status": "configured",
+      "detail": "The active Ethereum LayerZero bridge peers with Native bridge V3 on Arbitrum; no post-cutover governance delivery proof is recorded."
+    },
+    "eth-rewards": {
+      "status": "configured",
+      "detail": "The verified standalone rewards contract handles Ethereum reward claims and OWORK distribution."
+    },
+    "openwork-token": {
+      "status": "configured",
+      "detail": "The verified Ethereum ERC-20 is the live OWORK governance and rewards token."
+    }
+  },
+  "liveConfiguration": {
+    "verifiedAt": "2026-08-07",
+    "verificationScope": "Live runtime code for 31 roles, all 19 ERC-1967 implementation slots, six active LayerZero peers, NOWJC fee storage, NativeRewards ProfileGenesis, and three CCTP reward pools and caps.",
+    "commission": {
+      "status": "configured",
+      "contract": "nowjc",
+      "commissionBasisPoints": 0,
+      "minimumUsdcUnits": 0,
+      "detail": "The V5 source declares initial defaults, but the live proxy retained zero values during the upgrade. Production documentation must use the proxy values."
+    },
+    "nativeRewardsProfileGenesis": {
+      "status": "configured",
+      "value": "0x794809471215cBa5cE56c7d9F402eDd85F9eBa2E"
+    },
+    "activePeers": [
+      { "source": "Arbitrum V3 bridge", "target": "Ethereum 30101", "peer": "0x20Fa268106A3C532cF9F733005Ab48624105c42F" },
+      { "source": "Arbitrum V3 bridge", "target": "Optimism 30111", "peer": "0x74566644782e98c87a12E8Fc6f7c4c72e2908a36" },
+      { "source": "Arbitrum V3 bridge", "target": "XDC 30365", "peer": "0xDae5036a1d9E7C6CE953604FF238E13BD2B83951" },
+      { "source": "Ethereum bridge", "target": "Arbitrum 30110", "peer": "0x9A0950594A699f5fb7decd7069F935100d39D9bF" },
+      { "source": "Optimism bridge", "target": "Arbitrum 30110", "peer": "0x9A0950594A699f5fb7decd7069F935100d39D9bF" },
+      { "source": "XDC V2 bridge", "target": "Arbitrum 30110", "peer": "0x9A0950594A699f5fb7decd7069F935100d39D9bF" }
+    ],
+    "layerZeroSecurity": {
+      "status": "configured",
+      "detail": "Arbitrum routes to Ethereum, Optimism and XDC use the locked send/receive libraries, executor configuration and four required DVNs with no optional DVNs. Ethereum uses 15 receive confirmations; Optimism and XDC use 20. The direct XDC/Ethereum stack is not installed."
+    },
+    "cctpRewards": [
+      { "chain": "Arbitrum One", "contract": "arbitrum-cctp-transceiver", "poolWei": "400000000000000", "maxRewardWei": "1000000000000000" },
+      { "chain": "Optimism", "contract": "optimism-cctp-transceiver", "poolWei": "20000000000000", "maxRewardWei": "1000000000000000" },
+      { "chain": "XDC Network", "contract": "xdc-cctp-transceiver", "poolWei": "300000000000000000", "maxRewardWei": "10000000000000000" }
+    ]
+  },
+  "recentChanges": [
+    { "date": "2026-08-07", "title": "Arbitrum direct cycle reconfirmed", "detail": "Production job 42161-24 completed from exact 0.10 USDC approval and escrow through final release. No LayerZero, CCTP or configuration change was involved." },
+    { "date": "2026-08-04", "title": "Keeper incentives restored", "detail": "All three live CCTP transceiver reward pools were funded; the XDC reward cap was raised to 0.01 XDC." },
+    { "date": "2026-08-01", "title": "NativeRewards completed", "detail": "NativeRewards.profileGenesis was configured to the current ProfileGenesis proxy. No new contract was deployed." },
+    { "date": "2026-07-19", "title": "Replacement bridges activated", "detail": "Native bridge V3 and XDC local bridge V2 became the active application pointers with applicant-milestone callback support." },
+    { "date": "2026-07-19", "title": "Governance state made historical and ordered", "detail": "VotingPowerCheckpoints, ETHDAOMessaging and NativeDAOStakeSync were deployed, initialized and wired into the upgraded DAOs." },
+    { "date": "2026-07-19", "title": "Lifecycle and rating upgrades", "detail": "NOWJC V5, ArbLOWJC V5, NativeAthena V9, ProfileGenesis V2 and ProfileManager V3 added canonical lifecycle, XDC routing and job-bound rating validation." }
+  ],
+  "limitations": [
+    "The 19 artifacts deployed on 19 July remain runtime-verified but pending explorer source publication.",
+    "The direct XDC/Ethereum LayerZero pathway is disabled; application traffic must route through Arbitrum.",
+    "NOWJC currently calculates zero platform commission because both live proxy settings are zero.",
+    "LocalAthena V2 exists in source but is intentionally not live pending a production dispute-minimum decision.",
+    "The old Arbitrum and XDC bridges remain deployed for rollback and in-flight compatibility but are not active application pointers.",
+    "Optimism/Arbitrum and Ethereum/Arbitrum are configured, but no post-cutover application or governance delivery proof is recorded."
+  ],
   "chains": [
     {
       "key": "arbitrum",
@@ -525,7 +702,7 @@
     {
       "name": "Arbitrum direct (same chain)",
       "status": "end-to-end-tested",
-      "detail": "Jobs posted through ArbLOWJC V5 settle against NOWJC on Arbitrum with no LayerZero message and no CCTP transfer. Verified end to end on 4 August 2026: job 42161-23 was posted, started and released, settling 0.10 USDC to the selected applicant."
+      "detail": "Jobs posted through ArbLOWJC V5 settle against NOWJC on Arbitrum with no LayerZero message and no CCTP transfer. Reconfirmed end to end on 7 August 2026: production job 42161-24 moved an exact 0.10 USDC through approval, escrow and final release."
     },
     {
       "name": "XDC \u2194 Arbitrum",

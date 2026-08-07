@@ -340,6 +340,30 @@ NativeRewards `profileGenesis()` was then configured from zero to the current pr
 
 The receipt, ERC-20 log, job-state tuple, fork rehearsal, backend recovery deployment and fee evidence are recorded in `references/deployments/arbitrum-job-42161-22-and-rewards-config-1-aug-2026.md`.
 
+## Phase 14 — production Arbitrum Direct Contract cycle verification
+
+Status: **complete**.
+
+Production web-app job `42161-24` completed a native-Arbitrum Direct Contract
+cycle on 7 August 2026. Approval transaction
+`0xeb22e70eb05c58bee69213617a863f11a8302a626ae50521745f1062d499200a`
+authorized exactly `100000` raw USDC; transaction
+`0x849928f9b1d14a59f4ec5dcf4c00f898d6e0580697b3312db30356a7a13c6ab3`
+created the job and escrowed those units in NOWJC; transaction
+`0x3b5bd9f729dd7d247cc4cfa8a26892ab17e4f28a5967c543d1f132144ee5c444`
+released the same `100000` units to selected applicant
+`0x921858bf1B4c03952D911eAbf7f33061e93b5A73`. The start and release receipts
+were 23 seconds apart.
+
+ArbLOWJC and Genesis both report `Completed` and `totalPaid = 100000`;
+ArbLOWJC additionally reports `currentLockedAmount = 0`, `totalEscrowed = 100000`
+and `totalReleased = 100000`. The public payment page renders the definitive
+completed notice and disables both payment controls. Full receipt, state, fee and
+UI evidence is in
+`references/deployments/arbitrum-direct-contract-job-42161-24-7-aug-2026.md`.
+This same-chain proof used no LayerZero, CCTP or relay transaction and changed no
+contract configuration or verification status.
+
 ## Recovery rules
 
 - Stop immediately on a failed receipt, nonce divergence, owner mismatch, unexpected implementation slot, runtime-hash mismatch, LayerZero config mismatch, active proposal, or unexplained in-flight message.
