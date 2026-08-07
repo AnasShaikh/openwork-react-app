@@ -6,29 +6,35 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 7 August 2026 18:12 IST |
+| Deployed at | 7 August 2026 18:36 IST |
 | Git branch | `main` |
-| Git commit | `3ce99167713fc3e8031583163082b598e8bb4a7b` |
-| GitHub CI | frontend tests (`80/80`), backend tests (`37/37`), mainnet frontend build and current-mainnet contract checks passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-3ce9916.zip` |
-| Source archive SHA-256 | `2583a7b812ceecfd56af6115e3357312f1444508bd337903013a1ca3f0799f04` |
-| CodeBuild | `openwork-react-app-prod-build:e62ee3e5-17ba-4ca3-8062-704a181e4549` — succeeded |
-| ECR image | `openwork-app:prod-3ce9916-20260807180255` |
-| ECR digest | `sha256:a6d3649d63cfab399e795ae5aca04dc47d5fea5c9aa04d4ffaefb2db3715990c` |
+| Git commit | `96a9c0869577e56b51ff5fea5b0773b08ecbc772` |
+| GitHub CI | frontend tests (`81/81`), backend tests (`37/37`) and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-96a9c08.zip` |
+| Source archive SHA-256 | `2333f6af5be8246fffd900d715ae61055fa741218e2bdccd3daa9582c2a5bbc0` |
+| CodeBuild | `openwork-react-app-prod-build:4f209660-5385-4891-8cc0-24743a820b9e` — succeeded |
+| ECR image | `openwork-app:prod-96a9c08-20260807182758` |
+| ECR digest | `sha256:840f71ed3185518e43cfe5b0611323afb9fa2e6b266b0760755b6ff05daa6509` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `0dc26412612f4bb9945cce54465f6afd` — succeeded |
+| App Runner operation | `ce0ccdb893da462d8d32b7a249e5f858` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-GUc17rhz.js` |
-| Rollback target | `openwork-app:prod-dd5f098-20260807174742` |
+| Deployed JS asset | `/assets/index-BAQIx_6N.js` |
+| Rollback target | `openwork-app:prod-3ce9916-20260807180255` |
 
 ## Compact audited contract documentation release
 
 The production `/docs` page now opens with a compact four-chain network overview
-instead of a long document stack. Its 31 live contract roles are grouped by chain and
-function; every tile opens a polished detail drawer containing the live address,
-current implementation, explorer-source status, configuration evidence and connected
-contracts. Function flows, Agent Oppy and status/change evidence remain one click away
-without competing with the initial network view.
+instead of a long document stack. Its 31 active contract functions are grouped by
+chain and function, and the page explicitly explains that those functions are backed
+by 50 deployed addresses. Every tile opens a polished detail drawer containing the
+live address, current implementation, explorer-source status, configuration evidence
+and connected contracts. Function flows, Agent Oppy and status/change evidence remain
+one click away without competing with the initial network view.
+
+The transport strip uses bounded, separate two-way lanes for LayerZero messages and
+Circle CCTP USDC, with distinct Arbitrum hub ports and no overlapping arrowheads. At
+mobile widths it becomes a complete compact route list rather than a horizontally
+panned fragment. Direct XDC-to-Ethereum messaging remains visibly disabled.
 
 The registry was re-audited against the current deployment ledgers and live readbacks
 on 7 August 2026. It distinguishes runtime verification, explorer source publication
@@ -242,7 +248,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-dd5f098-20260807174742` |
-| ECR digest | `sha256:fe2c30a55ca4e471c7720bee91b7af81f762e5beb9a363ef3243aaa22a3de889` |
+| ECR image | `openwork-app:prod-3ce9916-20260807180255` |
+| ECR digest | `sha256:a6d3649d63cfab399e795ae5aca04dc47d5fea5c9aa04d4ffaefb2db3715990c` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
