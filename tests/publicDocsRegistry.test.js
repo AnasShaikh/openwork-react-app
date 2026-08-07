@@ -122,6 +122,15 @@ test('public page, API and production image consume the same registry', () => {
   assert.match(app, /path="\/docs\/legacy" element=\{<OpenworkDocs \/>\}/);
   assert.match(page, /mainnet-contracts\.json/);
   assert.match(api, /require\('\.\.\/\.\.\/docs\/mainnet-contracts\.json'\)/);
+  for (const field of [
+    'statusDefinitions',
+    'configurationByContract',
+    'liveConfiguration',
+    'recentChanges',
+    'limitations',
+  ]) {
+    assert.match(api, new RegExp(`${field}: CONTRACT_REGISTRY\\.${field}`));
+  }
   assert.match(dockerfile, /COPY docs\/mainnet-contracts\.json \/app\/docs\/mainnet-contracts\.json/);
   assert.match(dockerfile, /COPY openclaw-skill \/app\/openclaw-skill/);
 });
