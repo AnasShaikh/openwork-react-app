@@ -6,20 +6,42 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 4 August 2026 05:58 IST |
+| Deployed at | 7 August 2026 18:12 IST |
 | Git branch | `main` |
-| Git commit | `faf9135` |
-| GitHub CI | frontend tests (`78/78`), backend tests (`37/37`), mainnet frontend build passed on this commit |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-faf9135.zip` |
-| Source archive SHA-256 | `e96770d04c8b80019929eff1bbb502f96a814cb1908ee534440b8d74c3737989` |
-| CodeBuild | `openwork-react-app-prod-build (faf9135)` — succeeded |
-| ECR image | `openwork-app:prod-faf9135-20260804055558` |
-| ECR digest | `sha256:12f22a1e8bf8edf5da2df96ce80cd38bf4b7138227264ef39b391227ad183318` |
+| Git commit | `3ce99167713fc3e8031583163082b598e8bb4a7b` |
+| GitHub CI | frontend tests (`80/80`), backend tests (`37/37`), mainnet frontend build and current-mainnet contract checks passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-3ce9916.zip` |
+| Source archive SHA-256 | `2583a7b812ceecfd56af6115e3357312f1444508bd337903013a1ca3f0799f04` |
+| CodeBuild | `openwork-react-app-prod-build:e62ee3e5-17ba-4ca3-8062-704a181e4549` — succeeded |
+| ECR image | `openwork-app:prod-3ce9916-20260807180255` |
+| ECR digest | `sha256:a6d3649d63cfab399e795ae5aca04dc47d5fea5c9aa04d4ffaefb2db3715990c` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `ea3c1f2f0a5643b1b74da79e17823e60` — succeeded |
+| App Runner operation | `0dc26412612f4bb9945cce54465f6afd` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CZ8TitQk.js` |
-| Rollback target | `openwork-app:prod-24838fb-20260804041924` |
+| Deployed JS asset | `/assets/index-GUc17rhz.js` |
+| Rollback target | `openwork-app:prod-dd5f098-20260807174742` |
+
+## Compact audited contract documentation release
+
+The production `/docs` page now opens with a compact four-chain network overview
+instead of a long document stack. Its 31 live contract roles are grouped by chain and
+function; every tile opens a polished detail drawer containing the live address,
+current implementation, explorer-source status, configuration evidence and connected
+contracts. Function flows, Agent Oppy and status/change evidence remain one click away
+without competing with the initial network view.
+
+The registry was re-audited against the current deployment ledgers and live readbacks
+on 7 August 2026. It distinguishes runtime verification, explorer source publication
+and configuration status rather than collapsing them into one ambiguous label. The
+status view records direct Arbitrum production job `42161-24`, current NOWJC zero-fee
+storage, LayerZero peer/security state, CCTP keeper configuration, disabled routes and
+known evidence gaps. The public `/api/docs/contracts` projection exposes the same
+status definitions, 31 per-contract configurations, live configuration, recent changes
+and limitations consumed by the page.
+
+Deployment and verification changed application and documentation code only. No
+smart-contract deployment, upgrade, wallet transaction, token transfer or other
+on-chain write was submitted.
 
 ## What this release fixes
 
@@ -220,7 +242,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-3fe08c7-20260802231234` |
-| ECR digest | `sha256:8e2ba8b0604594c1da23f74efaaaec4015c6e3c34b78542cd072ac80337b9581` |
+| ECR image | `openwork-app:prod-dd5f098-20260807174742` |
+| ECR digest | `sha256:fe2c30a55ca4e471c7720bee91b7af81f762e5beb9a363ef3243aaa22a3de889` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
