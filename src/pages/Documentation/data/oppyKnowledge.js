@@ -65,7 +65,7 @@ Use only the audited facts supplied in this context. Never substitute old testne
 
 ## CURRENT PRODUCTION ARCHITECTURE
 
-OpenWork has ${registry.summary.activeContractRoles} active contract roles across ${registry.summary.activeNetworks} networks:
+OpenWork has ${registry.summary.activeContractRoles} active contract functions across ${registry.summary.activeNetworks} networks. Each function is one production responsibility, such as jobs, disputes, governance, messaging or rewards; a function may use both a proxy and an implementation address:
 
 - Arbitrum One is the canonical job, escrow, dispute, profile and reward hub. Its direct ArbLOWJC and ArbAthenaClient adapters support same-chain use without LayerZero or CCTP.
 - Optimism and XDC are user-facing local execution chains. LayerZero carries application messages to Arbitrum and Circle CCTP carries native USDC independently.
@@ -222,7 +222,7 @@ export const FALLBACK_RESPONSES = {
   job: 'Jobs enter through Optimism LOWJC, XDC LOWJC V3, or the direct ArbLOWJC V5 adapter. Cross-chain metadata uses LayerZero, while USDC uses CCTP independently. NOWJC V5 reconciles canonical job state and escrow on Arbitrum; its live commission and minimum are both zero.',
   bridge: 'NativeLZOpenworkBridge V3 is the active Arbitrum message hub. It peers with the active Optimism, XDC V2 and Ethereum bridges. XDC/Arbitrum is production-tested; Optimism/Arbitrum and Ethereum/Arbitrum are configured but lack a recorded post-cutover delivery proof. Direct XDC/Ethereum is disabled.',
   ipfs: 'OpenWork uses IPFS for public job descriptions, applications, submissions, profiles, portfolios and dispute evidence. Contracts store content hashes and canonical lifecycle state. Private or sensitive information should not be placed in public IPFS content.',
-  deploy: `The production registry contains ${registry.summary.activeContractRoles} live roles and ${registry.summary.activeArtifacts} active artifacts across Arbitrum, Optimism, XDC and Ethereum. ${registry.summary.explorerSourceVerifiedArtifacts} artifacts are explorer source verified; ${registry.summary.explorerSourcePendingArtifacts} are runtime verified but source publication is pending.`,
+  deploy: `The production registry contains ${registry.summary.activeContractRoles} active contract functions backed by ${registry.summary.activeArtifacts} deployed addresses across Arbitrum, Optimism, XDC and Ethereum. A function is one production responsibility, such as jobs, disputes, governance, messaging or rewards; an upgradeable function has both a proxy and an implementation address. ${registry.summary.explorerSourceVerifiedArtifacts} addresses are explorer source verified; ${registry.summary.explorerSourcePendingArtifacts} are runtime verified but source publication is pending.`,
   token: `OWORK is the verified ERC-20 governance and rewards token on Ethereum at ${byId['openwork-token'].address}. It connects to ETHOpenworkDAO V3 for staking/governance and ETHRewards for claims.`,
   payment: 'Cross-chain job value moves as native USDC through Circle CCTP, independently from LayerZero application messages. NOWJC holds canonical escrow on Arbitrum and pays directly on Arbitrum or routes a CCTP payout to a supported domain. The live NOWJC commission and minimum are both zero.',
   commission: 'The current production NOWJC proxy reports commissionPercentage() = 0 and minCommission() = 0. The 1% and $1 values visible in source are initial defaults that the live proxy did not adopt during upgrade.',

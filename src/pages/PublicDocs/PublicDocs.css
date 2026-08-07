@@ -90,7 +90,7 @@
 .public-docs-header__facts {
   display: grid;
   gap: 7px;
-  grid-template-columns: repeat(3, 72px) minmax(130px, auto);
+  grid-template-columns: 72px 116px 100px minmax(130px, auto);
   position: relative;
   z-index: 1;
 }
@@ -956,7 +956,7 @@
     margin-top: -8px;
   }
 
-  .public-docs-header__facts { grid-template-columns: repeat(3, 66px) minmax(124px, auto); }
+  .public-docs-header__facts { grid-template-columns: 66px 106px 92px minmax(124px, auto); }
   .public-docs-flow-contracts > div { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 

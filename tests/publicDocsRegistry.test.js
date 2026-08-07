@@ -135,6 +135,22 @@ test('public page, API and production image consume the same registry', () => {
   assert.match(dockerfile, /COPY openclaw-skill \/app\/openclaw-skill/);
 });
 
+test('public terminology explains contract functions and transport lanes clearly', () => {
+  const page = source('src/pages/PublicDocs/PublicDocs.jsx');
+  const network = source('src/components/ContractNetwork/ContractNetwork.jsx');
+  const knowledge = source('src/pages/Documentation/data/oppyKnowledge.js');
+
+  assert.match(page, /active contract functions/);
+  assert.match(page, /Each of the 31 tiles represents one active contract function/);
+  assert.doesNotMatch(page, /live roles/);
+  assert.match(knowledge, /active contract functions backed by.*deployed addresses/);
+  assert.match(network, /Messages and USDC use separate routes/);
+  assert.match(network, /markerStart="url\(#ow-route-arrow-blue\)"/);
+  assert.match(network, /ow-route-hub/);
+  assert.match(network, /ow-network-routes__mobile/);
+  assert.doesNotMatch(network, /message-spine/);
+});
+
 test('landing-page documentation links target the live route', () => {
   for (const filename of [
     'src/pages/LandingPage/components/GovernanceSection/GovernanceSection.jsx',

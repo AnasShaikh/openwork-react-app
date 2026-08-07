@@ -147,7 +147,7 @@ function StatusPanel({ registry: productionRegistry, onSelectContract }) {
       </header>
 
       <div className="public-docs-status-summary">
-        <article><strong>{productionRegistry.summary.activeContractRoles}</strong><span>live roles</span></article>
+        <article><strong>{productionRegistry.summary.activeContractRoles}</strong><span>active contract functions</span></article>
         <article><strong>19 / 19</strong><span>proxy slots matched</span></article>
         <article><strong>{productionRegistry.summary.explorerSourceVerifiedArtifacts}</strong><span>source verified</span></article>
         <article className="is-warning"><strong>{productionRegistry.summary.explorerSourcePendingArtifacts}</strong><span>source pending</span></article>
@@ -249,13 +249,13 @@ export default function PublicDocs() {
         <div className="public-docs-header__intro">
           <p className="public-docs-kicker">OpenWork production documentation</p>
           <h1>OpenWork mainnet contracts</h1>
-          <p>A compact, audited view of the complete four-chain protocol and every live contract role.</p>
+          <p>A compact, audited map of 31 active contract functions—and the deployed addresses that implement them—across four production chains.</p>
         </div>
 
         <div className="public-docs-header__facts" aria-label="Registry summary">
           <div><strong>{registry.summary.activeNetworks}</strong><span>networks</span></div>
-          <div><strong>{registry.summary.activeContractRoles}</strong><span>live roles</span></div>
-          <div><strong>{registry.summary.activeArtifacts}</strong><span>artifacts</span></div>
+          <div><strong>{registry.summary.activeContractRoles}</strong><span>active contract functions</span></div>
+          <div><strong>{registry.summary.activeArtifacts}</strong><span>deployed addresses</span></div>
           <div className="is-audit"><strong><ShieldCheck aria-hidden="true" /> {formatAuditDate(registry.lastAudited)}</strong><span>last audited</span></div>
         </div>
 
@@ -295,7 +295,7 @@ export default function PublicDocs() {
                 <p className="public-docs-kicker">Complete production topology</p>
                 <h2 id="public-docs-network-title">The whole contract network</h2>
               </div>
-              <p>Four chains, 31 active roles. Select any tile to inspect its live address, implementation, source and configuration.</p>
+              <p>Each of the 31 tiles represents one active contract function. Open one to inspect the address—or proxy and implementation—that performs it.</p>
             </header>
             <ContractNetwork
               registry={registry}

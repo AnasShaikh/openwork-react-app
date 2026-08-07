@@ -238,41 +238,72 @@ function RouteRail() {
     <section className="ow-network-routes" aria-labelledby="ow-network-routes-title">
       <div className="ow-network-routes__copy">
         <span>Transport layer</span>
-        <strong id="ow-network-routes-title">Messages and value travel independently</strong>
+        <strong id="ow-network-routes-title">Messages and USDC use separate routes</strong>
       </div>
       <div className="ow-network-routes__graphic">
-        <svg viewBox="0 0 1000 106" role="img" aria-labelledby="ow-route-title ow-route-description">
+        <svg viewBox="0 0 920 118" role="img" aria-labelledby="ow-route-title ow-route-description">
           <title id="ow-route-title">OpenWork production cross-chain routes</title>
-          <desc id="ow-route-description">LayerZero connects Optimism, XDC and Ethereum to the Arbitrum hub. Circle CCTP connects Optimism and XDC USDC to Arbitrum. Direct XDC to Ethereum messaging is disabled.</desc>
+          <desc id="ow-route-description">Separate, two-way LayerZero message lanes connect Optimism, XDC and Ethereum with the Arbitrum hub. Separate Circle CCTP lanes move USDC between Optimism and Arbitrum, and between XDC and Arbitrum. Direct XDC to Ethereum messaging is disabled.</desc>
           <defs>
-            <marker id="ow-route-arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
-            <marker id="ow-route-arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+            <marker id="ow-route-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
+            <marker id="ow-route-arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
           </defs>
-          <path className="ow-route-line ow-route-line--message" d="M 115 31 C 210 31, 300 42, 392 42" markerEnd="url(#ow-route-arrow-blue)" />
-          <path className="ow-route-line ow-route-line--message" d="M 660 31 C 570 31, 500 31, 410 31" markerEnd="url(#ow-route-arrow-blue)" />
-          <path className="ow-route-line ow-route-line--message" d="M 895 31 C 750 8, 565 8, 408 20" markerEnd="url(#ow-route-arrow-blue)" />
-          <path className="ow-route-line ow-route-line--message-spine" d="M 400 20 L 400 42" />
-          <path className="ow-route-line ow-route-line--usdc" d="M 115 73 C 210 73, 280 73, 390 73" markerEnd="url(#ow-route-arrow-green)" />
-          <path className="ow-route-line ow-route-line--usdc" d="M 660 73 C 570 73, 500 73, 410 73" markerEnd="url(#ow-route-arrow-green)" />
-          <path className="ow-route-line ow-route-line--disabled" d="M 680 91 L 875 91" />
-          {[
-            [105, 'Optimism', true],
-            [400, 'Arbitrum hub', true],
-            [670, 'XDC', true],
-            [900, 'Ethereum', false],
-          ].map(([x, label, hasCctp]) => (
-            <g key={label} transform={`translate(${x} 0)`}>
-              <circle className="ow-route-node" cx="0" cy="31" r="7" />
-              {hasCctp && <circle className="ow-route-node ow-route-node--usdc" cx="0" cy="73" r="7" />}
-              <text x="0" y="104" textAnchor="middle">{label}</text>
-            </g>
-          ))}
+
+          <rect className="ow-route-hub" x="350" y="10" width="100" height="76" rx="14" />
+          <text className="ow-route-hub__eyebrow" x="400" y="45" textAnchor="middle">ARBITRUM</text>
+          <text className="ow-route-hub__label" x="400" y="60" textAnchor="middle">hub</text>
+
+          <path className="ow-route-line ow-route-line--message" d="M 100 26 H 335" markerStart="url(#ow-route-arrow-blue)" markerEnd="url(#ow-route-arrow-blue)" />
+          <path className="ow-route-line ow-route-line--message" d="M 465 43 H 635" markerStart="url(#ow-route-arrow-blue)" markerEnd="url(#ow-route-arrow-blue)" />
+          <path className="ow-route-line ow-route-line--message" d="M 465 26 C 560 3, 745 3, 835 26" markerStart="url(#ow-route-arrow-blue)" markerEnd="url(#ow-route-arrow-blue)" />
+          <path className="ow-route-line ow-route-line--usdc" d="M 100 70 H 335" markerStart="url(#ow-route-arrow-green)" markerEnd="url(#ow-route-arrow-green)" />
+          <path className="ow-route-line ow-route-line--usdc" d="M 465 70 H 635" markerStart="url(#ow-route-arrow-green)" markerEnd="url(#ow-route-arrow-green)" />
+          <path className="ow-route-line ow-route-line--disabled" d="M 665 91 H 835" />
+
+          <circle className="ow-route-node" cx="85" cy="26" r="7" />
+          <circle className="ow-route-node ow-route-node--usdc" cx="85" cy="70" r="7" />
+          <circle className="ow-route-port" cx="350" cy="26" r="5" />
+          <circle className="ow-route-port ow-route-port--usdc" cx="350" cy="70" r="5" />
+          <circle className="ow-route-port" cx="450" cy="26" r="5" />
+          <circle className="ow-route-port" cx="450" cy="43" r="5" />
+          <circle className="ow-route-port ow-route-port--usdc" cx="450" cy="70" r="5" />
+          <circle className="ow-route-node" cx="650" cy="43" r="7" />
+          <circle className="ow-route-node ow-route-node--usdc" cx="650" cy="70" r="7" />
+          <circle className="ow-route-node" cx="850" cy="26" r="7" />
+          <circle className="ow-route-node ow-route-node--disabled" cx="650" cy="91" r="4" />
+          <circle className="ow-route-node ow-route-node--disabled" cx="850" cy="91" r="4" />
+
+          <text x="85" y="116" textAnchor="middle">Optimism</text>
+          <text x="400" y="106" textAnchor="middle">Arbitrum hub</text>
+          <text x="650" y="116" textAnchor="middle">XDC</text>
+          <text x="850" y="116" textAnchor="middle">Ethereum</text>
         </svg>
+        <div
+          className="ow-network-routes__mobile"
+          role="img"
+          aria-label="LayerZero messages travel both ways between Arbitrum and Optimism, XDC, and Ethereum. Circle CCTP moves USDC both ways between Arbitrum and Optimism, and between Arbitrum and XDC. Direct XDC to Ethereum messaging is disabled."
+        >
+          <div className="is-message">
+            <strong>LayerZero messages</strong>
+            <span><b>Optimism</b><i>↔</i><b>Arbitrum</b></span>
+            <span><b>XDC</b><i>↔</i><b>Arbitrum</b></span>
+            <span><b>Ethereum</b><i>↔</i><b>Arbitrum</b></span>
+          </div>
+          <div className="is-usdc">
+            <strong>Circle CCTP USDC</strong>
+            <span><b>Optimism</b><i>↔</i><b>Arbitrum</b></span>
+            <span><b>XDC</b><i>↔</i><b>Arbitrum</b></span>
+          </div>
+          <div className="is-disabled">
+            <strong>Direct route disabled</strong>
+            <span><b>XDC</b><i>···</i><b>Ethereum</b></span>
+          </div>
+        </div>
       </div>
       <div className="ow-network-routes__legend" aria-label="Route legend">
-        <span className="is-message">LayerZero message</span>
-        <span className="is-usdc">Circle CCTP USDC</span>
-        <span className="is-disabled">Direct route disabled</span>
+        <span className="is-message">LayerZero messages · two-way</span>
+        <span className="is-usdc">Circle CCTP USDC · two-way</span>
+        <span className="is-disabled">XDC ↔ Ethereum disabled</span>
       </div>
     </section>
   );
@@ -317,7 +348,7 @@ export default function ContractNetwork({ registry, selectedContract, onSelectCo
       <RouteRail />
 
       <div className="ow-network__hint">
-        <span><ShieldCheck aria-hidden="true" /> All 31 live roles and 19 proxy slots checked on 7 August 2026</span>
+        <span><ShieldCheck aria-hidden="true" /> All 31 active contract functions and 19 proxy slots checked on 7 August 2026</span>
         <span>Select a tile for addresses, verification and configuration</span>
       </div>
 
