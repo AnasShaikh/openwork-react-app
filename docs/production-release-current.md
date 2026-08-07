@@ -6,20 +6,21 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 7 August 2026 18:36 IST |
+| Deployed at | 7 August 2026 19:04 IST |
 | Git branch | `main` |
-| Git commit | `96a9c0869577e56b51ff5fea5b0773b08ecbc772` |
+| Git commit | `58c546ab1f68f119c31adf47b93126363fe2617b` |
 | GitHub CI | frontend tests (`81/81`), backend tests (`37/37`) and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-96a9c08.zip` |
-| Source archive SHA-256 | `2333f6af5be8246fffd900d715ae61055fa741218e2bdccd3daa9582c2a5bbc0` |
-| CodeBuild | `openwork-react-app-prod-build:4f209660-5385-4891-8cc0-24743a820b9e` — succeeded |
-| ECR image | `openwork-app:prod-96a9c08-20260807182758` |
-| ECR digest | `sha256:840f71ed3185518e43cfe5b0611323afb9fa2e6b266b0760755b6ff05daa6509` |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-58c546a.zip` |
+| Source archive SHA-256 | `8882ec7f219e431a8b080f6ebe4d92a773fd05c91b1fc1ee861f675a6903d29d` |
+| CodeBuild | `openwork-react-app-prod-build:3556c99b-6ade-4b85-a038-65a527ac0952` — succeeded |
+| ECR image | `openwork-app:prod-58c546a-20260807185813` |
+| ECR digest | `sha256:fee58b3800062f26f2c7239103b69d8e42fe0c401c6ac95da6e438c1e85c684e` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `ce0ccdb893da462d8d32b7a249e5f858` — succeeded |
+| App Runner operation | `16ea9c19badb4bbbaba714d25607d549` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BAQIx_6N.js` |
-| Rollback target | `openwork-app:prod-3ce9916-20260807180255` |
+| Deployed JS asset | `/assets/index-DKKMeEKo.js` |
+| Rollback target | `openwork-app:prod-96a9c08-20260807182758` |
+| Rollback digest | `sha256:840f71ed3185518e43cfe5b0611323afb9fa2e6b266b0760755b6ff05daa6509` |
 
 ## Compact audited contract documentation release
 
@@ -37,12 +38,21 @@ mobile widths it becomes a complete compact route list rather than a horizontall
 panned fragment. It shows only the three active Arbitrum-hub message pathways and the
 two active CCTP pathways.
 
+The grey XDC–Ethereum line and its disabled-route claim were removed after checking
+the current contracts, application calls and live LayerZero configuration. The
+intended production topology has four documented pathways: Arbitrum direct,
+XDC–Arbitrum, Optimism–Arbitrum and Ethereum–Arbitrum. Generic bridge source can
+support a direct DAO-upgrade message and Ethereum retains a historical peer value for
+the retired XDC bridge, but there is no reciprocal active security stack or current
+application flow that makes XDC–Ethereum a production route. That legacy value remains
+in the technical registry as history rather than being drawn as present topology.
+
 The registry was re-audited against the current deployment ledgers and live readbacks
 on 7 August 2026. It distinguishes runtime verification, explorer source publication
 and configuration status rather than collapsing them into one ambiguous label. The
 status view records direct Arbitrum production job `42161-24`, current NOWJC zero-fee
-storage, LayerZero peer/security state, CCTP keeper configuration, disabled routes and
-known evidence gaps. The public `/api/docs/contracts` projection exposes the same
+storage, LayerZero peer/security state, CCTP keeper configuration and known evidence
+gaps. The public `/api/docs/contracts` projection exposes the same
 status definitions, 31 per-contract configurations, live configuration, recent changes
 and limitations consumed by the page.
 
@@ -148,6 +158,15 @@ out-of-bounds arrows in either layout.
 
 ## Verification
 
+- Commit `58c546ab1f68f119c31adf47b93126363fe2617b` passed `81/81`
+  frontend tests, `37/37` backend tests, the mainnet frontend build, GitHub CI and
+  immutable CodeBuild image creation. All production health and docs endpoints
+  returned HTTP 200 after App Runner operation `16ea9c19badb4bbbaba714d25607d549`.
+- The deployed `/api/docs/contracts` response contains exactly four pathways and no
+  pathway joining XDC to Ethereum. Live desktop and `390 × 844` browser checks show
+  no grey XDC–Ethereum line or disabled-route legend; the mobile route groups contain
+  only LayerZero and CCTP, the status view reports `4 tracked routes`, and the browser
+  console contains no warnings or errors.
 - A user-authorized live follow-up on 7 August completed native-Arbitrum Direct
   Contract job `42161-24`: exact approval and escrow of `0.10 USDC`, followed by
   a same-chain `0.10 USDC` release to the selected applicant 23 seconds after
@@ -176,7 +195,7 @@ out-of-bounds arrows in either layout.
 - The public documentation route is now `/docs`; `/documentation` redirects to it and the former documentation explorer remains available at `/docs/legacy` with a legacy notice.
 - The published registry documents 31 production roles represented by 50 deployed artifacts across Arbitrum, Optimism, Ethereum and XDC. It distinguishes role status from explorer source-verification status and links each deployment to its chain explorer.
 - The documentation API exposes the canonical skill, references, contract registry and combined bundle through `/api/docs`, `/api/docs/skill`, `/api/docs/references`, `/api/docs/contracts` and `/api/docs/full`.
-- The architecture overview now reflects the active Arbitrum and XDC bridge deployments, CCTP pathways, LayerZero peers, the direct-contract modules and the intentionally disabled or held routes without claiming unverified end-to-end evidence.
+- The architecture overview reflects the active Arbitrum and XDC bridge deployments, CCTP pathways, LayerZero peers and direct-contract modules. It documents only the four intended production routes and does not promote legacy peer storage into a live-path claim.
 - This release changed the public application and repository documentation only. It performed no smart-contract deployment or upgrade and changed no wallet, token balance or on-chain state.
 - Frontend tests (`36/36`), backend tests (`17/17`), the mainnet frontend build and the production image build passed for the exact source commit. The backend dependency lock continues to resolve the disclosed high-severity `brace-expansion` and `fast-uri` advisories with zero audit findings.
 - App Runner HTTP health checks passed. The production root and `/healthz` returned HTTP 200, and browser smoke checks passed for `/direct-contract` and the durable `/direct-contract-status/:transactionHash` fallback.
@@ -249,7 +268,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-3ce9916-20260807180255` |
-| ECR digest | `sha256:a6d3649d63cfab399e795ae5aca04dc47d5fea5c9aa04d4ffaefb2db3715990c` |
+| ECR image | `openwork-app:prod-96a9c08-20260807182758` |
+| ECR digest | `sha256:840f71ed3185518e43cfe5b0611323afb9fa2e6b266b0760755b6ff05daa6509` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
