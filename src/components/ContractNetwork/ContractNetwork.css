@@ -92,12 +92,6 @@
   stroke-dasharray: 5 5;
 }
 
-.ow-route-line--disabled {
-  stroke: #c5ccd8;
-  stroke-dasharray: 3 5;
-  stroke-width: 1.8;
-}
-
 #ow-route-arrow-blue path { fill: var(--ow-blue); }
 #ow-route-arrow-green path { fill: var(--ow-green); }
 
@@ -109,12 +103,6 @@
 
 .ow-route-node--usdc {
   stroke: var(--ow-green);
-}
-
-.ow-route-node--disabled {
-  fill: #fff;
-  stroke: #b9c1ce;
-  stroke-width: 2;
 }
 
 .ow-route-hub {
@@ -171,10 +159,6 @@
 
 .ow-network-routes__legend .is-message::before { background: var(--ow-blue); }
 .ow-network-routes__legend .is-usdc::before { background: var(--ow-green); }
-.ow-network-routes__legend .is-disabled::before {
-  background: repeating-linear-gradient(90deg, #b9c1ce 0 4px, transparent 4px 7px);
-}
-
 .ow-network__hint {
   align-items: center;
   color: var(--ow-muted);
@@ -869,10 +853,6 @@
 
   .ow-network-routes__mobile .is-usdc i {
     color: var(--ow-green);
-  }
-
-  .ow-network-routes__mobile .is-disabled i {
-    color: #aeb7c5;
   }
 
   .ow-network__hint {

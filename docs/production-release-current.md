@@ -34,7 +34,8 @@ one click away without competing with the initial network view.
 The transport strip uses bounded, separate two-way lanes for LayerZero messages and
 Circle CCTP USDC, with distinct Arbitrum hub ports and no overlapping arrowheads. At
 mobile widths it becomes a complete compact route list rather than a horizontally
-panned fragment. Direct XDC-to-Ethereum messaging remains visibly disabled.
+panned fragment. It shows only the three active Arbitrum-hub message pathways and the
+two active CCTP pathways.
 
 The registry was re-audited against the current deployment ledgers and live readbacks
 on 7 August 2026. It distinguishes runtime verification, explorer source publication
@@ -204,7 +205,7 @@ out-of-bounds arrows in either layout.
 
 Commit `8f98a50535468208ab5a6ad86ac8e78d74c5b183` replaces the stale public documentation landing route with a production-focused reference for OpenWork's architecture, deployed contracts, cross-chain pathways and verification state. The page is responsive at laptop and mobile widths, uses compact copyable addresses, and keeps historical or incomplete verification claims visibly separate from active deployment status.
 
-The release registry is derived from the contract repository's canonical live registry and deployment ledgers. Its audit date is 1 August 2026. Source verification is confirmed for 31 artifacts and remains pending for 19 artifacts; pending explorer publication is not presented as a deployment failure. Optimism and Ethereum pathway proof remains explicitly incomplete, the direct XDC-to-Ethereum route remains disabled, and LocalAthena V2 remains held rather than live.
+The release registry is derived from the contract repository's canonical live registry and deployment ledgers. Its audit date is 1 August 2026. Source verification is confirmed for 31 artifacts and remains pending for 19 artifacts; pending explorer publication is not presented as a deployment failure. Optimism and Ethereum pathway proof remains explicitly incomplete, and LocalAthena V2 remains held rather than live.
 
 ## XDC browser quote correction
 

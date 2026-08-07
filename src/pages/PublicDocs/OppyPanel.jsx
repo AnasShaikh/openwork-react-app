@@ -115,7 +115,7 @@ export default function OppyPanel({ registry }) {
                 type="text"
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
-                placeholder="For example: Is the XDC–Ethereum route enabled?"
+                placeholder="For example: How does XDC connect to Arbitrum?"
                 autoComplete="off"
               />
               <button type="submit" disabled={!message.trim() || isThinking} aria-label="Send question to Agent Oppy">

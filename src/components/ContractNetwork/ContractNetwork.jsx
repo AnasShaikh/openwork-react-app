@@ -243,7 +243,7 @@ function RouteRail() {
       <div className="ow-network-routes__graphic">
         <svg viewBox="0 0 920 118" role="img" aria-labelledby="ow-route-title ow-route-description">
           <title id="ow-route-title">OpenWork production cross-chain routes</title>
-          <desc id="ow-route-description">Separate, two-way LayerZero message lanes connect Optimism, XDC and Ethereum with the Arbitrum hub. Separate Circle CCTP lanes move USDC between Optimism and Arbitrum, and between XDC and Arbitrum. Direct XDC to Ethereum messaging is disabled.</desc>
+          <desc id="ow-route-description">Separate, two-way LayerZero message lanes connect Optimism, XDC and Ethereum with the Arbitrum hub. Separate Circle CCTP lanes move USDC between Optimism and Arbitrum, and between XDC and Arbitrum.</desc>
           <defs>
             <marker id="ow-route-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
             <marker id="ow-route-arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
@@ -258,7 +258,6 @@ function RouteRail() {
           <path className="ow-route-line ow-route-line--message" d="M 465 26 C 560 3, 745 3, 835 26" markerStart="url(#ow-route-arrow-blue)" markerEnd="url(#ow-route-arrow-blue)" />
           <path className="ow-route-line ow-route-line--usdc" d="M 100 70 H 335" markerStart="url(#ow-route-arrow-green)" markerEnd="url(#ow-route-arrow-green)" />
           <path className="ow-route-line ow-route-line--usdc" d="M 465 70 H 635" markerStart="url(#ow-route-arrow-green)" markerEnd="url(#ow-route-arrow-green)" />
-          <path className="ow-route-line ow-route-line--disabled" d="M 665 91 H 835" />
 
           <circle className="ow-route-node" cx="85" cy="26" r="7" />
           <circle className="ow-route-node ow-route-node--usdc" cx="85" cy="70" r="7" />
@@ -270,8 +269,6 @@ function RouteRail() {
           <circle className="ow-route-node" cx="650" cy="43" r="7" />
           <circle className="ow-route-node ow-route-node--usdc" cx="650" cy="70" r="7" />
           <circle className="ow-route-node" cx="850" cy="26" r="7" />
-          <circle className="ow-route-node ow-route-node--disabled" cx="650" cy="91" r="4" />
-          <circle className="ow-route-node ow-route-node--disabled" cx="850" cy="91" r="4" />
 
           <text x="85" y="116" textAnchor="middle">Optimism</text>
           <text x="400" y="106" textAnchor="middle">Arbitrum hub</text>
@@ -281,7 +278,7 @@ function RouteRail() {
         <div
           className="ow-network-routes__mobile"
           role="img"
-          aria-label="LayerZero messages travel both ways between Arbitrum and Optimism, XDC, and Ethereum. Circle CCTP moves USDC both ways between Arbitrum and Optimism, and between Arbitrum and XDC. Direct XDC to Ethereum messaging is disabled."
+          aria-label="LayerZero messages travel both ways between Arbitrum and Optimism, XDC, and Ethereum. Circle CCTP moves USDC both ways between Arbitrum and Optimism, and between Arbitrum and XDC."
         >
           <div className="is-message">
             <strong>LayerZero messages</strong>
@@ -294,16 +291,11 @@ function RouteRail() {
             <span><b>Optimism</b><i>↔</i><b>Arbitrum</b></span>
             <span><b>XDC</b><i>↔</i><b>Arbitrum</b></span>
           </div>
-          <div className="is-disabled">
-            <strong>Direct route disabled</strong>
-            <span><b>XDC</b><i>···</i><b>Ethereum</b></span>
-          </div>
         </div>
       </div>
       <div className="ow-network-routes__legend" aria-label="Route legend">
         <span className="is-message">LayerZero messages · two-way</span>
         <span className="is-usdc">Circle CCTP USDC · two-way</span>
-        <span className="is-disabled">XDC ↔ Ethereum disabled</span>
       </div>
     </section>
   );

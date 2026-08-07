@@ -184,7 +184,7 @@ function StatusPanel({ registry: productionRegistry, onSelectContract }) {
             <article>
               <span>LayerZero security</span>
               <strong>Four required DVNs</strong>
-              <p>Active Arbitrum routes have locked libraries, executor and ULN configuration. Direct XDC/Ethereum remains disabled.</p>
+              <p>Active Arbitrum routes to Optimism, XDC and Ethereum have locked libraries, executor and ULN configuration.</p>
               <button type="button" onClick={() => onSelectContract(contracts['native-lz-openwork-bridge'])}>Open Native bridge</button>
             </article>
             <article>

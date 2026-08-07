@@ -84,7 +84,7 @@ test('active bridge cutover and live proxy implementations are explicit', () => 
   }
 });
 
-test('pathway claims distinguish tested, configured and disabled routes', () => {
+test('pathway claims track only intended production routes and their evidence', () => {
   assert.deepEqual(
     Object.fromEntries(registry.pathways.map(({ name, status }) => [name, status])),
     {
@@ -94,7 +94,6 @@ test('pathway claims distinguish tested, configured and disabled routes', () => 
       'XDC ↔ Arbitrum': 'end-to-end-tested',
       'Optimism ↔ Arbitrum': 'configured',
       'Ethereum ↔ Arbitrum': 'configured',
-      'XDC ↔ Ethereum (direct)': 'disabled',
     },
   );
   assert.match(registry.pathways[0].detail, /7 August 2026.*42161-24/);
@@ -149,6 +148,11 @@ test('public terminology explains contract functions and transport lanes clearly
   assert.match(network, /ow-route-hub/);
   assert.match(network, /ow-network-routes__mobile/);
   assert.doesNotMatch(network, /message-spine/);
+  assert.doesNotMatch(network, /XDC ↔ Ethereum/);
+  assert.equal(
+    registry.pathways.some(({ name }) => name.includes('XDC') && name.includes('Ethereum')),
+    false,
+  );
 });
 
 test('landing-page documentation links target the live route', () => {

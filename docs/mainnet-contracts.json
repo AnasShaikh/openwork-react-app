@@ -123,7 +123,7 @@
     },
     "xdc-local-bridge": {
       "status": "end-to-end-tested",
-      "detail": "V2 is the active XDC LayerZero router. The reciprocal Arbitrum path and four-DVN security stack are configured and production-tested; the direct Ethereum security path remains disabled."
+      "detail": "V2 is the active XDC LayerZero router. Its reciprocal Arbitrum path and four-DVN security stack are configured and production-tested."
     },
     "xdc-cctp-transceiver": {
       "status": "configured",
@@ -178,7 +178,7 @@
     ],
     "layerZeroSecurity": {
       "status": "configured",
-      "detail": "Arbitrum routes to Ethereum, Optimism and XDC use the locked send/receive libraries, executor configuration and four required DVNs with no optional DVNs. Ethereum uses 15 receive confirmations; Optimism and XDC use 20. The direct XDC/Ethereum stack is not installed."
+      "detail": "Arbitrum routes to Ethereum, Optimism and XDC use the locked send/receive libraries, executor configuration and four required DVNs with no optional DVNs. Ethereum uses 15 receive confirmations; Optimism and XDC use 20."
     },
     "cctpRewards": [
       { "chain": "Arbitrum One", "contract": "arbitrum-cctp-transceiver", "poolWei": "400000000000000", "maxRewardWei": "1000000000000000" },
@@ -196,7 +196,6 @@
   ],
   "limitations": [
     "The 19 artifacts deployed on 19 July remain runtime-verified but pending explorer source publication.",
-    "The direct XDC/Ethereum LayerZero pathway is disabled; application traffic must route through Arbitrum.",
     "NOWJC currently calculates zero platform commission because both live proxy settings are zero.",
     "LocalAthena V2 exists in source but is intentionally not live pending a production dispute-minimum decision.",
     "The old Arbitrum and XDC bridges remain deployed for rollback and in-flight compatibility but are not active application pointers.",
@@ -718,11 +717,6 @@
       "name": "Ethereum \u2194 Arbitrum",
       "status": "configured",
       "detail": "Reciprocal peers point to the active bridges and the V3 Native-bridge security stack was read back; no post-cutover governance delivery test is recorded."
-    },
-    {
-      "name": "XDC \u2194 Ethereum (direct)",
-      "status": "disabled",
-      "detail": "The direct security stack is not installed and the Ethereum-side peer still names the retired XDC bridge. Route through Arbitrum instead."
     }
   ],
   "legacyDeployments": [

@@ -127,7 +127,6 @@ Chain ID `1` · LayerZero EID `30101` · CCTP domain `0`
 | XDC ↔ Arbitrum | End-to-end tested | Reciprocal peers and explicit four-DVN security configuration; production job `30365-3` completed after the 19 July cutover |
 | Optimism ↔ Arbitrum | Configured | Reciprocal peers and Native V3 security stack read back; no recorded post-cutover application delivery test |
 | Ethereum ↔ Arbitrum | Configured | Reciprocal peers and Native V3 security stack read back; no recorded post-cutover governance delivery test |
-| XDC ↔ Ethereum direct | Disabled | Ethereum still peers the retired XDC bridge and the direct security stack is not installed; route through Arbitrum |
 
 Active peer values:
 
@@ -143,7 +142,7 @@ Active peer values:
 ## Legacy and held artifacts
 
 - Old Arbitrum bridge `0x1bC57d93eC9F9214EDe2e81281A26Ac0E01A9A5F` remains deployed for rollback/in-flight compatibility but is not the active pointer.
-- Old XDC bridge `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` is retired on XDC. The same address remains active on Optimism.
+- Old XDC bridge `0x74566644782e98c87a12E8Fc6f7c4c72e2908a36` is retired on XDC. The same address remains active on Optimism. Ethereum retains a historical peer value for this retired XDC address; it is legacy configuration, not an intended active pathway.
 - `LocalAthena V2` exists in source but is intentionally not deployed pending a production dispute-minimum decision.
 
 ## Architecture changes in the 19 July rollout
@@ -159,5 +158,4 @@ Active peer values:
 - Publish and verify source for the 19 new artifacts on the relevant explorers.
 - Run post-cutover application delivery proof for Optimism ↔ Arbitrum.
 - Run post-cutover governance delivery proof for Ethereum ↔ Arbitrum.
-- Decide whether direct XDC ↔ Ethereum should remain disabled or receive reciprocal peer/security configuration.
 - Decide the production dispute minimum before deploying LocalAthena V2.
