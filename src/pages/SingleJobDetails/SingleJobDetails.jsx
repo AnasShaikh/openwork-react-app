@@ -425,6 +425,14 @@ export default function SingleJobDetails() {
   const isJobInProgress = Number(job.status) === 1;
   const canReleasePayment = isJobGiver && isJobInProgress && amountLocked > 0;
   const canRaiseDispute = isJobInProgress && (isJobGiver || isSelectedApplicant);
+  const releaseUnavailableReason = !isJobGiver
+    ? "Only the job giver can release payment"
+    : !isJobInProgress
+      ? "Payment is unavailable because this job is not in progress"
+      : "No milestone payment is currently locked";
+  const disputeUnavailableReason = !isJobInProgress
+    ? "Disputes are only available while a job is in progress"
+    : "Only the job giver or selected applicant can raise a dispute";
 
   return (
     <main className="container">
@@ -665,24 +673,25 @@ export default function SingleJobDetails() {
             <img src="/info.svg" alt="Pay Icon" className="buttonIconHover" />
             <span className="buttonText">Job Details</span>
           </Link>
-          {canReleasePayment && (
-            <Link
-              to={`/release-payment/${job.jobId}`}
-              id="buttonBottomS"
-              className={`buttonContainerS ${hovered ? "visible-home" : ""}`}
-              style={{ display: buttonFlex2 ? "flex" : "none" }}
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              <img
-                src="/radial-button.svg"
-                alt="Button Top"
-                className="buttonImageS"
-              />
-              <img src="/pay.svg" alt="Pay Icon" className="buttonIconHover" />
-              <span className="buttonText">Pay Now</span>
-            </Link>
-          )}
+          <Link
+            to={canReleasePayment ? `/release-payment/${job.jobId}` : "#"}
+            id="buttonBottomS"
+            className={`buttonContainerS ${hovered ? "visible-home" : ""} ${!canReleasePayment ? "radial-action-disabled" : ""}`}
+            style={{ display: buttonFlex2 ? "flex" : "none" }}
+            aria-disabled={!canReleasePayment}
+            aria-label={canReleasePayment ? "Pay now" : `Pay now unavailable: ${releaseUnavailableReason}`}
+            tabIndex={canReleasePayment ? 0 : -1}
+            title={canReleasePayment ? "Pay now" : releaseUnavailableReason}
+            onClick={(event) => {
+              if (!canReleasePayment) event.preventDefault();
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            <img src="/radial-button.svg" alt="" className="buttonImageS" />
+            <img src="/pay.svg" alt="" className="buttonIconHover" />
+            <span className="buttonText">Pay Now</span>
+          </Link>
           <Link
             to={`/job-update/${job.jobId}`}
             id="buttonBottomLeftS"
@@ -703,28 +712,25 @@ export default function SingleJobDetails() {
             />
             <span className="buttonText">Job Update</span>
           </Link>
-          {canRaiseDispute && (
-            <Link
-              to={`/raise-dispute/${job.jobId}`}
-              id="buttonBottomRightS"
-              className={`buttonContainerS ${hovered ? "visible-home" : ""}`}
-              style={{ display: buttonFlex2 ? "flex" : "none" }}
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              <img
-                src="/radial-button.svg"
-                alt="Button Bottom Right"
-                className="buttonImageS"
-              />
-              <img
-                src="/dispute.svg"
-                alt="Dispute Icon"
-                className="buttonIconHover"
-              />
-              <span className="buttonText">Raise Dispute</span>
-            </Link>
-          )}
+          <Link
+            to={canRaiseDispute ? `/raise-dispute/${job.jobId}` : "#"}
+            id="buttonBottomRightS"
+            className={`buttonContainerS ${hovered ? "visible-home" : ""} ${!canRaiseDispute ? "radial-action-disabled" : ""}`}
+            style={{ display: buttonFlex2 ? "flex" : "none" }}
+            aria-disabled={!canRaiseDispute}
+            aria-label={canRaiseDispute ? "Raise dispute" : `Raise dispute unavailable: ${disputeUnavailableReason}`}
+            tabIndex={canRaiseDispute ? 0 : -1}
+            title={canRaiseDispute ? "Raise dispute" : disputeUnavailableReason}
+            onClick={(event) => {
+              if (!canRaiseDispute) event.preventDefault();
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            <img src="/radial-button.svg" alt="" className="buttonImageS" />
+            <img src="/dispute.svg" alt="" className="buttonIconHover" />
+            <span className="buttonText">Raise Dispute</span>
+          </Link>
           <div
             id="core"
             className="coreContainer"

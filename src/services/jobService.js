@@ -31,17 +31,48 @@ function getArbitrumRpc() {
 
 // Cache configuration
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+const JOB_STATUS = {
+  OPEN: 0,
+  IN_PROGRESS: 1,
+  COMPLETED: 2,
+  CANCELLED: 3
+};
+const ALL_JOB_STATUSES = Object.values(JOB_STATUS);
+const STATUS_LABELS = {
+  [JOB_STATUS.OPEN]: "Open",
+  [JOB_STATUS.IN_PROGRESS]: "InProgress",
+  [JOB_STATUS.COMPLETED]: "Completed",
+  [JOB_STATUS.CANCELLED]: "Cancelled"
+};
+
 let cache = {
   inProgressJobs: null,
-  timestamp: 0
+  inProgressTimestamp: 0,
+  allJobs: null,
+  allJobsTimestamp: 0
 };
+
+function formatJobsForUI(jobs) {
+  return jobs.map((job) => ({
+    id: job.id,
+    title: job.id, // Replaced with the IPFS title when available
+    jobGiver: job.jobGiver,
+    selectedApplicant: job.selectedApplicant || "Not assigned",
+    status: STATUS_LABELS[Number(job.status)] || "Unknown",
+    amount: Web3.utils.fromWei(job.totalPaid || "0", "mwei"),
+    jobDetailHash: job.jobDetailHash,
+    currentMilestone: Number(job.currentMilestone),
+    from: job.jobGiver,
+    to: job.selectedApplicant || "Unassigned"
+  }));
+}
 
 /**
  * Fetch all in-progress jobs
  */
 export async function getInProgressJobs(forceRefresh = false) {
   // Check cache
-  if (!forceRefresh && cache.inProgressJobs && (Date.now() - cache.timestamp < CACHE_DURATION)) {
+  if (!forceRefresh && cache.inProgressJobs && (Date.now() - cache.inProgressTimestamp < CACHE_DURATION)) {
     return cache.inProgressJobs;
   }
 
@@ -56,39 +87,64 @@ export async function getInProgressJobs(forceRefresh = false) {
     const jobs = await helperContract.methods.getInProgressJobs().call();
     console.log(`Found ${jobs.length} in-progress jobs`);
 
-    // Format jobs for UI
-    const formattedJobs = jobs.map((job) => {
-      // Parse status enum
-      const statusMap = {
-        0: "Open",
-        1: "InProgress",
-        2: "Completed",
-        3: "Cancelled"
-      };
-
-      return {
-        id: job.id,
-        title: job.id, // Will use job ID as title for now
-        jobGiver: job.jobGiver,
-        selectedApplicant: job.selectedApplicant || "Not assigned",
-        status: statusMap[Number(job.status)] || "Unknown",
-        amount: Web3.utils.fromWei(job.totalPaid || "0", 'mwei'), // USDC has 6 decimals
-        jobDetailHash: job.jobDetailHash,
-        currentMilestone: Number(job.currentMilestone),
-        from: job.jobGiver,
-        to: job.selectedApplicant || "Unassigned"
-      };
-    });
+    const formattedJobs = formatJobsForUI(jobs);
 
     // Cache result
     cache.inProgressJobs = formattedJobs;
-    cache.timestamp = Date.now();
+    cache.inProgressTimestamp = Date.now();
 
     console.log(`Loaded ${formattedJobs.length} in-progress jobs`);
     return formattedJobs;
 
   } catch (error) {
     console.error("Error fetching in-progress jobs:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch the complete job ledger across every lifecycle status.
+ *
+ * Direct contracts are created in the same Genesis ledger as posted jobs, but
+ * many of them move straight to InProgress and then Completed. Reading only
+ * getInProgressJobs() therefore makes completed direct contracts disappear
+ * from profile history.
+ */
+export async function getAllJobs(forceRefresh = false) {
+  if (!forceRefresh && cache.allJobs && (Date.now() - cache.allJobsTimestamp < CACHE_DURATION)) {
+    return cache.allJobs;
+  }
+
+  try {
+    const ARBITRUM_RPC = getArbitrumRpc();
+    const { GENESIS_HELPER_ADDRESS, GENESIS_HELPER_V3_ADDRESS } = getAddresses();
+    const web3 = new Web3(ARBITRUM_RPC);
+    const helperContract = new web3.eth.Contract(
+      GenesisHelperABI,
+      GENESIS_HELPER_ADDRESS || GENESIS_HELPER_V3_ADDRESS
+    );
+
+    const jobsByStatus = await Promise.all(
+      ALL_JOB_STATUSES.map((status) =>
+        helperContract.methods.getJobsByStatus(status).call()
+      )
+    );
+
+    // A job can change status between the separate read calls. De-duplicate by
+    // canonical job ID so the profile never renders the same contract twice.
+    const jobsById = new Map();
+    for (const job of jobsByStatus.flat()) {
+      jobsById.set(job.id, job);
+    }
+
+    const formattedJobs = formatJobsForUI([...jobsById.values()]);
+    cache.allJobs = formattedJobs;
+    cache.allJobsTimestamp = Date.now();
+
+    console.log(`Loaded ${formattedJobs.length} jobs across all statuses`);
+    return formattedJobs;
+  } catch (error) {
+    console.error("Error fetching complete job history:", error);
     return [];
   }
 }
@@ -128,14 +184,16 @@ export async function fetchJobTitles(jobs) {
  */
 export async function getUserJobs(userAddress) {
   try {
-    
-    // Get all in-progress jobs
-    const allJobs = await getInProgressJobs();
+    const normalizedUserAddress = userAddress.toLowerCase();
+
+    // Profiles are historical ledgers, so include Open, InProgress, Completed,
+    // and Cancelled jobs. This also includes direct contracts.
+    const allJobs = await getAllJobs();
     
     // Filter for jobs where user is involved
-    const userJobs = allJobs.filter(job => 
-      job.jobGiver.toLowerCase() === userAddress.toLowerCase() ||
-      job.selectedApplicant.toLowerCase() === userAddress.toLowerCase()
+    const userJobs = allJobs.filter(job =>
+      job.jobGiver?.toLowerCase() === normalizedUserAddress ||
+      job.selectedApplicant?.toLowerCase() === normalizedUserAddress
     );
     
     console.log(`Found ${userJobs.length} jobs for user ${userAddress}`);
@@ -226,6 +284,8 @@ export async function getAllApplications(forceRefresh = false) {
 export function clearJobCache() {
   cache = {
     inProgressJobs: null,
-    timestamp: 0
+    inProgressTimestamp: 0,
+    allJobs: null,
+    allJobsTimestamp: 0
   };
 }

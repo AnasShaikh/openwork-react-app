@@ -201,6 +201,28 @@ test('work submission is role-gated and preflights outside MetaMask', () => {
   assert.match(jobDetails, /const canRaiseDispute = isJobInProgress/);
 });
 
+test('job radial menu always preserves all four action positions', () => {
+  const jobDetails = source('src/pages/SingleJobDetails/SingleJobDetails.jsx');
+  const jobDetailsCss = source('src/pages/SingleJobDetails/SingleJobDetails.css');
+
+  for (const buttonId of [
+    'buttonTopS',
+    'buttonBottomS',
+    'buttonBottomLeftS',
+    'buttonBottomRightS',
+  ]) {
+    assert.match(jobDetails, new RegExp(`id="${buttonId}"`));
+  }
+
+  assert.doesNotMatch(jobDetails, /\{canReleasePayment && \(/);
+  assert.doesNotMatch(jobDetails, /\{canRaiseDispute && \(/);
+  assert.match(jobDetails, /aria-disabled=\{!canReleasePayment\}/);
+  assert.match(jobDetails, /aria-disabled=\{!canRaiseDispute\}/);
+  assert.match(jobDetails, /if \(!canReleasePayment\) event\.preventDefault\(\)/);
+  assert.match(jobDetails, /if \(!canRaiseDispute\) event\.preventDefault\(\)/);
+  assert.match(jobDetailsCss, /\.buttonContainerS\.radial-action-disabled/);
+});
+
 test('transaction notices use semantic colors instead of treating progress as an error', () => {
   const warning = source('src/components/Warning/Warning.jsx');
   const warningCss = source('src/components/Warning/Warning.css');

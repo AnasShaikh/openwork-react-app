@@ -485,10 +485,10 @@ export default function JobInfo() {
                     <img src="/avatar-profile.svg" alt="JobGiver" className="Job" />
                     <p>{formatWalletAddress(job.jobGiver)}</p>
                   </span>
-                  <a href="/profile" className="view-profile">
+                  <Link to={`/profile/${job.jobGiver}`} className="view-profile">
                     <span>View Profile</span>
                     <img src="/view_profile.svg" alt="" />
-                  </a>
+                  </Link>
                 </div>
               </div>
               <div className="detail-row">
@@ -510,10 +510,10 @@ export default function JobInfo() {
                   {job.selectedApplicant &&
                   job.selectedApplicant !==
                     "0x0000000000000000000000000000000000000000" ? (
-                    <a href="/profile" className="view-profile">
+                    <Link to={`/profile/${job.selectedApplicant}`} className="view-profile">
                       <span>View Profile</span>
                       <img src="/view_profile.svg" alt="" />
-                    </a>
+                    </Link>
                   ) : (
                     <Link to={`/view-job-applications/${jobId}`} className="view-profile">
                       <span>View Applications</span>

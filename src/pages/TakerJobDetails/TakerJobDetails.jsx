@@ -154,10 +154,10 @@ export default function TakerJobDetails() {
                     <img src="/person.svg" alt="JobGiver" className="Job" />
                     <p>{formatWalletAddress(job.employer)}</p>
                   </span>
-                  <a href="/profile" className="view-profile">
+                  <Link to={`/profile/${job.employer}`} className="view-profile">
                     <span>View Profile</span>
                     <img src="/view_profile.svg" alt="" />
-                  </a>
+                  </Link>
                 </div>
               </div>
               <div className="detail-row">
@@ -167,10 +167,10 @@ export default function TakerJobDetails() {
                     <img src="/person.svg" alt="JobTaker" className="Job" />
                     <p>{formatWalletAddress(job.taker)}</p>
                   </span>
-                  <a href="/profile" className="view-profile">
+                  <Link to={`/profile/${job.taker}`} className="view-profile">
                     <span>View Profile</span>
                     <img src="/view_profile.svg" alt="" />
-                  </a>
+                  </Link>
                 </div>
               </div>
               <div className="detail-row">

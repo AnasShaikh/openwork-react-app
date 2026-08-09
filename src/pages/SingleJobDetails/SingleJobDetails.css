@@ -161,6 +161,20 @@ cursor: pointer;
   z-index: 2; 
 }
 
+.buttonContainerS.radial-action-disabled {
+  cursor: not-allowed;
+}
+
+.buttonContainerS.radial-action-disabled .buttonImageS {
+  filter: grayscale(0.8);
+  opacity: 0.72;
+}
+
+.buttonContainerS.radial-action-disabled .buttonIconHover,
+.buttonContainerS.radial-action-disabled .buttonText {
+  opacity: 0.45;
+}
+
 .buttonContainerS-primary {
   position: absolute;
   width: 134px;
