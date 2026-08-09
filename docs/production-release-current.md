@@ -6,21 +6,34 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 7 August 2026 19:04 IST |
+| Deployed at | 9 August 2026 18:29 IST |
 | Git branch | `main` |
-| Git commit | `58c546ab1f68f119c31adf47b93126363fe2617b` |
-| GitHub CI | frontend tests (`81/81`), backend tests (`37/37`) and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-58c546a.zip` |
-| Source archive SHA-256 | `8882ec7f219e431a8b080f6ebe4d92a773fd05c91b1fc1ee861f675a6903d29d` |
-| CodeBuild | `openwork-react-app-prod-build:3556c99b-6ade-4b85-a038-65a527ac0952` — succeeded |
-| ECR image | `openwork-app:prod-58c546a-20260807185813` |
-| ECR digest | `sha256:fee58b3800062f26f2c7239103b69d8e42fe0c401c6ac95da6e438c1e85c684e` |
+| Git commit | `d29bff2c71e6f21d3b5a9b720f58fa183a4243bd` |
+| GitHub CI | frontend tests (`84/84`), backend tests (`37/37`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-d29bff2.zip` |
+| Source archive SHA-256 | `3b01e3769332eb7cbc73a2ea2addcbc96fc57542e19921357ad6566949d14114` |
+| CodeBuild | `openwork-react-app-prod-build:4c6b1c8f-d887-49e6-9384-f61b503004aa` — succeeded |
+| ECR image | `openwork-app:prod-d29bff2-20260809182048` |
+| ECR digest | `sha256:6619580160d582d9aef6d6ec537f4fb1c2bf45680bdb788bc8ccfca04f3b448e` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `16ea9c19badb4bbbaba714d25607d549` — succeeded |
+| App Runner operation | `4378870a6b07435fa1c1b220bb75aff6` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-DKKMeEKo.js` |
-| Rollback target | `openwork-app:prod-96a9c08-20260807182758` |
-| Rollback digest | `sha256:840f71ed3185518e43cfe5b0611323afb9fa2e6b266b0760755b6ff05daa6509` |
+| Deployed JS asset | `/assets/index-Xb5EdRmD.js` |
+| Rollback target | `openwork-app:prod-58c546a-20260807185813` |
+| Rollback digest | `sha256:fee58b3800062f26f2c7239103b69d8e42fe0c401c6ac95da6e438c1e85c684e` |
+
+## Job actions and complete profile history
+
+Job detail pages now preserve all four radial action positions. Actions that are not
+available to the connected wallet or current job state remain visible but disabled,
+with an explicit reason, instead of disappearing and leaving an apparently incomplete
+two-button menu.
+
+The Job Details `FROM` and `TO` profile links now route to the wallet displayed in
+their row rather than the connected wallet's own profile. Profile job history now
+reads Open, InProgress, Completed and Cancelled Genesis records and filters both the
+job giver and selected applicant, so direct contracts and completed work are no
+longer omitted.
 
 ## Compact audited contract documentation release
 
@@ -61,6 +74,16 @@ smart-contract deployment, upgrade, wallet transaction, token transfer or other
 on-chain write was submitted.
 
 ## What this release fixes
+
+The reported profile `0x840EcF6f33428bDfd877A185737FaCd504e8B9F4` previously showed
+only one job because the profile service called `getInProgressJobs()` and discarded
+every other lifecycle state. The deployed all-status read returns seven jobs for that
+wallet across two pages, including completed direct contracts and jobs where the
+wallet was the selected applicant. Production browser verification also confirmed
+that Direct Contract `30111-106` links to the exact giver and taker profiles shown in
+the detail card.
+
+### Earlier transaction reliability release
 
 Payment screens previously reported a healthy transaction as failed. Job `42161-23`
 showed a release payment as "not mined within 80 blocks… might still be mined" when
@@ -158,10 +181,20 @@ out-of-bounds arrows in either layout.
 
 ## Verification
 
-- Commit `58c546ab1f68f119c31adf47b93126363fe2617b` passed `81/81`
-  frontend tests, `37/37` backend tests, the mainnet frontend build, GitHub CI and
-  immutable CodeBuild image creation. All production health and docs endpoints
-  returned HTTP 200 after App Runner operation `16ea9c19badb4bbbaba714d25607d549`.
+- Commit `d29bff2c71e6f21d3b5a9b720f58fa183a4243bd` passed `84/84`
+  frontend tests, `37/37` backend tests, the backend high-severity dependency audit,
+  the mainnet frontend build, GitHub CI and immutable CodeBuild image creation.
+  Production `/`, `/health`, `/healthz`, the reported profile jobs route and Direct
+  Contract detail route all returned HTTP 200 after App Runner operation
+  `4378870a6b07435fa1c1b220bb75aff6`.
+- Live browser verification rendered seven profile jobs over two pages. Direct
+  Contract `30111-106` linked `FROM` to `0x840E...B9F4` and `TO` to
+  `0x9218...5A73`. Job `42161-24` retained all four radial actions; unavailable
+  payment and dispute actions were present, disabled and labelled with their reason.
+- The deployed bundle is `/assets/index-Xb5EdRmD.js`, SHA-256
+  `06728681e3b8c9b8d5e0b361068da12a8f98f8d1638eb13e77d64c758625aa4e`.
+  The new backend instance selected the masked Alchemy Arbitrum host, so the public
+  RPC fallback did not engage.
 - The deployed `/api/docs/contracts` response contains exactly four pathways and no
   pathway joining XDC to Ethereum. Live desktop and `390 × 844` browser checks show
   no grey XDC–Ethereum line or disabled-route legend; the mobile route groups contain
@@ -268,7 +301,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-96a9c08-20260807182758` |
-| ECR digest | `sha256:840f71ed3185518e43cfe5b0611323afb9fa2e6b266b0760755b6ff05daa6509` |
+| ECR image | `openwork-app:prod-58c546a-20260807185813` |
+| ECR digest | `sha256:fee58b3800062f26f2c7239103b69d8e42fe0c401c6ac95da6e438c1e85c684e` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
