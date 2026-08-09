@@ -6,21 +6,43 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 9 August 2026 20:13 IST |
+| Deployed at | 9 August 2026 20:49 IST |
 | Git branch | `main` |
-| Git commit | `02fd1a4fd848781ee09e4ac64d56384ef8c7218d` |
-| GitHub CI | run `31318750969` — frontend tests (`90/90`), backend tests (`43/43`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-02fd1a4.zip` |
-| Source archive SHA-256 | `6508ce4cadb18788bd98f407dc9774c1fdf6798c358b0b90b240a6ee4dd9d69d` |
-| CodeBuild | `openwork-react-app-prod-build:6b4dd947-f98a-4dca-9143-c65eb7c5f7a0` — succeeded |
-| ECR image | `openwork-app:prod-02fd1a4-20260809200344` |
-| ECR digest | `sha256:f6eb2486741ebd7d1378b8e5fefe7538569d037ca5804acad45b3469b0e97d0f` |
+| Git commit | `cc8ecf368655f6a2b0bfe9c4f7b2089b7c70aa5c` |
+| GitHub CI | run `31320421336` — frontend tests (`92/92`), backend tests (`43/43`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-cc8ecf3.zip` |
+| Source archive SHA-256 | `8a07dcca4ad773888e0d94f2bc9a66102f43a5fcf551a3e88d8ce1f367166b0e` |
+| CodeBuild | `openwork-react-app-prod-build:d860386b-4a87-4bd4-a63d-2ec0f6882091` — succeeded |
+| ECR image | `openwork-app:prod-cc8ecf3-20260809204102` |
+| ECR digest | `sha256:4f3192ddb859a0a6a1b7018d48127c73ee04735d1b0603cf73be02e0297bead7` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `66d53a6d60e444e0a4c9976720130eba` — succeeded |
+| App Runner operation | `70a1b430c384472088b3ab4e409a51f5` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-gGZIPkFj.js` — SHA-256 `fa773e8c9853350af242486d0e8b6f1488c8e4f3204924f49fa64024ec828c94` |
-| Rollback target | `openwork-app:prod-d29bff2-20260809182048` |
-| Rollback digest | `sha256:6619580160d582d9aef6d6ec537f4fb1c2bf45680bdb788bc8ccfca04f3b448e` |
+| Deployed JS asset | `/assets/index-CySDvBoK.js` — SHA-256 `595d0bd5c051e0752d61350fd103f9e7d307baa2866d01cf8608e137371f9053` |
+| Rollback target | `openwork-app:prod-02fd1a4-20260809200344` |
+| Rollback digest | `sha256:f6eb2486741ebd7d1378b8e5fefe7538569d037ca5804acad45b3469b0e97d0f` |
+
+## Agent Oppy interface polish
+
+The `/docs` Agent Oppy panel now uses a clear assistant header, 14–16px interactive
+type, a balanced suggestions-and-conversation layout, proper assistant/user message
+structure and a full-size composer. Bedrock Markdown is rendered as semantic headings,
+lists, tables and code rather than exposed punctuation. The production browser test
+returned three structured headings and three list items with no visible raw Markdown.
+
+The public `/chat` shell no longer inherits the old jobs page's 88px relative offset,
+1,200px minimum or padded container. It begins 30px below the desktop application
+header, centers the title independently of the back control and uses the standard
+48px desktop/44px mobile back target. Message scrolling is now contained inside the
+conversation instead of `scrollIntoView` moving the whole page during mount, and input
+focus uses `preventScroll`. The desktop card remained at scroll position zero with its
+title center matching the viewport center exactly. Mobile verification found no
+horizontal overflow, a centered title, 16px composer type and no global-header overlap.
+
+Production checks returned HTTP 200 for `/docs`, `/oppy` and `/chat`. Desktop and
+390px mobile browser checks passed with no console warnings or errors. The release
+changed application presentation and client-side scrolling only; it submitted no
+wallet request or on-chain transaction.
 
 ## Bedrock Agent Oppy and chat-based job management
 
