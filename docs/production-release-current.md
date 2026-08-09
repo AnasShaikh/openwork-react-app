@@ -6,21 +6,43 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 9 August 2026 20:49 IST |
+| Deployed at | 9 August 2026 21:17 IST |
 | Git branch | `main` |
-| Git commit | `cc8ecf368655f6a2b0bfe9c4f7b2089b7c70aa5c` |
-| GitHub CI | run `31320421336` — frontend tests (`92/92`), backend tests (`43/43`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-cc8ecf3.zip` |
-| Source archive SHA-256 | `8a07dcca4ad773888e0d94f2bc9a66102f43a5fcf551a3e88d8ce1f367166b0e` |
-| CodeBuild | `openwork-react-app-prod-build:d860386b-4a87-4bd4-a63d-2ec0f6882091` — succeeded |
-| ECR image | `openwork-app:prod-cc8ecf3-20260809204102` |
-| ECR digest | `sha256:4f3192ddb859a0a6a1b7018d48127c73ee04735d1b0603cf73be02e0297bead7` |
+| Git commit | `5b34bf6edec4789af58b74fac439854433b3b8cd` |
+| GitHub CI | run `31321668849` — frontend tests (`93/93`), backend tests (`43/43`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-5b34bf6.zip` |
+| Source archive SHA-256 | `a3e9aea73879ad8fdb6880894f31457db9a01bd973144ed79fd23bc9fb91e67d` |
+| CodeBuild | `openwork-react-app-prod-build:2d329989-db05-495b-b41c-4a5758f44e09` — succeeded |
+| ECR image | `openwork-app:prod-5b34bf6-20260809210925` |
+| ECR digest | `sha256:d2dd9c3aa9b2e8e8e83ec6190374a83033d02fa915e05f18faf0f666ef09e7c3` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `70a1b430c384472088b3ab4e409a51f5` — succeeded |
+| App Runner operation | `8f4a0842135741ac8ca4a130cefc7a15` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CySDvBoK.js` — SHA-256 `595d0bd5c051e0752d61350fd103f9e7d307baa2866d01cf8608e137371f9053` |
-| Rollback target | `openwork-app:prod-02fd1a4-20260809200344` |
-| Rollback digest | `sha256:f6eb2486741ebd7d1378b8e5fefe7538569d037ca5804acad45b3469b0e97d0f` |
+| Deployed JS asset | `/assets/index-DDxCHq30.js` — SHA-256 `7893cb77a7cdfc75d5c3a6f8068b94584a65e271e107884a47916a7381925128` |
+| Rollback target | `openwork-app:prod-cc8ecf3-20260809204102` |
+| Rollback digest | `sha256:4f3192ddb859a0a6a1b7018d48127c73ee04735d1b0603cf73be02e0297bead7` |
+
+## Agent Oppy IPFS posting repair
+
+Agent Oppy's job-posting confirmation used the nonexistent
+`/api/ipfs/upload` route, while the production backend exposes the canonical
+`/api/ipfs/upload-json` and `/api/ipfs/upload-file` routes. The request therefore
+returned HTTP 404 before reaching the managed AWS IPFS node, MetaMask or any smart
+contract. Oppy now uploads all job, application, submission and profile JSON through
+`/api/ipfs/upload-json`, verifies that a content hash is returned and surfaces the
+backend provider error instead of replacing it with the generic `IPFS upload failed`.
+
+Structured transaction parameters no longer pass nested objects through `String()`.
+Milestones render as readable numbered lines containing the milestone label,
+description and USDC amount, and long values wrap without splitting every word.
+
+Production verification confirmed HTTP 200 for `/chat`, `/docs` and `/healthz`. The
+deployed bundle contains the canonical upload route and no reference to the obsolete
+route. A live Bedrock transaction-review request rendered
+`Milestone 1 — QA milestone — 0.1 USDC` with no browser-console errors. The canonical
+production upload endpoint successfully pinned a small JSON probe and returned a CID.
+Verification prepared a review object only; it did not open a wallet request or submit
+an on-chain transaction.
 
 ## Agent Oppy interface polish
 
