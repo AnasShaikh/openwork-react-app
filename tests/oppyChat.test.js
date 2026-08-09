@@ -55,6 +55,18 @@ test('job posting never approves or transfers USDC and application amounts fail 
   assert.match(chat, /for \(let i = 1; i <= appCount; i\+\+\)/);
 });
 
+test('Oppy uploads metadata through the canonical IPFS JSON route and renders structured parameters', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const styles = source('src/pages/OppyChat/OppyChat.css');
+
+  assert.match(chat, /`\$\{BACKEND_URL\}\/api\/ipfs\/upload-json`/);
+  assert.doesNotMatch(chat, /`\$\{BACKEND_URL\}\/api\/ipfs\/upload`/);
+  assert.match(chat, /json\?\.error \|\| `IPFS upload failed \(HTTP \$\{res\.status\}\)`/);
+  assert.match(chat, /formatToolParamValue\(v\)/);
+  assert.doesNotMatch(chat, /\{String\(v\)\}/);
+  assert.match(styles, /\.tx-param-value \{[^}]*white-space: pre-wrap;/);
+});
+
 test('complex value-moving actions use canonical review screens', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   assert.match(chat, /`\/release-payment\/\$\{encodeURIComponent\(tool\.params\.jobId\)\}`/);

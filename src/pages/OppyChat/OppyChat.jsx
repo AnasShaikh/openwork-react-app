@@ -52,6 +52,28 @@ function toolMethod(tool) {
   return methods[tool.name] || 'navigation';
 }
 
+function formatToolParamValue(value) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'None';
+    return value.map((item, index) => {
+      if (!item || typeof item !== 'object') return String(item);
+
+      const label = item.title || `Milestone ${index + 1}`;
+      const description = item.description || item.content;
+      const amount = Number.isFinite(Number(item.amount)) ? `${Number(item.amount)} USDC` : null;
+      return [label, description, amount].filter(Boolean).join(' — ');
+    }).join('\n');
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, nestedValue]) => `${key}: ${String(nestedValue)}`)
+      .join('\n');
+  }
+
+  return String(value ?? '');
+}
+
 // ── Transaction Card ─────────────────────────────────────────────
 function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const [txHash, setTxHash] = useState(null);
@@ -109,7 +131,7 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
         {Object.entries(tool.params || {}).map(([k, v]) => (
           <div className="tx-param-row" key={k}>
             <span className="tx-param-key">{k}:</span>
-            <span className="tx-param-value">{String(v)}</span>
+            <span className="tx-param-value">{formatToolParamValue(v)}</span>
           </div>
         ))}
       </div>
@@ -468,15 +490,19 @@ const OppyChat = () => {
 
       // ── Helper: IPFS upload ────────────────────────────────
       const uploadToIPFS = async (data) => {
-        const res = await fetch(`${BACKEND_URL}/api/ipfs/upload`, {
+        const res = await fetch(`${BACKEND_URL}/api/ipfs/upload-json`, {
           method: 'POST',
           headers: {
             ...(await uploadAuthHeaders()), 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
-        if (!res.ok) throw new Error('IPFS upload failed');
-        const json = await res.json();
-        return json.hash || json.IpfsHash;
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(json?.error || `IPFS upload failed (HTTP ${res.status})`);
+        }
+        const hash = json?.hash || json?.IpfsHash;
+        if (!hash) throw new Error('IPFS upload response did not contain a content hash');
+        return hash;
       };
 
       let result;

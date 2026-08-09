@@ -278,7 +278,7 @@
 .tx-card-params { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
 .tx-param-row { display: flex; gap: 8px; font-size: 13px; }
 .tx-param-key { color: #868686; font-weight: 500; min-width: 80px; }
-.tx-param-value { color: #050505; word-break: break-all; }
+.tx-param-value { color: #050505; overflow-wrap: anywhere; white-space: pre-wrap; word-break: normal; }
 .tx-card-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
 .tx-cancel-btn {
   font-family: 'Satoshi', sans-serif;
