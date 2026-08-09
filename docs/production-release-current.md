@@ -6,21 +6,42 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 10 August 2026 02:05 IST |
+| Deployed at | 10 August 2026 03:18 IST |
 | Git branch | `main` |
-| Git commit | `599148947b43c0f568a46b28dbb74086d985f57f` |
-| GitHub CI | run `31334099888` — frontend tests (`97/97`), backend tests (`47/47`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-5991489.zip` |
-| Source archive SHA-256 | `2061548cbe948ab3682c122464e53e79f0b687e48a14069f24ba7bb4bcad2f38` |
-| CodeBuild | `openwork-react-app-prod-build:bd8f316c-cb3f-41b7-8672-c752e3178690` — succeeded |
-| ECR image | `openwork-app:prod-5991489-20260809202352` |
-| ECR digest | `sha256:e322a697a515df833f2754c53a2653a3e06bfc1244524c6a9524bc0df739c10a` |
+| Git commit | `a8eb313cc454168a75919e1bc141bf247ef92b6f` |
+| GitHub CI | run `31337374168` — frontend tests (`100/100`), backend tests (`47/47`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-a8eb313.zip` |
+| Source archive SHA-256 | `474ed1a8040204024316f433dd596c86bef146b3c76d3c5e48df3452c53ceb57` |
+| CodeBuild | `openwork-react-app-prod-build:fc662458-d0ce-43e7-8785-38d586d42f59` — succeeded |
+| ECR image | `openwork-app:prod-a8eb313-20260809213941` |
+| ECR digest | `sha256:7b0ad78fca7feb19839d2b55b2506f5265cf7bf28271dd11c765a154f2ef71d0` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `0a14b9d794794031a241332368e72ca5` — succeeded |
+| App Runner operation | `d27946c0a22e40808d189b28403f0ec3` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BFGssTdG.js` — SHA-256 `1c4578e874b1b942671508a39e9ab95fa8b3d2d8f03f77073e4c5c2b8d20f9a1` |
-| Rollback target | `openwork-app:prod-5b34bf6-20260809210925` |
-| Rollback digest | `sha256:d2dd9c3aa9b2e8e8e83ec6190374a83033d02fa915e05f18faf0f666ef09e7c3` |
+| Deployed JS asset | `/assets/index-zSLCcOPr.js` — SHA-256 `77296286ce96a76473647b23992041057f1ffd24aa01f53452c64fb635ff9041` |
+| Rollback target | `openwork-app:prod-5991489-20260809202352` |
+| Rollback digest | `sha256:e322a697a515df833f2754c53a2653a3e06bfc1244524c6a9524bc0df739c10a` |
+
+## XDC and Optimism cross-chain job sync status
+
+Oppy now renders a persistent three-stage tracker for a source-confirmed XDC or
+Optimism job: source-chain receipt, LayerZero delivery and canonical Arbitrum
+Genesis availability. It polls the configured Arbitrum RPC every eight seconds and
+stops once `jobExists(jobId)` is true. The tracker distinguishes a temporary status
+read failure from a failed source transaction and retries automatically.
+
+Each tracker provides direct links to the source transaction, LayerZero Scan and,
+after delivery, the canonical job page. Its active-job metadata survives reloads, and
+explicit follow-up references to the same job no longer discard the source transaction
+hash or confirmed-receipt state.
+
+Live validation confirmed XDC source transaction
+`0xedee1ef1777ddd80c23f84d21fe452d56d5d37e2ead196bcea12ea8c9dc0c47a`
+succeeded and the new tracker service returned `synced` because Arbitrum Genesis
+`jobExists("30365-7")` is true. Production returned HTTP 200 for `/`, `/healthz`
+and `/chat`; the deployed JS and CSS contain the tracker implementation, the desktop
+chat had no horizontal overflow, and the browser console reported no warnings or
+errors. No wallet request or on-chain write was submitted by this release.
 
 ## Durable Oppy conversation, job and deployed-code context
 
