@@ -60,6 +60,8 @@ COPY --from=frontend-builder /app/dist ./dist
 # Public documentation consumed by backend routes at runtime
 COPY openclaw-skill /app/openclaw-skill
 COPY docs/mainnet-contracts.json /app/docs/mainnet-contracts.json
+# Read-only ABIs used by Oppy's canonical wallet/job context loader.
+COPY src/ABIs/genesis_ABI.json src/ABIs/genesis_helper_ABI.json /app/src/ABIs/
 
 # Setup backend
 WORKDIR /app/backend

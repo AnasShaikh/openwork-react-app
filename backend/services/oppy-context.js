@@ -1,6 +1,7 @@
 'use strict';
 
 const registry = require('../../docs/mainnet-contracts.json');
+const { formatJobContext } = require('./oppy-job-context');
 
 const SUPPORTED_JOB_CHAINS = new Map([
   [42161, 'Arbitrum One'],
@@ -33,7 +34,27 @@ function sourceStatus(contract) {
 function contractLine(contract) {
   return `- ${contract.chain.name}: ${contract.name} (${contract.version}) at ${contract.address}`
     + `${contract.implementation ? `; implementation ${contract.implementation}` : ''}`
-    + `; ${sourceStatus(contract)}; ${contract.purpose}`;
+    + `; exact deployed source ${contract.source}; ${sourceStatus(contract)}; ${contract.purpose}`;
+}
+
+function deployedCodeContext(message) {
+  const query = String(message || '').toLowerCase();
+  const asksForCode = /code|source|solidity|function|method|implementation|abi|contract|how.*work/.test(query);
+  const detail = asksForCode
+    ? `
+- NativeArbOpenWorkJobContract V5 \`postJob\` creates \`42161-N\`, stores local milestone state and calls NOWJC directly. It uses no LayerZero and moves no USDC while posting.
+- XDC LocalOpenWorkJobContract Lite V3 \`postJob\` creates \`30365-N\`, stores security-critical local state, and sends the full job payload through the active XDC V2 LayerZero bridge to Arbitrum.
+- Optimism LocalOpenWorkJobContract Lite creates \`30111-N\` and follows the same local-entry/canonical-Arbitrum architecture.
+- NativeOpenworkGenesis is the canonical job ledger. Its \`getJobsByPoster\`, \`getJob\`, status and application reads are authoritative after cross-chain delivery.
+- Dynamic string job IDs are indexed in events, so a receipt topic contains \`keccak256(jobId)\`, not decodable plaintext. The browser must preserve or verify the generated ID instead of trying to decode the topic as text.
+- Starting a job locks the selected first milestone; release and lock-next actions use the posting-chain adapter, while NOWJC decides same-chain versus CCTP payout routing from canonical applicant payment preferences.`
+    : '';
+
+  return `## DEPLOYED CODE MODEL
+- Canonical production registry: ${registry.canonicalSource}; registry audit date: ${registry.lastAudited}. Exact deployed source paths are included with relevant contract rows below.
+- Job IDs identify their source: \`42161-*\` Arbitrum direct, \`30111-*\` Optimism, \`30365-*\` XDC.
+- Arbitrum Genesis/NOWJC hold canonical job and payment state. XDC and Optimism adapters retain local escrow/security state and deliver application messages to Arbitrum through LayerZero.
+- Circle CCTP transports native USDC separately from LayerZero application messages.${detail}`;
 }
 
 function selectContracts(message) {
@@ -112,10 +133,12 @@ function buildDocsSystemPrompt(message) {
 
 Answer accurately and concisely from the audited production facts below. Clearly distinguish deployed, runtime verified, explorer-source verified, configured and end-to-end tested. If the evidence does not establish something, say so. Never invent an address, transaction result, wallet balance or live status. Never ask for a private key or seed phrase. Do not propose blockchain tool calls in documentation mode.
 
+${deployedCodeContext(message)}
+
 ${registryContext(message)}`;
 }
 
-function buildTransactionSystemPrompt(message, walletInput) {
+function buildTransactionSystemPrompt(message, walletInput, runtimeContext = {}) {
   const wallet = sanitizeWalletState(walletInput);
   const walletSummary = wallet.connected
     ? `Connected wallet ${wallet.address} on ${wallet.chainName} (chain ID ${wallet.chainId}); supported job chain: ${wallet.supported ? 'yes' : 'no'}.`
@@ -133,9 +156,18 @@ Safety rules:
 - Starting a job can require an exact first-milestone USDC approval and must use the job's posting chain.
 - Releasing payment must use the job's posting chain and may require LayerZero/CCTP delivery after the source receipt.
 - Do not infer a recipient address, job ID, amount, chain or application from incomplete text.
+- Treat the supplied active job as the referent for “this job”, “that job”, “it” and similar follow-ups unless the user explicitly names another job.
+- If the user explicitly asks for their XDC job and the active job is not XDC, use the first XDC job in the supplied recent canonical history only when it is unambiguous; otherwise ask which XDC job.
+- A source-confirmed XDC/Optimism post can be remembered before it reaches Genesis, but describe canonical delivery as pending until the Genesis read contains that job ID.
+- Use canonical wallet job history and transaction memory to resolve titles and follow-ups. Never overwrite an explicit job ID from the user with a different historical job.
+- Respect canonical lifecycle state: Open jobs can accept applications or be started after selection; In progress jobs can accept work, payment release or disputes; Completed and Cancelled jobs are read-only and must not receive another lifecycle transaction proposal.
 - Prefer a review/navigation tool for the complex start-job, release, dispute and direct-contract screens; those screens perform canonical on-chain preflight.
 
 Current wallet: ${walletSummary}
+
+${deployedCodeContext(message)}
+
+${formatJobContext(runtimeContext.jobContext)}
 
 ${registryContext(message)}`;
 }
@@ -144,6 +176,7 @@ module.exports = {
   SUPPORTED_JOB_CHAINS,
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
+  deployedCodeContext,
   registryContext,
   sanitizeWalletState,
   selectContracts,

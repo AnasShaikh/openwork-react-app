@@ -75,6 +75,24 @@ test('complex value-moving actions use canonical review screens', () => {
   assert.match(chat, /`\/direct-contract\?\$\{dcParams\.toString\(\)\}`/);
 });
 
+test('transaction chat persists conversation, active job and confirmed source receipts', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const service = source('src/services/localChainService.js');
+  const backend = source('backend/services/oppy-job-context.js');
+  const dockerfile = source('Dockerfile');
+
+  assert.match(chat, /loadOppyMemory\(memoryScope/);
+  assert.match(chat, /saveOppyMemory\(memoryScope/);
+  assert.match(chat, /activeJobFromMessage\(userMsg, activeJob\)/);
+  assert.match(chat, /recentTransactions/);
+  assert.match(chat, /result\.jobId \|\| tool\.params\?\.jobId/);
+  assert.match(service, /await resolvePostedJobId\(\{/);
+  assert.match(service, /saveTxHash\('postJob', tx\.transactionHash, jobId/);
+  assert.match(backend, /getJobsByStatus/);
+  assert.match(backend, /sourceDeliveryPending/);
+  assert.match(dockerfile, /COPY src\/ABIs\/genesis_ABI\.json src\/ABIs\/genesis_helper_ABI\.json \/app\/src\/ABIs\//);
+});
+
 test('mobile Oppy review cards cannot inherit the legacy 1200px page minimum', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const styles = source('src/pages/OppyChat/OppyChat.css');

@@ -3,24 +3,28 @@ import ReactMarkdown from 'react-markdown';
 import { MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
+import { loadOppyMemory, saveOppyMemory } from '../../services/oppyMemory';
 import './AgentOppy.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+const initialMessage = {
+  role: 'oppy',
+  text: 'Hi! I\'m Agent Oppy, your OpenWork assistant. Ask me anything about the deployed protocol, exact contract sources, job workflows, or production history!',
+};
 
 const AgentOppy = () => {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
-  const [chat, setChat] = useState([
-    {
-      role: 'oppy',
-      text: 'Hi! I\'m Agent Oppy, your OpenWork assistant. Ask me anything about the protocol, contracts, deployment addresses, workflows, or how to get started!'
-    }
-  ]);
+  const [chat, setChat] = useState(() => loadOppyMemory('docs', [initialMessage]).messages);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chat]);
+
+  useEffect(() => {
+    saveOppyMemory('docs', { messages: chat });
   }, [chat]);
 
   // Focus input on mount
@@ -43,7 +47,8 @@ const AgentOppy = () => {
       // Build history from existing chat (exclude thinking messages and initial greeting)
       const history = chat
         .filter(msg => !msg.isThinking)
-        .slice(1) // skip the initial greeting
+        .slice(1)
+        .slice(-24)
         .map(msg => ({ role: msg.role, text: msg.text }));
 
       const response = await fetch(`${BACKEND_URL}/api/chat`, {

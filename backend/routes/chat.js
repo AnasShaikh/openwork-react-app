@@ -8,11 +8,15 @@ const {
   buildTransactionSystemPrompt,
   sanitizeWalletState,
 } = require('../services/oppy-context');
+const {
+  getWalletJobContext,
+  sanitizeConversationMemory,
+} = require('../services/oppy-job-context');
 
 const router = express.Router();
 
 const MAX_MESSAGE_LENGTH = 2000;
-const MAX_HISTORY_ITEMS = 12;
+const MAX_HISTORY_ITEMS = 24;
 const MAX_CONCURRENT_REQUESTS = Number(process.env.CHAT_MAX_CONCURRENT_REQUESTS || 20);
 let inFlightRequests = 0;
 
@@ -32,7 +36,8 @@ function validateRequest(body = {}) {
   const mode = body.mode === 'transactions' ? 'transactions' : 'docs';
   const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY_ITEMS) : [];
   const wallet = sanitizeWalletState(body.wallet);
-  return { message, mode, history, wallet };
+  const memory = sanitizeConversationMemory(body.memory);
+  return { message, mode, history, wallet, memory };
 }
 
 router.post('/', async (req, res) => {
@@ -50,8 +55,17 @@ router.post('/', async (req, res) => {
   inFlightRequests += 1;
   try {
     const transactionMode = request.mode === 'transactions';
+    const jobContext = transactionMode && request.wallet.connected
+      ? await getWalletJobContext(request.wallet.address, request.memory)
+      : {
+          available: false,
+          reason: 'wallet not connected',
+          activeJob: request.memory.activeJob,
+          jobs: [],
+          recentTransactions: request.memory.recentTransactions,
+        };
     const systemPrompt = transactionMode
-      ? buildTransactionSystemPrompt(request.message, request.wallet)
+      ? buildTransactionSystemPrompt(request.message, request.wallet, { jobContext })
       : buildDocsSystemPrompt(request.message);
 
     const result = await converse({
@@ -74,6 +88,11 @@ router.post('/', async (req, res) => {
       response: result.text,
       tool: result.tool || null,
       model: result.modelId,
+      context: transactionMode ? {
+        activeJob: jobContext.activeJob || null,
+        canonicalJobHistoryAvailable: jobContext.available === true,
+        canonicalJobCount: jobContext.jobs?.length || 0,
+      } : undefined,
     });
   } catch (error) {
     console.error('[chat] Bedrock request failed', {

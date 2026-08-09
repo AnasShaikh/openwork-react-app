@@ -10,6 +10,7 @@ const {
   buildTransactionSystemPrompt,
   sanitizeWalletState,
 } = require('../services/oppy-context');
+const { sanitizeConversationMemory } = require('../services/oppy-job-context');
 const { validateToolUse } = require('../services/chat-tools');
 const {
   DEFAULT_MODEL_ID,
@@ -29,6 +30,10 @@ test('chat requests are bounded and default to documentation mode', () => {
       chainId: null,
       chainName: 'unsupported network',
       supported: false,
+    },
+    memory: {
+      activeJob: null,
+      recentTransactions: [],
     },
   });
   assert.match(validateRequest({ message: 'x'.repeat(2001) }).error, /2000/);
@@ -52,12 +57,51 @@ test('wallet context supports only the three production job chains', () => {
 
 test('server prompts are registry grounded and preserve transaction safety rules', () => {
   const docsPrompt = buildDocsSystemPrompt('How does XDC payment work?');
-  const txPrompt = buildTransactionSystemPrompt('Post a job', { chainId: 42161 });
+  const txPrompt = buildTransactionSystemPrompt('Release payment for this job', { chainId: 50 }, {
+    jobContext: {
+      available: true,
+      activeJob: {
+        jobId: '30365-6',
+        title: 'XDC test',
+        postingChainName: 'XDC Network',
+        canonicalStateAvailable: true,
+        status: 1,
+      },
+      jobs: [],
+      recentTransactions: [],
+    },
+  });
   assert.match(docsPrompt, /Registry audited: 2026-08-07/);
   assert.match(docsPrompt, /XDC Network/);
   assert.match(txPrompt, /Never request USDC approval for postJob/);
   assert.match(txPrompt, /Posting moves no USDC/);
   assert.match(txPrompt, /review card; it never proves/);
+  assert.match(txPrompt, /Active job: 30365-6/);
+  assert.match(txPrompt, /exact deployed source/);
+  assert.match(txPrompt, /“this job”, “that job”, “it”/);
+});
+
+test('conversation memory keeps only bounded job and receipt context', () => {
+  const memory = sanitizeConversationMemory({
+    activeJob: {
+      jobId: '30365-6',
+      title: '  XDC test  ',
+      sourceChainId: 50,
+      sourceTxHash: `0x${'a'.repeat(64)}`,
+      sourceReceiptConfirmed: true,
+    },
+    recentTransactions: [{
+      action: 'postJob',
+      jobId: '30365-6',
+      txHash: `0x${'b'.repeat(64)}`,
+      chainId: 50,
+      confirmed: true,
+    }],
+  });
+  assert.equal(memory.activeJob.jobId, '30365-6');
+  assert.equal(memory.activeJob.title, 'XDC test');
+  assert.equal(memory.recentTransactions[0].confirmed, true);
+  assert.equal(sanitizeConversationMemory({ activeJob: { jobId: '../bad' } }).activeJob, null);
 });
 
 test('native Bedrock tool calls are strictly validated', () => {
@@ -105,7 +149,7 @@ test('Bedrock response extraction exposes only validated native tools', () => {
 
 test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS credential chain', async () => {
   let commandInput;
-  const history = Array.from({ length: 20 }, (_, index) => ({
+  const history = Array.from({ length: 40 }, (_, index) => ({
     role: index % 2 === 0 ? 'user' : 'oppy',
     text: `message ${index}`,
   }));
@@ -129,13 +173,13 @@ test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS
 
   assert.equal(DEFAULT_MODEL_ID, 'us.anthropic.claude-sonnet-4-6');
   assert.equal(commandInput.modelId, DEFAULT_MODEL_ID);
-  assert.equal(commandInput.messages.length, 13);
+  assert.equal(commandInput.messages.length, 25);
   assert.equal(commandInput.system[0].text, 'Grounded prompt');
   assert.equal(commandInput.inferenceConfig.temperature, 0.2);
   assert.equal(commandInput.inferenceConfig.topP, undefined);
   assert.ok(commandInput.toolConfig.tools.length >= 10);
   assert.deepEqual(result.usage, { inputTokens: 10, outputTokens: 2, totalTokens: 12 });
-  assert.equal(normalizeHistory(history).length, 12);
+  assert.equal(normalizeHistory(history).length, 24);
 
   const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'bedrock-chat.js'), 'utf8');
   assert.doesNotMatch(source, /accessKeyId|secretAccessKey|AWS_ACCESS_KEY_ID/);

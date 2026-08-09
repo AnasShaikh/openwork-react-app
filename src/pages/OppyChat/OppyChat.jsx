@@ -13,6 +13,15 @@ import {
 import { extractChainIdFromJobId, getChainConfig, getNativeChain } from '../../config/chainConfig';
 import { switchToChain } from '../../utils/switchNetwork';
 import GenesisABI from '../../ABIs/genesis_ABI.json';
+import {
+  OPPY_JOB_GREETING,
+  activeJobFromMessage,
+  historyForOppy,
+  loadOppyMemory,
+  recordOppyTransaction,
+  sanitizeActiveJob,
+  saveOppyMemory,
+} from '../../services/oppyMemory';
 import './OppyChat.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -77,6 +86,7 @@ function formatToolParamValue(value) {
 // ── Transaction Card ─────────────────────────────────────────────
 function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const [txHash, setTxHash] = useState(null);
+  const [jobId, setJobId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('idle');
 
@@ -86,6 +96,7 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
       const result = await onConfirm(tool);
       if (result?.txHash) {
         setTxHash(result.txHash);
+        setJobId(result.jobId || tool.params?.jobId || null);
         setStatus('submitted');
       } else if (result?.navigated) {
         setStatus('opened');
@@ -153,7 +164,7 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
         </div>
       ) : status === 'submitted' && txHash ? (
         <>
-          <div className="tx-success-msg">✓ Transaction submitted</div>
+          <div className="tx-success-msg">✓ {jobId ? `Job ${jobId} transaction submitted` : 'Transaction submitted'}</div>
           <a className="tx-hash-link" href={getExplorerUrl(txHash)} target="_blank" rel="noreferrer">
             View on Explorer: {txHash.slice(0, 18)}…
           </a>
@@ -263,14 +274,39 @@ const OppyChat = () => {
     chainId: null,
     isCorrectChain: false,
   });
-  const [chat, setChat] = useState([
-    {
-      role: 'bot',
-      text: "Hi! I'm **Agent Oppy**. I can explain OpenWork and prepare job actions on Arbitrum, Optimism, and XDC. Nothing is sent until you review the action and confirm it in your wallet.",
-    },
-  ]);
+  const [chat, setChat] = useState([OPPY_JOB_GREETING]);
+  const [activeJob, setActiveJob] = useState(null);
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const hydratedMemoryScopeRef = useRef(null);
+  const skipMemoryPersistRef = useRef(false);
+
+  const memoryScope = walletState.address?.toLowerCase() || 'anonymous';
+
+  useEffect(() => {
+    if (hydratedMemoryScopeRef.current === memoryScope) return;
+    const memory = loadOppyMemory(memoryScope, [OPPY_JOB_GREETING]);
+    skipMemoryPersistRef.current = true;
+    hydratedMemoryScopeRef.current = memoryScope;
+    setChat(memory.messages);
+    setActiveJob(memory.activeJob);
+    setRecentTransactions(memory.recentTransactions);
+    setShowSuggestions(memory.messages.length <= 1);
+  }, [memoryScope]);
+
+  useEffect(() => {
+    if (hydratedMemoryScopeRef.current !== memoryScope) return;
+    if (skipMemoryPersistRef.current) {
+      skipMemoryPersistRef.current = false;
+      return;
+    }
+    saveOppyMemory(memoryScope, {
+      messages: chat,
+      activeJob,
+      recentTransactions,
+    });
+  }, [memoryScope, chat, activeJob, recentTransactions]);
 
   useEffect(() => {
     const messagesArea = messagesEndRef.current?.parentElement;
@@ -330,19 +366,13 @@ const OppyChat = () => {
     };
   }, []);
 
-  // Build history array from current chat state (for multi-turn context)
-  const buildHistory = (currentChat) => {
-    return currentChat
-      .filter(m => !m.isThinking)
-      .slice(1) // skip greeting
-      .map(m => ({ role: m.role === 'bot' ? 'oppy' : 'user', text: m.text }));
-  };
-
   const sendMessage = async (userMsg) => {
     if (!userMsg.trim() || loading) return;
 
     setShowSuggestions(false);
-    const history = buildHistory(chat);
+    const history = historyForOppy(chat);
+    const messageActiveJob = activeJobFromMessage(userMsg, activeJob);
+    if (messageActiveJob?.jobId !== activeJob?.jobId) setActiveJob(messageActiveJob);
     setChat(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
     setChat(prev => [...prev, { role: 'bot', text: '', isThinking: true }]);
@@ -362,6 +392,10 @@ const OppyChat = () => {
             address: walletState.address,
             chainId: walletChainId,
           },
+          memory: {
+            activeJob: messageActiveJob,
+            recentTransactions,
+          },
         }),
       });
 
@@ -372,6 +406,12 @@ const OppyChat = () => {
         const legacy = parseToolBlock(data.response);
         const proposedTool = data.tool || legacy.tool;
         const cleanText = data.tool ? data.response : legacy.cleanText;
+        const contextualJob = sanitizeActiveJob(
+          proposedTool?.params?.jobId
+            ? { jobId: proposedTool.params.jobId }
+            : data.context?.activeJob,
+        );
+        if (contextualJob) setActiveJob(contextualJob);
         setChat(prev => {
           const withoutThinking = prev.filter(m => !m.isThinking);
           const msgs = [...withoutThinking, { role: 'bot', text: cleanText }];
@@ -687,8 +727,31 @@ const OppyChat = () => {
       }
 
       if (!result?.transactionHash) throw new Error('The wallet action did not return a transaction hash');
-      addBotMessage(`✅ Transaction confirmed!\n\n[View on explorer](${explorerBase}${result.transactionHash})`);
-      return { txHash: result.transactionHash };
+      const confirmedJobId = result.jobId || tool.params?.jobId || null;
+      if (confirmedJobId) {
+        const nextActiveJob = sanitizeActiveJob({
+          jobId: confirmedJobId,
+          title: tool.name === 'postJob' ? tool.params.title : activeJob?.title,
+          sourceChainId: chainIdDecimal,
+          sourceChainName: getChainConfig(chainIdDecimal)?.name,
+          sourceTxHash: result.transactionHash,
+          sourceReceiptConfirmed: true,
+        });
+        setActiveJob(nextActiveJob);
+        setRecentTransactions((current) => recordOppyTransaction(current, {
+          action: tool.name,
+          jobId: confirmedJobId,
+          txHash: result.transactionHash,
+          chainId: chainIdDecimal,
+          confirmed: true,
+        }));
+      }
+      const jobCopy = confirmedJobId ? ` for job **${confirmedJobId}**` : '';
+      const deliveryCopy = result.canonicalDeliveryPending
+        ? '\n\nThe source-chain receipt is confirmed. Canonical delivery to Arbitrum may still be in progress.'
+        : '';
+      addBotMessage(`✅ Transaction confirmed${jobCopy}!\n\n[View on explorer](${explorerBase}${result.transactionHash})${deliveryCopy}`);
+      return { txHash: result.transactionHash, jobId: confirmedJobId };
 
     } catch (error) {
       const msg = error.message || 'Transaction failed';

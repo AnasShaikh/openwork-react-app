@@ -8,6 +8,7 @@ const { BEDROCK_TRANSACTION_TOOLS, validateToolUse } = require('./chat-tools');
 
 const DEFAULT_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
 const DEFAULT_REGION = 'us-east-1';
+const MAX_HISTORY_ITEMS = 24;
 
 let sharedClient;
 
@@ -22,7 +23,7 @@ function getClient() {
 
 function normalizeHistory(history) {
   if (!Array.isArray(history)) return [];
-  const sanitized = history.slice(-12).flatMap((entry) => {
+  const sanitized = history.slice(-MAX_HISTORY_ITEMS).flatMap((entry) => {
     const role = entry?.role === 'user'
       ? 'user'
       : (entry?.role === 'oppy' || entry?.role === 'bot' || entry?.role === 'assistant' ? 'assistant' : null);
@@ -96,6 +97,7 @@ async function converse({ message, history, systemPrompt, allowTools = false, cl
 
 module.exports = {
   DEFAULT_MODEL_ID,
+  MAX_HISTORY_ITEMS,
   converse,
   extractResponse,
   normalizeHistory,

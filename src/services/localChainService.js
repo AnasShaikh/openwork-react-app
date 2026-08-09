@@ -38,6 +38,7 @@ import {
   createAthenaWrite,
   createLOWJCWrite,
 } from "./contractWriteRouter";
+import { resolveDirectContractJobId } from "../utils/directContractReceipt";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -209,6 +210,20 @@ export async function estimateLayerZeroFee(chainId, operationKey, quoteData = {}
 // ==================== JOB OPERATIONS ====================
 
 /**
+ * Job IDs are indexed dynamic strings, so receipts contain keccak256(jobId)
+ * rather than plaintext. Reuse the counter-and-topic resolver shared with
+ * Direct Contract so every posting flow preserves the exact resulting ID.
+ */
+export async function resolvePostedJobId({ receipt, contract, prefix, counterBefore }) {
+  return resolveDirectContractJobId({
+    receipt,
+    contract,
+    jobIdPrefix: prefix,
+    counterBefore,
+  });
+}
+
+/**
  * Post a new job on the user's connected local chain
  * @param {number}   chainId    - Chain ID where user is connected
  * @param {string}   userAddress
@@ -222,15 +237,16 @@ export async function postJob(chainId, userAddress, jobData, onStatus) {
     const contract = await getLOWJCContract(chainId);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
+    const readContract = await getReadOnlyLOWJCContract(chainId);
+    const counterBefore = Number(await readContract.methods.getJobCount().call());
+    const jobIdPrefix = native ? chainId : config.layerzero.eid;
+    const predictedJobId = `${jobIdPrefix}-${counterBefore + 1}`;
 
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.POST_JOB);
     let lzFee = "0";
     if (!native) {
       emit("Estimating LayerZero fee...");
       const quoteWeb3 = getReadOnlyWeb3(chainId);
-      const readContract = new quoteWeb3.eth.Contract(LOWJC_ABI, config.contracts.lowjc);
-      const jobCounter = await readContract.methods.getJobCount().call();
-      const predictedJobId = `${config.layerzero.eid}-${Number(jobCounter) + 1}`;
       const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
         ['string', 'string', 'address', 'string', 'string[]', 'uint256[]'],
         ['postJob', predictedJobId, userAddress, jobData.jobDetailHash, jobData.descriptions, jobData.amounts]
@@ -254,9 +270,23 @@ export async function postJob(chainId, userAddress, jobData, onStatus) {
     }));
 
     emit(`Transaction confirmed: ${tx.transactionHash}`);
-    saveTxHash('postJob', tx.transactionHash, null, chainId, userAddress);
-    console.log(`[postJob] confirmed on ${config.name}:`, tx.transactionHash);
-    return tx;
+    const jobId = await resolvePostedJobId({
+      receipt: tx,
+      contract: readContract,
+      prefix: jobIdPrefix,
+      counterBefore,
+    });
+    saveTxHash('postJob', tx.transactionHash, jobId, chainId, userAddress, {
+      sourceReceiptConfirmed: true,
+      canonicalDeliveryPending: !native,
+    });
+    console.log(`[postJob] confirmed on ${config.name}:`, tx.transactionHash, jobId || '(job ID unresolved)');
+    return {
+      ...tx,
+      jobId,
+      sourceChainId: chainId,
+      canonicalDeliveryPending: !native,
+    };
   } catch (error) {
     console.error("[postJob] error:", error);
     throw error;

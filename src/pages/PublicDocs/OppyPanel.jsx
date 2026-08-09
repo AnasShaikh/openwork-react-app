@@ -12,6 +12,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import { FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
+import { loadOppyMemory, saveOppyMemory } from '../../services/oppyMemory';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -30,7 +31,7 @@ function fallbackFor(message) {
 
 export default function OppyPanel({ registry }) {
   const [message, setMessage] = useState('');
-  const [chat, setChat] = useState([initialMessage]);
+  const [chat, setChat] = useState(() => loadOppyMemory('docs', [initialMessage]).messages);
   const [isThinking, setIsThinking] = useState(false);
   const listRef = useRef(null);
   const inputRef = useRef(null);
@@ -40,12 +41,16 @@ export default function OppyPanel({ registry }) {
     if (list) list.scrollTop = list.scrollHeight;
   }, [chat, isThinking]);
 
+  useEffect(() => {
+    saveOppyMemory('docs', { messages: chat });
+  }, [chat]);
+
   const submit = async (event) => {
     event.preventDefault();
     const userMessage = message.trim();
     if (!userMessage || isThinking) return;
 
-    const history = chat.slice(1).map((entry) => ({ role: entry.role, text: entry.text }));
+    const history = chat.slice(1).slice(-24).map((entry) => ({ role: entry.role, text: entry.text }));
     setChat((current) => [...current, { role: 'user', text: userMessage }]);
     setMessage('');
     setIsThinking(true);
