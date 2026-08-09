@@ -111,7 +111,7 @@ import Timeline from "./dev-tools/Timeline/Timeline";
 import OpenworkDocs from "./pages/Documentation/OpenworkDocs";
 import PublicDocs from "./pages/PublicDocs/PublicDocs";
 import AgentOppy from "./pages/AgentOppy/AgentOppy";
-// import OppyChat from "./pages/OppyChat/OppyChat"; // hidden — not in scope for v1
+import OppyChat from "./pages/OppyChat/OppyChat";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -280,9 +280,9 @@ function MainPage() {
 export default function App() {
   const isMobile = useMobileDetection();
 
-  // Allow /oppy on mobile
+  // Agent Oppy and the job-management chat have responsive standalone layouts.
   const isOppyRoute = window.location.pathname === '/oppy';
-  const isChatRoute = false; // /chat hidden — not in scope for v1
+  const isChatRoute = window.location.pathname === '/chat';
 
   if (isMobile && !isOppyRoute && !isChatRoute) {
     return (
@@ -437,7 +437,7 @@ export default function App() {
               <Route path="/docs" element={<PublicDocs />} />
               <Route path="/documentation" element={<Navigate to="/docs" replace />} />
               <Route path="/docs/legacy" element={<OpenworkDocs />} />
-              {/* <Route path="/chat" element={<OppyChat/>} /> */}{/* hidden — not in scope for v1 */}
+              <Route path="/chat" element={<OppyChat/>} />
             </Routes>
           </Layout>
         } />

@@ -4,18 +4,14 @@ import ReactMarkdown from 'react-markdown';
 import { Send, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BlueButton from '../../components/BlueButton/BlueButton';
-import { buildOppyChatContext } from './chatContext';
 import {
   postJob,
   applyToJob,
-  startJob,
   submitWork,
-  releasePaymentCrossChain,
   createProfile,
-  approveUSDC,
-  getContractAddress,
 } from '../../services/localChainService';
-import { getChainConfig, getNativeChain } from '../../config/chainConfig';
+import { extractChainIdFromJobId, getChainConfig, getNativeChain } from '../../config/chainConfig';
+import { switchToChain } from '../../utils/switchNetwork';
 import GenesisABI from '../../ABIs/genesis_ABI.json';
 import './OppyChat.css';
 
@@ -28,22 +24,63 @@ const SUGGESTED_PROMPTS = [
   'Check my jobs',
 ];
 
+const SUPPORTED_CHAINS = [
+  { chainId: 42161, hex: '0xa4b1', label: 'Arbitrum' },
+  { chainId: 10, hex: '0xa', label: 'Optimism' },
+  { chainId: 50, hex: '0x32', label: 'XDC' },
+];
+
+const SUPPORTED_CHAIN_HEX = new Set(SUPPORTED_CHAINS.map((chain) => chain.hex));
+
+function toolContract(tool, chainId) {
+  const config = getChainConfig(chainId);
+  if (!config) return null;
+  return tool.name === 'raiseDispute' ? config.contracts?.athenaClient : config.contracts?.lowjc;
+}
+
+function toolMethod(tool) {
+  const methods = {
+    postJob: 'postJob',
+    applyToJob: 'applyToJob',
+    startJob: 'startJob (review screen)',
+    submitWork: 'submitWork',
+    releasePayment: 'releasePayment (review screen)',
+    raiseDispute: 'raiseDispute (review screen)',
+    createProfile: 'createProfile',
+    startDirectContract: 'direct-contract form',
+  };
+  return methods[tool.name] || 'navigation';
+}
+
 // ── Transaction Card ─────────────────────────────────────────────
-function TransactionCard({ tool, onConfirm, onCancel }) {
+function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const [txHash, setTxHash] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  const [status, setStatus] = useState('idle');
 
   const handleConfirm = async () => {
     setLoading(true);
     try {
       const result = await onConfirm(tool);
-      if (result?.txHash) setTxHash(result.txHash);
+      if (result?.txHash) {
+        setTxHash(result.txHash);
+        setStatus('submitted');
+      } else if (result?.navigated) {
+        setStatus('opened');
+      } else {
+        setStatus('failed');
+      }
     } finally {
       setLoading(false);
-      setDone(true);
     }
   };
+
+  const chainId = walletState.chainId ? parseInt(walletState.chainId, 16) : null;
+  const chainConfig = chainId ? getChainConfig(chainId) : null;
+  const contractAddress = chainId ? toolContract(tool, chainId) : null;
+  const actionLabel = tool.kind === 'navigation'
+    ? 'Open'
+    : (tool.kind === 'review' ? 'Review details' : 'Confirm in wallet');
 
   // Build explorer URL based on connected chain
   const getExplorerUrl = (hash) => {
@@ -61,6 +98,13 @@ function TransactionCard({ tool, onConfirm, onCancel }) {
     <div className="tx-card">
       <div className="tx-card-action">{tool.name}</div>
       <div className="tx-card-display">{tool.display}</div>
+      <div className="tx-card-context">
+        <div><span>Network</span><strong>{chainConfig?.name || 'Connect a supported wallet'}</strong></div>
+        <div><span>Method</span><strong>{toolMethod(tool)}</strong></div>
+        {contractAddress && tool.kind !== 'navigation' && (
+          <div><span>Contract</span><code>{contractAddress}</code></div>
+        )}
+      </div>
       <div className="tx-card-params">
         {Object.entries(tool.params || {}).map(([k, v]) => (
           <div className="tx-param-row" key={k}>
@@ -69,25 +113,33 @@ function TransactionCard({ tool, onConfirm, onCancel }) {
           </div>
         ))}
       </div>
-      {!done ? (
+      {tool.name === 'postJob' && (
+        <p className="tx-card-note">Posting does not approve or transfer USDC. Your wallet will show only the contract call and applicable network/LayerZero fee.</p>
+      )}
+      {tool.kind === 'review' && (
+        <p className="tx-card-note">The audited workflow screen will load canonical job state and complete the final preflight before any wallet request.</p>
+      )}
+      {status === 'idle' ? (
         <div className="tx-card-actions">
           <BlueButton
-            label={loading ? 'Signing…' : 'Confirm & Sign'}
+            label={loading ? 'Opening…' : actionLabel}
             onClick={handleConfirm}
             disabled={loading}
             style={{ fontSize: '13px', height: '36px', padding: '0 16px', opacity: loading ? 0.7 : 1 }}
           />
           {!loading && <button className="tx-cancel-btn" onClick={onCancel}>Cancel</button>}
         </div>
-      ) : txHash ? (
+      ) : status === 'submitted' && txHash ? (
         <>
           <div className="tx-success-msg">✓ Transaction submitted</div>
           <a className="tx-hash-link" href={getExplorerUrl(txHash)} target="_blank" rel="noreferrer">
             View on Explorer: {txHash.slice(0, 18)}…
           </a>
         </>
+      ) : status === 'opened' ? (
+        <div className="tx-success-msg">✓ Opened the review screen</div>
       ) : (
-        <div className="tx-success-msg" style={{ color: '#868686' }}>Processing…</div>
+        <div className="tx-failed-msg">The action was not completed. Review Oppy's latest message.</div>
       )}
     </div>
   );
@@ -152,9 +204,13 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
   }
   if (!walletState.isCorrectChain) {
     return (
-      <div className="wallet-status-bar" style={barStyle}>
+      <div className="wallet-status-bar wallet-status-bar--wrap" style={barStyle}>
         <span style={orangePill}>Wrong network</span>
-        <button style={blueBtn} onClick={onSwitchChain}>Switch to Arbitrum</button>
+        {SUPPORTED_CHAINS.map((chain) => (
+          <button key={chain.chainId} style={blueBtn} onClick={() => onSwitchChain(chain.chainId)}>
+            {chain.label}
+          </button>
+        ))}
       </div>
     );
   }
@@ -165,6 +221,9 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
     <div className="wallet-status-bar" style={barStyle}>
       <span style={greenPill}>● Connected</span>
       <span style={{ fontSize: '12px', color: '#555', fontFamily: 'monospace' }}>{short}</span>
+      <span style={{ fontSize: '12px', color: '#555' }}>
+        {getChainConfig(parseInt(walletState.chainId, 16))?.name}
+      </span>
     </div>
   );
 }
@@ -185,7 +244,7 @@ const OppyChat = () => {
   const [chat, setChat] = useState([
     {
       role: 'bot',
-      text: "Hi! I'm **OpenWork AI**. I can answer questions about the protocol and help you execute transactions — post jobs, apply, release payments, and more. What would you like to do?",
+      text: "Hi! I'm **Agent Oppy**. I can explain OpenWork and prepare job actions on Arbitrum, Optimism, and XDC. Nothing is sent until you review the action and confirm it in your wallet.",
     },
   ]);
   const messagesEndRef = useRef(null);
@@ -207,13 +266,13 @@ const OppyChat = () => {
     }
     const accounts = await window.ethereum.request({ method: 'eth_accounts' });
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    const allowedChains = ['0xa4b1', '0xa', '0x1', '0x2105'];
+    const normalizedChainId = chainId.toLowerCase();
     setWalletState({
       installed: true,
       connected: accounts.length > 0,
       address: accounts[0] || null,
-      chainId,
-      isCorrectChain: allowedChains.includes(chainId.toLowerCase()),
+      chainId: normalizedChainId,
+      isCorrectChain: SUPPORTED_CHAIN_HEX.has(normalizedChainId),
     });
   }
 
@@ -266,23 +325,34 @@ const OppyChat = () => {
     setChat(prev => [...prev, { role: 'bot', text: '', isThinking: true }]);
 
     try {
-      const systemContext = buildOppyChatContext(walletState);
+      const walletChainId = walletState.chainId ? parseInt(walletState.chainId, 16) : null;
 
       const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, context: systemContext, history }),
+        body: JSON.stringify({
+          message: userMsg,
+          mode: 'transactions',
+          history,
+          wallet: {
+            connected: walletState.connected,
+            address: walletState.address,
+            chainId: walletChainId,
+          },
+        }),
       });
 
       if (!response.ok) throw new Error(`API error: ${response.status}`);
       const data = await response.json();
 
       if (data.success) {
-        const { tool, cleanText } = parseToolBlock(data.response);
+        const legacy = parseToolBlock(data.response);
+        const proposedTool = data.tool || legacy.tool;
+        const cleanText = data.tool ? data.response : legacy.cleanText;
         setChat(prev => {
           const withoutThinking = prev.filter(m => !m.isThinking);
           const msgs = [...withoutThinking, { role: 'bot', text: cleanText }];
-          if (tool) msgs.push({ role: 'bot', isTxCard: true, tool });
+          if (proposedTool) msgs.push({ role: 'bot', isTxCard: true, tool: proposedTool });
           return msgs;
         });
       } else {
@@ -324,9 +394,22 @@ const OppyChat = () => {
     console.log('[OppyChat] Transaction requested:', tool);
 
     try {
+      if (tool.name === 'browseJobs') {
+        navigate('/browse-jobs');
+        return { navigated: true };
+      }
+      if (tool.name === 'openJob') {
+        navigate(`/job-details/${encodeURIComponent(tool.params.jobId)}`);
+        return { navigated: true };
+      }
+      if (tool.name === 'viewApplications') {
+        navigate(`/view-job-applications/${encodeURIComponent(tool.params.jobId)}`);
+        return { navigated: true };
+      }
+
       if (!window.ethereum) {
-        addBotMessage('Please install MetaMask to execute transactions.');
-        return;
+        addBotMessage('Please install MetaMask to use wallet-backed job actions.');
+        return { error: 'Wallet unavailable' };
       }
 
       const accounts = await window.ethereum.request({ method: 'eth_accounts' });
@@ -336,7 +419,41 @@ const OppyChat = () => {
 
       if (!userAddress) {
         addBotMessage('Please connect your wallet first.');
-        return;
+        return { error: 'Wallet not connected' };
+      }
+
+      if (tool.name === 'openMyJobs') {
+        navigate(`/profile/${userAddress}/jobs`);
+        return { navigated: true };
+      }
+
+      const reviewOnPostingChain = async (path) => {
+        const postingChainId = extractChainIdFromJobId(tool.params.jobId);
+        if (postingChainId && postingChainId !== chainIdDecimal) {
+          const postingChain = getChainConfig(postingChainId);
+          addBotMessage(`Switching to ${postingChain?.name || `chain ${postingChainId}`} for the canonical review…`);
+          await switchToChain(postingChainId);
+          await detectWallet();
+        }
+        navigate(path);
+        return { navigated: true };
+      };
+
+      if (tool.name === 'releasePayment') {
+        return reviewOnPostingChain(`/release-payment/${encodeURIComponent(tool.params.jobId)}`);
+      }
+      if (tool.name === 'raiseDispute') {
+        return reviewOnPostingChain(`/raise-dispute/${encodeURIComponent(tool.params.jobId)}`);
+      }
+      if (tool.name === 'startDirectContract') {
+        const dcParams = new URLSearchParams({
+          title: tool.params.title || '',
+          description: tool.params.description || '',
+          budget: String(tool.params.budget || ''),
+          taker: tool.params.jobTaker || '',
+        });
+        navigate(`/direct-contract?${dcParams.toString()}`);
+        return { navigated: true };
       }
 
       const onStatus = (msg) => addBotMessage(msg, true);
@@ -347,25 +464,6 @@ const OppyChat = () => {
         chainIdDecimal === 50    ? 'https://xdcscan.com/tx/' :
         chainIdDecimal === 8453  ? 'https://basescan.org/tx/' :
                                    'https://etherscan.io/tx/';
-
-      // ── Helper: USDC approval ──────────────────────────────
-      const ensureUSDCApproval = async (spender, amountUSDC) => {
-        const config = getChainConfig(chainIdDecimal);
-        if (!config?.contracts?.usdc) return;
-        const usdcABI = [
-          { inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], name: 'approve', outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable', type: 'function' },
-          { inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], name: 'allowance', outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' }
-        ];
-        const Web3 = (await import('web3')).default;
-        const web3 = new Web3(window.ethereum);
-        const usdc = new web3.eth.Contract(usdcABI, config.contracts.usdc);
-        const allowance = BigInt(await usdc.methods.allowance(userAddress, spender).call());
-        const needed = BigInt(amountUSDC);
-        if (allowance < needed) {
-          addBotMessage('Approving USDC — confirm in MetaMask…', true);
-          await usdc.methods.approve(spender, needed.toString()).send({ from: userAddress, gas: 100000 });
-        }
-      };
 
       // ── Helper: IPFS upload ────────────────────────────────
       const uploadToIPFS = async (data) => {
@@ -386,19 +484,29 @@ const OppyChat = () => {
         case 'postJob': {
           addBotMessage('Uploading job details to IPFS…');
           const budget = Number(tool.params.budget) || 0;
-          const milestones = tool.params.milestones || [{ description: 'Full payment', amount: budget }];
-
-          // Upload job header to IPFS
-          const jobDetailHash = await uploadToIPFS({ title: tool.params.title, description: tool.params.description, budget });
+          const milestones = (tool.params.milestones || [{ description: tool.params.description, amount: budget }])
+            .map((milestone, index) => ({
+              title: milestone.title || `Milestone ${index + 1}`,
+              content: milestone.content || milestone.description,
+              description: milestone.description,
+              amount: Number(milestone.amount),
+            }));
 
           // Upload each milestone description to IPFS
-          const milestoneHashes = await Promise.all(milestones.map(m => uploadToIPFS({ description: m.description || m.title || 'Milestone', amount: m.amount })));
-          const milestoneAmounts = milestones.map(m => Math.floor((m.amount || 0) * 1000000)); // 6 decimals
-
-          // Approve USDC to LOWJC contract
-          const totalUSDC = milestoneAmounts.reduce((a, b) => a + b, 0);
-          const lowjcAddress = getContractAddress(chainIdDecimal, 'lowjc');
-          if (lowjcAddress && totalUSDC > 0) await ensureUSDCApproval(lowjcAddress, totalUSDC);
+          const milestoneHashes = await Promise.all(milestones.map((milestone) => uploadToIPFS(milestone)));
+          const milestoneAmounts = milestones.map((milestone) => Math.floor(milestone.amount * 1000000));
+          const jobDetailHash = await uploadToIPFS({
+            title: tool.params.title,
+            description: tool.params.description,
+            skills: tool.params.skills || [],
+            milestoneType: milestones.length === 1 ? 'Single Milestone' : 'Multiple Milestones',
+            milestones,
+            milestoneHashes,
+            attachments: [],
+            totalCompensation: milestoneAmounts.reduce((sum, amount) => sum + amount, 0) / 1000000,
+            jobGiver: userAddress,
+            timestamp: new Date().toISOString(),
+          });
 
           result = await postJob(chainIdDecimal, userAddress, {
             jobDetailHash,
@@ -409,12 +517,8 @@ const OppyChat = () => {
         }
 
         case 'applyToJob': {
-          addBotMessage('Uploading proposal to IPFS…');
-          const applicationHash = await uploadToIPFS({ proposal: tool.params.proposal, jobId: tool.params.jobId });
-          // Upload a single milestone hash for the application
-          const appMilestoneHash = await uploadToIPFS({ description: tool.params.proposal });
-
-          // Determine amounts: use proposedAmount param, fallback to job milestones, then 1 USDC
+          // Determine amounts: use the explicit proposal, or the canonical job milestones.
+          // Never invent a payment amount if the read fails.
           let applyAmounts;
           if (tool.params.proposedAmount && Number(tool.params.proposedAmount) > 0) {
             applyAmounts = [Math.round(Number(tool.params.proposedAmount) * 1e6)];
@@ -430,23 +534,44 @@ const OppyChat = () => {
               const genesisContract = new arbWeb3.eth.Contract(GenesisABI, genesisAddress);
               const jobData = await genesisContract.methods.getJob(tool.params.jobId).call();
               const milestones = jobData?.milestonePayments || jobData[6] || [];
-              if (milestones.length > 0) {
-                applyAmounts = milestones.map(m => Number(m.amount || m[1] || 0));
-              } else {
-                applyAmounts = [1000000]; // 1 USDC fallback
+              if (!milestones.length) throw new Error('The job has no canonical milestone amounts');
+              applyAmounts = milestones.map((milestone) => Number(milestone.amount || milestone[1] || 0));
+              if (applyAmounts.some((amount) => !Number.isFinite(amount) || amount <= 0)) {
+                throw new Error('The job contains an invalid canonical milestone amount');
               }
             } catch (e) {
               console.warn('[applyToJob] Could not fetch job milestones:', e.message);
-              applyAmounts = [1000000]; // 1 USDC fallback
+              throw new Error(`Could not load the job's milestone amounts: ${e.message}`);
             }
           }
+
+          addBotMessage('Uploading proposal and milestones to IPFS…', true);
+          const proposedMilestones = applyAmounts.map((amount, index) => ({
+            title: `Milestone ${index + 1}`,
+            content: tool.params.proposal,
+            description: tool.params.proposal,
+            amount: amount / 1000000,
+          }));
+          const milestoneHashes = await Promise.all(proposedMilestones.map((milestone) => uploadToIPFS(milestone)));
+          const chainConfig = getChainConfig(chainIdDecimal);
+          const applicationHash = await uploadToIPFS({
+            description: tool.params.proposal,
+            applicant: userAddress,
+            jobId: tool.params.jobId,
+            milestones: proposedMilestones,
+            attachments: [],
+            preferredChain: chainConfig?.name,
+            appliedFromChain: chainConfig?.name,
+            appliedFromChainId: chainIdDecimal,
+            timestamp: new Date().toISOString(),
+          });
 
           result = await applyToJob(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
             applicationHash,
-            descriptions: [appMilestoneHash],
+            descriptions: milestoneHashes,
             amounts: applyAmounts,
-            preferredChainDomain: tool.params.preferredChainDomain || 3, // default Arbitrum CCTP domain
+            preferredChainDomain: chainConfig?.cctpDomain,
           }, onStatus);
           break;
         }
@@ -467,7 +592,8 @@ const OppyChat = () => {
               const arbWeb3 = new Web3(arbRpc);
               const genesisContract = new arbWeb3.eth.Contract(GenesisABI, genesisAddress);
               const appCount = Number(await genesisContract.methods.getJobApplicationCount(tool.params.jobId).call());
-              for (let i = 0; i < appCount; i++) {
+              // Genesis application IDs are 1-indexed.
+              for (let i = 1; i <= appCount; i++) {
                 const app = await genesisContract.methods.getJobApplication(tool.params.jobId, i).call();
                 const appApplicant = app?.applicant || app[2];
                 if (appApplicant && appApplicant.toLowerCase() === applicantAddress.toLowerCase()) {
@@ -478,24 +604,30 @@ const OppyChat = () => {
               if (resolvedApplicationId === undefined || resolvedApplicationId === null) {
                 throw new Error(`No application found for ${applicantAddress} on job ${tool.params.jobId}`);
               }
-              addBotMessage(`Found application ID: ${resolvedApplicationId}. Starting job…`, true);
+              addBotMessage(`Found application ID: ${resolvedApplicationId}. Opening the canonical hiring review…`, true);
             } catch (e) {
               addBotMessage(`Could not auto-lookup application ID: ${e.message}`);
-              return { txHash: null };
+              return { error: e.message };
             }
           }
 
           if (resolvedApplicationId === undefined || resolvedApplicationId === null) {
             addBotMessage('Please provide the applicant\'s wallet address so I can look up their application.');
-            return { txHash: null };
+            return { error: 'Application not found' };
           }
 
-          result = await startJob(chainIdDecimal, userAddress, {
+          const postingChainId = extractChainIdFromJobId(tool.params.jobId);
+          if (postingChainId && postingChainId !== chainIdDecimal) {
+            await switchToChain(postingChainId);
+            await detectWallet();
+          }
+          const startParams = new URLSearchParams({
             jobId: tool.params.jobId,
-            applicationId: resolvedApplicationId,
-            useAppMilestones: tool.params.useAppMilestones || false,
-          }, onStatus);
-          break;
+            applicationId: String(resolvedApplicationId),
+            useAppMilestones: String(tool.params.useAppMilestones === true),
+          });
+          navigate(`/view-received-application?${startParams.toString()}`);
+          return { navigated: true };
         }
 
         case 'submitWork': {
@@ -506,22 +638,6 @@ const OppyChat = () => {
             submissionHash,
           }, onStatus);
           break;
-        }
-
-        case 'releasePayment': {
-          result = await releasePaymentCrossChain(chainIdDecimal, userAddress, {
-            jobId: tool.params.jobId,
-            // For cross-chain, these are needed; for native Arb they're ignored
-            targetChainDomain: tool.params.targetChainDomain,
-            targetRecipient: tool.params.targetRecipient,
-          }, onStatus);
-          break;
-        }
-
-        case 'raiseDispute': {
-          addBotMessage('Opening the dispute form so you can choose the oracle, fee, amount, and evidence…');
-          setTimeout(() => navigate(`/raise-dispute/${tool.params.jobId}`), 1200);
-          return;
         }
 
         case 'createProfile': {
@@ -538,23 +654,12 @@ const OppyChat = () => {
           break;
         }
 
-        case 'startDirectContract': {
-          addBotMessage('Opening the direct contract form with your details pre-filled…');
-          const dcParams = new URLSearchParams({
-            title: tool.params.title || '',
-            description: tool.params.description || '',
-            budget: tool.params.budget || '',
-            taker: tool.params.jobTaker || tool.params.taker || '',
-          });
-          setTimeout(() => navigate(`/direct-contract?${dcParams.toString()}`), 1200);
-          return;
-        }
-
         default:
           addBotMessage(`Unknown transaction type: ${tool.name}`);
-          return;
+          return { error: 'Unknown action' };
       }
 
+      if (!result?.transactionHash) throw new Error('The wallet action did not return a transaction hash');
       addBotMessage(`✅ Transaction confirmed!\n\n[View on explorer](${explorerBase}${result.transactionHash})`);
       return { txHash: result.transactionHash };
 
@@ -563,11 +668,12 @@ const OppyChat = () => {
       if (msg.includes('user rejected') || msg.includes('4001')) {
         addBotMessage("Transaction cancelled. Let me know when you're ready to try again.");
       } else if (msg.includes('insufficient funds')) {
-        addBotMessage("You don't have enough ETH for gas fees. You'll need a small amount of ETH on the connected chain.");
+        const nativeSymbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
+        addBotMessage(`You don't have enough ${nativeSymbol} for gas fees on the connected chain.`);
       } else {
         addBotMessage(`Transaction failed: ${msg}`);
       }
-      return { txHash: null };
+      return { error: msg };
     }
   };
 
@@ -580,31 +686,12 @@ const OppyChat = () => {
     }
   };
 
-  const handleSwitchChain = async () => {
+  const handleSwitchChain = async (targetChainId = 42161) => {
     try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0xa4b1' }],
-      });
+      await switchToChain(targetChainId);
+      await detectWallet();
     } catch (switchError) {
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0xa4b1',
-              chainName: 'Arbitrum One',
-              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-              blockExplorerUrls: ['https://arbiscan.io'],
-            }],
-          });
-        } catch (addError) {
-          console.error('[OppyChat] Add Arbitrum chain error:', addError);
-        }
-      } else {
-        console.error('[OppyChat] Switch chain error:', switchError);
-      }
+      console.error('[OppyChat] Switch chain error:', switchError);
     }
   };
 
@@ -645,8 +732,8 @@ const OppyChat = () => {
               <Bot size={18} color="#fff" />
             </div>
             <div className="oppy-chat-header-text">
-              <span className="oppy-chat-title">OpenWork AI</span>
-              <span className="oppy-chat-subtitle">Ask anything · Execute transactions</span>
+              <span className="oppy-chat-title">Agent Oppy</span>
+              <span className="oppy-chat-subtitle">Bedrock job management · review before signing</span>
             </div>
           </div>
         </div>
@@ -662,6 +749,7 @@ const OppyChat = () => {
                   <div className="chat-msg-row bot" key={idx}>
                     <TransactionCard
                       tool={msg.tool}
+                      walletState={walletState}
                       onConfirm={handleTransaction}
                       onCancel={() => handleCancelTx(idx)}
                     />

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquare, Send, ShieldCheck } from 'lucide-react';
-import { buildOppyContext, FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
+import { Link } from 'react-router-dom';
+import { FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -44,7 +45,7 @@ export default function OppyPanel({ registry }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
-          context: buildOppyContext(userMessage),
+          mode: 'docs',
           history,
         }),
       });
@@ -80,7 +81,11 @@ export default function OppyPanel({ registry }) {
             legacy addresses or source-default fee claims.
           </p>
         </div>
-        <span className="public-docs-oppy__trust"><ShieldCheck aria-hidden="true" /> Registry grounded</span>
+        <div className="public-docs-oppy__actions">
+          <span className="public-docs-oppy__trust"><ShieldCheck aria-hidden="true" /> Bedrock · registry grounded</span>
+          <Link to="/oppy">Open full-screen Oppy</Link>
+          <Link to="/chat">Manage jobs</Link>
+        </div>
       </header>
 
       <div className="public-docs-oppy__workspace">

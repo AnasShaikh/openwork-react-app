@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { buildOppyContext, FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
+import { FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
 import './AgentOppy.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -40,8 +40,6 @@ const AgentOppy = () => {
     setChat(prev => [...prev, { role: 'oppy', text: 'Thinking...', isThinking: true }]);
 
     try {
-      const systemContext = buildOppyContext(userMsg);
-
       // Build history from existing chat (exclude thinking messages and initial greeting)
       const history = chat
         .filter(msg => !msg.isThinking)
@@ -53,7 +51,7 @@ const AgentOppy = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMsg,
-          context: systemContext,
+          mode: 'docs',
           history
         })
       });
@@ -117,7 +115,7 @@ const AgentOppy = () => {
         </div>
         <div className="oppy-header-status">
           <span className="oppy-status-dot"></span>
-          <span className="oppy-status-text">Online</span>
+          <span className="oppy-status-text">Bedrock online</span>
         </div>
       </header>
 
@@ -192,7 +190,11 @@ const AgentOppy = () => {
             <Send size={18} />
           </button>
         </form>
-        <p className="oppy-disclaimer">Powered by Gemini AI. Answers may not always be accurate.</p>
+        <div className="oppy-footer-actions">
+          <button type="button" onClick={() => navigate('/docs')}>Open production docs</button>
+          <button type="button" onClick={() => navigate('/chat')}>Manage jobs with Oppy</button>
+        </div>
+        <p className="oppy-disclaimer">Powered by Claude on Amazon Bedrock. Review all wallet actions before signing.</p>
       </div>
     </div>
   );

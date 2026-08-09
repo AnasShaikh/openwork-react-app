@@ -570,6 +570,22 @@
 
 .public-docs-oppy__trust svg { height: 12px; width: 12px; }
 
+.public-docs-oppy__actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.public-docs-oppy__actions a {
+  color: #3157d8;
+  font-size: 9px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.public-docs-oppy__actions a:hover { text-decoration: underline; }
+
 .public-docs-oppy__workspace {
   display: grid;
   gap: 12px;
@@ -998,7 +1014,7 @@
   .public-docs-flow-legend { align-items: flex-start; flex-direction: column; gap: 6px; }
 
   .public-docs-oppy__intro { grid-template-columns: 42px minmax(0, 1fr); }
-  .public-docs-oppy__trust { grid-column: 1 / -1; justify-self: start; }
+  .public-docs-oppy__actions { align-items: flex-start; grid-column: 1 / -1; }
   .public-docs-oppy__workspace { grid-template-columns: 1fr; }
   .public-docs-oppy__suggestions { flex-direction: row; overflow-x: auto; }
   .public-docs-oppy__suggestions > span { align-self: center; flex: 0 0 auto; }
