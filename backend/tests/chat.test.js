@@ -131,6 +131,8 @@ test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS
   assert.equal(commandInput.modelId, DEFAULT_MODEL_ID);
   assert.equal(commandInput.messages.length, 13);
   assert.equal(commandInput.system[0].text, 'Grounded prompt');
+  assert.equal(commandInput.inferenceConfig.temperature, 0.2);
+  assert.equal(commandInput.inferenceConfig.topP, undefined);
   assert.ok(commandInput.toolConfig.tools.length >= 10);
   assert.deepEqual(result.usage, { inputTokens: 10, outputTokens: 2, totalTokens: 12 });
   assert.equal(normalizeHistory(history).length, 12);

@@ -77,7 +77,6 @@ async function converse({ message, history, systemPrompt, allowTools = false, cl
     inferenceConfig: {
       temperature: 0.2,
       maxTokens: Number(process.env.BEDROCK_MAX_TOKENS || 1400),
-      topP: 0.9,
     },
   };
   if (allowTools) commandInput.toolConfig = { tools: BEDROCK_TRANSACTION_TOOLS };
