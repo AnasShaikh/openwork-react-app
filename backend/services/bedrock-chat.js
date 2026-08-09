@@ -6,7 +6,7 @@ const {
 } = require('@aws-sdk/client-bedrock-runtime');
 const { BEDROCK_TRANSACTION_TOOLS, validateToolUse } = require('./chat-tools');
 
-const DEFAULT_MODEL_ID = 'us.anthropic.claude-sonnet-5';
+const DEFAULT_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
 const DEFAULT_REGION = 'us-east-1';
 
 let sharedClient;

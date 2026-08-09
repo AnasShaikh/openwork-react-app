@@ -51,13 +51,13 @@ test('complex value-moving actions use canonical review screens', () => {
   assert.match(chat, /`\/direct-contract\?\$\{dcParams\.toString\(\)\}`/);
 });
 
-test('App Runner Bedrock permissions are Sonnet 5 only and contain no static credentials', () => {
-  const policy = JSON.parse(source('infra/app-runner/bedrock-sonnet-5-policy.json'));
+test('App Runner Bedrock permissions are Sonnet 4.6 only and contain no static credentials', () => {
+  const policy = JSON.parse(source('infra/app-runner/bedrock-sonnet-4-6-policy.json'));
   const resources = policy.Statement.flatMap((statement) => statement.Resource);
   assert.ok(resources.includes(
-    'arn:aws:bedrock:us-east-1:256309399568:inference-profile/us.anthropic.claude-sonnet-5',
+    'arn:aws:bedrock:us-east-1:256309399568:inference-profile/us.anthropic.claude-sonnet-4-6',
   ));
-  assert.ok(resources.every((resource) => resource.includes('anthropic.claude-sonnet-5')));
+  assert.ok(resources.every((resource) => resource.includes('anthropic.claude-sonnet-4-6')));
   assert.equal(resources.some((resource) => resource.includes('*')), false);
   assert.doesNotMatch(source('backend/services/bedrock-chat.js'), /accessKeyId|secretAccessKey/);
 });

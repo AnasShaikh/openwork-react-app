@@ -69,7 +69,7 @@ ENABLE_MAINNET_TEST_ROUTES=false
 
 # Agent Oppy uses Bedrock through the runtime's AWS role (no static AWS keys)
 AWS_REGION=us-east-1
-BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-5
+BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-6
 BEDROCK_MAX_TOKENS=1400
 CHAT_REQUESTS_PER_MINUTE=12
 CHAT_MAX_CONCURRENT_REQUESTS=20
@@ -80,7 +80,7 @@ CHAT_MAX_CONCURRENT_REQUESTS=20
 - **RPC URLs**: Use reliable providers (Infura, Alchemy, etc.) with high rate limits
 - **Private Key**: NEVER commit your `.env` file to git
 - **Agent Oppy**: In AWS, grant the runtime role only the policy in
-  `infra/app-runner/bedrock-sonnet-5-policy.json`. Do not configure static AWS access keys.
+  `infra/app-runner/bedrock-sonnet-4-6-policy.json`. Do not configure static AWS access keys.
 
 ## 🚀 Running the Server
 

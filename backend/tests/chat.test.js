@@ -103,7 +103,7 @@ test('Bedrock response extraction exposes only validated native tools', () => {
   assert.deepEqual(extracted.params, { jobId: '42161-24' });
 });
 
-test('Bedrock uses the Sonnet 5 inference profile and the default AWS credential chain', async () => {
+test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS credential chain', async () => {
   let commandInput;
   const history = Array.from({ length: 20 }, (_, index) => ({
     role: index % 2 === 0 ? 'user' : 'oppy',
@@ -127,7 +127,7 @@ test('Bedrock uses the Sonnet 5 inference profile and the default AWS credential
     client,
   });
 
-  assert.equal(DEFAULT_MODEL_ID, 'us.anthropic.claude-sonnet-5');
+  assert.equal(DEFAULT_MODEL_ID, 'us.anthropic.claude-sonnet-4-6');
   assert.equal(commandInput.modelId, DEFAULT_MODEL_ID);
   assert.equal(commandInput.messages.length, 13);
   assert.equal(commandInput.system[0].text, 'Grounded prompt');
