@@ -9,6 +9,8 @@ const SUPPORTED_JOB_CHAINS = new Map([
   [50, 'XDC Network'],
 ]);
 
+const EVM_ADDRESS_PATTERN = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g;
+
 const contractRows = registry.chains.flatMap((chain) => (
   chain.contracts.map((contract) => ({ ...contract, chain }))
 ));
@@ -128,6 +130,34 @@ function sanitizeWalletState(wallet = {}) {
   };
 }
 
+function extractEvmAddressFacts(message, history = []) {
+  const userTexts = Array.isArray(history)
+    ? history
+      .filter((entry) => entry?.role === 'user')
+      .map((entry) => (typeof entry?.text === 'string' ? entry.text : ''))
+    : [];
+  const candidates = [String(message || ''), ...userTexts]
+    .flatMap((text) => text.match(EVM_ADDRESS_PATTERN) || []);
+  const seen = new Set();
+
+  return candidates.filter((address) => {
+    const key = address.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function addressFactsContext(addresses = []) {
+  if (!addresses.length) return '';
+
+  return `\n\n## SERVER-VALIDATED EVM ADDRESS FACTS
+The application validated these addresses with an exact structural check before invoking you:
+${addresses.map((address) => `- \`${address}\` is a valid EVM address: exactly 42 characters total, consisting of \`0x\` followed by exactly 40 hexadecimal characters.`).join('\n')}
+
+These facts are authoritative. Preserve each listed address verbatim. Do not recount it, reject it for length, claim it has 41 hexadecimal characters, or suggest removing a character. If the user is preparing a direct contract, use the applicable listed address as the \`jobTaker\` and ask only for other genuinely missing inputs.`;
+}
+
 function buildDocsSystemPrompt(message) {
   return `You are Agent Oppy, OpenWork's public production documentation assistant.
 
@@ -140,6 +170,9 @@ ${registryContext(message)}`;
 
 function buildTransactionSystemPrompt(message, walletInput, runtimeContext = {}) {
   const wallet = sanitizeWalletState(walletInput);
+  const validatedAddresses = Array.isArray(runtimeContext.validatedAddresses)
+    ? runtimeContext.validatedAddresses
+    : extractEvmAddressFacts(message);
   const walletSummary = wallet.connected
     ? `Connected wallet ${wallet.address} on ${wallet.chainName} (chain ID ${wallet.chainId}); supported job chain: ${wallet.supported ? 'yes' : 'no'}.`
     : `No connected wallet was supplied. Chain ID: ${wallet.chainId ?? 'unknown'} (${wallet.chainName}).`;
@@ -156,6 +189,7 @@ Safety rules:
 - Starting a job can require an exact first-milestone USDC approval and must use the job's posting chain.
 - Releasing payment must use the job's posting chain and may require LayerZero/CCTP delivery after the source receipt.
 - Do not infer a recipient address, job ID, amount, chain or application from incomplete text.
+- Server-validated EVM address facts are authoritative. Never replace them with your own character count or checksum guess.
 - Treat the supplied active job as the referent for “this job”, “that job”, “it” and similar follow-ups unless the user explicitly names another job.
 - If the user explicitly asks for their XDC job and the active job is not XDC, use the first XDC job in the supplied recent canonical history only when it is unambiguous; otherwise ask which XDC job.
 - A source-confirmed XDC/Optimism post can be remembered before it reaches Genesis, but describe canonical delivery as pending until the Genesis read contains that job ID.
@@ -169,7 +203,7 @@ ${deployedCodeContext(message)}
 
 ${formatJobContext(runtimeContext.jobContext)}
 
-${registryContext(message)}`;
+${registryContext(message)}${addressFactsContext(validatedAddresses)}`;
 }
 
 module.exports = {
@@ -177,6 +211,7 @@ module.exports = {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
   deployedCodeContext,
+  extractEvmAddressFacts,
   registryContext,
   sanitizeWalletState,
   selectContracts,

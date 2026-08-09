@@ -8,6 +8,7 @@ const { validateRequest } = require('../routes/chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
+  extractEvmAddressFacts,
   sanitizeWalletState,
 } = require('../services/oppy-context');
 const { sanitizeConversationMemory } = require('../services/oppy-job-context');
@@ -81,6 +82,30 @@ test('server prompts are registry grounded and preserve transaction safety rules
   assert.match(txPrompt, /“this job”, “that job”, “it”/);
 });
 
+test('server validates exact EVM addresses before Oppy interprets them', () => {
+  const address = '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724';
+  const addresses = extractEvmAddressFacts(`Let's post a direct job with ${address}`, [
+    { role: 'oppy', text: `${address} is invalid` },
+    { role: 'user', text: `Use ${address}` },
+  ]);
+  assert.deepEqual(addresses, [address]);
+
+  const prompt = buildTransactionSystemPrompt(
+    `Let's post a direct job with ${address}`,
+    { chainId: 50 },
+    { validatedAddresses: addresses },
+  );
+  assert.match(prompt, new RegExp(address));
+  assert.match(prompt, /exactly 42 characters total/);
+  assert.match(prompt, /Do not recount it, reject it for length/);
+  assert.match(prompt, /use the applicable listed address as the `jobTaker`/);
+
+  assert.deepEqual(
+    extractEvmAddressFacts(`Invalid: ${address}f`),
+    [],
+  );
+});
+
 test('conversation memory keeps only bounded job and receipt context', () => {
   const memory = sanitizeConversationMemory({
     activeJob: {
@@ -126,6 +151,17 @@ test('native Bedrock tool calls are strictly validated', () => {
     name: 'startDirectContract',
     input: { title: 'Audit', budget: 10, description: 'Review', jobTaker: 'not-an-address' },
   }), null);
+  const validDirectContract = validateToolUse({
+    name: 'startDirectContract',
+    input: {
+      title: 'Audit',
+      budget: 0.25,
+      description: 'Review the application',
+      jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+    },
+  });
+  assert.equal(validDirectContract.name, 'startDirectContract');
+  assert.equal(validDirectContract.params.jobTaker, '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724');
   assert.equal(validateToolUse({
     name: 'releasePayment',
     input: { jobId: '../unsafe' },

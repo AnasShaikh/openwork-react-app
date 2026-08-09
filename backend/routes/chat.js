@@ -6,6 +6,7 @@ const { converse } = require('../services/bedrock-chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
+  extractEvmAddressFacts,
   sanitizeWalletState,
 } = require('../services/oppy-context');
 const {
@@ -65,7 +66,10 @@ router.post('/', async (req, res) => {
           recentTransactions: request.memory.recentTransactions,
         };
     const systemPrompt = transactionMode
-      ? buildTransactionSystemPrompt(request.message, request.wallet, { jobContext })
+      ? buildTransactionSystemPrompt(request.message, request.wallet, {
+          jobContext,
+          validatedAddresses: extractEvmAddressFacts(request.message, request.history),
+        })
       : buildDocsSystemPrompt(request.message);
 
     const result = await converse({
