@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Send, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BlueButton from '../../components/BlueButton/BlueButton';
+import CrossChainSyncStatus from '../../components/CrossChainSyncStatus/CrossChainSyncStatus';
 import {
   postJob,
   applyToJob,
@@ -748,7 +749,7 @@ const OppyChat = () => {
       }
       const jobCopy = confirmedJobId ? ` for job **${confirmedJobId}**` : '';
       const deliveryCopy = result.canonicalDeliveryPending
-        ? '\n\nThe source-chain receipt is confirmed. Canonical delivery to Arbitrum may still be in progress.'
+        ? '\n\nCross-chain sync tracking is active below. It will update automatically when Arbitrum Genesis records the job.'
         : '';
       addBotMessage(`✅ Transaction confirmed${jobCopy}!\n\n[View on explorer](${explorerBase}${result.transactionHash})${deliveryCopy}`);
       return { txHash: result.transactionHash, jobId: confirmedJobId };
@@ -870,6 +871,7 @@ const OppyChat = () => {
                 </div>
               );
             })}
+            <CrossChainSyncStatus activeJob={activeJob} />
             <div ref={messagesEndRef} />
           </div>
 

@@ -52,9 +52,16 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
 });
 
 test('explicit job IDs replace pronoun memory while ordinary follow-ups retain it', () => {
-  const xdc = activeJobFromMessage('release payment for 30365-6');
+  const sourceTxHash = `0x${'c'.repeat(64)}`;
+  const xdc = activeJobFromMessage('release payment for 30365-6', {
+    jobId: '30365-6',
+    sourceChainId: 50,
+    sourceTxHash,
+    sourceReceiptConfirmed: true,
+  });
   assert.equal(xdc.jobId, '30365-6');
   assert.equal(xdc.sourceChainId, 50);
+  assert.equal(xdc.sourceTxHash, sourceTxHash);
   assert.equal(activeJobFromMessage('release payment for this job', xdc).jobId, '30365-6');
   assert.equal(activeJobFromMessage('actually use 42161-27', xdc).jobId, '42161-27');
   assert.equal(jobChainFromId('30111-9').chainId, 10);

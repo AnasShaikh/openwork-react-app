@@ -99,10 +99,12 @@ export function activeJobFromMessage(message, currentActiveJob = null) {
   if (!explicitIds?.length) return sanitizeActiveJob(currentActiveJob);
   const jobId = explicitIds[explicitIds.length - 1];
   const inferredChain = jobChainFromId(jobId);
+  const retained = currentActiveJob?.jobId === jobId ? currentActiveJob : {};
   return sanitizeActiveJob({
+    ...retained,
     jobId,
-    sourceChainId: inferredChain?.chainId,
-    sourceChainName: inferredChain?.name,
+    sourceChainId: retained.sourceChainId || inferredChain?.chainId,
+    sourceChainName: retained.sourceChainName || inferredChain?.name,
   });
 }
 

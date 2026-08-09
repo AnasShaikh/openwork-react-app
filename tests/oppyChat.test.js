@@ -93,6 +93,20 @@ test('transaction chat persists conversation, active job and confirmed source re
   assert.match(dockerfile, /COPY src\/ABIs\/genesis_ABI\.json src\/ABIs\/genesis_helper_ABI\.json \/app\/src\/ABIs\//);
 });
 
+test('cross-chain posts show a live source, LayerZero and Arbitrum Genesis tracker', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const tracker = source('src/components/CrossChainSyncStatus/CrossChainSyncStatus.jsx');
+  const service = source('src/services/crossChainSyncService.js');
+
+  assert.match(chat, /<CrossChainSyncStatus activeJob=\{activeJob\} \/>/);
+  assert.match(chat, /Cross-chain sync tracking is active below/);
+  assert.match(tracker, /LayerZero delivery/);
+  assert.match(tracker, /Arbitrum Genesis/);
+  assert.match(tracker, /Canonical job available/);
+  assert.match(service, /jobExists\(activeJob\.jobId\)\.call\(\)/);
+  assert.match(service, /layerzeroscan\.com\/tx/);
+});
+
 test('mobile Oppy review cards cannot inherit the legacy 1200px page minimum', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const styles = source('src/pages/OppyChat/OppyChat.css');
