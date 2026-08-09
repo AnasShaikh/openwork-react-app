@@ -51,6 +51,15 @@ test('complex value-moving actions use canonical review screens', () => {
   assert.match(chat, /`\/direct-contract\?\$\{dcParams\.toString\(\)\}`/);
 });
 
+test('mobile Oppy review cards cannot inherit the legacy 1200px page minimum', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const styles = source('src/pages/OppyChat/OppyChat.css');
+
+  assert.match(styles, /\.oppy-chat-page \.view-jobs-container \{[\s\S]*?min-width: 0 !important;/);
+  assert.match(styles, /\.tx-card \{[\s\S]*?max-width: 100%;[\s\S]*?min-width: 0;[\s\S]*?width: 100%;/);
+  assert.match(chat, /const mobVjc\s*=.*minWidth:0/);
+});
+
 test('App Runner Bedrock permissions are Sonnet 4.6 only and contain no static credentials', () => {
   const policy = JSON.parse(source('infra/app-runner/bedrock-sonnet-4-6-policy.json'));
   const resources = policy.Statement.flatMap((statement) => statement.Resource);

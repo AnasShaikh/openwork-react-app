@@ -269,6 +269,7 @@
   .oppy-chat-page .view-jobs-container {
     top: 0 !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     margin: 0 !important;
     flex: 1;
     display: flex;
@@ -308,6 +309,8 @@
     border-bottom: none;
     overflow: visible; /* don't clip send button */
     min-height: 0;
+    min-width: 0;
+    width: 100%;
   }
 
   /* Chat header */
@@ -328,7 +331,14 @@
     max-height: none !important;
     padding: 14px 14px 8px 14px;
     overflow-y: auto;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .chat-msg-row {
+    min-width: 0;
   }
 
   /* Wider bubbles */
@@ -382,7 +392,14 @@
   }
 
   /* Transaction card */
-  .tx-card { max-width: 100%; }
+  .tx-card {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+  }
+  .tx-param-row,
+  .tx-param-value { min-width: 0; }
   .tx-card-actions { flex-direction: column; align-items: stretch; }
   .tx-cancel-btn { text-align: center; }
 }
