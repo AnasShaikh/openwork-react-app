@@ -46,7 +46,7 @@ function normalizeHistory(history) {
   return normalized;
 }
 
-function extractResponse(message, allowTools) {
+function extractResponse(message, allowTools, allowedToolNames) {
   const content = Array.isArray(message?.content) ? message.content : [];
   const text = content
     .filter((block) => typeof block?.text === 'string')
@@ -55,13 +55,19 @@ function extractResponse(message, allowTools) {
     .join('\n\n');
   const toolBlock = allowTools ? content.find((block) => block?.toolUse) : null;
   const validatedTool = toolBlock ? validateToolUse(toolBlock.toolUse) : null;
+  const allowedNames = Array.isArray(allowedToolNames) && allowedToolNames.length
+    ? new Set(allowedToolNames)
+    : null;
+  const acceptedTool = validatedTool && (!allowedNames || allowedNames.has(validatedTool.name))
+    ? validatedTool
+    : null;
   return {
-    text: text || (validatedTool ? 'Review the proposed action below before continuing.' : 'Sorry, I could not generate a response.'),
-    tool: validatedTool,
+    text: text || (acceptedTool ? 'Review the proposed action below before continuing.' : 'Sorry, I could not generate a response.'),
+    tool: acceptedTool,
   };
 }
 
-async function converse({ message, history, systemPrompt, allowTools = false, client = getClient() }) {
+async function converse({ message, history, systemPrompt, allowTools = false, allowedToolNames, client = getClient() }) {
   const modelId = process.env.BEDROCK_MODEL_ID || DEFAULT_MODEL_ID;
   const messages = normalizeHistory(history);
   const previous = messages[messages.length - 1];
@@ -80,10 +86,18 @@ async function converse({ message, history, systemPrompt, allowTools = false, cl
       maxTokens: Number(process.env.BEDROCK_MAX_TOKENS || 1400),
     },
   };
-  if (allowTools) commandInput.toolConfig = { tools: BEDROCK_TRANSACTION_TOOLS };
+  if (allowTools) {
+    const allowedNames = Array.isArray(allowedToolNames) && allowedToolNames.length
+      ? new Set(allowedToolNames)
+      : null;
+    const tools = allowedNames
+      ? BEDROCK_TRANSACTION_TOOLS.filter((entry) => allowedNames.has(entry.toolSpec.name))
+      : BEDROCK_TRANSACTION_TOOLS;
+    if (tools.length) commandInput.toolConfig = { tools };
+  }
 
   const response = await client.send(new ConverseCommand(commandInput));
-  const extracted = extractResponse(response.output?.message, allowTools);
+  const extracted = extractResponse(response.output?.message, allowTools, allowedToolNames);
   return {
     ...extracted,
     modelId,

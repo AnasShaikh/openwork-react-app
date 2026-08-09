@@ -11,6 +11,27 @@ const SUPPORTED_JOB_CHAINS = new Map([
 
 const EVM_ADDRESS_PATTERN = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g;
 
+const EXPLICIT_TOOL_INTENT_RULES = [
+  {
+    name: 'releasePayment',
+    pattern: /\b(?:release|pay out)\b[\s\S]{0,40}\b(?:payment|milestone|job)\b|\b(?:payment|milestone)\b[\s\S]{0,40}\brelease\b/i,
+  },
+  {
+    name: 'startDirectContract',
+    pattern: /\b(?:post|create|make|start|open|set up)\b[\s\S]{0,30}\bdirect\s+(?:job|contract)\b|\bhire\b[\s\S]{0,30}\bdirectly\b/i,
+  },
+  { name: 'postJob', pattern: /\b(?:post|create|publish)\s+(?:a\s+|the\s+)?job\b/i },
+  { name: 'applyToJob', pattern: /\bapply\s+(?:to|for)\s+(?:(?:a|the)\s+job|\d+-\d+)\b/i },
+  { name: 'submitWork', pattern: /\bsubmit\s+(?:the\s+)?work\b/i },
+  { name: 'raiseDispute', pattern: /\b(?:raise|open|start)\s+(?:a\s+|the\s+)?dispute\b/i },
+  { name: 'createProfile', pattern: /\b(?:create|set up|make)\s+(?:a\s+|my\s+)?profile\b/i },
+  { name: 'startJob', pattern: /\bstart\s+(?:the\s+)?job\b|\bhire\s+(?:the\s+)?applicant\b/i },
+  { name: 'viewApplications', pattern: /\b(?:view|show|open)\s+(?:the\s+)?applications\b/i },
+  { name: 'openMyJobs', pattern: /\b(?:check|show|open|view)\s+my\s+jobs\b/i },
+  { name: 'browseJobs', pattern: /\b(?:browse|find|show)\s+(?:available\s+|open\s+)?jobs\b/i },
+  { name: 'openJob', pattern: /\b(?:open|show|view)\s+(?:job\s+)?\d+-\d+\b/i },
+];
+
 const contractRows = registry.chains.flatMap((chain) => (
   chain.contracts.map((contract) => ({ ...contract, chain }))
 ));
@@ -148,6 +169,21 @@ function extractEvmAddressFacts(message, history = []) {
   });
 }
 
+function detectExplicitToolIntent(message) {
+  const text = String(message || '').trim();
+  if (!text) return null;
+  const matches = EXPLICIT_TOOL_INTENT_RULES
+    .filter((rule) => rule.pattern.test(text))
+    .map((rule) => rule.name);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function explicitToolIntentContext(toolName) {
+  if (!toolName) return '';
+  return `\n\n## SERVER-DETECTED CURRENT ACTION
+The user's current message explicitly requests \`${toolName}\`. This current-turn intent overrides any different action discussed earlier. You may call only \`${toolName}\` for this turn, or ask one concise question if a required input is genuinely missing. Never continue, reopen or substitute a tool from an older conversation turn.`;
+}
+
 function addressFactsContext(addresses = []) {
   if (!addresses.length) return '';
 
@@ -170,6 +206,7 @@ ${registryContext(message)}`;
 
 function buildTransactionSystemPrompt(message, walletInput, runtimeContext = {}) {
   const wallet = sanitizeWalletState(walletInput);
+  const explicitToolName = runtimeContext.explicitToolName || detectExplicitToolIntent(message);
   const validatedAddresses = Array.isArray(runtimeContext.validatedAddresses)
     ? runtimeContext.validatedAddresses
     : extractEvmAddressFacts(message);
@@ -203,13 +240,14 @@ ${deployedCodeContext(message)}
 
 ${formatJobContext(runtimeContext.jobContext)}
 
-${registryContext(message)}${addressFactsContext(validatedAddresses)}`;
+${registryContext(message)}${addressFactsContext(validatedAddresses)}${explicitToolIntentContext(explicitToolName)}`;
 }
 
 module.exports = {
   SUPPORTED_JOB_CHAINS,
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
+  detectExplicitToolIntent,
   deployedCodeContext,
   extractEvmAddressFacts,
   registryContext,

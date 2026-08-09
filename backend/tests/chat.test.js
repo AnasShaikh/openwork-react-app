@@ -8,6 +8,7 @@ const { validateRequest } = require('../routes/chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
+  detectExplicitToolIntent,
   extractEvmAddressFacts,
   sanitizeWalletState,
 } = require('../services/oppy-context');
@@ -106,6 +107,20 @@ test('server validates exact EVM addresses before Oppy interprets them', () => {
   );
 });
 
+test('the current explicit transaction intent overrides stale conversation actions', () => {
+  assert.equal(detectExplicitToolIntent('release payment for 30365-8'), 'releasePayment');
+  assert.equal(
+    detectExplicitToolIntent('Lets post a direct job with 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724'),
+    'startDirectContract',
+  );
+  assert.equal(detectExplicitToolIntent('post a job and then release payment'), null);
+
+  const prompt = buildTransactionSystemPrompt('release payment for 30365-8', { chainId: 50 });
+  assert.match(prompt, /explicitly requests `releasePayment`/);
+  assert.match(prompt, /overrides any different action discussed earlier/);
+  assert.match(prompt, /Never continue, reopen or substitute a tool from an older conversation turn/);
+});
+
 test('conversation memory keeps only bounded job and receipt context', () => {
   const memory = sanitizeConversationMemory({
     activeJob: {
@@ -181,6 +196,49 @@ test('Bedrock response extraction exposes only validated native tools', () => {
   assert.equal(extracted.kind, 'review');
   assert.equal(extracted.requiresWalletSignature, false);
   assert.deepEqual(extracted.params, { jobId: '42161-24' });
+  assert.equal(extractResponse({
+    content: [{ toolUse: {
+      name: 'startDirectContract',
+      input: {
+        title: 'Stale action',
+        budget: 1,
+        description: 'Must not be accepted',
+        jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+      },
+    } }],
+  }, true, ['releasePayment']).tool, null);
+});
+
+test('Bedrock receives only the tool matching an explicit current-turn action', async () => {
+  let commandInput;
+  const client = {
+    async send(command) {
+      commandInput = command.input;
+      return {
+        output: {
+          message: {
+            content: [{ toolUse: { name: 'releasePayment', input: { jobId: '30365-8' } } }],
+          },
+        },
+      };
+    },
+  };
+
+  const result = await converse({
+    message: 'release payment for 30365-8',
+    history: [
+      { role: 'user', text: 'Lets post a direct job' },
+      { role: 'oppy', text: 'I can open the direct contract form.' },
+    ],
+    systemPrompt: 'Current action is releasePayment.',
+    allowTools: true,
+    allowedToolNames: ['releasePayment'],
+    client,
+  });
+
+  assert.deepEqual(commandInput.toolConfig.tools.map((entry) => entry.toolSpec.name), ['releasePayment']);
+  assert.equal(result.tool.name, 'releasePayment');
+  assert.deepEqual(result.tool.params, { jobId: '30365-8' });
 });
 
 test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS credential chain', async () => {

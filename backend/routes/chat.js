@@ -6,6 +6,7 @@ const { converse } = require('../services/bedrock-chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
+  detectExplicitToolIntent,
   extractEvmAddressFacts,
   sanitizeWalletState,
 } = require('../services/oppy-context');
@@ -56,6 +57,7 @@ router.post('/', async (req, res) => {
   inFlightRequests += 1;
   try {
     const transactionMode = request.mode === 'transactions';
+    const explicitToolName = transactionMode ? detectExplicitToolIntent(request.message) : null;
     const jobContext = transactionMode && request.wallet.connected
       ? await getWalletJobContext(request.wallet.address, request.memory)
       : {
@@ -68,6 +70,7 @@ router.post('/', async (req, res) => {
     const systemPrompt = transactionMode
       ? buildTransactionSystemPrompt(request.message, request.wallet, {
           jobContext,
+          explicitToolName,
           validatedAddresses: extractEvmAddressFacts(request.message, request.history),
         })
       : buildDocsSystemPrompt(request.message);
@@ -77,6 +80,7 @@ router.post('/', async (req, res) => {
       history: request.history,
       systemPrompt,
       allowTools: transactionMode,
+      allowedToolNames: explicitToolName ? [explicitToolName] : undefined,
     });
 
     console.info('[chat] completed', {
