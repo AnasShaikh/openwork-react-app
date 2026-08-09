@@ -6,21 +6,57 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 9 August 2026 18:29 IST |
+| Deployed at | 9 August 2026 20:13 IST |
 | Git branch | `main` |
-| Git commit | `d29bff2c71e6f21d3b5a9b720f58fa183a4243bd` |
-| GitHub CI | frontend tests (`84/84`), backend tests (`37/37`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-d29bff2.zip` |
-| Source archive SHA-256 | `3b01e3769332eb7cbc73a2ea2addcbc96fc57542e19921357ad6566949d14114` |
-| CodeBuild | `openwork-react-app-prod-build:4c6b1c8f-d887-49e6-9384-f61b503004aa` — succeeded |
-| ECR image | `openwork-app:prod-d29bff2-20260809182048` |
-| ECR digest | `sha256:6619580160d582d9aef6d6ec537f4fb1c2bf45680bdb788bc8ccfca04f3b448e` |
+| Git commit | `02fd1a4fd848781ee09e4ac64d56384ef8c7218d` |
+| GitHub CI | run `31318750969` — frontend tests (`90/90`), backend tests (`43/43`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-02fd1a4.zip` |
+| Source archive SHA-256 | `6508ce4cadb18788bd98f407dc9774c1fdf6798c358b0b90b240a6ee4dd9d69d` |
+| CodeBuild | `openwork-react-app-prod-build:6b4dd947-f98a-4dca-9143-c65eb7c5f7a0` — succeeded |
+| ECR image | `openwork-app:prod-02fd1a4-20260809200344` |
+| ECR digest | `sha256:f6eb2486741ebd7d1378b8e5fefe7538569d037ca5804acad45b3469b0e97d0f` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `4378870a6b07435fa1c1b220bb75aff6` — succeeded |
+| App Runner operation | `66d53a6d60e444e0a4c9976720130eba` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-Xb5EdRmD.js` |
-| Rollback target | `openwork-app:prod-58c546a-20260807185813` |
-| Rollback digest | `sha256:fee58b3800062f26f2c7239103b69d8e42fe0c401c6ac95da6e438c1e85c684e` |
+| Deployed JS asset | `/assets/index-gGZIPkFj.js` — SHA-256 `fa773e8c9853350af242486d0e8b6f1488c8e4f3204924f49fa64024ec828c94` |
+| Rollback target | `openwork-app:prod-d29bff2-20260809182048` |
+| Rollback digest | `sha256:6619580160d582d9aef6d6ec537f4fb1c2bf45680bdb788bc8ccfca04f3b448e` |
+
+## Bedrock Agent Oppy and chat-based job management
+
+Agent Oppy is live in the `Agent Oppy` tab at `/docs`, as a full-screen
+documentation assistant at `/oppy`, and as a public job-management chat at `/chat`.
+The backend uses the App Runner instance role and the AWS default credential chain;
+no static AWS credential is present in the browser, image or repository configuration.
+The role can invoke only the selected Sonnet 4.6 inference profile and its three
+regional foundation-model resources.
+
+The Bedrock catalog reported Sonnet 5 as available and authorized, but a real invoke
+was rejected by AWS as sales-gated. A direct invoke of
+`us.anthropic.claude-sonnet-4-6` succeeded, so production explicitly uses that model.
+The chat endpoint has separate documentation and transaction prompts, a 2,000-character
+message limit, 12 requests per minute per IP, a 20-request process concurrency ceiling,
+bounded history and sanitized logs.
+
+Transaction chat supports Arbitrum, Optimism and XDC. Bedrock prepares validated action
+objects, but the server never signs or sends a wallet transaction. The browser presents
+the contract method, network and parameters for review before a wallet request. Posting
+a job does not approve, lock or transfer USDC. Application amounts fail closed rather
+than inventing a fallback, and payment release, dispute, start-job and direct-contract
+actions route into the existing canonical preflight/review screens.
+
+Post-deploy checks returned HTTP 200 for `/`, `/healthz`, `/docs`, `/oppy` and `/chat`.
+Live documentation and transaction requests both completed on Sonnet 4.6; the latter
+returned a validated `postJob` review object without executing it. Browser verification
+confirmed the docs tab, the public review card, no console warnings or errors, and no
+horizontal overflow at a 390px viewport. The final mobile regression prevents Oppy from
+inheriting the legacy global 1,200px minimum width. Deployment and verification sent no
+smart-contract transaction and changed no wallet, token balance or on-chain state.
+
+Two pre-existing backend operational alerts remain outside this release: no external
+database is configured for CCTP state persistence, and the Arbitrum service wallet
+`0x93514040f43aB16D52faAe7A3f380c4089D844F9` reported `0.000500 ETH`, below the
+listener's configured safety threshold.
 
 ## Job actions and complete profile history
 
