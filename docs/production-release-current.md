@@ -6,21 +6,49 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 9 August 2026 21:17 IST |
+| Deployed at | 10 August 2026 02:05 IST |
 | Git branch | `main` |
-| Git commit | `5b34bf6edec4789af58b74fac439854433b3b8cd` |
-| GitHub CI | run `31321668849` — frontend tests (`93/93`), backend tests (`43/43`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-5b34bf6.zip` |
-| Source archive SHA-256 | `a3e9aea73879ad8fdb6880894f31457db9a01bd973144ed79fd23bc9fb91e67d` |
-| CodeBuild | `openwork-react-app-prod-build:2d329989-db05-495b-b41c-4a5758f44e09` — succeeded |
-| ECR image | `openwork-app:prod-5b34bf6-20260809210925` |
-| ECR digest | `sha256:d2dd9c3aa9b2e8e8e83ec6190374a83033d02fa915e05f18faf0f666ef09e7c3` |
+| Git commit | `599148947b43c0f568a46b28dbb74086d985f57f` |
+| GitHub CI | run `31334099888` — frontend tests (`97/97`), backend tests (`47/47`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-5991489.zip` |
+| Source archive SHA-256 | `2061548cbe948ab3682c122464e53e79f0b687e48a14069f24ba7bb4bcad2f38` |
+| CodeBuild | `openwork-react-app-prod-build:bd8f316c-cb3f-41b7-8672-c752e3178690` — succeeded |
+| ECR image | `openwork-app:prod-5991489-20260809202352` |
+| ECR digest | `sha256:e322a697a515df833f2754c53a2653a3e06bfc1244524c6a9524bc0df739c10a` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `8f4a0842135741ac8ca4a130cefc7a15` — succeeded |
+| App Runner operation | `0a14b9d794794031a241332368e72ca5` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-DDxCHq30.js` — SHA-256 `7893cb77a7cdfc75d5c3a6f8068b94584a65e271e107884a47916a7381925128` |
-| Rollback target | `openwork-app:prod-cc8ecf3-20260809204102` |
-| Rollback digest | `sha256:4f3192ddb859a0a6a1b7018d48127c73ee04735d1b0603cf73be02e0297bead7` |
+| Deployed JS asset | `/assets/index-BFGssTdG.js` — SHA-256 `1c4578e874b1b942671508a39e9ab95fa8b3d2d8f03f77073e4c5c2b8d20f9a1` |
+| Rollback target | `openwork-app:prod-5b34bf6-20260809210925` |
+| Rollback digest | `sha256:d2dd9c3aa9b2e8e8e83ec6190374a83033d02fa915e05f18faf0f666ef09e7c3` |
+
+## Durable Oppy conversation, job and deployed-code context
+
+Oppy now retains up to 60 conversation messages per connected wallet in browser
+storage, sends the latest 24 safe messages to Bedrock and remembers the active job
+plus recent confirmed job transactions. A newly posted job is resolved from the
+contract counter and indexed event topic, so XDC and Optimism job IDs survive the
+source receipt while their LayerZero delivery to canonical Arbitrum state is still
+pending.
+
+The backend reads the connected wallet's complete canonical Genesis history across
+Open, In progress, Completed and Cancelled states, prioritizes the active job and
+recent receipts, and loads job titles from IPFS. Follow-ups such as “this XDC job”
+therefore resolve against explicit conversation memory and live job state instead of
+asking the user to re-enter a known ID. Lifecycle rules prevent Oppy from proposing a
+second payment release for a completed or cancelled job.
+
+Oppy's documentation and transaction prompts now include the exact deployed source
+paths, proxy and implementation addresses, source-chain job-ID prefixes and the
+LayerZero/CCTP/Arbitrum-Genesis state model. Production verification resolved active
+XDC job `30365-5` as “XDC Community Manager,” status Completed, nominal budget and
+paid amount `0.1 USDC`, and returned no release tool. A separate production code query
+identified the XDC Lite V3 source, live proxy and implementation, and canonical
+Arbitrum Genesis destination correctly.
+
+Public checks returned HTTP 200 for `/`, `/healthz`, `/docs`, `/oppy` and `/chat`.
+The deployed bundle contains the versioned Oppy memory store. The release made no
+wallet request, smart-contract transaction, token transfer or other on-chain write.
 
 ## Agent Oppy IPFS posting repair
 
