@@ -251,11 +251,12 @@ const OppyChat = () => {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const messagesArea = messagesEndRef.current?.parentElement;
+    if (messagesArea) messagesArea.scrollTop = messagesArea.scrollHeight;
   }, [chat]);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   // Wallet detection
@@ -702,10 +703,10 @@ const OppyChat = () => {
   // Inline styles guarantee mobile layout wins regardless of CSS import order
   const mob = typeof window !== 'undefined' && window.innerWidth <= 768;
 
-  const mobPage   = mob ? { position:'fixed', top:0, left:0, right:0, bottom:0, display:'flex', flexDirection:'column', background:'#fff', zIndex:1000, overflow:'hidden', width:'100vw', maxWidth:'100vw' } : {};
+  const mobPage   = mob ? { position:'fixed', top:0, left:0, right:0, bottom:0, display:'flex', flexDirection:'column', background:'#fff', zIndex:20000, overflow:'hidden', width:'100vw', maxWidth:'100vw', padding:0 } : {};
   const mobBody   = mob ? { padding:0, flex:1, display:'flex', flexDirection:'column', overflow:'hidden', width:'100vw', maxWidth:'100vw', alignItems:'stretch' } : {};
   const mobVjc    = mob ? { position:'relative', top:0, maxWidth:'100vw', minWidth:0, margin:0, flex:1, display:'flex', flexDirection:'column', overflow:'hidden', width:'100vw', boxSizing:'border-box' } : {};
-  const mobTitle  = mob ? { borderRadius:0, borderLeft:'none', borderRight:'none', borderTop:'none', height:52, minHeight:52, flexShrink:0, padding:'0 8px', width:'100%', boxSizing:'border-box' } : {};
+  const mobTitle  = mob ? { borderRadius:0, borderLeft:'none', borderRight:'none', borderTop:'none', height:64, minHeight:64, flexShrink:0, padding:'0 62px', width:'100%', boxSizing:'border-box' } : {};
   const mobCard   = mob ? { flex:1, display:'flex', flexDirection:'column', borderRadius:0, border:'none', overflow:'hidden', minHeight:0, minWidth:0, width:'100%', boxSizing:'border-box' } : {};
   const mobMsgs   = mob ? { flex:'1 1 0%', minHeight:0, minWidth:0, maxHeight:'none', padding:'14px 14px 8px 14px', overflowY:'auto', overflowX:'hidden', WebkitOverflowScrolling:'touch', width:'100%', boxSizing:'border-box' } : {};
   const mobInput  = mob ? { padding:'10px 12px 16px 12px', flexShrink:0, background:'#fff', display:'flex', alignItems:'center', gap:10, boxSizing:'border-box', width:'100%', maxWidth:'100vw', borderTop:'1.5px solid #f0f0f0' } : {};
@@ -720,13 +721,14 @@ const OppyChat = () => {
 
         {/* Title section */}
         <div className="title-section" style={mobTitle}>
-          <div
+          <button
+            type="button"
             className="backButtonV"
-            onClick={() => navigate('/')}
-            style={{ cursor: 'pointer' }}
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
           >
             <img className="backIconV" src="/back.svg" alt="Back" />
-          </div>
+          </button>
           <div className="oppy-chat-header">
             <div className="oppy-chat-icon">
               <Bot size={18} color="#fff" />

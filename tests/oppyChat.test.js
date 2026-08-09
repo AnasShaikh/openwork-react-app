@@ -23,6 +23,18 @@ test('Oppy is available in docs, full-screen docs chat, and public job chat', ()
   assert.match(standalone, /mode: 'docs'/);
 });
 
+test('the embedded docs assistant renders readable structured conversation UI', () => {
+  const panel = source('src/pages/PublicDocs/OppyPanel.jsx');
+  const styles = source('src/pages/PublicDocs/PublicDocs.css');
+
+  assert.match(panel, /import ReactMarkdown from 'react-markdown'/);
+  assert.match(panel, /<ReactMarkdown>\{entry\.text\}<\/ReactMarkdown>/);
+  assert.match(panel, /<textarea/);
+  assert.match(styles, /\.public-docs-oppy__bubble \{[\s\S]*?font-size: 16px;/);
+  assert.match(styles, /\.public-docs-oppy__form textarea \{[\s\S]*?font-size: 16px;/);
+  assert.match(styles, /\.public-docs-oppy__suggestion-list button \{[\s\S]*?font-size: 14px;/);
+});
+
 test('transaction chat is constrained to Arbitrum, Optimism and XDC', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   assert.match(chat, /chainId: 42161, hex: '0xa4b1'/);
@@ -58,6 +70,18 @@ test('mobile Oppy review cards cannot inherit the legacy 1200px page minimum', (
   assert.match(styles, /\.oppy-chat-page \.view-jobs-container \{[\s\S]*?min-width: 0 !important;/);
   assert.match(styles, /\.tx-card \{[\s\S]*?max-width: 100%;[\s\S]*?min-width: 0;[\s\S]*?width: 100%;/);
   assert.match(chat, /const mobVjc\s*=.*minWidth:0/);
+});
+
+test('public job chat overrides legacy jobs spacing and centers its header', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const styles = source('src/pages/OppyChat/OppyChat.css');
+
+  assert.match(styles, /\.oppy-chat-page \.view-jobs-container \{[\s\S]*?top: 0 !important;/);
+  assert.match(styles, /\.oppy-chat-page \.title-section \{[\s\S]*?justify-content: center;/);
+  assert.match(styles, /\.oppy-chat-page \.backButtonV \{[\s\S]*?height: 48px;[\s\S]*?position: absolute;[\s\S]*?width: 48px;/);
+  assert.match(chat, /<button[\s\S]*?className="backButtonV"[\s\S]*?aria-label="Go back"/);
+  assert.doesNotMatch(chat, /scrollIntoView/);
+  assert.match(chat, /focus\(\{ preventScroll: true \}\)/);
 });
 
 test('App Runner Bedrock permissions are Sonnet 4.6 only and contain no static credentials', () => {
