@@ -6,21 +6,43 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 10 August 2026 03:44 IST |
+| Deployed at | 10 August 2026 04:25 IST |
 | Git branch | `main` |
-| Git commit | `c379909f8a669a6ef9ebe0e98031f2c23dbc7704` |
-| GitHub CI | run `31338468061` — frontend tests (`100/100`), backend tests (`48/48`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-c379909.zip` |
-| Source archive SHA-256 | `9a72e7674046bcca20ffbe148730973d057cc6d872c0a574db606b3175578154` |
-| CodeBuild | `openwork-react-app-prod-build:c7ada4c2-3781-45bd-bec8-546ca4af7ba5` — succeeded |
-| ECR image | `openwork-app:prod-c379909-20260809220512` |
-| ECR digest | `sha256:474dea3c28ad6acca70839c3e43939717e42c57b3e5971ff399b0109120b3320` |
+| Git commit | `865c4f1f0670309e75c45afcff5c230b6f7a69aa` |
+| GitHub CI | run `31340088320` — frontend tests (`100/100`), backend tests (`50/50`), backend audit and mainnet frontend build passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-865c4f1.zip` |
+| Source archive SHA-256 | `f125f28385108a4f832803ac96abd822889ee291fdffca2a29704a761f0548b2` |
+| CodeBuild | `openwork-react-app-prod-build:bd4a4e4e-252c-40db-bff3-37405e1ef504` — succeeded |
+| ECR image | `openwork-app:prod-865c4f1-20260809224350` |
+| ECR digest | `sha256:de471d2bcf54a0c40ab4164fd754f7e8056b4d78dd9ceeb4737d7849c3259556` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `f3270f58ee0f4f7da5a4350665267ed6` — succeeded |
+| App Runner operation | `36a92573b4844172bec9100753a60397` — succeeded |
 | Public application | `https://app.openwork.technology` |
 | Deployed JS asset | `/assets/index-zSLCcOPr.js` — SHA-256 `77296286ce96a76473647b23992041057f1ffd24aa01f53452c64fb635ff9041` |
-| Rollback target | `openwork-app:prod-a8eb313-20260809213941` |
-| Rollback digest | `sha256:7b0ad78fca7feb19839d2b55b2506f5265cf7bf28271dd11c765a154f2ef71d0` |
+| Rollback target | `openwork-app:prod-c379909-20260809220512` |
+| Rollback digest | `sha256:474dea3c28ad6acca70839c3e43939717e42c57b3e5971ff399b0109120b3320` |
+
+## Current-turn transaction intent isolation
+
+Oppy previously received all transaction tools on every turn. After a direct-contract
+conversation, the explicit request `release payment for 30365-8` could therefore
+produce a stale `startDirectContract` tool and open the direct-contract form even
+though the frontend correctly maps `releasePayment` to the canonical release screen.
+
+The backend now detects one unambiguous action in the current user message, marks that
+current-turn intent as overriding older conversation actions and exposes only the
+matching Bedrock tool for that request. Response validation independently rejects any
+tool outside the current allowed set before it can reach the browser. Ambiguous
+multi-action messages remain unforced so Oppy can ask the user which action to take.
+
+The regression suite covers the exact transition from a direct-contract conversation
+to `release payment for 30365-8`, verifies that Bedrock receives only
+`releasePayment`, and rejects a structurally valid but stale `startDirectContract`
+response. The pre-deploy Sonnet 4.6 replay and post-deploy public `/api/chat` replay
+both returned `releasePayment` with job ID `30365-8`. Production also resolved the
+canonical XDC job as `React Developer – Test Job`, status In progress, with the
+connected wallet as job giver. App Runner reported `RUNNING` and `/healthz` returned
+HTTP 200. Verification opened no review page, wallet request or on-chain transaction.
 
 ## Deterministic Oppy EVM address validation
 
