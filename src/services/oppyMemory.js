@@ -4,7 +4,7 @@ const MAX_TRANSACTIONS = 12;
 
 export const OPPY_JOB_GREETING = {
   role: 'bot',
-  text: "Hi! I'm **Agent Oppy**. I can explain OpenWork and prepare job actions on Arbitrum, Optimism, and XDC. Nothing is sent until you review the action and confirm it in your wallet.",
+  text: "Hi! I'm **Agent Oppy**. I can help you find work, manage jobs, and check payments across Arbitrum, Optimism, and XDC.",
 };
 
 const JOB_PREFIX_TO_CHAIN = {
@@ -19,12 +19,51 @@ function storageKey(scope) {
   return `${STORAGE_PREFIX}:${normalized || 'anonymous'}`;
 }
 
+function tableToBullets(text) {
+  const lines = text.split('\n');
+  const output = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const header = lines[index];
+    const divider = lines[index + 1];
+    if (!/^\s*\|.*\|\s*$/.test(header) || !/^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(divider || '')) {
+      output.push(header);
+      continue;
+    }
+
+    const headers = header.split('|').slice(1, -1).map((cell) => cell.trim());
+    index += 1;
+    while (index + 1 < lines.length && /^\s*\|.*\|\s*$/.test(lines[index + 1])) {
+      const cells = lines[index + 1].split('|').slice(1, -1).map((cell) => cell.trim());
+      const values = cells.flatMap((cell, cellIndex) => cell
+        ? [`**${headers[cellIndex] || `Field ${cellIndex + 1}`}:** ${cell}`]
+        : []);
+      if (values.length) output.push(`- ${values.join(' · ')}`);
+      index += 1;
+    }
+  }
+  return output.join('\n');
+}
+
+export function sanitizeOppyText(value) {
+  let text = typeof value === 'string' ? value : '';
+  const tracePatterns = [
+    /<tool_call\b[^>]*>[\s\S]*?<\/tool_call>/gi,
+    /<tool_response\b[^>]*>[\s\S]*?<\/tool_response>/gi,
+    /<function_call\b[^>]*>[\s\S]*?<\/function_call>/gi,
+    /<function_response\b[^>]*>[\s\S]*?<\/function_response>/gi,
+    /<tool\b[^>]*>[\s\S]*?<\/tool>/gi,
+  ];
+  for (const pattern of tracePatterns) text = text.replace(pattern, '');
+  text = text.replace(/<\/?(?:tool|tool_call|tool_response|function_call|function_response)\b[^>]*>/gi, '');
+  return tableToBullets(text).replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function cleanMessages(messages, fallback = []) {
   const cleaned = Array.isArray(messages)
     ? messages.flatMap((message) => {
         if (!message || message.isThinking || message.isTxCard || message.isDataCard) return [];
         const role = message.role === 'user' ? 'user' : (message.role === 'bot' || message.role === 'oppy' ? message.role : null);
-        const text = typeof message.text === 'string' ? message.text.trim().slice(0, 5000) : '';
+        const text = sanitizeOppyText(message.text).slice(0, 5000);
         return role && text ? [{ role, text }] : [];
       }).slice(-MAX_MESSAGES)
     : [];

@@ -28,11 +28,25 @@ test('the embedded docs assistant renders readable structured conversation UI', 
   const styles = source('src/pages/PublicDocs/PublicDocs.css');
 
   assert.match(panel, /import ReactMarkdown from 'react-markdown'/);
-  assert.match(panel, /<ReactMarkdown>\{entry\.text\}<\/ReactMarkdown>/);
+  assert.match(panel, /<ReactMarkdown>\{sanitizeOppyText\(entry\.text\)\}<\/ReactMarkdown>/);
   assert.match(panel, /<textarea/);
   assert.match(styles, /\.public-docs-oppy__bubble \{[\s\S]*?font-size: 16px;/);
   assert.match(styles, /\.public-docs-oppy__form textarea \{[\s\S]*?font-size: 16px;/);
   assert.match(styles, /\.public-docs-oppy__suggestion-list button \{[\s\S]*?font-size: 14px;/);
+});
+
+test('public Oppy screens use product language and hide implementation copy', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const panel = source('src/pages/PublicDocs/OppyPanel.jsx');
+  const standalone = source('src/pages/AgentOppy/AgentOppy.jsx');
+  const tracker = source('src/components/CrossChainSyncStatus/CrossChainSyncStatus.jsx');
+
+  assert.doesNotMatch(chat, /Bedrock job management|review before signing|CANONICAL SEARCH|Canonical platform overview/);
+  assert.doesNotMatch(panel, /Bedrock · registry grounded|Production-aware assistant|Local registry answer/);
+  assert.doesNotMatch(standalone, /Bedrock online|Powered by Claude|Open production docs/);
+  assert.doesNotMatch(tracker, /LayerZero delivery|Arbitrum Genesis|Canonical job available/);
+  assert.match(chat, /Your OpenWork assistant/);
+  assert.match(tracker, /Network delivery/);
 });
 
 test('transaction chat is constrained to Arbitrum, Optimism and XDC', () => {
@@ -51,7 +65,7 @@ test('job posting never approves or transfers USDC and application amounts fail 
   assert.doesNotMatch(chat, /methods\.approve/);
   assert.doesNotMatch(chat, /1 USDC fallback/);
   assert.match(chat, /Never invent a payment amount if the read fails/);
-  assert.match(chat, /Posting does not approve or transfer USDC/);
+  assert.match(chat, /Posting this job will not move any USDC/);
   assert.match(chat, /for \(let i = 1; i <= appCount; i\+\+\)/);
 });
 
@@ -110,16 +124,16 @@ test('Oppy renders deterministic wallet, platform, search and job deep-dive card
   assert.match(memory, /message\.isDataCard/);
 });
 
-test('cross-chain posts show a live source, LayerZero and Arbitrum Genesis tracker', () => {
+test('cross-chain posts show a polished three-stage job sync tracker', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const tracker = source('src/components/CrossChainSyncStatus/CrossChainSyncStatus.jsx');
   const service = source('src/services/crossChainSyncService.js');
 
   assert.match(chat, /<CrossChainSyncStatus activeJob=\{activeJob\} \/>/);
-  assert.match(chat, /Cross-chain sync tracking is active below/);
-  assert.match(tracker, /LayerZero delivery/);
-  assert.match(tracker, /Arbitrum Genesis/);
-  assert.match(tracker, /Canonical job available/);
+  assert.match(chat, /Your job is syncing across networks/);
+  assert.match(tracker, /Network delivery/);
+  assert.match(tracker, /OpenWork update/);
+  assert.match(tracker, /Job is ready/);
   assert.match(service, /jobExists\(activeJob\.jobId\)\.call\(\)/);
   assert.match(service, /layerzeroscan\.com\/tx/);
 });

@@ -20,6 +20,7 @@ import {
   historyForOppy,
   loadOppyMemory,
   recordOppyTransaction,
+  sanitizeOppyText,
   sanitizeActiveJob,
   saveOppyMemory,
 } from '../../services/oppyMemory';
@@ -43,26 +44,6 @@ const SUPPORTED_CHAINS = [
 
 const SUPPORTED_CHAIN_HEX = new Set(SUPPORTED_CHAINS.map((chain) => chain.hex));
 
-function toolContract(tool, chainId) {
-  const config = getChainConfig(chainId);
-  if (!config) return null;
-  return tool.name === 'raiseDispute' ? config.contracts?.athenaClient : config.contracts?.lowjc;
-}
-
-function toolMethod(tool) {
-  const methods = {
-    postJob: 'postJob',
-    applyToJob: 'applyToJob',
-    startJob: 'startJob (review screen)',
-    submitWork: 'submitWork',
-    releasePayment: 'releasePayment (review screen)',
-    raiseDispute: 'raiseDispute (review screen)',
-    createProfile: 'createProfile',
-    startDirectContract: 'direct-contract form',
-  };
-  return methods[tool.name] || 'navigation';
-}
-
 function formatToolParamValue(value) {
   if (Array.isArray(value)) {
     if (value.length === 0) return 'None';
@@ -83,6 +64,21 @@ function formatToolParamValue(value) {
   }
 
   return String(value ?? '');
+}
+
+function formatToolParamLabel(key) {
+  const labels = {
+    jobId: 'Job ID',
+    jobTaker: 'Freelancer',
+    applicantAddress: 'Applicant',
+    applicationId: 'Application',
+    proposedAmount: 'Proposed amount',
+    hourlyRate: 'Hourly rate',
+    workDetails: 'Work details',
+    useAppMilestones: 'Use proposed milestones',
+  };
+  if (labels[key]) return labels[key];
+  return key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (letter) => letter.toUpperCase());
 }
 
 // ── Transaction Card ─────────────────────────────────────────────
@@ -112,7 +108,6 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
 
   const chainId = walletState.chainId ? parseInt(walletState.chainId, 16) : null;
   const chainConfig = chainId ? getChainConfig(chainId) : null;
-  const contractAddress = chainId ? toolContract(tool, chainId) : null;
   const actionLabel = tool.kind === 'navigation'
     ? 'Open'
     : (tool.kind === 'review' ? 'Review details' : 'Confirm in wallet');
@@ -131,28 +126,24 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
 
   return (
     <div className="tx-card">
-      <div className="tx-card-action">{tool.name}</div>
+      <div className="tx-card-action">Review action</div>
       <div className="tx-card-display">{tool.display}</div>
       <div className="tx-card-context">
         <div><span>Network</span><strong>{chainConfig?.name || 'Connect a supported wallet'}</strong></div>
-        <div><span>Method</span><strong>{toolMethod(tool)}</strong></div>
-        {contractAddress && tool.kind !== 'navigation' && (
-          <div><span>Contract</span><code>{contractAddress}</code></div>
-        )}
       </div>
       <div className="tx-card-params">
         {Object.entries(tool.params || {}).map(([k, v]) => (
           <div className="tx-param-row" key={k}>
-            <span className="tx-param-key">{k}:</span>
+            <span className="tx-param-key">{formatToolParamLabel(k)}:</span>
             <span className="tx-param-value">{formatToolParamValue(v)}</span>
           </div>
         ))}
       </div>
       {tool.name === 'postJob' && (
-        <p className="tx-card-note">Posting does not approve or transfer USDC. Your wallet will show only the contract call and applicable network/LayerZero fee.</p>
+        <p className="tx-card-note">Posting this job will not move any USDC.</p>
       )}
       {tool.kind === 'review' && (
-        <p className="tx-card-note">The audited workflow screen will load canonical job state and complete the final preflight before any wallet request.</p>
+        <p className="tx-card-note">You can check the latest job details before continuing.</p>
       )}
       {status === 'idle' ? (
         <div className="tx-card-actions">
@@ -220,7 +211,7 @@ function StatusBreakdown({ values = {} }) {
 }
 
 function JobRows({ jobs = [], navigate }) {
-  if (!jobs.length) return <p className="oppy-data-empty">No matching canonical jobs.</p>;
+  if (!jobs.length) return <p className="oppy-data-empty">No matching jobs.</p>;
   return (
     <div className="oppy-data-job-list">
       {jobs.map((job) => (
@@ -249,7 +240,7 @@ function WalletDashboardCard({ data, navigate }) {
     <div className="oppy-data-card">
       <div className="oppy-data-heading">
         <div className="oppy-data-icon"><BriefcaseBusiness size={18} /></div>
-        <div><span>YOUR OPENWORK</span><h3>Work and action inbox</h3></div>
+        <div><span>YOUR WORK</span><h3>Jobs and activity</h3></div>
         <span className="oppy-data-live"><i />Live</span>
       </div>
       <div className="oppy-data-metrics">
@@ -261,12 +252,12 @@ function WalletDashboardCard({ data, navigate }) {
       {data.profile?.available && (
         <div className="oppy-profile-strip">
           <UserRound size={18} />
-          <span><strong>{data.profile.name || 'On-chain profile'}</strong><small>{data.profile.skills?.slice(0, 4).join(' · ') || 'No skills listed'}</small></span>
+          <span><strong>{data.profile.name || 'OpenWork profile'}</strong><small>{data.profile.skills?.slice(0, 4).join(' · ') || 'No skills listed'}</small></span>
           <span className="oppy-profile-rating">{data.profile.ratingAverage ?? '—'} ★ <small>{data.profile.ratingCount} ratings</small></span>
         </div>
       )}
       <StatusBreakdown values={summary.statusCounts} />
-      <div className="oppy-data-section-title"><h4>Attention</h4><span>{data.attention?.length || 0} signals</span></div>
+      <div className="oppy-data-section-title"><h4>To do</h4><span>{data.attention?.length || 0}</span></div>
       {data.attention?.length ? (
         <div className="oppy-attention-list">
           {data.attention.map((item) => (
@@ -277,12 +268,11 @@ function WalletDashboardCard({ data, navigate }) {
             </div>
           ))}
         </div>
-      ) : <p className="oppy-data-empty">Nothing currently requires a canonical job action.</p>}
+      ) : <p className="oppy-data-empty">You're all caught up.</p>}
       <details className="oppy-data-details">
         <summary>Recent jobs <span>{data.jobs?.length || 0}</span></summary>
         <JobRows jobs={data.jobs} navigate={navigate} />
       </details>
-      <p className="oppy-data-source">Source: {data.provenance}</p>
     </div>
   );
 }
@@ -293,13 +283,13 @@ function PlatformOverviewCard({ data, navigate }) {
     <div className="oppy-data-card">
       <div className="oppy-data-heading">
         <div className="oppy-data-icon"><ChartNoAxesColumn size={18} /></div>
-        <div><span>OPENWORK NETWORK</span><h3>Canonical platform overview</h3></div>
+        <div><span>OPENWORK</span><h3>Platform overview</h3></div>
         <span className="oppy-data-live"><i />Live</span>
       </div>
       <div className="oppy-data-metrics">
         <div><span>Total jobs</span><strong>{summary.totalJobs ?? 0}</strong></div>
         <div><span>Applications</span><strong>{summary.totalApplications ?? 0}</strong></div>
-        <div><span>Nominal budgets</span><strong>{metricValue(summary.nominalBudget, ' USDC')}</strong></div>
+        <div><span>Total job value</span><strong>{metricValue(summary.nominalBudget, ' USDC')}</strong></div>
         <div><span>Paid</span><strong>{metricValue(summary.totalPaid, ' USDC')}</strong></div>
       </div>
       <StatusBreakdown values={summary.statusCounts} />
@@ -309,9 +299,8 @@ function PlatformOverviewCard({ data, navigate }) {
           {data.topSkills.map((item) => <span key={item.skill}>{item.skill}<strong>{item.count}</strong></span>)}
         </div>
       )}
-      <div className="oppy-data-section-title"><h4>Recent canonical jobs</h4><span>Newest first</span></div>
+      <div className="oppy-data-section-title"><h4>Recent jobs</h4><span>Newest first</span></div>
       <JobRows jobs={data.recentJobs} navigate={navigate} />
-      <p className="oppy-data-source">{data.coverage?.analyticsScope} Source: {data.provenance}</p>
     </div>
   );
 }
@@ -321,10 +310,9 @@ function SearchResultsCard({ data, navigate }) {
     <div className="oppy-data-card">
       <div className="oppy-data-heading">
         <div className="oppy-data-icon"><Search size={18} /></div>
-        <div><span>CANONICAL SEARCH</span><h3>{data.resultCount} result{data.resultCount === 1 ? '' : 's'} for “{data.query}”</h3></div>
+        <div><span>JOB SEARCH</span><h3>{data.resultCount} result{data.resultCount === 1 ? '' : 's'} for “{data.query}”</h3></div>
       </div>
       <JobRows jobs={data.results} navigate={navigate} />
-      <p className="oppy-data-source">{data.coverage} Source: {data.provenance}</p>
     </div>
   );
 }
@@ -336,7 +324,7 @@ function JobDeepDiveCard({ data, navigate }) {
     <div className="oppy-data-card oppy-data-card--deep">
       <div className="oppy-data-heading">
         <div className="oppy-data-icon"><BriefcaseBusiness size={18} /></div>
-        <div><span>JOB DEEP DIVE · {job.jobId}</span><h3>{job.title || `Job ${job.jobId}`}</h3><p>{job.chain} · {job.status}{job.viewerRole ? ` · You are the ${job.viewerRole}` : ''}</p></div>
+        <div><span>JOB {job.jobId}</span><h3>{job.title || `Job ${job.jobId}`}</h3><p>{job.chain} · {job.status}{job.viewerRole ? ` · You are the ${job.viewerRole}` : ''}</p></div>
         <ExplorerLink href={job.href} navigate={navigate}>Job page</ExplorerLink>
       </div>
       {job.description && <p className="oppy-job-description">{job.description}</p>}
@@ -379,11 +367,10 @@ function JobDeepDiveCard({ data, navigate }) {
         <details className="oppy-data-details">
           <summary>Work submissions <span>{data.submissions.length}</span></summary>
           <div className="oppy-submissions">
-            {data.submissions.map((submission) => <p key={submission.hash}><strong>Submission {submission.number}</strong>{submission.description || 'Metadata recorded on IPFS.'}</p>)}
+            {data.submissions.map((submission) => <p key={submission.hash}><strong>Submission {submission.number}</strong>{submission.description || 'Submission details added.'}</p>)}
           </div>
         </details>
       )}
-      <p className="oppy-data-source">Canonical state and IDs are contract reads. Descriptions, profiles, proposals and work content are IPFS metadata referenced by those contracts.</p>
     </div>
   );
 }
@@ -701,7 +688,7 @@ const OppyChat = () => {
         const postingChainId = extractChainIdFromJobId(tool.params.jobId);
         if (postingChainId && postingChainId !== chainIdDecimal) {
           const postingChain = getChainConfig(postingChainId);
-          addBotMessage(`Switching to ${postingChain?.name || `chain ${postingChainId}`} for the canonical review…`);
+          addBotMessage(`Switching to ${postingChain?.name || `chain ${postingChainId}`} to continue…`);
           await switchToChain(postingChainId);
           await detectWallet();
         }
@@ -756,7 +743,7 @@ const OppyChat = () => {
 
       switch (tool.name) {
         case 'postJob': {
-          addBotMessage('Uploading job details to IPFS…');
+          addBotMessage('Preparing your job…');
           const budget = Number(tool.params.budget) || 0;
           const milestones = (tool.params.milestones || [{ description: tool.params.description, amount: budget }])
             .map((milestone, index) => ({
@@ -819,7 +806,7 @@ const OppyChat = () => {
             }
           }
 
-          addBotMessage('Uploading proposal and milestones to IPFS…', true);
+          addBotMessage('Preparing your application…', true);
           const proposedMilestones = applyAmounts.map((amount, index) => ({
             title: `Milestone ${index + 1}`,
             content: tool.params.proposal,
@@ -878,7 +865,7 @@ const OppyChat = () => {
               if (resolvedApplicationId === undefined || resolvedApplicationId === null) {
                 throw new Error(`No application found for ${applicantAddress} on job ${tool.params.jobId}`);
               }
-              addBotMessage(`Found application ID: ${resolvedApplicationId}. Opening the canonical hiring review…`, true);
+              addBotMessage('Opening the hiring review…', true);
             } catch (e) {
               addBotMessage(`Could not auto-lookup application ID: ${e.message}`);
               return { error: e.message };
@@ -905,7 +892,7 @@ const OppyChat = () => {
         }
 
         case 'submitWork': {
-          addBotMessage('Uploading work submission to IPFS…');
+          addBotMessage('Preparing your work submission…');
           const submissionHash = await uploadToIPFS({ workDetails: tool.params.workDetails, jobId: tool.params.jobId });
           result = await submitWork(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
@@ -915,7 +902,7 @@ const OppyChat = () => {
         }
 
         case 'createProfile': {
-          addBotMessage('Uploading your profile to IPFS…');
+          addBotMessage('Preparing your profile…');
           const ipfsHash = await uploadToIPFS({
             name: tool.params.name,
             skills: tool.params.skills,
@@ -955,7 +942,7 @@ const OppyChat = () => {
       }
       const jobCopy = confirmedJobId ? ` for job **${confirmedJobId}**` : '';
       const deliveryCopy = result.canonicalDeliveryPending
-        ? '\n\nCross-chain sync tracking is active below. It will update automatically when Arbitrum Genesis records the job.'
+        ? '\n\nYour job is syncing across networks. The status below will update automatically.'
         : '';
       addBotMessage(`✅ Transaction confirmed${jobCopy}!\n\n[View on explorer](${explorerBase}${result.transactionHash})${deliveryCopy}`);
       return { txHash: result.transactionHash, jobId: confirmedJobId };
@@ -1031,7 +1018,7 @@ const OppyChat = () => {
             </div>
             <div className="oppy-chat-header-text">
               <span className="oppy-chat-title">Agent Oppy</span>
-              <span className="oppy-chat-subtitle">Bedrock job management · review before signing</span>
+              <span className="oppy-chat-subtitle">Your OpenWork assistant</span>
             </div>
           </div>
         </div>
@@ -1076,7 +1063,7 @@ const OppyChat = () => {
                 <div className={`chat-msg-row ${msg.role === 'user' ? 'user' : 'bot'}`} key={idx}>
                   <div className={`chat-bubble ${msg.role === 'user' ? 'user' : 'bot'}`}>
                     {msg.role === 'bot' ? (
-                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      <ReactMarkdown>{sanitizeOppyText(msg.text)}</ReactMarkdown>
                     ) : (
                       msg.text
                     )}
@@ -1116,7 +1103,7 @@ const OppyChat = () => {
               ref={inputRef}
               className="chat-input"
               type="text"
-              placeholder="Ask anything or describe a transaction…"
+              placeholder="Ask Oppy or describe what you want to do…"
               value={input}
               onChange={e => setInput(e.target.value)}
               disabled={loading}

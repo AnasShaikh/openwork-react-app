@@ -19,6 +19,7 @@ const {
   converse,
   extractResponse,
   normalizeHistory,
+  sanitizeAssistantText,
 } = require('../services/bedrock-chat');
 
 test('chat requests are bounded and default to documentation mode', () => {
@@ -207,6 +208,13 @@ test('Bedrock response extraction exposes only validated native tools', () => {
       },
     } }],
   }, true, ['releasePayment']).tool, null);
+});
+
+test('assistant output never exposes internal tool traces', () => {
+  const traced = `Opening that now.\n\n<tool_call>{"name":"navigate_to_direct_contract"}</tool_call>\n<tool_response>{"status":"ok"}</tool_response>\n\nYour details are ready.`;
+  assert.equal(sanitizeAssistantText(traced), 'Opening that now.\n\nYour details are ready.');
+  assert.equal(extractResponse({ content: [{ text: traced }] }, false).text, 'Opening that now.\n\nYour details are ready.');
+  assert.equal(normalizeHistory([{ role: 'user', text: traced }])[0].content[0].text, 'Opening that now.\n\nYour details are ready.');
 });
 
 test('Bedrock receives only the tool matching an explicit current-turn action', async () => {

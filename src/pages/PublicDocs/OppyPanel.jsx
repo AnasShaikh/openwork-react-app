@@ -6,19 +6,18 @@ import {
   CheckCircle2,
   Maximize2,
   Send,
-  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import { FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
-import { loadOppyMemory, saveOppyMemory } from '../../services/oppyMemory';
+import { loadOppyMemory, sanitizeOppyText, saveOppyMemory } from '../../services/oppyMemory';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const initialMessage = {
   role: 'oppy',
-  text: 'Hi, I’m Oppy. I answer from the same audited production registry shown on this page—current contracts, implementations, verification status, configuration and cross-chain routes. What would you like to understand?',
+  text: 'Hi, I’m Oppy. Ask me anything about OpenWork, job flows, payments, contracts, or supported networks.',
 };
 
 function fallbackFor(message) {
@@ -79,10 +78,10 @@ export default function OppyPanel({ registry }) {
   };
 
   const suggestions = [
-    'Which contracts are source pending?',
-    'How does a cross-chain job start?',
-    'What is the live NOWJC commission?',
-    'Which routes are end-to-end tested?',
+    'Which networks can I use?',
+    'How does a cross-chain job work?',
+    'How are OpenWork fees calculated?',
+    'How do payments reach freelancers?',
   ];
 
   const chooseSuggestion = (suggestion) => {
@@ -95,15 +94,13 @@ export default function OppyPanel({ registry }) {
       <header className="public-docs-oppy__intro">
         <div className="public-docs-oppy__mark"><Bot aria-hidden="true" /></div>
         <div className="public-docs-oppy__intro-copy">
-          <p className="public-docs-kicker">Production-aware assistant</p>
+          <p className="public-docs-kicker">OpenWork assistant</p>
           <h2 id="public-docs-oppy-title">Ask Agent Oppy</h2>
           <p>
-            Clear answers about OpenWork’s live contracts, job flows and cross-chain architecture—grounded
-            in the registry audited on {registry.lastAudited}.
+            Clear answers about OpenWork’s contracts, job flows, payments, and supported networks.
           </p>
         </div>
         <div className="public-docs-oppy__actions">
-          <span className="public-docs-oppy__trust"><ShieldCheck aria-hidden="true" /> Bedrock · registry grounded</span>
           <div className="public-docs-oppy__action-links">
             <Link className="is-secondary" to="/oppy"><Maximize2 aria-hidden="true" /> Full-screen chat</Link>
             <Link className="is-primary" to="/chat"><BriefcaseBusiness aria-hidden="true" /> Manage jobs</Link>
@@ -117,10 +114,10 @@ export default function OppyPanel({ registry }) {
             <Sparkles aria-hidden="true" />
             <div>
               <span>Suggested questions</span>
-              <h3>Start with the live system</h3>
+              <h3>Popular questions</h3>
             </div>
           </div>
-          <p>Choose a prompt or ask your own question about a contract, route or production status.</p>
+          <p>Choose a prompt or ask your own question about OpenWork.</p>
           <div className="public-docs-oppy__suggestion-list">
             {suggestions.map((suggestion) => (
               <button key={suggestion} type="button" onClick={() => chooseSuggestion(suggestion)}>
@@ -129,9 +126,9 @@ export default function OppyPanel({ registry }) {
             ))}
           </div>
           <div className="public-docs-oppy__coverage">
-            <span><CheckCircle2 aria-hidden="true" /> Live grounding</span>
-            <strong>{registry.summary.activeContractRoles} contract functions across {registry.summary.activeNetworks} networks</strong>
-            <p>Addresses, roles and verification states come from the registry behind this page.</p>
+            <span><CheckCircle2 aria-hidden="true" /> OpenWork documentation</span>
+            <strong>Detailed guides for {registry.summary.activeNetworks} supported networks</strong>
+            <p>Explore contracts, job flows, payments, and network information.</p>
           </div>
         </aside>
 
@@ -139,7 +136,7 @@ export default function OppyPanel({ registry }) {
           <header className="public-docs-oppy__chat-header">
             <div>
               <span className="public-docs-oppy__chat-avatar"><Bot aria-hidden="true" /></span>
-              <div><strong>Oppy</strong><span>OpenWork production guide</span></div>
+              <div><strong>Oppy</strong><span>Your OpenWork guide</span></div>
             </div>
             <span className="public-docs-oppy__online"><i /> Ready</span>
           </header>
@@ -152,8 +149,7 @@ export default function OppyPanel({ registry }) {
                 </span>
                 <div className="public-docs-oppy__message-content">
                   <span>{entry.role === 'oppy' ? 'Agent Oppy' : 'You'}</span>
-                  <div className="public-docs-oppy__bubble"><ReactMarkdown>{entry.text}</ReactMarkdown></div>
-                  {entry.isFallback && <small>Local registry answer—the live AI service was unavailable.</small>}
+                  <div className="public-docs-oppy__bubble"><ReactMarkdown>{sanitizeOppyText(entry.text)}</ReactMarkdown></div>
                 </div>
               </div>
             ))}
@@ -162,7 +158,7 @@ export default function OppyPanel({ registry }) {
                 <span className="public-docs-oppy__message-avatar" aria-hidden="true"><Bot /></span>
                 <div className="public-docs-oppy__message-content">
                   <span>Agent Oppy</span>
-                  <div className="public-docs-oppy__bubble"><p>Checking the production registry<span className="public-docs-oppy__thinking-dots">…</span></p></div>
+                  <div className="public-docs-oppy__bubble"><p>Thinking<span className="public-docs-oppy__thinking-dots">…</span></p></div>
                 </div>
               </div>
             )}
@@ -171,7 +167,7 @@ export default function OppyPanel({ registry }) {
           <form className="public-docs-oppy__form" onSubmit={submit}>
             <div className="public-docs-oppy__form-copy">
               <label htmlFor="public-docs-oppy-input">Ask Oppy</label>
-              <span>Contracts, routes, fees, verification or production status</span>
+              <span>Jobs, payments, contracts, and supported networks</span>
             </div>
             <div className="public-docs-oppy__composer">
               <textarea

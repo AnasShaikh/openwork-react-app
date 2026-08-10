@@ -7,6 +7,7 @@ import {
   jobChainFromId,
   loadOppyMemory,
   recordOppyTransaction,
+  sanitizeOppyText,
   saveOppyMemory,
 } from '../src/services/oppyMemory.js';
 
@@ -87,4 +88,13 @@ test('history excludes greetings and stale transaction cards and keeps recent re
     confirmed: true,
   });
   assert.equal(txs[0].jobId, '30365-6');
+});
+
+test('stored Oppy text removes internal traces and renders tables as readable bullets', () => {
+  const raw = `Opening that now.\n\n<tool_call>{"name":"internal"}</tool_call>\n<tool_response>{"status":"ok"}</tool_response>\n\n| Field | Value |\n|---|---|\n| Title | Direct Payment Task |\n| Budget | 0.001 USDC |`;
+  const clean = sanitizeOppyText(raw);
+  assert.equal(clean.includes('tool_call'), false);
+  assert.equal(clean.includes('|---|'), false);
+  assert.match(clean, /\*\*Field:\*\* Title/);
+  assert.match(clean, /\*\*Value:\*\* 0\.001 USDC/);
 });

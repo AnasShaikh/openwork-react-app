@@ -12,6 +12,24 @@ const MAX_HISTORY_ITEMS = 24;
 
 let sharedClient;
 
+const INTERNAL_TRACE_PATTERNS = [
+  /<tool_call\b[^>]*>[\s\S]*?<\/tool_call>/gi,
+  /<tool_response\b[^>]*>[\s\S]*?<\/tool_response>/gi,
+  /<function_call\b[^>]*>[\s\S]*?<\/function_call>/gi,
+  /<function_response\b[^>]*>[\s\S]*?<\/function_response>/gi,
+  /<tool\b[^>]*>[\s\S]*?<\/tool>/gi,
+];
+
+function sanitizeAssistantText(value) {
+  let text = typeof value === 'string' ? value : '';
+  for (const pattern of INTERNAL_TRACE_PATTERNS) text = text.replace(pattern, '');
+  text = text
+    .replace(/<\/?(?:tool|tool_call|tool_response|function_call|function_response)\b[^>]*>/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return text;
+}
+
 function getClient() {
   if (!sharedClient) {
     sharedClient = new BedrockRuntimeClient({
@@ -27,7 +45,7 @@ function normalizeHistory(history) {
     const role = entry?.role === 'user'
       ? 'user'
       : (entry?.role === 'oppy' || entry?.role === 'bot' || entry?.role === 'assistant' ? 'assistant' : null);
-    const text = typeof entry?.text === 'string' ? entry.text.trim().slice(0, 2000) : '';
+    const text = sanitizeAssistantText(entry?.text).slice(0, 2000);
     return role && text ? [{ role, content: [{ text }] }] : [];
   });
 
@@ -48,11 +66,11 @@ function normalizeHistory(history) {
 
 function extractResponse(message, allowTools, allowedToolNames) {
   const content = Array.isArray(message?.content) ? message.content : [];
-  const text = content
+  const text = sanitizeAssistantText(content
     .filter((block) => typeof block?.text === 'string')
     .map((block) => block.text.trim())
     .filter(Boolean)
-    .join('\n\n');
+    .join('\n\n'));
   const toolBlock = allowTools ? content.find((block) => block?.toolUse) : null;
   const validatedTool = toolBlock ? validateToolUse(toolBlock.toolUse) : null;
   const allowedNames = Array.isArray(allowedToolNames) && allowedToolNames.length
@@ -115,4 +133,5 @@ module.exports = {
   converse,
   extractResponse,
   normalizeHistory,
+  sanitizeAssistantText,
 };

@@ -311,10 +311,8 @@ export default function PublicDocs() {
       </section>
 
       <footer className="public-docs-footer">
-        <span>Audited production summary · Runtime and explorer verification are reported separately.</span>
+        <span>OpenWork contract documentation</span>
         <div>
-          <a href="/api/docs/skill">Agent documentation</a>
-          <Link to="/docs/legacy">Legacy explorer</Link>
           <a href="#top">Back to top</a>
         </div>
       </footer>

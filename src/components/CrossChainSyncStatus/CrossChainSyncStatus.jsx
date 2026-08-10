@@ -74,7 +74,7 @@ export default function CrossChainSyncStatus({ activeJob }) {
     >
       <div className="cross-chain-sync__header">
         <div>
-          <span className="cross-chain-sync__eyebrow">Cross-chain sync</span>
+          <span className="cross-chain-sync__eyebrow">Job sync</span>
           <h3>{source.name} <ArrowRight aria-hidden="true" size={16} /> Arbitrum</h3>
           <p>Job <strong>{activeJob.jobId}</strong></p>
         </div>
@@ -86,29 +86,29 @@ export default function CrossChainSyncStatus({ activeJob }) {
       <ol className="cross-chain-sync__steps">
         <li className={stepStateClass(true)}>
           <StepIcon complete />
-          <div><strong>{source.name} receipt</strong><span>Confirmed</span></div>
+          <div><strong>Job submitted</strong><span>Confirmed on {source.name}</span></div>
         </li>
         <li className={stepStateClass(synced, checking)}>
           <StepIcon complete={synced} active={checking} />
-          <div><strong>LayerZero delivery</strong><span>{synced ? 'Delivered' : 'Relaying to Arbitrum'}</span></div>
+          <div><strong>Network delivery</strong><span>{synced ? 'Delivered' : 'Sending to Arbitrum'}</span></div>
         </li>
         <li className={stepStateClass(synced, false)}>
           <StepIcon complete={synced} />
-          <div><strong>Arbitrum Genesis</strong><span>{synced ? 'Canonical job available' : 'Waiting for canonical state'}</span></div>
+          <div><strong>OpenWork update</strong><span>{synced ? 'Job is ready' : 'Finalizing job'}</span></div>
         </li>
       </ol>
 
       {sync.state === 'unavailable' && (
         <p className="cross-chain-sync__notice">
-          The source transaction is safe. The Arbitrum status check is temporarily unavailable and will retry automatically.
+          Your job is safe. We're having trouble checking the final status and will retry automatically.
         </p>
       )}
 
       <div className="cross-chain-sync__footer">
         <div className="cross-chain-sync__links">
-          {links.sourceExplorerUrl && <a href={links.sourceExplorerUrl} target="_blank" rel="noreferrer">Source transaction</a>}
-          {links.layerZeroScanUrl && <a href={links.layerZeroScanUrl} target="_blank" rel="noreferrer">LayerZero status</a>}
-          {synced && links.canonicalJobUrl && <a href={links.canonicalJobUrl}>View synced job</a>}
+          {links.sourceExplorerUrl && <a href={links.sourceExplorerUrl} target="_blank" rel="noreferrer">View transaction</a>}
+          {links.layerZeroScanUrl && <a href={links.layerZeroScanUrl} target="_blank" rel="noreferrer">Delivery details</a>}
+          {synced && links.canonicalJobUrl && <a href={links.canonicalJobUrl}>Open job</a>}
         </div>
         <button type="button" onClick={refresh} aria-label="Refresh cross-chain status">
           <RefreshCw aria-hidden="true" size={14} />

@@ -3,13 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import { MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FALLBACK_RESPONSES } from '../Documentation/data/oppyKnowledge';
-import { loadOppyMemory, saveOppyMemory } from '../../services/oppyMemory';
+import { loadOppyMemory, sanitizeOppyText, saveOppyMemory } from '../../services/oppyMemory';
 import './AgentOppy.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const initialMessage = {
   role: 'oppy',
-  text: 'Hi! I\'m Agent Oppy, your OpenWork assistant. Ask me anything about the deployed protocol, exact contract sources, job workflows, or production history!',
+  text: 'Hi! I\'m Agent Oppy. Ask me anything about OpenWork, job flows, payments, contracts, or supported networks.',
 };
 
 const AgentOppy = () => {
@@ -115,12 +115,12 @@ const AgentOppy = () => {
           </div>
           <div>
             <h1 className="oppy-header-name">Agent Oppy</h1>
-            <span className="oppy-header-sub">OpenWork AI Assistant</span>
+            <span className="oppy-header-sub">Your OpenWork assistant</span>
           </div>
         </div>
         <div className="oppy-header-status">
           <span className="oppy-status-dot"></span>
-          <span className="oppy-status-text">Bedrock online</span>
+          <span className="oppy-status-text">Online</span>
         </div>
       </header>
 
@@ -142,7 +142,7 @@ const AgentOppy = () => {
                 </div>
               ) : msg.role === 'oppy' ? (
                 <div className="oppy-msg-text oppy-rich-text">
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  <ReactMarkdown>{sanitizeOppyText(msg.text)}</ReactMarkdown>
                 </div>
               ) : (
                 <p className="oppy-msg-text">{msg.text}</p>
@@ -196,10 +196,9 @@ const AgentOppy = () => {
           </button>
         </form>
         <div className="oppy-footer-actions">
-          <button type="button" onClick={() => navigate('/docs')}>Open production docs</button>
-          <button type="button" onClick={() => navigate('/chat')}>Manage jobs with Oppy</button>
+          <button type="button" onClick={() => navigate('/docs')}>Explore OpenWork docs</button>
+          <button type="button" onClick={() => navigate('/chat')}>Manage jobs</button>
         </div>
-        <p className="oppy-disclaimer">Powered by Claude on Amazon Bedrock. Review all wallet actions before signing.</p>
       </div>
     </div>
   );

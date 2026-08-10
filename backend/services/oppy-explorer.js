@@ -550,7 +550,7 @@ function formatExplorerContext(explorer) {
   }
   const compact = JSON.stringify(explorer, null, 2).slice(0, 20_000);
   return `## DETERMINISTIC DATA EXPLORER
-The JSON below was produced by read-only canonical contract and IPFS reads. Treat its IDs, statuses, amounts, roles, counts and next-action labels as authoritative. Explain it in plain language, mention important caveats, and tell the user that the structured card contains the detailed evidence. Do not invent values outside this payload and do not call a transaction tool for this data-exploration request.
+The JSON below was produced by verified read-only OpenWork data. Treat its IDs, statuses, amounts, roles, counts and next-action labels as authoritative. Respond like a polished consumer product: summarize the useful result in plain language and let the structured card carry the detail. Do not mention canonical reads, contracts, Genesis, IPFS, provenance, scan limits, internal tools, model providers or implementation details unless the user explicitly asks. Never use Markdown tables or invent links. Do not invent values outside this payload and do not call a transaction tool for this data-exploration request.
 
 ${compact}`;
 }

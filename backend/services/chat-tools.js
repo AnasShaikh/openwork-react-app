@@ -234,7 +234,7 @@ function validateToolUse(toolUse) {
   }
 
   const labels = {
-    postJob: `Post “${params.title}” with a ${params.budget} USDC nominal budget`,
+    postJob: `Post “${params.title}” with a ${params.budget} USDC budget`,
     applyToJob: `Apply to job ${params.jobId}`,
     startJob: `Review hiring ${params.applicantAddress} for job ${params.jobId}`,
     submitWork: `Submit work for job ${params.jobId}`,
