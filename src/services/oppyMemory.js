@@ -22,7 +22,7 @@ function storageKey(scope) {
 function cleanMessages(messages, fallback = []) {
   const cleaned = Array.isArray(messages)
     ? messages.flatMap((message) => {
-        if (!message || message.isThinking || message.isTxCard) return [];
+        if (!message || message.isThinking || message.isTxCard || message.isDataCard) return [];
         const role = message.role === 'user' ? 'user' : (message.role === 'bot' || message.role === 'oppy' ? message.role : null);
         const text = typeof message.text === 'string' ? message.text.trim().slice(0, 5000) : '';
         return role && text ? [{ role, text }] : [];

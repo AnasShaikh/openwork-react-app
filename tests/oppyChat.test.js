@@ -90,7 +90,24 @@ test('transaction chat persists conversation, active job and confirmed source re
   assert.match(service, /saveTxHash\('postJob', tx\.transactionHash, jobId/);
   assert.match(backend, /getJobsByStatus/);
   assert.match(backend, /sourceDeliveryPending/);
-  assert.match(dockerfile, /COPY src\/ABIs\/genesis_ABI\.json src\/ABIs\/genesis_helper_ABI\.json \/app\/src\/ABIs\//);
+  assert.match(dockerfile, /COPY src\/ABIs\/genesis_ABI\.json src\/ABIs\/genesis_helper_ABI\.json src\/ABIs\/profile-genesis_ABI\.json \/app\/src\/ABIs\//);
+});
+
+test('Oppy renders deterministic wallet, platform, search and job deep-dive cards', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const styles = source('src/pages/OppyChat/OppyChat.css');
+  const memory = source('src/services/oppyMemory.js');
+
+  assert.match(chat, /What needs my attention\?/);
+  assert.match(chat, /function ExplorerCard/);
+  assert.match(chat, /wallet-dashboard/);
+  assert.match(chat, /platform-overview/);
+  assert.match(chat, /job-search/);
+  assert.match(chat, /job-deep-dive/);
+  assert.match(chat, /isDataCard: true/);
+  assert.match(styles, /\.oppy-data-card \{/);
+  assert.match(styles, /\.oppy-data-metrics \{/);
+  assert.match(memory, /message\.isDataCard/);
 });
 
 test('cross-chain posts show a live source, LayerZero and Arbitrum Genesis tracker', () => {

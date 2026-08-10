@@ -93,6 +93,14 @@ function formatUsdc(rawValue) {
   }
 }
 
+function normalizeMilestones(value) {
+  return Array.from(value || []).map((milestone) => ({
+    descriptionHash: String(rawJobValue(milestone, 'descriptionHash', 0, '')),
+    amount: formatUsdc(rawJobValue(milestone, 'amount', 1, 0)),
+    amountRaw: String(rawJobValue(milestone, 'amount', 1, 0)),
+  }));
+}
+
 function normalizeLedgerJob(job) {
   const jobId = String(rawJobValue(job, 'id', 0, ''));
   if (!validJobId(jobId)) return null;
@@ -121,10 +129,16 @@ function normalizeLedgerJob(job) {
     applicants: Array.from(rawJobValue(job, 'applicants', 2, []) || []).map(String),
     jobDetailHash: String(rawJobValue(job, 'jobDetailHash', 3, '')),
     status: Number(rawJobValue(job, 'status', 4, 0)),
+    workSubmissionHashes: Array.from(rawJobValue(job, 'workSubmissions', 5, []) || []).map(String),
+    milestonePayments: normalizeMilestones(fallbackMilestones),
+    finalMilestones: normalizeMilestones(milestones),
     totalPaid: formatUsdc(rawJobValue(job, 'totalPaid', 8, 0)),
+    totalPaidRaw: String(rawJobValue(job, 'totalPaid', 8, 0)),
     currentMilestone: Number(rawJobValue(job, 'currentMilestone', 9, 0)),
     selectedApplicant: String(rawJobValue(job, 'selectedApplicant', 10, ZERO_ADDRESS)),
+    selectedApplicationId: Number(rawJobValue(job, 'selectedApplicationId', 11, 0)),
     nominalBudget: formatUsdc(nominalBudget),
+    nominalBudgetRaw: nominalBudget.toString(),
     postingChainId,
     postingChainName,
   };
@@ -329,9 +343,12 @@ function resetCachesForTest() {
 module.exports = {
   MAX_CONTEXT_JOBS,
   STATUS_LABELS,
+  fetchMetadata,
+  formatUsdc,
   formatJobContext,
   getWalletJobContext,
   normalizeLedgerJob,
+  readLedger,
   resetCachesForTest,
   sanitizeConversationMemory,
   walletRole,

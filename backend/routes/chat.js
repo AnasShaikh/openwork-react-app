@@ -14,6 +14,11 @@ const {
   getWalletJobContext,
   sanitizeConversationMemory,
 } = require('../services/oppy-job-context');
+const {
+  detectDataIntent,
+  formatExplorerContext,
+  runExplorerIntent,
+} = require('../services/oppy-explorer');
 
 const router = express.Router();
 
@@ -58,6 +63,7 @@ router.post('/', async (req, res) => {
   try {
     const transactionMode = request.mode === 'transactions';
     const explicitToolName = transactionMode ? detectExplicitToolIntent(request.message) : null;
+    const explorerIntent = transactionMode ? detectDataIntent(request.message, explicitToolName) : null;
     const jobContext = transactionMode && request.wallet.connected
       ? await getWalletJobContext(request.wallet.address, request.memory)
       : {
@@ -67,19 +73,36 @@ router.post('/', async (req, res) => {
           jobs: [],
           recentTransactions: request.memory.recentTransactions,
         };
-    const systemPrompt = transactionMode
+    let explorer = null;
+    if (explorerIntent) {
+      try {
+        explorer = await runExplorerIntent(explorerIntent, request.wallet.address);
+      } catch (error) {
+        console.warn('[chat] explorer read degraded', {
+          type: explorerIntent.type,
+          message: error?.message,
+        });
+        explorer = {
+          type: explorerIntent.type,
+          available: false,
+          error: 'Live canonical data could not be loaded. Please retry in a moment.',
+        };
+      }
+    }
+    const baseSystemPrompt = transactionMode
       ? buildTransactionSystemPrompt(request.message, request.wallet, {
           jobContext,
           explicitToolName,
           validatedAddresses: extractEvmAddressFacts(request.message, request.history),
         })
       : buildDocsSystemPrompt(request.message);
+    const systemPrompt = `${baseSystemPrompt}${explorer ? `\n\n${formatExplorerContext(explorer)}` : ''}`;
 
     const result = await converse({
       message: request.message,
       history: request.history,
       systemPrompt,
-      allowTools: transactionMode,
+      allowTools: transactionMode && Boolean(explicitToolName),
       allowedToolNames: explicitToolName ? [explicitToolName] : undefined,
     });
 
@@ -95,6 +118,7 @@ router.post('/', async (req, res) => {
       success: true,
       response: result.text,
       tool: result.tool || null,
+      explorer,
       model: result.modelId,
       context: transactionMode ? {
         activeJob: jobContext.activeJob || null,

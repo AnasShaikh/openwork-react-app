@@ -13,6 +13,7 @@ const registryRoutes = require('./routes/registry');
 const adminRoutes = require('./routes/admin');
 const ipfsRoutes = require('./routes/ipfs');
 const chatRoutes = require('./routes/chat');
+const oppyExplorerRoutes = require('./routes/oppy-explorer');
 const docsRoutes = require('./routes/docs');
 const e2eTestRoute = require('./routes/e2e-test-route');
 const designReviewRouter = require('./routes/design-review');
@@ -86,6 +87,9 @@ app.use('/api/ipfs', ipfsRoutes);
 
 // Mount chat routes
 app.use('/api/chat', chatRoutes);
+
+// Read-only canonical job, wallet, profile and platform data for Agent Oppy.
+app.use('/api/oppy/explore', oppyExplorerRoutes);
 
 // Mount docs routes (machine-readable documentation for AI agents)
 app.use('/api/docs', docsRoutes);

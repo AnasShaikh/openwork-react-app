@@ -1,7 +1,7 @@
 import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Bot } from 'lucide-react';
+import { ArrowRight, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleCheck, Search, Send, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BlueButton from '../../components/BlueButton/BlueButton';
 import CrossChainSyncStatus from '../../components/CrossChainSyncStatus/CrossChainSyncStatus';
@@ -28,10 +28,11 @@ import './OppyChat.css';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const SUGGESTED_PROMPTS = [
+  'What needs my attention?',
+  'Show my OpenWork summary',
+  'Platform overview',
+  'Find open design jobs',
   'Post a job',
-  'Apply to a job',
-  'Release payment',
-  'Check my jobs',
 ];
 
 const SUPPORTED_CHAINS = [
@@ -190,6 +191,210 @@ function parseToolBlock(text) {
   } catch {
     return { tool: null, cleanText: text };
   }
+}
+
+function metricValue(value, suffix = '') {
+  if (value === null || value === undefined || value === '') return '—';
+  return `${value}${suffix}`;
+}
+
+function ExplorerLink({ href, children, navigate }) {
+  if (!href) return null;
+  return (
+    <button type="button" className="oppy-data-link" onClick={() => navigate(href)}>
+      {children}<ArrowRight size={14} aria-hidden="true" />
+    </button>
+  );
+}
+
+function StatusBreakdown({ values = {} }) {
+  const entries = Object.entries(values);
+  if (!entries.length) return null;
+  return (
+    <div className="oppy-data-breakdown">
+      {entries.map(([label, value]) => (
+        <span key={label}><strong>{value}</strong> {label}</span>
+      ))}
+    </div>
+  );
+}
+
+function JobRows({ jobs = [], navigate }) {
+  if (!jobs.length) return <p className="oppy-data-empty">No matching canonical jobs.</p>;
+  return (
+    <div className="oppy-data-job-list">
+      {jobs.map((job) => (
+        <button type="button" key={job.jobId} className="oppy-data-job" onClick={() => navigate(job.href)}>
+          <span className="oppy-data-job-main">
+            <strong>{job.title || `Job ${job.jobId}`}</strong>
+            <small>{job.jobId} · {job.chain} · {job.status}</small>
+          </span>
+          <span className="oppy-data-job-side">
+            <strong>{job.nominalBudget} USDC</strong>
+            {job.applicationCount !== undefined && <small>{job.applicationCount} applicant{job.applicationCount === 1 ? '' : 's'}</small>}
+          </span>
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function WalletDashboardCard({ data, navigate }) {
+  if (data.available === false) {
+    return <div className="oppy-data-card oppy-data-card--error">{data.error}</div>;
+  }
+  const summary = data.summary || {};
+  return (
+    <div className="oppy-data-card">
+      <div className="oppy-data-heading">
+        <div className="oppy-data-icon"><BriefcaseBusiness size={18} /></div>
+        <div><span>YOUR OPENWORK</span><h3>Work and action inbox</h3></div>
+        <span className="oppy-data-live"><i />Live</span>
+      </div>
+      <div className="oppy-data-metrics">
+        <div><span>Jobs</span><strong>{summary.totalJobs ?? 0}</strong></div>
+        <div><span>Needs attention</span><strong>{summary.attentionCount ?? 0}</strong></div>
+        <div><span>Earned</span><strong>{metricValue(summary.earnedByWallet, ' USDC')}</strong></div>
+        <div><span>Paid</span><strong>{metricValue(summary.paidByWallet, ' USDC')}</strong></div>
+      </div>
+      {data.profile?.available && (
+        <div className="oppy-profile-strip">
+          <UserRound size={18} />
+          <span><strong>{data.profile.name || 'On-chain profile'}</strong><small>{data.profile.skills?.slice(0, 4).join(' · ') || 'No skills listed'}</small></span>
+          <span className="oppy-profile-rating">{data.profile.ratingAverage ?? '—'} ★ <small>{data.profile.ratingCount} ratings</small></span>
+        </div>
+      )}
+      <StatusBreakdown values={summary.statusCounts} />
+      <div className="oppy-data-section-title"><h4>Attention</h4><span>{data.attention?.length || 0} signals</span></div>
+      {data.attention?.length ? (
+        <div className="oppy-attention-list">
+          {data.attention.map((item) => (
+            <div className={`oppy-attention-item ${item.priority === 'high' ? 'is-high' : ''}`} key={`${item.kind}-${item.jobId}`}>
+              <CircleCheck size={17} />
+              <span><strong>{item.label}</strong><small>{item.title} · {item.jobId} · {item.chain}</small><em>{item.detail}</em></span>
+              <ExplorerLink href={item.href} navigate={navigate}>Open</ExplorerLink>
+            </div>
+          ))}
+        </div>
+      ) : <p className="oppy-data-empty">Nothing currently requires a canonical job action.</p>}
+      <details className="oppy-data-details">
+        <summary>Recent jobs <span>{data.jobs?.length || 0}</span></summary>
+        <JobRows jobs={data.jobs} navigate={navigate} />
+      </details>
+      <p className="oppy-data-source">Source: {data.provenance}</p>
+    </div>
+  );
+}
+
+function PlatformOverviewCard({ data, navigate }) {
+  const summary = data.summary || {};
+  return (
+    <div className="oppy-data-card">
+      <div className="oppy-data-heading">
+        <div className="oppy-data-icon"><ChartNoAxesColumn size={18} /></div>
+        <div><span>OPENWORK NETWORK</span><h3>Canonical platform overview</h3></div>
+        <span className="oppy-data-live"><i />Live</span>
+      </div>
+      <div className="oppy-data-metrics">
+        <div><span>Total jobs</span><strong>{summary.totalJobs ?? 0}</strong></div>
+        <div><span>Applications</span><strong>{summary.totalApplications ?? 0}</strong></div>
+        <div><span>Nominal budgets</span><strong>{metricValue(summary.nominalBudget, ' USDC')}</strong></div>
+        <div><span>Paid</span><strong>{metricValue(summary.totalPaid, ' USDC')}</strong></div>
+      </div>
+      <StatusBreakdown values={summary.statusCounts} />
+      <StatusBreakdown values={summary.chainCounts} />
+      {!!data.topSkills?.length && (
+        <div className="oppy-skill-cloud">
+          {data.topSkills.map((item) => <span key={item.skill}>{item.skill}<strong>{item.count}</strong></span>)}
+        </div>
+      )}
+      <div className="oppy-data-section-title"><h4>Recent canonical jobs</h4><span>Newest first</span></div>
+      <JobRows jobs={data.recentJobs} navigate={navigate} />
+      <p className="oppy-data-source">{data.coverage?.analyticsScope} Source: {data.provenance}</p>
+    </div>
+  );
+}
+
+function SearchResultsCard({ data, navigate }) {
+  return (
+    <div className="oppy-data-card">
+      <div className="oppy-data-heading">
+        <div className="oppy-data-icon"><Search size={18} /></div>
+        <div><span>CANONICAL SEARCH</span><h3>{data.resultCount} result{data.resultCount === 1 ? '' : 's'} for “{data.query}”</h3></div>
+      </div>
+      <JobRows jobs={data.results} navigate={navigate} />
+      <p className="oppy-data-source">{data.coverage} Source: {data.provenance}</p>
+    </div>
+  );
+}
+
+function JobDeepDiveCard({ data, navigate }) {
+  if (data.available === false) return <div className="oppy-data-card oppy-data-card--error">{data.error}</div>;
+  const job = data.job || {};
+  return (
+    <div className="oppy-data-card oppy-data-card--deep">
+      <div className="oppy-data-heading">
+        <div className="oppy-data-icon"><BriefcaseBusiness size={18} /></div>
+        <div><span>JOB DEEP DIVE · {job.jobId}</span><h3>{job.title || `Job ${job.jobId}`}</h3><p>{job.chain} · {job.status}{job.viewerRole ? ` · You are the ${job.viewerRole}` : ''}</p></div>
+        <ExplorerLink href={job.href} navigate={navigate}>Job page</ExplorerLink>
+      </div>
+      {job.description && <p className="oppy-job-description">{job.description}</p>}
+      <div className="oppy-data-metrics">
+        <div><span>Budget</span><strong>{job.nominalBudget} USDC</strong></div>
+        <div><span>Paid</span><strong>{job.totalPaid} USDC</strong></div>
+        <div><span>Applications</span><strong>{job.applicationCount}</strong></div>
+        <div><span>Submissions</span><strong>{job.submissionCount}</strong></div>
+      </div>
+      {!!job.skills?.length && <div className="oppy-skill-cloud">{job.skills.map(skill => <span key={skill}>{skill}</span>)}</div>}
+      {data.nextAction && (
+        <div className="oppy-next-action">
+          <span><strong>{data.nextAction.label}</strong><small>{data.nextAction.detail}</small></span>
+          <ExplorerLink href={data.nextAction.href} navigate={navigate}>Review</ExplorerLink>
+        </div>
+      )}
+      <div className="oppy-data-section-title"><h4>Milestones</h4><span>{data.milestones?.length || 0}</span></div>
+      <div className="oppy-milestones">
+        {data.milestones?.map((milestone) => (
+          <div className={`oppy-milestone is-${milestone.state}`} key={milestone.number}>
+            <i>{milestone.number}</i><span><strong>{milestone.title}</strong><small>{milestone.description || milestone.state}</small></span><em>{milestone.amount} USDC</em>
+          </div>
+        ))}
+      </div>
+      {!!data.applications?.length && (
+        <details className="oppy-data-details">
+          <summary>Applications <span>{data.applications.length}</span></summary>
+          <div className="oppy-applications">
+            {data.applications.map((application) => (
+              <div className={`oppy-application ${application.selected ? 'is-selected' : ''}`} key={application.id}>
+                <span><strong>{application.profile?.name || `${application.applicant.slice(0, 8)}…${application.applicant.slice(-4)}`}</strong><small>Application #{application.id}{application.selected ? ' · Selected' : ''}</small></span>
+                <span>{application.profile?.ratingAverage ?? '—'} ★<small>{application.profile?.portfolioCount ?? 0} portfolio items</small></span>
+                {application.profile?.href && <ExplorerLink href={application.profile.href} navigate={navigate}>Profile</ExplorerLink>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+      {!!data.submissions?.length && (
+        <details className="oppy-data-details">
+          <summary>Work submissions <span>{data.submissions.length}</span></summary>
+          <div className="oppy-submissions">
+            {data.submissions.map((submission) => <p key={submission.hash}><strong>Submission {submission.number}</strong>{submission.description || 'Metadata recorded on IPFS.'}</p>)}
+          </div>
+        </details>
+      )}
+      <p className="oppy-data-source">Canonical state and IDs are contract reads. Descriptions, profiles, proposals and work content are IPFS metadata referenced by those contracts.</p>
+    </div>
+  );
+}
+
+function ExplorerCard({ data, navigate }) {
+  if (!data) return null;
+  if (data.type === 'wallet-dashboard') return <WalletDashboardCard data={data} navigate={navigate} />;
+  if (data.type === 'platform-overview') return <PlatformOverviewCard data={data} navigate={navigate} />;
+  if (data.type === 'job-search') return <SearchResultsCard data={data} navigate={navigate} />;
+  if (data.type === 'job-deep-dive') return <JobDeepDiveCard data={data} navigate={navigate} />;
+  return null;
 }
 
 // ── Wallet status bar ────────────────────────────────────────────
@@ -416,6 +621,7 @@ const OppyChat = () => {
         setChat(prev => {
           const withoutThinking = prev.filter(m => !m.isThinking);
           const msgs = [...withoutThinking, { role: 'bot', text: cleanText }];
+          if (data.explorer) msgs.push({ role: 'bot', isDataCard: true, data: data.explorer });
           if (proposedTool) msgs.push({ role: 'bot', isTxCard: true, tool: proposedTool });
           return msgs;
         });
@@ -836,6 +1042,13 @@ const OppyChat = () => {
           {/* Messages */}
           <div className="chat-messages-area" style={mobMsgs}>
             {chat.map((msg, idx) => {
+              if (msg.isDataCard) {
+                return (
+                  <div className="chat-msg-row bot chat-msg-row--data" key={idx}>
+                    <ExplorerCard data={msg.data} navigate={navigate} />
+                  </div>
+                );
+              }
               if (msg.isTxCard) {
                 return (
                   <div className="chat-msg-row bot" key={idx}>
