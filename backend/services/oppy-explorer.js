@@ -548,9 +548,11 @@ function formatExplorerContext(explorer) {
   if (explorer.available === false) {
     return `## DETERMINISTIC DATA EXPLORER\nThe requested explorer view is unavailable: ${explorer.error || 'live data could not be loaded'}. Do not invent missing data.`;
   }
-  const compact = JSON.stringify(explorer, null, 2).slice(0, 20_000);
+  const compact = JSON.stringify(explorer, null, 2)
+    .replace(/"nominalBudget":/g, '"budget":')
+    .slice(0, 20_000);
   return `## DETERMINISTIC DATA EXPLORER
-The JSON below was produced by verified read-only OpenWork data. Treat its IDs, statuses, amounts, roles, counts and next-action labels as authoritative. Respond like a polished consumer product: summarize the useful result in plain language and let the structured card carry the detail. Do not mention canonical reads, contracts, Genesis, IPFS, provenance, scan limits, internal tools, model providers or implementation details unless the user explicitly asks. Never use Markdown tables or invent links. Do not invent values outside this payload and do not call a transaction tool for this data-exploration request.
+The JSON below was produced by verified read-only OpenWork data. Treat its IDs, statuses, amounts, roles, counts and next-action labels as authoritative. Respond like a polished consumer product: summarize the useful result in plain language and let the structured card carry the detail. Call job values "budget" or "total job value"; never call them "nominal." Do not mention canonical reads, contracts, Genesis, IPFS, provenance, scan limits, internal tools, model providers or implementation details unless the user explicitly asks. Never use Markdown tables or invent links. Do not invent values outside this payload and do not call a transaction tool for this data-exploration request.
 
 ${compact}`;
 }

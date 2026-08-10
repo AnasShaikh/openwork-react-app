@@ -118,6 +118,9 @@ test('platform overview and job search aggregate live ledger metadata', async ()
   assert.equal(overview.summary.nominalBudget, '0.5');
   assert.ok(overview.topSkills.some((entry) => entry.skill === 'React'));
   assert.equal(search.results[0].jobId, '30365-8');
+  const promptContext = formatExplorerContext(overview);
+  assert.match(promptContext, /"budget": "0\.5"/);
+  assert.doesNotMatch(promptContext, /"nominalBudget":/);
 });
 
 test('job deep dive joins milestones, applications, profiles and submissions', async () => {
