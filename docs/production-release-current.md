@@ -6,21 +6,47 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 10 August 2026 04:25 IST |
+| Deployed at | 10 August 2026 06:58 IST |
 | Git branch | `main` |
-| Git commit | `865c4f1f0670309e75c45afcff5c230b6f7a69aa` |
-| GitHub CI | run `31340088320` — frontend tests (`100/100`), backend tests (`50/50`), backend audit and mainnet frontend build passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-865c4f1.zip` |
-| Source archive SHA-256 | `f125f28385108a4f832803ac96abd822889ee291fdffca2a29704a761f0548b2` |
-| CodeBuild | `openwork-react-app-prod-build:bd4a4e4e-252c-40db-bff3-37405e1ef504` — succeeded |
-| ECR image | `openwork-app:prod-865c4f1-20260809224350` |
-| ECR digest | `sha256:de471d2bcf54a0c40ab4164fd754f7e8056b4d78dd9ceeb4737d7849c3259556` |
+| Git commit | `fe184bd5f4b7ee781ed040a9b7a1d74793549271` |
+| Release gate | Frontend tests (`101/101`), backend tests (`54/54`), mainnet frontend build and `git diff --check` passed locally; no GitHub Actions run was reported for this commit |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-fe184bd5f4b7ee781ed040a9b7a1d74793549271.zip` |
+| Source archive SHA-256 | `1d0aec64d832f18353fdd9faa0ddaa2bbf1ffba671394e6a6d6087f07a230ac4` |
+| CodeBuild | `openwork-react-app-prod-build:a4ea7d57-9d28-4575-bd80-26d01d0bb4ed` — succeeded |
+| ECR image | `openwork-app:prod-fe184bd-20260810011445` |
+| ECR digest | `sha256:04ff9311c8f4b1945bcfa989afa5d1a55b9ce5b6612398e1987795d455cce54b` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `36a92573b4844172bec9100753a60397` — succeeded |
+| App Runner operation | `5eac8d535f1f458eb3fe699df90d4f22` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-zSLCcOPr.js` — SHA-256 `77296286ce96a76473647b23992041057f1ffd24aa01f53452c64fb635ff9041` |
-| Rollback target | `openwork-app:prod-c379909-20260809220512` |
-| Rollback digest | `sha256:474dea3c28ad6acca70839c3e43939717e42c57b3e5971ff399b0109120b3320` |
+| Deployed JS asset | `/assets/index-CdyA8Z6q.js` — SHA-256 `54e8ef1bbed5c3fbc8ff2ad55fb56fb305897b7f23a620eebd759f9da147b972` |
+| Rollback target | `openwork-app:prod-865c4f1-20260809224350` |
+| Rollback digest | `sha256:de471d2bcf54a0c40ab4164fd754f7e8056b4d78dd9ceeb4737d7849c3259556` |
+
+## Canonical Oppy data explorer
+
+Oppy now provides a read-only data-exploration layer alongside transaction review.
+Connected wallets can ask what needs attention, inspect their complete OpenWork
+activity and earnings, group jobs by role, status and chain, and open canonical job
+details without initiating a wallet request. Platform-wide exploration includes live
+job, application, budget, payment, chain, status and skill summaries plus canonical
+job search.
+
+Job deep dives join Arbitrum Genesis state, Genesis Reader applications, Profile
+Genesis data, milestones, work submissions and IPFS metadata. Structured cards link
+back to the existing job, profile and review screens and explicitly show provenance.
+Read-only prompts have no transaction tools available; an explicit write request
+still receives only its matching review tool. Explorer cards are derived from live
+data and are not persisted as stale conversation messages.
+
+Production verification returned HTTP 200 for `/healthz` and all four explorer
+routes. The platform overview reported 141 canonical jobs and 93 applications. The
+deployer wallet resolved 73 related jobs across job-giver, applicant and selected-
+applicant roles. XDC job `30365-8` resolved as `React Developer – Test Job`, status
+In progress, budget `0.1 USDC`, one selected application and no submission. A live
+`Platform overview` chat request returned the explorer card with no tool, while
+`release payment for 30365-8` returned only `releasePayment`. Both used Sonnet 4.6.
+Desktop and 390px mobile visual checks passed with no horizontal overflow. These
+checks submitted no wallet request, token transfer or on-chain transaction.
 
 ## Current-turn transaction intent isolation
 
