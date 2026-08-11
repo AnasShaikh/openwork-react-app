@@ -6,21 +6,44 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 10 August 2026 06:58 IST |
+| Deployed at | 11 August 2026 21:32 IST |
 | Git branch | `main` |
-| Git commit | `fe184bd5f4b7ee781ed040a9b7a1d74793549271` |
-| Release gate | Frontend tests (`101/101`), backend tests (`54/54`), mainnet frontend build and `git diff --check` passed locally; no GitHub Actions run was reported for this commit |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-fe184bd5f4b7ee781ed040a9b7a1d74793549271.zip` |
-| Source archive SHA-256 | `1d0aec64d832f18353fdd9faa0ddaa2bbf1ffba671394e6a6d6087f07a230ac4` |
-| CodeBuild | `openwork-react-app-prod-build:a4ea7d57-9d28-4575-bd80-26d01d0bb4ed` — succeeded |
-| ECR image | `openwork-app:prod-fe184bd-20260810011445` |
-| ECR digest | `sha256:04ff9311c8f4b1945bcfa989afa5d1a55b9ce5b6612398e1987795d455cce54b` |
+| Git commit | `b55fa70f6315de67c17e39a814374f818c4b537f` |
+| Release gate | Frontend tests (`103/103`), backend tests (`55/55`), production frontend build and `git diff --check` passed locally; CodeBuild and the App Runner operation succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-b55fa70f6315de67c17e39a814374f818c4b537f.zip` |
+| Source archive SHA-256 | `dc4205ac0df7ad3d3968ea2d776d7861aeb2804390acd20cf6724f1d0b4ec2e9` |
+| CodeBuild | `openwork-react-app-prod-build:d07d3781-db35-49bb-a607-782b6085dcb7` — succeeded |
+| ECR image | `openwork-app:prod-b55fa70-20260811212126` |
+| ECR digest | `sha256:cff25b7cd49542e44ff4f8ea4978ed6a43765fc88f0ea57c5c1c830982ef0e7e` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `5eac8d535f1f458eb3fe699df90d4f22` — succeeded |
+| App Runner operation | `0dbf4708de1840988bdcedf869f97f12` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CdyA8Z6q.js` — SHA-256 `54e8ef1bbed5c3fbc8ff2ad55fb56fb305897b7f23a620eebd759f9da147b972` |
-| Rollback target | `openwork-app:prod-865c4f1-20260809224350` |
-| Rollback digest | `sha256:de471d2bcf54a0c40ab4164fd754f7e8056b4d78dd9ceeb4737d7849c3259556` |
+| Deployed JS asset | `/assets/index-VzJIEAb3.js` — SHA-256 `537bd0e25c6e0dbd77d9b2f892dbb5d6190ec4791cec1cb9de6b521868a0ede8` |
+| Rollback target | `openwork-app:prod-07a3b8f-20260810180751` |
+| Rollback digest | `sha256:b16731db14351f2cd285b20abe7b69f0b462abd916dca1f315f836cc5ea87f07` |
+
+## Oppy product language and trace safety polish
+
+Oppy's public `/chat`, `/docs` and `/oppy` surfaces now use finished-product
+language. Provider, registry, provenance and transaction implementation labels were
+removed from ordinary customer-facing headers, suggestions, cards and progress
+messages. Platform values are described as budgets or total job value rather than
+internal nominal-value terminology. Technical architecture remains available when a
+user explicitly asks a technical question.
+
+Assistant output and saved conversation history are sanitized on both the server and
+the browser. Internal tool/function call and response blocks are removed before they
+can be rendered or reused as model history, including conversations saved before this
+release. Markdown tables returned by the model are converted to readable bullets in
+the public job chat.
+
+Production returned HTTP 200 for `/`, `/healthz`, `/chat`, `/docs` and `/oppy`.
+A live platform-overview request reported `Total budget posted` and contained neither
+the word `nominal` nor an internal trace. A live request to `release payment for
+30365-8`, after stale direct-contract history, returned only the `releasePayment`
+review for job `30365-8`; it did not expose a trace. App Runner reports `RUNNING` on
+the immutable image above. These checks prepared no wallet request and sent no
+on-chain transaction.
 
 ## Canonical Oppy data explorer
 
