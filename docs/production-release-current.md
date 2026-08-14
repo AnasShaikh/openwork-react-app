@@ -6,21 +6,55 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 11 August 2026 21:32 IST |
+| Deployed at | 15 August 2026 01:46 IST |
 | Git branch | `main` |
-| Git commit | `b55fa70f6315de67c17e39a814374f818c4b537f` |
-| Release gate | Frontend tests (`103/103`), backend tests (`55/55`), production frontend build and `git diff --check` passed locally; CodeBuild and the App Runner operation succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-b55fa70f6315de67c17e39a814374f818c4b537f.zip` |
-| Source archive SHA-256 | `dc4205ac0df7ad3d3968ea2d776d7861aeb2804390acd20cf6724f1d0b4ec2e9` |
-| CodeBuild | `openwork-react-app-prod-build:d07d3781-db35-49bb-a607-782b6085dcb7` — succeeded |
-| ECR image | `openwork-app:prod-b55fa70-20260811212126` |
-| ECR digest | `sha256:cff25b7cd49542e44ff4f8ea4978ed6a43765fc88f0ea57c5c1c830982ef0e7e` |
+| Git commit | `064b7f15dbfb44afa535a3e147248470c1e4ca29` |
+| Release gate | Frontend tests (`103/103`), backend tests (`56/56`), production frontend build and `git diff --check` passed locally; CodeBuild and the App Runner operation succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-064b7f15dbfb44afa535a3e147248470c1e4ca29.zip` |
+| Source archive SHA-256 | `1f27446f92f1c1b2da330d81971d50ad44e66dd436f20f9aec1e100f3de2fcc6` |
+| CodeBuild | `openwork-react-app-prod-build:f61083fe-7f60-4edc-b770-d0ed7720f232` — succeeded |
+| ECR image | `openwork-app:prod-064b7f1-20260815013712` |
+| ECR digest | `sha256:c30d70ae4ddda72827deeb9fb10e0da78f0dee19dd09f881e6b9c2280261a0a5` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `0dbf4708de1840988bdcedf869f97f12` — succeeded |
+| App Runner operation | `251f2cd7b10a4f0f8baee2e8fd5e33f7` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-VzJIEAb3.js` — SHA-256 `537bd0e25c6e0dbd77d9b2f892dbb5d6190ec4791cec1cb9de6b521868a0ede8` |
-| Rollback target | `openwork-app:prod-07a3b8f-20260810180751` |
-| Rollback digest | `sha256:b16731db14351f2cd285b20abe7b69f0b462abd916dca1f315f836cc5ea87f07` |
+| Deployed JS asset | `/assets/index-D5jIidUz.js` — SHA-256 `eea81369c910ab6f16e32c7b69f2fa6173d1f2baa27658bdf1694fef75eb5a3a` |
+| Rollback target | `openwork-app:prod-b55fa70-20260811212126` |
+| Rollback digest | `sha256:cff25b7cd49542e44ff4f8ea4978ed6a43765fc88f0ea57c5c1c830982ef0e7e` |
+
+## Oppy action-continuation and internal-trace repair
+
+Oppy previously chose transaction tools from the current message alone. A short
+answer such as `yes, just 1 milestone` therefore lost the direct-contract intent from
+the immediately preceding Oppy question, and no native Bedrock tool was made
+available. The model then improvised a textual `<function_calls><invoke ...>` block
+and claimed that a review screen was open even though the application had received no
+validated action. This was a server orchestration and output-safety defect, not an
+Armand wallet, browser, balance or cache problem.
+
+The backend now resolves bounded transaction continuations from the latest assistant
+question and recent history, while an explicit current action still takes precedence.
+It exposes exactly one matching tool, rejects every other tool and uses deterministic
+public copy after an accepted native tool. A continuation can resume an action only
+when it is a short answer to the latest action-specific assistant question; unrelated
+questions, ambiguous actions and replies following a completed statement cannot
+inherit stale transaction intent.
+
+Server and browser sanitizers now remove both singular and plural function/tool call
+and response tag families, including `function_calls`, `invoke` and `parameter`, as
+well as malformed or unclosed blocks. If trace-like output appears without an accepted
+native tool, Oppy fails closed with a neutral retry message. Previously saved malformed
+responses are sanitized when conversation memory is loaded, so exposed protocol text
+is not rendered again after refresh.
+
+Regression coverage includes the exact reported XML shape and the exact continuation
+`yes, just 1 milestone`. It verifies a native `startDirectContract` review, preservation
+of the `0.001 USDC` budget, rejection of unrelated or stale continuations and removal
+of false completion prose. A post-deploy synthetic replay through the public API
+returned `startDirectContract`, budget `0.001`, deterministic review copy and no XML.
+Production returned HTTP 200 for `/`, `/healthz`, `/chat`, `/docs` and `/oppy`, and
+App Runner reports `RUNNING` on the immutable image above. Verification used synthetic
+data and submitted no wallet request or on-chain transaction.
 
 ## Oppy product language and trace safety polish
 
