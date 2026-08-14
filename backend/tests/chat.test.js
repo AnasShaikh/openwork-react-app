@@ -10,12 +10,15 @@ const {
   buildTransactionSystemPrompt,
   detectExplicitToolIntent,
   extractEvmAddressFacts,
+  resolveTransactionToolIntent,
   sanitizeWalletState,
 } = require('../services/oppy-context');
 const { sanitizeConversationMemory } = require('../services/oppy-job-context');
 const { validateToolUse } = require('../services/chat-tools');
 const {
+  ACTION_REVIEW_RESPONSE,
   DEFAULT_MODEL_ID,
+  MALFORMED_ACTION_RESPONSE,
   converse,
   extractResponse,
   normalizeHistory,
@@ -122,6 +125,40 @@ test('the current explicit transaction intent overrides stale conversation actio
   assert.match(prompt, /Never continue, reopen or substitute a tool from an older conversation turn/);
 });
 
+test('a direct answer resumes only the action behind the latest assistant question', () => {
+  const directHistory = [
+    {
+      role: 'user',
+      text: 'Create a direct contract with 0x91Bc6bf270fa5434D6fA4934ab66059D636fb351',
+    },
+    {
+      role: 'oppy',
+      text: 'Is 1 milestone of $0.001 USDC correct, or would you like multiple milestones?',
+    },
+  ];
+  assert.deepEqual(
+    resolveTransactionToolIntent('yes, just 1 milestone', directHistory),
+    { name: 'startDirectContract', source: 'continuation' },
+  );
+  assert.equal(
+    resolveTransactionToolIntent('what are the fees?', directHistory),
+    null,
+  );
+  assert.equal(
+    resolveTransactionToolIntent('yes', [
+      directHistory[0],
+      { role: 'oppy', text: 'The direct contract screen is open.' },
+    ]),
+    null,
+  );
+
+  const prompt = buildTransactionSystemPrompt('yes, just 1 milestone', { chainId: 50 }, {
+    toolIntent: { name: 'startDirectContract', source: 'continuation' },
+  });
+  assert.match(prompt, /direct answer to your latest question/);
+  assert.match(prompt, /Only the native `startDirectContract` tool can open the review card/);
+});
+
 test('conversation memory keeps only bounded job and receipt context', () => {
   const memory = sanitizeConversationMemory({
     activeJob: {
@@ -197,6 +234,7 @@ test('Bedrock response extraction exposes only validated native tools', () => {
   assert.equal(extracted.kind, 'review');
   assert.equal(extracted.requiresWalletSignature, false);
   assert.deepEqual(extracted.params, { jobId: '42161-24' });
+  assert.equal(extractResponse(message, true).text, ACTION_REVIEW_RESPONSE);
   assert.equal(extractResponse({
     content: [{ toolUse: {
       name: 'startDirectContract',
@@ -213,8 +251,19 @@ test('Bedrock response extraction exposes only validated native tools', () => {
 test('assistant output never exposes internal tool traces', () => {
   const traced = `Opening that now.\n\n<tool_call>{"name":"navigate_to_direct_contract"}</tool_call>\n<tool_response>{"status":"ok"}</tool_response>\n\nYour details are ready.`;
   assert.equal(sanitizeAssistantText(traced), 'Opening that now.\n\nYour details are ready.');
-  assert.equal(extractResponse({ content: [{ text: traced }] }, false).text, 'Opening that now.\n\nYour details are ready.');
+  assert.equal(extractResponse({ content: [{ text: traced }] }, false).text, MALFORMED_ACTION_RESPONSE);
   assert.equal(normalizeHistory([{ role: 'user', text: traced }])[0].content[0].text, 'Opening that now.\n\nYour details are ready.');
+
+  const armandTrace = `Let me pull up the direct contract screen for you right away!\n\n<function_calls> <invoke name="open_direct_contract_screen"> <parameter name="jobTitle">Direct Payment Task</parameter> <parameter name="jobDescription">A simple direct contract for a small USDC payment.</parameter> <parameter name="jobTaker">0x91Bc6bf270fa5434D6fA4934ab66059D636fb351</parameter> <parameter name="chain">XDC Network</parameter> <parameter name="milestones">[{"amount": 0.001}]</parameter> </invoke> </function_calls>\n\nThe direct contract screen is now open.`;
+  assert.equal(
+    sanitizeAssistantText(armandTrace),
+    'Let me pull up the direct contract screen for you right away!\n\nThe direct contract screen is now open.',
+  );
+  assert.equal(
+    extractResponse({ content: [{ text: armandTrace }] }, false).text,
+    MALFORMED_ACTION_RESPONSE,
+  );
+  assert.equal(sanitizeAssistantText('<function_calls><invoke name="x">unfinished'), '');
 });
 
 test('Bedrock receives only the tool matching an explicit current-turn action', async () => {

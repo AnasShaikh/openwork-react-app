@@ -91,10 +91,15 @@ test('history excludes greetings and stale transaction cards and keeps recent re
 });
 
 test('stored Oppy text removes internal traces and renders tables as readable bullets', () => {
-  const raw = `Opening that now.\n\n<tool_call>{"name":"internal"}</tool_call>\n<tool_response>{"status":"ok"}</tool_response>\n\n| Field | Value |\n|---|---|\n| Title | Direct Payment Task |\n| Budget | 0.001 USDC |`;
-  const clean = sanitizeOppyText(raw);
-  assert.equal(clean.includes('tool_call'), false);
-  assert.equal(clean.includes('|---|'), false);
-  assert.match(clean, /\*\*Field:\*\* Title/);
-  assert.match(clean, /\*\*Value:\*\* 0\.001 USDC/);
+  const rawTrace = `Opening that now.\n\n<tool_call>{"name":"internal"}</tool_call>\n<tool_response>{"status":"ok"}</tool_response>\n<function_calls><invoke name="open_direct_contract_screen"><parameter name="milestones">[{"amount":0.001}]</parameter></invoke></function_calls>`;
+  assert.equal(
+    sanitizeOppyText(rawTrace),
+    "I couldn't prepare that review card. Please try the action again.",
+  );
+
+  const rawTable = `| Field | Value |\n|---|---|\n| Title | Direct Payment Task |\n| Budget | 0.001 USDC |`;
+  const cleanTable = sanitizeOppyText(rawTable);
+  assert.equal(cleanTable.includes('|---|'), false);
+  assert.match(cleanTable, /\*\*Field:\*\* Title/);
+  assert.match(cleanTable, /\*\*Value:\*\* 0\.001 USDC/);
 });

@@ -32,6 +32,23 @@ const EXPLICIT_TOOL_INTENT_RULES = [
   { name: 'openJob', pattern: /\b(?:open|show|view)\s+(?:job\s+)?\d+-\d+\b/i },
 ];
 
+const TOOL_CONTINUATION_HINTS = {
+  releasePayment: /\b(?:release|payment|milestone|job\s+id)\b/i,
+  startDirectContract: /\b(?:direct\s+(?:contract|job)|job\s+taker|recipient|freelancer|budget|milestone|title|description)\b/i,
+  postJob: /\b(?:post(?:ing)?|job\s+title|budget|milestone|description|skills?)\b/i,
+  applyToJob: /\b(?:apply|application|proposal|proposed\s+amount|job\s+id)\b/i,
+  submitWork: /\b(?:submit|work\s+details|deliverable|job\s+id)\b/i,
+  raiseDispute: /\b(?:dispute|reason|evidence|job\s+id)\b/i,
+  createProfile: /\b(?:profile|name|skills?|hourly\s+rate)\b/i,
+  startJob: /\b(?:start|hire|applicant|milestone|job\s+id)\b/i,
+  viewApplications: /\b(?:applications?|job\s+id)\b/i,
+  openMyJobs: /\b(?:my\s+jobs?|job\s+history)\b/i,
+  browseJobs: /\b(?:browse|available\s+jobs?|open\s+jobs?|marketplace)\b/i,
+  openJob: /\b(?:job\s+id|which\s+job)\b/i,
+};
+
+const QUESTION_OR_NEW_REQUEST = /^(?:what|why|how|when|where|who|which|can|could|would|should|is|are|do|does|did|tell\s+me|explain|show\s+me|find|search|browse|check)\b/i;
+
 const contractRows = registry.chains.flatMap((chain) => (
   chain.contracts.map((contract) => ({ ...contract, chain }))
 ));
@@ -178,8 +195,49 @@ function detectExplicitToolIntent(message) {
   return matches.length === 1 ? matches[0] : null;
 }
 
-function explicitToolIntentContext(toolName) {
-  if (!toolName) return '';
+function isActionContinuation(message, assistantMessage, toolName) {
+  const reply = String(message || '').trim();
+  const prompt = String(assistantMessage || '').trim();
+  if (!reply || reply.length > 500 || reply.includes('?') || QUESTION_OR_NEW_REQUEST.test(reply)) return false;
+  if (!prompt || !prompt.includes('?')) return false;
+  return Boolean(TOOL_CONTINUATION_HINTS[toolName]?.test(prompt));
+}
+
+function resolveTransactionToolIntent(message, history = []) {
+  const currentMatches = EXPLICIT_TOOL_INTENT_RULES
+    .filter((rule) => rule.pattern.test(String(message || '').trim()))
+    .map((rule) => rule.name);
+  if (currentMatches.length === 1) return { name: currentMatches[0], source: 'current' };
+  if (currentMatches.length > 1 || !Array.isArray(history)) return null;
+
+  const recent = history.slice(-12);
+  const lastEntry = recent[recent.length - 1];
+  const lastAssistantText = lastEntry
+    && ['oppy', 'bot', 'assistant'].includes(lastEntry.role)
+    && typeof lastEntry.text === 'string'
+    ? lastEntry.text
+    : '';
+  if (!lastAssistantText) return null;
+
+  for (let index = recent.length - 2; index >= 0; index -= 1) {
+    const entry = recent[index];
+    if (entry?.role !== 'user' || typeof entry.text !== 'string') continue;
+    const toolName = detectExplicitToolIntent(entry.text);
+    if (!toolName) continue;
+    return isActionContinuation(message, lastAssistantText, toolName)
+      ? { name: toolName, source: 'continuation' }
+      : null;
+  }
+  return null;
+}
+
+function explicitToolIntentContext(toolIntent) {
+  if (!toolIntent?.name) return '';
+  const toolName = toolIntent.name;
+  if (toolIntent.source === 'continuation') {
+    return `\n\n## SERVER-RESOLVED ACTION CONTINUATION
+The user's current reply is a direct answer to your latest question while preparing \`${toolName}\`. Continue only \`${toolName}\`, using the relevant facts already supplied in this conversation, or ask one concise question if a required input is still missing. Never emit XML, a textual function call or a claim that a screen opened. Only the native \`${toolName}\` tool can open the review card.`;
+  }
   return `\n\n## SERVER-DETECTED CURRENT ACTION
 The user's current message explicitly requests \`${toolName}\`. This current-turn intent overrides any different action discussed earlier. You may call only \`${toolName}\` for this turn, or ask one concise question if a required input is genuinely missing. Never continue, reopen or substitute a tool from an older conversation turn.`;
 }
@@ -206,7 +264,10 @@ ${registryContext(message)}`;
 
 function buildTransactionSystemPrompt(message, walletInput, runtimeContext = {}) {
   const wallet = sanitizeWalletState(walletInput);
-  const explicitToolName = runtimeContext.explicitToolName || detectExplicitToolIntent(message);
+  const toolIntent = runtimeContext.toolIntent
+    || (runtimeContext.explicitToolName
+      ? { name: runtimeContext.explicitToolName, source: 'current' }
+      : resolveTransactionToolIntent(message));
   const validatedAddresses = Array.isArray(runtimeContext.validatedAddresses)
     ? runtimeContext.validatedAddresses
     : extractEvmAddressFacts(message);
@@ -242,7 +303,7 @@ ${deployedCodeContext(message)}
 
 ${formatJobContext(runtimeContext.jobContext)}
 
-${registryContext(message)}${addressFactsContext(validatedAddresses)}${explicitToolIntentContext(explicitToolName)}`;
+${registryContext(message)}${addressFactsContext(validatedAddresses)}${explicitToolIntentContext(toolIntent)}`;
 }
 
 module.exports = {
@@ -253,6 +314,7 @@ module.exports = {
   deployedCodeContext,
   extractEvmAddressFacts,
   registryContext,
+  resolveTransactionToolIntent,
   sanitizeWalletState,
   selectContracts,
 };

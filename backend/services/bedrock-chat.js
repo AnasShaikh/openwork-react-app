@@ -13,18 +13,24 @@ const MAX_HISTORY_ITEMS = 24;
 let sharedClient;
 
 const INTERNAL_TRACE_PATTERNS = [
+  /<(?:function_calls?|tool_calls?)\b[^>]*>[\s\S]*?<\/(?:function_calls?|tool_calls?)>/gi,
+  /<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi,
   /<tool_call\b[^>]*>[\s\S]*?<\/tool_call>/gi,
   /<tool_response\b[^>]*>[\s\S]*?<\/tool_response>/gi,
   /<function_call\b[^>]*>[\s\S]*?<\/function_call>/gi,
   /<function_response\b[^>]*>[\s\S]*?<\/function_response>/gi,
   /<tool\b[^>]*>[\s\S]*?<\/tool>/gi,
 ];
+const INTERNAL_TRACE_MARKER = /<\/?(?:tool|tool_calls?|tool_response|function_calls?|function_response|invoke|parameter)\b/i;
+const MALFORMED_ACTION_RESPONSE = "I couldn't prepare that review card. Please try the action again.";
+const ACTION_REVIEW_RESPONSE = 'Review the proposed action below before continuing.';
 
 function sanitizeAssistantText(value) {
   let text = typeof value === 'string' ? value : '';
   for (const pattern of INTERNAL_TRACE_PATTERNS) text = text.replace(pattern, '');
   text = text
-    .replace(/<\/?(?:tool|tool_call|tool_response|function_call|function_response)\b[^>]*>/gi, '')
+    .replace(/<(?:function_calls?|tool_calls?|invoke)\b[^>]*>[\s\S]*$/gi, '')
+    .replace(/<\/?(?:tool|tool_calls?|tool_response|function_calls?|function_response|invoke|parameter)\b[^>]*>/gi, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return text;
@@ -66,11 +72,12 @@ function normalizeHistory(history) {
 
 function extractResponse(message, allowTools, allowedToolNames) {
   const content = Array.isArray(message?.content) ? message.content : [];
-  const text = sanitizeAssistantText(content
+  const rawText = content
     .filter((block) => typeof block?.text === 'string')
     .map((block) => block.text.trim())
     .filter(Boolean)
-    .join('\n\n'));
+    .join('\n\n');
+  const text = sanitizeAssistantText(rawText);
   const toolBlock = allowTools ? content.find((block) => block?.toolUse) : null;
   const validatedTool = toolBlock ? validateToolUse(toolBlock.toolUse) : null;
   const allowedNames = Array.isArray(allowedToolNames) && allowedToolNames.length
@@ -80,7 +87,11 @@ function extractResponse(message, allowTools, allowedToolNames) {
     ? validatedTool
     : null;
   return {
-    text: text || (acceptedTool ? 'Review the proposed action below before continuing.' : 'Sorry, I could not generate a response.'),
+    text: acceptedTool
+      ? ACTION_REVIEW_RESPONSE
+      : (INTERNAL_TRACE_MARKER.test(rawText)
+        ? MALFORMED_ACTION_RESPONSE
+        : (text || 'Sorry, I could not generate a response.')),
     tool: acceptedTool,
   };
 }
@@ -128,7 +139,9 @@ async function converse({ message, history, systemPrompt, allowTools = false, al
 }
 
 module.exports = {
+  ACTION_REVIEW_RESPONSE,
   DEFAULT_MODEL_ID,
+  MALFORMED_ACTION_RESPONSE,
   MAX_HISTORY_ITEMS,
   converse,
   extractResponse,

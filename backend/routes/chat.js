@@ -6,8 +6,8 @@ const { converse } = require('../services/bedrock-chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
-  detectExplicitToolIntent,
   extractEvmAddressFacts,
+  resolveTransactionToolIntent,
   sanitizeWalletState,
 } = require('../services/oppy-context');
 const {
@@ -62,8 +62,11 @@ router.post('/', async (req, res) => {
   inFlightRequests += 1;
   try {
     const transactionMode = request.mode === 'transactions';
-    const explicitToolName = transactionMode ? detectExplicitToolIntent(request.message) : null;
-    const explorerIntent = transactionMode ? detectDataIntent(request.message, explicitToolName) : null;
+    const toolIntent = transactionMode
+      ? resolveTransactionToolIntent(request.message, request.history)
+      : null;
+    const allowedToolName = toolIntent?.name || null;
+    const explorerIntent = transactionMode ? detectDataIntent(request.message, allowedToolName) : null;
     const jobContext = transactionMode && request.wallet.connected
       ? await getWalletJobContext(request.wallet.address, request.memory)
       : {
@@ -92,7 +95,7 @@ router.post('/', async (req, res) => {
     const baseSystemPrompt = transactionMode
       ? buildTransactionSystemPrompt(request.message, request.wallet, {
           jobContext,
-          explicitToolName,
+          toolIntent,
           validatedAddresses: extractEvmAddressFacts(request.message, request.history),
         })
       : buildDocsSystemPrompt(request.message);
@@ -102,8 +105,8 @@ router.post('/', async (req, res) => {
       message: request.message,
       history: request.history,
       systemPrompt,
-      allowTools: transactionMode && Boolean(explicitToolName),
-      allowedToolNames: explicitToolName ? [explicitToolName] : undefined,
+      allowTools: transactionMode && Boolean(allowedToolName),
+      allowedToolNames: allowedToolName ? [allowedToolName] : undefined,
     });
 
     console.info('[chat] completed', {

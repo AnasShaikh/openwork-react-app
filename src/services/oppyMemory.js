@@ -46,7 +46,10 @@ function tableToBullets(text) {
 
 export function sanitizeOppyText(value) {
   let text = typeof value === 'string' ? value : '';
+  const containsInternalTrace = /<\/?(?:tool|tool_calls?|tool_response|function_calls?|function_response|invoke|parameter)\b/i.test(text);
   const tracePatterns = [
+    /<(?:function_calls?|tool_calls?)\b[^>]*>[\s\S]*?<\/(?:function_calls?|tool_calls?)>/gi,
+    /<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi,
     /<tool_call\b[^>]*>[\s\S]*?<\/tool_call>/gi,
     /<tool_response\b[^>]*>[\s\S]*?<\/tool_response>/gi,
     /<function_call\b[^>]*>[\s\S]*?<\/function_call>/gi,
@@ -54,7 +57,10 @@ export function sanitizeOppyText(value) {
     /<tool\b[^>]*>[\s\S]*?<\/tool>/gi,
   ];
   for (const pattern of tracePatterns) text = text.replace(pattern, '');
-  text = text.replace(/<\/?(?:tool|tool_call|tool_response|function_call|function_response)\b[^>]*>/gi, '');
+  text = text
+    .replace(/<(?:function_calls?|tool_calls?|invoke)\b[^>]*>[\s\S]*$/gi, '')
+    .replace(/<\/?(?:tool|tool_calls?|tool_response|function_calls?|function_response|invoke|parameter)\b[^>]*>/gi, '');
+  if (containsInternalTrace) return "I couldn't prepare that review card. Please try the action again.";
   return tableToBullets(text).replace(/\n{3,}/g, '\n\n').trim();
 }
 
