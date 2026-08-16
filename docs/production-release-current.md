@@ -6,21 +6,48 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 15 August 2026 01:46 IST |
+| Deployed at | 16 August 2026 13:15 IST |
 | Git branch | `main` |
-| Git commit | `064b7f15dbfb44afa535a3e147248470c1e4ca29` |
-| Release gate | Frontend tests (`103/103`), backend tests (`56/56`), production frontend build and `git diff --check` passed locally; CodeBuild and the App Runner operation succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-064b7f15dbfb44afa535a3e147248470c1e4ca29.zip` |
-| Source archive SHA-256 | `1f27446f92f1c1b2da330d81971d50ad44e66dd436f20f9aec1e100f3de2fcc6` |
-| CodeBuild | `openwork-react-app-prod-build:f61083fe-7f60-4edc-b770-d0ed7720f232` — succeeded |
-| ECR image | `openwork-app:prod-064b7f1-20260815013712` |
-| ECR digest | `sha256:c30d70ae4ddda72827deeb9fb10e0da78f0dee19dd09f881e6b9c2280261a0a5` |
+| Git commit | `dd2f4fc1fd347bb9778534f4ef1eb476c07330d7` |
+| Release gate | Frontend tests (`104/104`), backend tests (`56/56`), production frontend build and `git diff --check` passed locally; desktop and 390px local browser checks passed; CodeBuild, App Runner and matching live browser checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-dd2f4fc1fd347bb9778534f4ef1eb476c07330d7.zip` |
+| Source archive SHA-256 | `2ee86c4b3d531b2da61cda4d61e7661d430dd96f38d55b3db997d81a8cd7f9d2` |
+| CodeBuild | `openwork-react-app-prod-build:fc9013af-52a0-4d0d-9643-434d0b6a9f6d` — succeeded |
+| ECR image | `openwork-app:prod-dd2f4fc-20260816130704` |
+| ECR digest | `sha256:f2111be7a11fc1b9f715e512613ddf7316ed7ba1fe33e42c9c8f79b5510f2694` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `251f2cd7b10a4f0f8baee2e8fd5e33f7` — succeeded |
+| App Runner operation | `780424ab88e44b46bb40621fff01e50c` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-D5jIidUz.js` — SHA-256 `eea81369c910ab6f16e32c7b69f2fa6173d1f2baa27658bdf1694fef75eb5a3a` |
-| Rollback target | `openwork-app:prod-b55fa70-20260811212126` |
-| Rollback digest | `sha256:cff25b7cd49542e44ff4f8ea4978ed6a43765fc88f0ea57c5c1c830982ef0e7e` |
+| Deployed JS asset | `/assets/index-B_hfqrTy.js` — SHA-256 `74645efb9d763174e96fe12b547b99c30ea9c11112a866afa0960f8b5f3a492f` |
+| Rollback target | `openwork-app:prod-064b7f1-20260815013712` |
+| Rollback digest | `sha256:c30d70ae4ddda72827deeb9fb10e0da78f0dee19dd09f881e6b9c2280261a0a5` |
+
+## Home-page Oppy chat launcher
+
+The application home page now exposes a persistent `Ask Oppy` launcher in the
+bottom-right corner. It links directly to `/chat` and uses the existing Satoshi
+typography, OpenWork blue gradient, pill geometry, icon treatment and shadow language.
+The control has an explicit accessible name, visible keyboard focus, reduced-motion
+support and responsive spacing. It is present on both `/` and `/home`, including the
+mobile home warning surface, without adding another action to the radial navigation.
+
+Automated coverage verifies the home integration, `/chat` destination, accessible
+label, fixed positioning, brand treatment, focus state and mobile breakpoint. Local
+browser checks at 1440×900 and 390×844 confirmed the launcher dimensions and spacing,
+no horizontal overflow and successful navigation to a visible Agent Oppy chat. The
+same checks passed against production: desktop rendered at 155×58 px with 32 px edge
+spacing, the narrow viewport rendered at 144×54 px with 18 px right and 20 px bottom
+spacing, and both click-throughs reached `/chat` with no console warnings or errors.
+
+Release verification caught two build-source issues before handoff. A direct immutable
+source override failed before compilation because the CodeBuild role lacks
+`s3:ListBucket`; no IAM permission was added. A canonical-key retry produced tag
+`prod-dd2f4fc-20260816124532`, but the public bundle check proved that it contained
+stale source, so it was rejected as the release image. The successful build temporarily
+used the immutable archive as the project's configured source, after which the project
+was restored to `source/openwork-react-app-src.zip`. Only the verified image and digest
+above are the active release. Production `/` and `/healthz` returned HTTP 200. All
+verification was read-only and submitted no wallet request or on-chain transaction.
 
 ## Oppy action-continuation and internal-trace repair
 
