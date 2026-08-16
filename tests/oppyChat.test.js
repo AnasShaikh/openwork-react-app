@@ -23,6 +23,22 @@ test('Oppy is available in docs, full-screen docs chat, and public job chat', ()
   assert.match(standalone, /mode: 'docs'/);
 });
 
+test('the home page exposes an accessible design-system chat launcher', () => {
+  const app = source('src/App.jsx');
+  const launcher = source('src/components/HomeChatLauncher/HomeChatLauncher.jsx');
+  const styles = source('src/components/HomeChatLauncher/HomeChatLauncher.css');
+
+  assert.match(app, /<HomeChatLauncher\s*\/>/);
+  assert.match(app, /isHomeRoute && <HomeChatLauncher\s*\/>/);
+  assert.match(launcher, /href="\/chat"/);
+  assert.match(launcher, /aria-label="Chat with Agent Oppy"/);
+  assert.match(launcher, /Ask Oppy/);
+  assert.match(styles, /position: fixed;/);
+  assert.match(styles, /linear-gradient\(180deg, #0047ff/);
+  assert.match(styles, /\.home-chat-launcher:focus-visible/);
+  assert.match(styles, /@media \(max-width: 768px\)/);
+});
+
 test('the embedded docs assistant renders readable structured conversation UI', () => {
   const panel = source('src/pages/PublicDocs/OppyPanel.jsx');
   const styles = source('src/pages/PublicDocs/PublicDocs.css');

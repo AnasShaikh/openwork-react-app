@@ -112,6 +112,7 @@ import OpenworkDocs from "./pages/Documentation/OpenworkDocs";
 import PublicDocs from "./pages/PublicDocs/PublicDocs";
 import AgentOppy from "./pages/AgentOppy/AgentOppy";
 import OppyChat from "./pages/OppyChat/OppyChat";
+import HomeChatLauncher from "./components/HomeChatLauncher/HomeChatLauncher";
 
 function MainPage() {
   // Using the useWalletConnection hook to handle wallet-related state and logic
@@ -273,6 +274,7 @@ function MainPage() {
           Hover to get started
         </div>
       </div>
+      <HomeChatLauncher />
     </main>
   );
 }
@@ -283,6 +285,7 @@ export default function App() {
   // Agent Oppy and the job-management chat have responsive standalone layouts.
   const isOppyRoute = window.location.pathname === '/oppy';
   const isChatRoute = window.location.pathname === '/chat';
+  const isHomeRoute = window.location.pathname === '/' || window.location.pathname === '/home';
 
   if (isMobile && !isOppyRoute && !isChatRoute) {
     return (
@@ -314,6 +317,7 @@ export default function App() {
             OpenWork is not yet available on mobile. Please open this site on a desktop browser.
           </p>
         </div>
+        {isHomeRoute && <HomeChatLauncher />}
       </div>
     );
   }
