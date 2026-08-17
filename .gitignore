@@ -1,5 +1,8 @@
 # Logs
 logs
+!/logs/
+/logs/*
+!/logs/README.md
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -74,6 +77,9 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.*
+!.env.example
+!**/.env.example
 .env.development.local
 .env.test.local
 # Backups made during credential rotation hold the previous secret. Never commit them.
@@ -130,7 +136,28 @@ dist
 .yarn/unplugged
 .yarn/build-state.yml
 .yarn/install-state.gz
-.pnp.*backend/.env
+.pnp.*
+backend/.env
+
+# Editor and operating-system state
+.DS_Store
+**/.DS_Store
+.idea/
+.vite/
+
+# Generated contract and fork outputs. Public mainnet broadcast evidence is curated
+# separately under contracts/broadcast and must be reviewed before it is committed.
+contracts/cache/
+contracts/out/
+contracts/out-*/
+test-fork/cache/
+
+# Local credentials and signing material
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.mnemonic
 
 # Database files
 *.db

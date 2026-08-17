@@ -1,149 +1,71 @@
-# Security Guidelines for OpenWork
+# OpenWork security policy
 
-## 🚨 CRITICAL: Exposed Secrets Found
+OpenWork is a public monorepo containing browser code, backend services, infrastructure
+configuration, and the source and evidence for live smart contracts. Treat every commit
+as public before it is pushed.
 
-During a security audit, multiple API keys and private keys were found exposed in `.env` files within the repository.
+## Report a security issue
 
-### Files with Exposed Secrets:
-- `.env` (root directory)
-- `backend/.env`
+Do not open a public issue containing an unpatched vulnerability, credential, private
+key, exploitable transaction sequence, or customer data. Contact the repository owner
+privately with:
 
-### Types of Exposed Credentials:
-1. **Pinata API Key** (JWT token)
-2. **Wallet Private Keys** (3 wallets: PRIVATE_KEY, WALL2_KEY, WALL3_KEY)
-3. **Alchemy RPC API Keys**
-4. **OpenAI API Key**
-5. **Gemini API Key**
-6. **Admin Credentials** (backend)
-7. **JWT Secret** (backend)
+- the affected component and production surface;
+- a minimal reproduction with secrets removed;
+- the likely impact and whether exploitation has been observed;
+- any transaction hashes or log timestamps that are already public.
 
-## ✅ Immediate Actions Required
+Do not perform a mainnet transaction to demonstrate a report without explicit approval.
 
-### 1. Rotate ALL Exposed Credentials
+## Credentials and identities
 
-**DO THIS IMMEDIATELY:**
+- Never commit `.env` files, API keys, passwords, access tokens, database URLs, seed
+  phrases, private keys, signed transactions, or cloud access keys.
+- Every person uses an individual GitHub and cloud identity. Do not share root accounts,
+  IAM users, personal access tokens, SSH keys, or browser sessions.
+- Human AWS access should use federation, short-lived credentials, MFA, and scoped
+  permission sets. Application workloads use IAM roles.
+- Production backend secrets belong in the deployment platform's secret mapping. They
+  must not appear in Docker build arguments, GitHub Actions logs, or repository files.
+- Every `VITE_*` value is public because Vite embeds it in the browser bundle. Never put
+  a secret in a `VITE_*` variable.
+- Never share the OpenWork deployer-wallet key. Contract authority must be exercised by
+  an explicitly approved signer; migration to multisig control is tracked in
+  [PROJECT_STATUS.md](PROJECT_STATUS.md#accepted-risk-privileged-control-is-a-single-externally-owned-account).
 
-- [ ] **Pinata API**: Log into Pinata and revoke/regenerate your API key
-- [ ] **Wallet Private Keys**: 
-  - Create 3 new wallet addresses
-  - Transfer all funds from the compromised wallets to new ones
-  - Never use the old private keys again
-- [ ] **Alchemy API Keys**: Log into Alchemy dashboard and regenerate API keys
-- [ ] **OpenAI API Key**: Revoke at https://platform.openai.com/api-keys and create new
-- [ ] **Gemini API Key**: Revoke in Gemini AI Studio and create new
-- [ ] **Backend Admin Password**: Change to a strong, unique password
-- [ ] **JWT Secret**: Generate a new secure random string (use a password generator)
+## Historical credential exposure
 
-### 2. Update Your Local .env Files
+The repository history contains revoked credentials from earlier development. Their
+presence is recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md); it does not make them
+valid production configuration. Treat any credential ever committed as permanently
+compromised, rotate it at the provider, and remove it from every active deployment.
 
-After rotating credentials, update your local `.env` files with the new values. **NEVER commit these files.**
+Do not rewrite shared Git history or force-push as an ad hoc cleanup. History rewriting
+requires a coordinated incident plan because it invalidates clones, branches, release
+pointers, and audit references.
 
-### 3. Clean Git History (IMPORTANT)
+## Changes with production impact
 
-The `.env` files are currently NOT tracked by git and are properly ignored. However, if they were ever committed to git history in the past, you need to remove them:
+- Protect `main`; production work enters through reviewed pull requests and passing CI.
+- Require owner review for `.github/`, `infra/`, `contracts/`, release manifests,
+  address configuration, and `CODEOWNERS`.
+- A landing change merged to `main` can publish `www.openwork.technology`.
+- An application commit is not a release. App Runner must receive a unique immutable
+  image and pass the release checks in `docs/production-release-current.md`.
+- Contract CI never authorizes an on-chain write. Deployments, upgrades, configuration
+  calls, funding, bridging, and swaps require a separately approved scope and cap.
+- Preserve the source file of every deployed contract implementation. Changed behavior
+  belongs in a new versioned source file.
 
-```bash
-# Check if .env files exist in git history
-git log --all --full-history -- .env backend/.env
+## Before every pull request
 
-# If they appear in history, use git-filter-repo to remove them
-# First, install git-filter-repo (if not already installed)
-brew install git-filter-repo  # macOS
-# or
-pip install git-filter-repo
+1. Inspect all changed and untracked files.
+2. Search the diff for credentials, private endpoints, raw authorization headers, and
+   accidental customer or wallet data.
+3. Confirm `.env.example` contains placeholders only.
+4. Run the checks listed in [CONTRIBUTING.md](CONTRIBUTING.md).
+5. Record production-impacting changes in the correct current pointer or dated evidence
+   log; never create a competing address catalog.
 
-# Remove .env files from entire git history
-git filter-repo --path .env --invert-paths --force
-git filter-repo --path backend/.env --invert-paths --force
-
-# Force push to remote (WARNING: This rewrites history)
-git push origin --force --all
-git push origin --force --tags
-```
-
-**⚠️ Warning:** Force pushing rewrites git history. Coordinate with your team before doing this.
-
-### 4. Verify .gitignore
-
-The `.gitignore` file correctly includes `.env` files. Verify this remains in place:
-
-```bash
-# Should show .env in the output
-cat .gitignore | grep "^\.env"
-```
-
-## 📋 Best Practices Going Forward
-
-### Environment Variables Management
-
-1. **Never commit `.env` files** - They are in `.gitignore` for a reason
-2. **Use `.env.example` files** - These show the required variables without exposing real values
-3. **Document all required environment variables** in `.env.example` files
-4. **Use strong, unique secrets** - Generate random strings for JWT secrets, API keys, etc.
-
-### Secret Storage
-
-**For Development:**
-- Keep secrets in local `.env` files (never committed)
-- Use different credentials for development vs production
-
-**For Production:**
-- Use environment variables in hosting platforms (Vercel, Netlify, etc.)
-- Consider using secret management services (AWS Secrets Manager, HashiCorp Vault, etc.)
-- Rotate credentials regularly
-
-### Code Review Checklist
-
-Before committing code, always verify:
-- [ ] No hardcoded API keys or secrets in source code
-- [ ] No `.env` files being committed
-- [ ] `.env.example` files are up-to-date but contain no real secrets
-- [ ] `import.meta.env.VITE_*` is used for accessing environment variables (frontend)
-- [ ] `process.env.*` is used for accessing environment variables (backend)
-
-### Git Pre-commit Hook (Optional)
-
-Consider adding a pre-commit hook to prevent committing secrets:
-
-```bash
-# .git/hooks/pre-commit
-#!/bin/sh
-if git diff --cached --name-only | grep -E "\.env$|\.env\.local$"; then
-    echo "Error: Attempting to commit .env file!"
-    exit 1
-fi
-```
-
-## 🔒 Environment Variables Reference
-
-### Frontend (.env)
-All frontend environment variables must be prefixed with `VITE_` to be accessible in the application.
-
-See `.env.example` for the complete list.
-
-### Backend (backend/.env)
-Backend environment variables don't require a prefix.
-
-See `backend/.env.example` for the complete list.
-
-## 📞 Security Incident Response
-
-If you discover exposed credentials:
-
-1. **Rotate credentials immediately**
-2. **Check access logs** for unauthorized access
-3. **Review recent transactions** on wallet addresses
-4. **Notify team members** if working in a team
-5. **Update this document** with lessons learned
-
-## Additional Resources
-
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [GitHub Secret Scanning](https://docs.github.com/en/code-security/secret-scanning/about-secret-scanning)
-- [Git Filter Repo Documentation](https://github.com/newren/git-filter-repo)
-- [Vite Environment Variables Guide](https://vitejs.dev/guide/env-and-mode.html)
-
----
-
-**Last Updated:** December 2024  
-**Status:** ⚠️ Action Required - Credentials need rotation
+If a credential may have escaped, stop publishing, revoke or rotate it first, inspect
+provider and chain activity, and only then repair configuration and documentation.

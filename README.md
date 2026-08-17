@@ -4,6 +4,19 @@ Monorepo for the OpenWork multichain protocol: the production web application, i
 managed backend, and the canonical Solidity sources and deployment records for the
 contracts those clients transact against.
 
+## Start here
+
+| If you are... | Read first |
+|---|---|
+| A developer or reviewer | [CONTRIBUTING.md](CONTRIBUTING.md) and [the repository map](docs/repository-map.md) |
+| An AI coding agent | [AGENTS.md](AGENTS.md), then [the documentation index](docs/README.md) |
+| Looking for a live contract | [The canonical live contract registry](contracts/references/logs/imp/live-contract-registry-19-mar-2026.md) |
+| Releasing the app or landing site | [The delivery map](docs/repository-map.md#production-delivery-boundaries) and the relevant infrastructure README |
+| Changing or deploying contracts | [The OpenWork contracts skill](contracts/skills/openwork-contracts/SKILL.md) |
+
+Do not start from a sibling checkout or one of the historical repositories named in
+older logs. `AnasShaikh/openwork-react-app` on `main` is the canonical repository.
+
 The contracts previously lived in a separate `openwork-contracts-final` repository.
 They were merged in on 3 August 2026 with their full history so that a contract change
 and the frontend configuration that depends on it can be reviewed, audited, and
@@ -26,18 +39,16 @@ Three deployables live here and they do **not** share a pipeline:
 
 | Deployable | Host | Delivery |
 |---|---|---|
-| App + backend | `app.openwork.technology` | CodeBuild → ECR → App Runner |
-| Landing site | `www.openwork.technology` | S3 `openwork-technology-landing-prod-256309399568` → CloudFront `E1ANKLS7O4YGAE` |
-| Contracts | Arbitrum, Optimism, XDC, Ethereum | Foundry scripts, recorded in `contracts/references/deployments/` |
+| App + backend | `app.openwork.technology` | Explicit immutable CodeBuild → ECR → App Runner release |
+| Landing site | `www.openwork.technology` | A merged `landing/**` change on `main` runs GitHub Actions → AWS OIDC → S3 → CloudFront |
+| Contracts | Arbitrum, Optimism, XDC, Ethereum | Explicitly approved Foundry transactions, followed by registry and evidence updates |
 
 A commit here does not deploy everything. Each target has its own trigger.
 
-> **The landing pipeline has not been repointed yet.** It still builds from
-> `krishnaprasath-k/openwork-landing`, not from `landing/` in this repository. Until
-> that changes, edits to `landing/` here do **not** reach production, and that
-> repository remains canonical for the marketing site. Tracked as item 1 in
-> [PROJECT_STATUS.md](PROJECT_STATUS.md#open-items-carried-over-from-the-3-august-2026-consolidation),
-> which lists every known open item from the consolidation.
+The landing pipeline is now sourced from `landing/` through
+[`.github/workflows/landing.yml`](.github/workflows/landing.yml). The former
+`krishnaprasath-k/openwork-landing` repository is historical and must not receive new
+production work. The older `openwork-landing-page` variant was never merged or deployed.
 
 ## Source of truth
 
@@ -49,6 +60,7 @@ A commit here does not deploy everything. Each target has its own trigger.
   assuming it is stale.
 - [Current production release](docs/production-release-current.md) records the exact source commit, immutable image, deployment operation, verification, and rollback target.
 - [Chain configuration](src/config/chainConfig.js) is the frontend runtime manifest for Arbitrum, Optimism, XDC, and supported test networks.
+- [The documentation index](docs/README.md) classifies current pointers, operational records, and historical evidence so dated notes are not mistaken for live configuration.
 
 **Addresses are recorded in more than one place.** The live registry is canonical, but
 `src/config/chainConfig.js`, `docs/mainnet-contracts.json`, and `backend/config.js` each
@@ -106,3 +118,7 @@ Production uses an immutable CodeBuild → ECR → App Runner release flow. Each
 4. Wait for the App Runner operation and `/health` check to succeed.
 5. Verify the public application without submitting wallet transactions.
 6. Update [the current release manifest](docs/production-release-current.md), preserving the previous image as the rollback target.
+
+Landing changes deploy only after they reach `main` and pass the dedicated workflow.
+Contract changes never deploy from CI. A repository push is not authorization for a
+wallet transaction, upgrade, configuration call, token transfer, bridge, or swap.

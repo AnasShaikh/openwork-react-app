@@ -1,6 +1,6 @@
 # OpenWork — Project Status and Source of Truth
 
-_Last code audit update: 2026-07-18_
+_Last repository and documentation audit update: 2026-08-17_
 
 ## Canonical source
 
@@ -17,6 +17,24 @@ _Last code audit update: 2026-07-18_
 Production had previously moved ahead of the default branch. That history is now consolidated on `main`. Do not deploy an unmerged branch or an untagged local commit.
 
 The contracts were a separate `openwork-contracts-final` repository until 3 August 2026, when they were merged into `contracts/` with full history. That repository is retired: it is a historical archive, not a source of truth, and it must not receive new commits. Links to it in dated records below are preserved deliberately because they describe what was true when those records were written.
+
+## Collaboration readiness — 17 August 2026
+
+Repository onboarding now starts from [`AGENTS.md`](AGENTS.md) for coding agents,
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for developers, and
+[`docs/repository-map.md`](docs/repository-map.md) for the monorepo hierarchy and release
+boundaries. [`docs/README.md`](docs/README.md) separates current pointers from dated
+evidence and historical implementation notes. Contract navigation resolves from the
+live registry to the exact source, release evidence, scripts, verification status, and
+application address consumers.
+
+`CODEOWNERS` and the pull-request template are present, but they do not protect `main`
+by themselves. Before granting another contributor repository write access, GitHub must
+require pull requests, code-owner review, passing application/backend/contracts checks,
+resolved conversations, and blocked force pushes/deletions. The landing production job
+should also use a protected GitHub environment with required approval and no self-review.
+Cloud release access and on-chain signer authority remain separate grants; credentials
+and the deployer-wallet key must never be shared.
 
 ## Current chain roles
 

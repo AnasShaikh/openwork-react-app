@@ -1,0 +1,20 @@
+# Default review owner. Branch/ruleset protection must require code-owner review for
+# this file to enforce approval rather than only requesting it.
+* @AnasShaikh
+
+# Production delivery and repository governance
+/.github/ @AnasShaikh
+/AGENTS.md @AnasShaikh
+/CONTRIBUTING.md @AnasShaikh
+/SECURITY.md @AnasShaikh
+/Dockerfile @AnasShaikh
+/buildspec.yml @AnasShaikh
+/infra/ @AnasShaikh
+
+# On-chain code, live addresses, and release evidence
+/contracts/ @AnasShaikh
+/src/config/chainConfig.js @AnasShaikh
+/backend/config.js @AnasShaikh
+/docs/mainnet-contracts.json @AnasShaikh
+/PROJECT_STATUS.md @AnasShaikh
+/docs/production-release-current.md @AnasShaikh
