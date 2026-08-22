@@ -6,21 +6,51 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 16 August 2026 13:15 IST |
+| Deployed at | 22 August 2026 12:54 IST |
 | Git branch | `main` |
-| Git commit | `dd2f4fc1fd347bb9778534f4ef1eb476c07330d7` |
-| Release gate | Frontend tests (`104/104`), backend tests (`56/56`), production frontend build and `git diff --check` passed locally; desktop and 390px local browser checks passed; CodeBuild, App Runner and matching live browser checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-dd2f4fc1fd347bb9778534f4ef1eb476c07330d7.zip` |
-| Source archive SHA-256 | `2ee86c4b3d531b2da61cda4d61e7661d430dd96f38d55b3db997d81a8cd7f9d2` |
-| CodeBuild | `openwork-react-app-prod-build:fc9013af-52a0-4d0d-9643-434d0b6a9f6d` — succeeded |
-| ECR image | `openwork-app:prod-dd2f4fc-20260816130704` |
-| ECR digest | `sha256:f2111be7a11fc1b9f715e512613ddf7316ed7ba1fe33e42c9c8f79b5510f2694` |
+| Git commit | `23fc526f2ad81b3c4d8f0bf44865a399521402d1` |
+| Release gate | PR `#12`; GitHub CI `32558910429`; frontend tests (`109/109`), backend tests (`60/60`), backend production audit, backend parse checks, production frontend build and `git diff --check` passed; desktop and 390px local/live browser checks passed; CodeBuild, App Runner, public endpoint and direct AWS WebSocket checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-23fc526f2ad81b3c4d8f0bf44865a399521402d1.zip` |
+| Source archive SHA-256 | `11ef5ce62efc06bb5bc0cffc8950671f876c30be9040e55ef6a6a5e8b9347c6e` |
+| CodeBuild | `openwork-react-app-prod-build:463fe5a6-2b03-4a37-b3b1-59b4ad561674` — succeeded |
+| ECR image | `openwork-app:prod-23fc526-20260822124441` |
+| ECR digest | `sha256:785729e99345e67df9dfef57bddc8623569c71fc8e33a938e151a6f8f08e65c4` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `780424ab88e44b46bb40621fff01e50c` — succeeded |
+| App Runner operation | `d0ca62a9065c4f5894f3108f060fd5f0` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-B_hfqrTy.js` — SHA-256 `74645efb9d763174e96fe12b547b99c30ea9c11112a866afa0960f8b5f3a492f` |
-| Rollback target | `openwork-app:prod-064b7f1-20260815013712` |
-| Rollback digest | `sha256:c30d70ae4ddda72827deeb9fb10e0da78f0dee19dd09f881e6b9c2280261a0a5` |
+| Deployed JS asset | `/assets/index-DrJZL4fY.js` — SHA-256 `154748075c737ad0a29c6242e885eff23f70fcd1ad2ab11e6d7de97e6fdf7b14` |
+| Rollback target | `openwork-app:prod-dd2f4fc-20260816130704` |
+| Rollback digest | `sha256:f2111be7a11fc1b9f715e512613ddf7316ed7ba1fe33e42c9c8f79b5510f2694` |
+
+## Oppy Indian English voice dictation
+
+Oppy's public job chat now has voice-to-composer dictation. The user explicitly starts
+and stops microphone capture, sees partial transcription in the composer, reviews or
+edits the result and presses Send separately. Existing draft text is preserved, and
+neither stopping nor the 45-second recording cap submits a message.
+
+The App Runner backend issues rate-limited, non-cacheable, 60-second SigV4 WebSocket
+URLs using its instance role. Browser audio is downsampled to 16 kHz signed PCM and
+streams directly to Amazon Transcribe with `en-IN`; OpenWork does not proxy or store
+the recording. The browser closes microphone tracks and its audio context after every
+session. IAM adds only `transcribe:StartStreamTranscriptionWebSocket`; AWS requires
+the wildcard resource for this action, while the existing Bedrock resources remain
+restricted to Sonnet 4.6. The design, configuration, privacy and support runbook is in
+`docs/oppy-voice-transcription.md`.
+
+AWS Access Analyzer reported no policy findings and IAM simulation returned `allowed`.
+Production returned HTTP 200 for `/healthz`, `/chat` and the audio worklet. The public
+session endpoint reported `en-IN`, 16 kHz and 45 seconds without exposing its URL in
+logs, and a zero-audio connection to Amazon Transcribe opened and closed normally with
+WebSocket code 1000. Live desktop and 390×844 checks found the enabled accessible mic,
+no horizontal overflow and no console warnings or errors. No speech, chat message,
+wallet request, token transfer or on-chain transaction was submitted during release
+verification.
+
+The frontend dependency audit still reports two pre-existing moderate React Router
+advisories whose available remediation crosses into React Router 7. They are outside
+this feature and require a separately tested migration; there are no high or critical
+findings in the release gate, and the backend production audit reports zero findings.
 
 ## Home-page Oppy chat launcher
 
