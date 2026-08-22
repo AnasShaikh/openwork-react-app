@@ -6,21 +6,46 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 22 August 2026 14:18 IST |
+| Deployed at | 22 August 2026 16:36 IST |
 | Git branch | `main` |
-| Git commit | `94b8698739de63ae3ca34eaea8c6dbfef0def848` |
-| Release gate | PR `#13`; GitHub CI `32562791113`; frontend tests (`110/110`), backend tests (`60/60`), backend production audit, backend parse checks, production frontend build and `git diff --check` passed; desktop and 390×844 local/live browser checks passed; CodeBuild, App Runner, public endpoints and transcription-session checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-94b8698739de63ae3ca34eaea8c6dbfef0def848.zip` |
-| Source archive SHA-256 | `5ce0868846ef6580249ff54141f6d378f0ec88948278c1d6ce12e9a4353a116b` |
-| CodeBuild | `openwork-react-app-prod-build:8e008d07-af21-4302-86ce-184e45c9b1d5` — succeeded |
-| ECR image | `openwork-app:prod-94b8698-20260822140958` |
-| ECR digest | `sha256:c1fcaef3457f0d45d32d9265c1f63c47281bed3eaef3ca4d6abe7748c2d269c2` |
+| Git commit | `29882ea457df8d0028f12aaa3a05a60a4664a19d` |
+| Release gate | PRs `#14`, `#15` and `#17`; GitHub CI `32567482636`, `32568238890` and `32568925070`; frontend tests (`111/111`), backend tests (`62/62`), high-severity production dependency gate, production frontend build and `git diff --check` passed; desktop and 390×844 local/live browser checks passed; CodeBuild, App Runner and public endpoint checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-29882ea457df8d0028f12aaa3a05a60a4664a19d.zip` |
+| Source archive SHA-256 | `b2b5b7427e68ebbfefebd4a5df8ae1044fe3d54d77e0a62908ded9f4893c5bd5` |
+| CodeBuild | `openwork-react-app-prod-build:4eff0771-7b96-4bfb-8ca1-baaf2cae4a62` — succeeded |
+| ECR image | `openwork-app:prod-29882ea-20260822162913` |
+| ECR digest | `sha256:48c85f7664d0828979ce9e42c3b81b945c047be5ea0b6b6670420a8c63fb3cff` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `7814e76063524db68b7bc08ce80c84bd` — succeeded |
+| App Runner operation | `17a1f61b05df4f2a9934b084b2831ec5` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BEUXJCb2.js` — SHA-256 `1b302b8f4bc27558be8617e888d0d95797690af40a071b7fc12bc9ab2d9db7e0` |
-| Rollback target | `openwork-app:prod-23fc526-20260822124441` |
-| Rollback digest | `sha256:785729e99345e67df9dfef57bddc8623569c71fc8e33a938e151a6f8f08e65c4` |
+| Deployed JS asset | `/assets/index-CEUoIDN2.js` — SHA-256 `63784091f0708e88b52b5882a36dc2d6b050cb90c85b8d343aa8c4290cb86c80` |
+| Rollback target | `openwork-app:prod-94b8698-20260822140958` |
+| Rollback digest | `sha256:c1fcaef3457f0d45d32d9265c1f63c47281bed3eaef3ca4d6abe7748c2d269c2` |
+
+## Oppy chat-native job workflows
+
+Oppy now keeps job exploration, job deep-dives, applications, hiring, work
+submissions, milestone releases, disputes, direct contracts, ordinary job posts and
+profile creation inside `/chat`. Read-only job and profile links append structured
+cards; write actions append review forms with network, USDC, wallet-signature,
+confirmation and recoverable-error states. The only external UI is the wallet's own
+secure confirmation panel. The legacy direct-contract page also gives provider-neutral
+pending-request guidance after 18 seconds and warns against duplicate submission.
+
+The inline action cards were visually reviewed at 1280×720 and 390×844, including
+job search, job drill-down, application and dispute forms. Live QA found two issues
+before handoff: read-only navigation was still model-decided, and the configured
+Alchemy endpoint had exhausted its monthly capacity. Navigation is now deterministic,
+and chat plus all `/api/oppy/explore/*` routes retry read-only calls through the public
+Arbitrum endpoint. Wallet writes and transaction preflights do not use this fallback.
+
+Production returned HTTP 200 for `/healthz` and `/chat`. The exact prompt `Find open
+design jobs` returned a `job-search` explorer with no model tool; `Browse jobs`
+returned 16 live results, and opening `30111-105` plus its application form preserved
+the `/chat` URL. App Runner reports `RUNNING` on the immutable image above. Verification
+connected no wallet and submitted no approval, signature, token transfer or on-chain
+transaction. The maintenance boundary and regression checklist are in
+`docs/oppy-chat-interface.md`.
 
 ## Global Oppy launcher and chat interface polish
 
