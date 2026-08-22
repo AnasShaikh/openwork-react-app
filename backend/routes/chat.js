@@ -25,7 +25,14 @@ const router = express.Router();
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY_ITEMS = 24;
 const MAX_CONCURRENT_REQUESTS = Number(process.env.CHAT_MAX_CONCURRENT_REQUESTS || 20);
+const EXPLORER_TOOL_NAMES = new Set(['browseJobs', 'openMyJobs', 'openJob', 'viewApplications']);
 let inFlightRequests = 0;
+
+function modelToolName(toolIntent) {
+  return toolIntent?.name && !EXPLORER_TOOL_NAMES.has(toolIntent.name)
+    ? toolIntent.name
+    : null;
+}
 
 router.use(createRateLimiter({
   windowMs: 60 * 1000,
@@ -65,8 +72,9 @@ router.post('/', async (req, res) => {
     const toolIntent = transactionMode
       ? resolveTransactionToolIntent(request.message, request.history)
       : null;
-    const allowedToolName = toolIntent?.name || null;
-    const explorerIntent = transactionMode ? detectDataIntent(request.message, allowedToolName) : null;
+    const explicitToolName = toolIntent?.name || null;
+    const allowedToolName = modelToolName(toolIntent);
+    const explorerIntent = transactionMode ? detectDataIntent(request.message, explicitToolName) : null;
     const jobContext = transactionMode && request.wallet.connected
       ? await getWalletJobContext(request.wallet.address, request.memory)
       : {
@@ -95,7 +103,7 @@ router.post('/', async (req, res) => {
     const baseSystemPrompt = transactionMode
       ? buildTransactionSystemPrompt(request.message, request.wallet, {
           jobContext,
-          toolIntent,
+          toolIntent: allowedToolName ? toolIntent : null,
           validatedAddresses: extractEvmAddressFacts(request.message, request.history),
         })
       : buildDocsSystemPrompt(request.message);
@@ -146,3 +154,4 @@ router.post('/', async (req, res) => {
 
 module.exports = router;
 module.exports.validateRequest = validateRequest;
+module.exports.modelToolName = modelToolName;

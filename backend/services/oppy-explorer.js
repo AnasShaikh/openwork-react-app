@@ -507,10 +507,23 @@ async function getJobDeepDive(jobId, walletAddress = null, dependencies = {}) {
 }
 
 function detectDataIntent(message, explicitToolName = null) {
-  if (explicitToolName) return null;
   const text = boundedText(message, 2000);
   const lowerText = text.toLowerCase();
   const jobId = (text.match(/\b\d+-\d+\b/) || [])[0];
+
+  // Navigation requests are explorer reads, not model-decided actions. Resolve
+  // them first so quick suggestions and plain-language variants always produce
+  // the same in-chat card even when the intent router recognizes a tool name.
+  if (explicitToolName === 'browseJobs') {
+    const status = /\bopen\b/.test(lowerText) ? 'open' : '';
+    const chain = /\bxdc\b/.test(lowerText) ? 'xdc' : (/\boptimism\b/.test(lowerText) ? 'optimism' : (/\barbitrum\b/.test(lowerText) ? 'arbitrum' : ''));
+    return { type: 'search', query: text, filters: { status, chain } };
+  }
+  if (explicitToolName === 'openMyJobs') return { type: 'wallet' };
+  if ((explicitToolName === 'openJob' || explicitToolName === 'viewApplications') && jobId) {
+    return { type: 'job', jobId };
+  }
+  if (explicitToolName) return null;
 
   if (/\b(?:platform|openwork)\s+(?:overview|analytics|stats|statistics|activity|trends)\b|\bnetwork activity\b/.test(lowerText)) {
     return { type: 'platform' };
