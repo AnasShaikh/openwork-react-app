@@ -350,3 +350,32 @@ export async function hasEnoughGas(web3, address, gasLimit) {
     return { ok: true, balance: null, needed: null };
   }
 }
+
+/**
+ * Sends a Web3 contract method while exposing the lifecycle before the receipt.
+ * Web3's awaited result only arrives after mining, which previously left Oppy
+ * unable to distinguish a closed wallet prompt from a broadcast transaction.
+ */
+export async function sendTrackedContractMethod(method, options, onStatus, metadata = {}) {
+  const emit = typeof onStatus === 'function' ? onStatus : () => {};
+  const step = metadata.step || 'action';
+  const pendingMessage = metadata.pendingMessage || 'Transaction submitted; checking the network…';
+  const confirmedMessage = metadata.confirmedMessage || 'Transaction confirmed on-chain.';
+  const promiEvent = method.send(options);
+
+  if (typeof promiEvent?.on === 'function') {
+    promiEvent.on('transactionHash', (txHash) => {
+      emit({ phase: 'broadcast', step, txHash, message: pendingMessage });
+    });
+    promiEvent.on('receipt', (receipt) => {
+      emit({
+        phase: 'confirmed',
+        step,
+        txHash: receipt?.transactionHash || null,
+        message: confirmedMessage,
+      });
+    });
+  }
+
+  return await promiEvent;
+}

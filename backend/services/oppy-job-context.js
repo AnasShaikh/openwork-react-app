@@ -53,6 +53,53 @@ function normalizeTransaction(value) {
   };
 }
 
+function normalizeTransactionDiagnostic(value) {
+  if (!value || typeof value !== 'object') return null;
+  const action = typeof value.action === 'string' ? value.action.trim().slice(0, 40) : '';
+  if (!action) return null;
+  const hash = (candidate) => (
+    typeof candidate === 'string' && /^0x[a-fA-F0-9]{64}$/.test(candidate) ? candidate : null
+  );
+  const integerOrNull = (candidate) => (
+    candidate !== null && candidate !== undefined && candidate !== '' && Number.isInteger(Number(candidate))
+      ? Number(candidate)
+      : null
+  );
+  const states = new Set(['preparing', 'wallet', 'pending', 'confirmed', 'reverted', 'dropped', 'cancelled', 'failed', 'unknown']);
+  const checks = value.checks && typeof value.checks === 'object' ? {
+    rpcReachable: typeof value.checks.rpcReachable === 'boolean' ? value.checks.rpcReachable : null,
+    walletReachable: typeof value.checks.walletReachable === 'boolean' ? value.checks.walletReachable : null,
+    walletConnected: typeof value.checks.walletConnected === 'boolean' ? value.checks.walletConnected : null,
+    accountMatches: typeof value.checks.accountMatches === 'boolean' ? value.checks.accountMatches : null,
+    walletChainId: integerOrNull(value.checks.walletChainId),
+    blockNumber: integerOrNull(value.checks.blockNumber),
+    pendingNonceGap: integerOrNull(value.checks.pendingNonceGap),
+    checkedAt: typeof value.checks.checkedAt === 'string' ? value.checks.checkedAt.slice(0, 40) : null,
+  } : {};
+  return {
+    attemptId: typeof value.attemptId === 'string' ? value.attemptId.slice(0, 80) : null,
+    action,
+    jobId: validJobId(value.jobId) ? value.jobId : null,
+    walletName: typeof value.walletName === 'string' ? value.walletName.trim().slice(0, 80) : null,
+    chainId: integerOrNull(value.chainId),
+    chainName: typeof value.chainName === 'string' ? value.chainName.trim().slice(0, 80) : null,
+    phase: typeof value.phase === 'string' ? value.phase.trim().slice(0, 24) : null,
+    step: value.step === 'approval' ? 'approval' : 'action',
+    status: states.has(value.status) ? value.status : 'unknown',
+    summary: typeof value.summary === 'string' ? value.summary.trim().slice(0, 240) : null,
+    nextStep: typeof value.nextStep === 'string' ? value.nextStep.trim().slice(0, 300) : null,
+    txHash: hash(value.txHash),
+    approvalTxHash: hash(value.approvalTxHash),
+    safeToRetry: value.safeToRetry === true,
+    checks,
+    error: value.error && typeof value.error === 'object' ? {
+      category: typeof value.error.category === 'string' ? value.error.category.slice(0, 40) : null,
+      code: typeof value.error.code === 'string' || typeof value.error.code === 'number' ? value.error.code : null,
+      message: typeof value.error.message === 'string' ? value.error.message.slice(0, 500) : null,
+    } : null,
+  };
+}
+
 function sanitizeConversationMemory(memory = {}) {
   const rawActive = memory && typeof memory.activeJob === 'object' ? memory.activeJob : null;
   const activeJob = rawActive && validJobId(rawActive.jobId)
@@ -73,7 +120,8 @@ function sanitizeConversationMemory(memory = {}) {
   const recentTransactions = Array.isArray(memory.recentTransactions)
     ? memory.recentTransactions.map(normalizeTransaction).filter(Boolean).slice(-12)
     : [];
-  return { activeJob, recentTransactions };
+  const latestTransactionDiagnostic = normalizeTransactionDiagnostic(memory.latestTransactionDiagnostic);
+  return { activeJob, recentTransactions, latestTransactionDiagnostic };
 }
 
 function rawJobValue(job, name, index, fallback = null) {
@@ -252,7 +300,7 @@ function prioritizeJobs(jobs, walletAddress, activeJobId, posterJobIds, recentTr
 async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies = {}) {
   const memory = sanitizeConversationMemory(memoryInput);
   if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress || '')) {
-    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], recentTransactions: memory.recentTransactions };
+    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], recentTransactions: memory.recentTransactions, latestTransactionDiagnostic: memory.latestTransactionDiagnostic };
   }
 
   try {
@@ -297,6 +345,7 @@ async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies
       activeJob,
       jobs,
       recentTransactions: memory.recentTransactions,
+      latestTransactionDiagnostic: memory.latestTransactionDiagnostic,
     };
   } catch (error) {
     return {
@@ -305,6 +354,7 @@ async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies
       activeJob: memory.activeJob,
       jobs: [],
       recentTransactions: memory.recentTransactions,
+      latestTransactionDiagnostic: memory.latestTransactionDiagnostic,
     };
   }
 }
@@ -323,6 +373,13 @@ function formatJobContext(context = {}) {
   const txLines = context.recentTransactions?.length
     ? context.recentTransactions.map((tx) => `- ${tx.action}: ${tx.jobId || 'job unresolved'}${tx.txHash ? `; tx ${tx.txHash}` : ''}; chain ${tx.chainId ?? 'unknown'}; ${tx.confirmed ? 'receipt confirmed' : 'status not asserted'}.`).join('\n')
     : '- No recent browser-confirmed job transactions were supplied.';
+  const diagnostic = context.latestTransactionDiagnostic;
+  const diagnosticLines = diagnostic
+    ? `- Action: ${diagnostic.action}${diagnostic.jobId ? ` for job ${diagnostic.jobId}` : ''}; step ${diagnostic.step}; phase ${diagnostic.phase || 'unknown'}; observed state ${diagnostic.status}; chain ${diagnostic.chainName || diagnostic.chainId || 'unknown'}; wallet ${diagnostic.walletName || 'unknown'}.
+- Transaction hash: ${diagnostic.txHash || 'none observed'}; approval hash: ${diagnostic.approvalTxHash || 'none observed'}; retry safety: ${diagnostic.safeToRetry ? 'the client marked retry safe' : 'retry is protected'}.
+- User-facing diagnosis: ${diagnostic.summary || 'not available'} Next step: ${diagnostic.nextStep || 'check live status'}
+- Read-only checks: wallet RPC ${diagnostic.checks?.walletReachable === true ? 'reachable' : diagnostic.checks?.walletReachable === false ? 'unavailable' : 'not checked'}; chain RPC ${diagnostic.checks?.rpcReachable === true ? 'reachable' : diagnostic.checks?.rpcReachable === false ? 'unavailable' : 'not checked'}; nonce queue ${diagnostic.checks?.pendingNonceGap ?? 'not checked'}; block ${diagnostic.checks?.blockNumber ?? 'not checked'}${diagnostic.error?.message ? `; sanitized wallet detail: ${diagnostic.error.message}` : ''}.`
+    : '- No current transaction attempt diagnostic was supplied.';
 
   return `## WALLET JOB MEMORY
 ${activeLine}
@@ -332,7 +389,12 @@ Recent relevant jobs (active first, then browser transactions and Genesis creati
 ${jobLines}
 
 Recent transaction memory:
-${txLines}`;
+${txLines}
+
+Latest transaction attempt diagnostic:
+${diagnosticLines}
+
+When the user asks what happened, why an action is stuck, whether to retry, or requests technical detail, explain this latest diagnostic directly. Prefer its observed state over generic troubleshooting. Never call a transaction tool merely to diagnose. Never advise a retry when retry safety is protected; ask the user to use the inline “Check live status” control first.`;
 }
 
 function resetCachesForTest() {
@@ -348,6 +410,7 @@ module.exports = {
   formatJobContext,
   getWalletJobContext,
   normalizeLedgerJob,
+  normalizeTransactionDiagnostic,
   readLedger,
   resetCachesForTest,
   sanitizeConversationMemory,

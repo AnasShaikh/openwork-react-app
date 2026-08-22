@@ -99,3 +99,28 @@ test('a confirmed XDC source job remains active while canonical delivery is pend
   assert.equal(context.activeJob.sourceDeliveryPending, true);
   assert.match(formatJobContext(context), /canonical Arbitrum delivery still unconfirmed/);
 });
+
+test('latest transaction diagnostics ground simple and technical chat answers', () => {
+  const formatted = formatJobContext({
+    available: true,
+    jobs: [],
+    recentTransactions: [],
+    latestTransactionDiagnostic: {
+      action: 'startDirectContract',
+      jobId: '30365-8',
+      step: 'approval',
+      phase: 'wallet',
+      status: 'wallet',
+      chainName: 'XDC Network',
+      walletName: 'MetaMask',
+      safeToRetry: false,
+      summary: 'No transaction has been broadcast.',
+      nextStep: 'Open MetaMask pending requests.',
+      checks: { walletReachable: true, rpcReachable: true, pendingNonceGap: 0, blockNumber: 123 },
+    },
+  });
+  assert.match(formatted, /Latest transaction attempt diagnostic/);
+  assert.match(formatted, /No transaction has been broadcast/);
+  assert.match(formatted, /retry is protected/);
+  assert.match(formatted, /Never call a transaction tool merely to diagnose/);
+});

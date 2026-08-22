@@ -3,6 +3,7 @@ import genesisABI from '../ABIs/genesis_ABI.json';
 import nativeAthenaABI from '../ABIs/native-athena_ABI.json';
 import { getChainConfig, getNativeChain } from '../config/chainConfig';
 import { getReadOnlyWeb3 } from './localChainService';
+import { applyTxTimeouts, sendTrackedContractMethod } from './txReliability';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const USDC_BASE = 1_000_000n;
@@ -91,23 +92,32 @@ export async function ensureUsdcFunding({ chainId, owner, spender, amount, onSta
     );
   }
   if (BigInt(allowance) >= required) {
-    onStatus?.({ phase: 'preparing', message: 'Existing USDC approval is sufficient.' });
+    onStatus?.({ phase: 'preparing', step: 'approval', message: 'Existing USDC approval is sufficient.' });
     return { approved: false, allowance: BigInt(allowance) };
   }
 
   onStatus?.({
     phase: 'wallet',
+    step: 'approval',
     message: `Approve ${formatUsdcBaseUnits(required)} USDC in your wallet. The contract transaction comes next.`,
   });
   if (!walletProvider) throw new Error('Select and connect the wallet you want to use, then retry.');
   const walletWeb3 = new Web3(walletProvider);
   const walletToken = new walletWeb3.eth.Contract(ERC20_ABI, config.contracts.usdc);
-  const approval = await walletToken.methods.approve(spender, required.toString()).send({
-    from: owner,
-    gas: 100000,
-  });
+  applyTxTimeouts(walletToken, chainId);
+  const approvalMethod = walletToken.methods.approve(spender, required.toString());
+  const approval = await sendTrackedContractMethod(
+    approvalMethod,
+    { from: owner, gas: 100000 },
+    onStatus,
+    {
+      step: 'approval',
+      pendingMessage: 'USDC approval submitted; checking confirmation…',
+      confirmedMessage: 'USDC approval confirmed. The OpenWork action comes next.',
+    },
+  );
   if (!approval?.transactionHash) throw new Error('The USDC approval did not return a transaction hash.');
-  onStatus?.({ phase: 'preparing', message: 'USDC approval confirmed. Preparing the contract transaction…' });
+  onStatus?.({ phase: 'preparing', step: 'action', message: 'USDC approval confirmed. Preparing the contract transaction…' });
   return { approved: true, transactionHash: approval.transactionHash };
 }
 

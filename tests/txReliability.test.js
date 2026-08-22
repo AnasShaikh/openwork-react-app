@@ -237,6 +237,24 @@ test('an RPC failure yields no overrides rather than blocking the transaction', 
   assert.deepEqual(await buildFeeOverrides(web3), {});
 });
 
+test('tracked sends expose the hash before the final receipt', async () => {
+  const { sendTrackedContractMethod } = await import('../src/services/txReliability.js');
+  const receipt = { status: true, transactionHash: HASH };
+  const events = [];
+  const promiEvent = Promise.resolve(receipt);
+  promiEvent.on = (name, handler) => {
+    if (name === 'transactionHash') handler(HASH);
+    if (name === 'receipt') handler(receipt);
+    return promiEvent;
+  };
+  const method = { send: () => promiEvent };
+  const result = await sendTrackedContractMethod(method, { from: '0xabc' }, (event) => events.push(event));
+  assert.equal(result, receipt);
+  assert.equal(events[0].phase, 'broadcast');
+  assert.equal(events[0].txHash, HASH);
+  assert.equal(events[1].phase, 'confirmed');
+});
+
 test('the shared builder derives a fee ceiling with real headroom', async () => {
   const { deriveFeeCeiling } = await import('../src/services/contractWriteRouter.js');
   const f = await deriveFeeCeiling(

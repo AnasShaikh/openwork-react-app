@@ -645,7 +645,7 @@
   font-family: 'Satoshi', sans-serif;
   font-size: 13px; font-weight: 600; color: #868686;
   background: #f5f5f5; border: 1.5px solid #e0e0e0;
-  border-radius: 8px; padding: 8px 16px; cursor: pointer;
+  border-radius: 8px; cursor: pointer; min-height: 40px; padding: 8px 16px;
 }
 .tx-cancel-btn:hover { background: #ebebeb; }
 .tx-hash-link { font-size: 13px; color: #0047FF; text-decoration: underline; margin-top: 8px; display: block; word-break: break-all; }
@@ -711,7 +711,56 @@
 .tx-progress--error .tx-progress__indicator { animation: none; background: #c53b32; border-color: #f7d9d6; }
 .tx-progress--error strong { color: #9d2b24; }
 .tx-wallet-help { background: #fff8e9; border: 1px solid #f1d690; border-radius: 10px; color: #77500a; font-size: 11px; line-height: 1.5; margin: -3px 0 12px; padding: 9px 11px; }
+.tx-diagnostic {
+  background: #f8faff;
+  border: 1px solid #dce5f4;
+  border-radius: 12px;
+  margin: 0 0 12px;
+  overflow: hidden;
+  padding: 11px 12px;
+}
+.tx-diagnostic--confirmed { background: #f2fbf5; border-color: #cbe8d3; }
+.tx-diagnostic--reverted,
+.tx-diagnostic--failed { background: #fff7f6; border-color: #efcfcb; }
+.tx-diagnostic--dropped,
+.tx-diagnostic--cancelled { background: #fffaf0; border-color: #edd9aa; }
+.tx-diagnostic__summary { align-items: flex-start; color: #315ea8; display: flex; gap: 9px; }
+.tx-diagnostic__summary > svg { flex: 0 0 auto; margin-top: 1px; }
+.tx-diagnostic--confirmed .tx-diagnostic__summary { color: #208044; }
+.tx-diagnostic--reverted .tx-diagnostic__summary,
+.tx-diagnostic--failed .tx-diagnostic__summary { color: #a4382f; }
+.tx-diagnostic__summary > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tx-diagnostic__summary strong { color: #20314d; font-size: 12px; line-height: 1.35; }
+.tx-diagnostic__summary small { color: #64738b; font-size: 11px; line-height: 1.45; }
+.tx-diagnostic__actions { align-items: center; display: flex; gap: 8px; justify-content: space-between; margin-top: 10px; }
+.tx-diagnostic__actions button {
+  align-items: center;
+  appearance: none;
+  background: #fff;
+  border: 1px solid #cfdaea;
+  border-radius: 8px;
+  color: #315278;
+  cursor: pointer;
+  display: inline-flex;
+  font: 700 11px 'Satoshi', sans-serif;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 9px;
+}
+.tx-diagnostic__actions button:hover { background: #f2f6fc; border-color: #aebed3; }
+.tx-diagnostic__actions button:disabled { cursor: wait; opacity: .65; }
+.tx-diagnostic__actions > span { border-radius: 999px; font-size: 10px; font-weight: 750; padding: 5px 8px; white-space: nowrap; }
+.tx-diagnostic__actions .is-safe { background: #e6f7eb; color: #207641; }
+.tx-diagnostic__actions .is-blocked { background: #eef2f7; color: #637089; }
+.tx-diagnostic__details { border-top: 1px solid #e0e6ef; margin-top: 10px; padding-top: 8px; }
+.tx-diagnostic__details summary { align-items: center; color: #53637b; cursor: pointer; display: flex; font-size: 10px; font-weight: 700; min-height: 32px; }
+.tx-diagnostic__details dl { display: flex; flex-direction: column; gap: 6px; margin: 9px 0 0; }
+.tx-diagnostic__details dl > div { display: grid; gap: 8px; grid-template-columns: 88px minmax(0, 1fr); }
+.tx-diagnostic__details dt { color: #7a879a; font-size: 10px; }
+.tx-diagnostic__details dd { color: #34435b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; margin: 0; overflow-wrap: anywhere; }
+.tx-diagnostic .is-spinning { animation: txSpin .9s linear infinite; }
 @keyframes txPulse { 50% { opacity: .5; transform: scale(.8); } }
+@keyframes txSpin { to { transform: rotate(360deg); } }
 .wallet-status-bar {
   align-items: center;
   background: #fbfcfe;
@@ -980,6 +1029,11 @@
   .tx-param-value { min-width: 0; }
   .tx-card-actions { flex-direction: column; align-items: stretch; }
   .tx-cancel-btn { text-align: center; }
+  .tx-card-actions button,
+  .tx-diagnostic__actions button,
+  .tx-diagnostic__details summary { min-height: 42px !important; }
+  .tx-diagnostic__actions { align-items: flex-start; flex-direction: column; }
+  .tx-diagnostic__details dl > div { grid-template-columns: 76px minmax(0, 1fr); }
 
   .oppy-data-card { border-radius: 14px; padding: 14px; }
   .oppy-data-heading { align-items: flex-start; }

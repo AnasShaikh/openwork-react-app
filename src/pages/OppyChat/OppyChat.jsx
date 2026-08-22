@@ -1,7 +1,7 @@
 import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, ArrowRight, ArrowUp, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleAlert, CircleCheck, Mic, Search, Square, UserRound, WalletCards } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleAlert, CircleCheck, Mic, RefreshCw, Search, Square, UserRound, WalletCards } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BlueButton from '../../components/BlueButton/BlueButton';
 import CrossChainSyncStatus from '../../components/CrossChainSyncStatus/CrossChainSyncStatus';
@@ -50,6 +50,12 @@ import {
   subscribeInjectedWallets,
   walletRpcErrorMessage,
 } from '../../services/injectedWalletProviders';
+import {
+  createTransactionDiagnostic,
+  diagnosticTechnicalRows,
+  inspectTransactionDiagnostic,
+  updateTransactionDiagnostic,
+} from '../../services/transactionDiagnostics';
 import './OppyChat.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -108,7 +114,7 @@ function formatToolParamLabel(key) {
 }
 
 // ── Transaction Card ─────────────────────────────────────────────
-function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
+function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, onDiagnosticChange }) {
   const [txHash, setTxHash] = useState(null);
   const [txChainId, setTxChainId] = useState(null);
   const [jobId, setJobId] = useState(null);
@@ -116,6 +122,9 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState(null);
   const [walletWaitExtended, setWalletWaitExtended] = useState(false);
+  const [diagnostic, setDiagnostic] = useState(null);
+  const [diagnosticChecking, setDiagnosticChecking] = useState(false);
+  const diagnosticRef = useRef(null);
   const [oracles, setOracles] = useState([]);
   const [oraclesLoading, setOraclesLoading] = useState(tool.name === 'raiseDispute');
   const [formValues, setFormValues] = useState({
@@ -145,14 +154,64 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
     return () => { active = false; };
   }, [tool.name]);
 
+  const publishDiagnostic = (next) => {
+    if (!next) return;
+    diagnosticRef.current = next;
+    setDiagnostic(next);
+    onDiagnosticChange?.(next);
+  };
+
+  const runDiagnosticCheck = async () => {
+    const current = diagnosticRef.current;
+    if (!current || diagnosticChecking) return;
+    setDiagnosticChecking(true);
+    try {
+      const inspected = await onDiagnose(current);
+      if (!inspected) return;
+      publishDiagnostic(inspected);
+      if (inspected.txHash) {
+        setTxHash(inspected.txHash);
+        setTxChainId(inspected.chainId || null);
+      }
+      if (inspected.status === 'confirmed') {
+        setStatus('submitted');
+        setLoading(false);
+        setProgress({ phase: 'confirmed', message: inspected.summary });
+      } else if (['dropped', 'reverted', 'cancelled'].includes(inspected.status)) {
+        setStatus('failed');
+        setLoading(false);
+        setProgress({ phase: 'error', message: inspected.summary });
+      }
+    } catch (error) {
+      const failedCheck = {
+        ...current,
+        status: 'unknown',
+        safeToRetry: false,
+        summary: 'Oppy could not complete the live status check.',
+        nextStep: 'Wait a moment and check again before retrying.',
+        error: { category: 'diagnostic', code: error?.code ?? null, message: error?.message || 'Status check failed.' },
+      };
+      publishDiagnostic(failedCheck);
+    } finally {
+      setDiagnosticChecking(false);
+    }
+  };
+
   useEffect(() => {
-    if (progress?.phase !== 'wallet') {
+    if (status !== 'working' || !['wallet', 'broadcast'].includes(progress?.phase)) {
       setWalletWaitExtended(false);
       return undefined;
     }
-    const timer = setTimeout(() => setWalletWaitExtended(true), 18000);
+    const delay = progress.phase === 'wallet' ? 12000 : 8000;
+    const timer = setTimeout(() => {
+      setWalletWaitExtended(true);
+      runDiagnosticCheck();
+    }, delay);
     return () => clearTimeout(timer);
-  }, [progress?.phase, progress?.message]);
+    // The check reads the latest attempt through diagnosticRef; progress changes
+    // deliberately restart the timer for the new approval/action phase.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, progress?.phase, progress?.message]);
 
   const handleConfirm = async () => {
     if (tool.name === 'applyToJob' && !formValues.proposal.trim()) {
@@ -182,13 +241,30 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
         return;
       }
     }
+    const currentChainId = walletState.chainId ? parseInt(walletState.chainId, 16) : null;
+    const attempt = createTransactionDiagnostic({
+      action: tool.name,
+      jobId: tool.params?.jobId,
+      walletName: walletState.providerName,
+      walletAddress: walletState.address,
+      chainId: currentChainId,
+      chainName: getChainConfig(currentChainId)?.name,
+      attemptNumber: Number(diagnosticRef.current?.attemptNumber || 0) + 1,
+    });
+    publishDiagnostic(attempt);
     setLoading(true);
     setStatus('working');
     setProgress({ phase: 'preparing', message: tool.kind === 'navigation' ? 'Loading OpenWork data…' : 'Preparing action…' });
     try {
       const result = await onConfirm(tool, formValues, (update) => {
+        const normalized = typeof update === 'string' ? { phase: 'preparing', message: update } : update;
         setStatus('working');
-        setProgress(typeof update === 'string' ? { phase: 'preparing', message: update } : update);
+        setProgress(normalized);
+        if (normalized?.txHash && normalized.step !== 'approval') {
+          setTxHash(normalized.txHash);
+          setTxChainId(currentChainId);
+        }
+        publishDiagnostic(updateTransactionDiagnostic(diagnosticRef.current, normalized));
       });
       if (result?.txHash) {
         setTxHash(result.txHash);
@@ -196,16 +272,30 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
         setJobId(result.jobId || tool.params?.jobId || null);
         setStatus('submitted');
         setProgress({ phase: 'confirmed', message: result.message || 'Transaction confirmed.' });
+        publishDiagnostic(updateTransactionDiagnostic(diagnosticRef.current, {
+          phase: 'confirmed',
+          step: 'action',
+          txHash: result.txHash,
+          message: result.message || 'Transaction confirmed.',
+        }));
       } else if (result?.openedInline) {
         setStatus('opened');
         setProgress({ phase: 'confirmed', message: 'Loaded below without leaving this chat.' });
       } else {
         setProgress({ phase: 'error', message: result?.error || 'The action was not completed.' });
         setStatus('failed');
+        publishDiagnostic(updateTransactionDiagnostic(diagnosticRef.current, {
+          phase: 'error',
+          error: result?.diagnosticError || new Error(result?.error || 'The action was not completed.'),
+          message: result?.error || 'The action was not completed.',
+          outcome: result?.outcome,
+          safeToRetry: result?.safeToRetry,
+        }));
       }
     } catch (error) {
       setProgress({ phase: 'error', message: error?.message || 'The action was not completed.' });
       setStatus('failed');
+      publishDiagnostic(updateTransactionDiagnostic(diagnosticRef.current, { phase: 'error', error }));
     } finally {
       setLoading(false);
     }
@@ -216,6 +306,8 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const actionLabel = tool.kind === 'navigation'
     ? 'Show in chat'
     : (walletState.connected ? 'Continue in wallet' : 'Connect and continue');
+  const technicalRows = diagnosticTechnicalRows(diagnostic);
+  const retryAllowed = !diagnostic || diagnostic.safeToRetry === true;
 
   const updateField = (field) => (event) => {
     setFormValues((current) => ({ ...current, [field]: event.target.value }));
@@ -303,15 +395,42 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
         </div>
       )}
       {walletWaitExtended && status === 'working' && (
-        <p className="tx-wallet-help">Still waiting. Open your wallet’s pending requests and approve or reject the current request. Do not start a second transaction.</p>
+        <p className="tx-wallet-help">Oppy is checking the selected wallet and network in the background. Do not start a second transaction.</p>
+      )}
+      {diagnostic && status !== 'idle' && (
+        <section className={`tx-diagnostic tx-diagnostic--${diagnostic.status}`} aria-live="polite">
+          <div className="tx-diagnostic__summary">
+            {diagnostic.status === 'confirmed'
+              ? <CircleCheck size={17} aria-hidden="true" />
+              : <CircleAlert size={17} aria-hidden="true" />}
+            <span><strong>{diagnostic.summary}</strong><small>{diagnostic.nextStep}</small></span>
+          </div>
+          <div className="tx-diagnostic__actions">
+            <button type="button" onClick={runDiagnosticCheck} disabled={diagnosticChecking}>
+              <RefreshCw size={13} className={diagnosticChecking ? 'is-spinning' : ''} aria-hidden="true" />
+              {diagnosticChecking ? 'Checking…' : 'Check live status'}
+            </button>
+            <span className={diagnostic.safeToRetry ? 'is-safe' : 'is-blocked'}>
+              {diagnostic.safeToRetry ? 'Safe to retry' : 'Retry protected'}
+            </span>
+          </div>
+          <details className="tx-diagnostic__details">
+            <summary>Technical details</summary>
+            <dl>
+              {technicalRows.map(([label, value]) => (
+                <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+              ))}
+            </dl>
+          </details>
+        </section>
       )}
       {['idle', 'failed'].includes(status) ? (
         <div className="tx-card-actions">
           <BlueButton
-            label={loading ? 'Working…' : (status === 'failed' ? 'Try again' : actionLabel)}
+            label={loading ? 'Working…' : (status === 'failed' ? 'Retry safely' : actionLabel)}
             onClick={handleConfirm}
-            disabled={loading || oraclesLoading}
-            style={{ fontSize: '13px', height: '36px', padding: '0 16px', opacity: loading ? 0.7 : 1 }}
+            disabled={loading || oraclesLoading || (status === 'failed' && !retryAllowed)}
+            style={{ fontSize: '13px', height: '40px', padding: '0 16px', opacity: (loading || (status === 'failed' && !retryAllowed)) ? 0.55 : 1 }}
           />
           {!loading && <button className="tx-cancel-btn" onClick={onCancel}>Cancel</button>}
         </div>
@@ -679,6 +798,7 @@ const OppyChat = () => {
   const [chat, setChat] = useState([OPPY_JOB_GREETING]);
   const [activeJob, setActiveJob] = useState(null);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [latestTransactionDiagnostic, setLatestTransactionDiagnostic] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const transcriptionControllerRef = useRef(null);
@@ -697,6 +817,7 @@ const OppyChat = () => {
     setChat(memory.messages);
     setActiveJob(memory.activeJob);
     setRecentTransactions(memory.recentTransactions);
+    setLatestTransactionDiagnostic(memory.latestTransactionDiagnostic);
     setShowSuggestions(memory.messages.length <= 1);
   }, [memoryScope]);
 
@@ -710,8 +831,9 @@ const OppyChat = () => {
       messages: chat,
       activeJob,
       recentTransactions,
+      latestTransactionDiagnostic,
     });
-  }, [memoryScope, chat, activeJob, recentTransactions]);
+  }, [memoryScope, chat, activeJob, recentTransactions, latestTransactionDiagnostic]);
 
   useEffect(() => {
     const messagesArea = messagesEndRef.current?.parentElement;
@@ -824,6 +946,7 @@ const OppyChat = () => {
           memory: {
             activeJob: messageActiveJob,
             recentTransactions,
+            latestTransactionDiagnostic,
           },
         }),
       });
@@ -937,6 +1060,11 @@ const OppyChat = () => {
   const appendActionCard = (tool) => {
     setChat((current) => [...current, { role: 'bot', isTxCard: true, tool }]);
   };
+
+  const handleDiagnoseTransaction = (diagnostic) => inspectTransactionDiagnostic(diagnostic, {
+    walletProvider: walletProviderRef.current,
+    rpcUrl: getChainConfig(diagnostic.chainId)?.rpcUrl,
+  });
 
   const loadExplorerIntoChat = async (path, report) => {
     report?.({ phase: 'preparing', message: 'Loading live OpenWork data…' });
@@ -1302,8 +1430,8 @@ const OppyChat = () => {
         const symbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
         message = `The wallet does not have enough ${symbol} for network fees.`;
       }
-      report({ phase: 'error', message });
-      return { error: message };
+      report({ phase: 'error', message, error });
+      return { error: message, diagnosticError: error };
     }
   };
 
@@ -1400,6 +1528,8 @@ const OppyChat = () => {
                       tool={msg.tool}
                       walletState={walletState}
                       onConfirm={handleTransaction}
+                      onDiagnose={handleDiagnoseTransaction}
+                      onDiagnosticChange={setLatestTransactionDiagnostic}
                       onCancel={() => handleCancelTx(idx)}
                     />
                   </div>

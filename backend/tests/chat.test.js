@@ -40,6 +40,7 @@ test('chat requests are bounded and default to documentation mode', () => {
     memory: {
       activeJob: null,
       recentTransactions: [],
+      latestTransactionDiagnostic: null,
     },
   });
   assert.match(validateRequest({ message: 'x'.repeat(2001) }).error, /2000/);
@@ -183,10 +184,26 @@ test('conversation memory keeps only bounded job and receipt context', () => {
       chainId: 50,
       confirmed: true,
     }],
+    latestTransactionDiagnostic: {
+      attemptId: 'attempt-1',
+      action: 'startDirectContract',
+      walletName: 'MetaMask',
+      chainId: 50,
+      chainName: 'XDC Network',
+      phase: 'wallet',
+      step: 'approval',
+      status: 'wallet',
+      summary: 'Waiting for approval.',
+      nextStep: 'Open the wallet.',
+      safeToRetry: false,
+      checks: { walletReachable: true },
+    },
   });
   assert.equal(memory.activeJob.jobId, '30365-6');
   assert.equal(memory.activeJob.title, 'XDC test');
   assert.equal(memory.recentTransactions[0].confirmed, true);
+  assert.equal(memory.latestTransactionDiagnostic.step, 'approval');
+  assert.equal(memory.latestTransactionDiagnostic.checks.walletReachable, true);
   assert.equal(sanitizeConversationMemory({ activeJob: { jobId: '../bad' } }).activeJob, null);
 });
 

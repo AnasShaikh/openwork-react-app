@@ -16,7 +16,7 @@
  */
 
 import Web3 from "web3";
-import { applyTxTimeouts } from './txReliability';
+import { applyTxTimeouts, sendTrackedContractMethod } from './txReliability';
 import {
   getChainConfig,
   isChainAllowed,
@@ -266,10 +266,12 @@ export async function postJob(chainId, userAddress, jobData, onStatus, walletPro
       nativeOptions
     );
 
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Job post submitted on ${config.name}; checking confirmation…` },
+    );
 
     emit(`Transaction confirmed: ${tx.transactionHash}`);
     const jobId = await resolvePostedJobId({
@@ -339,10 +341,12 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
       nativeOptions
     );
 
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Application submitted on ${config.name}; checking confirmation…` },
+    );
     emit(`Application submitted: ${tx.transactionHash}`);
     saveTxHash('applyToJob', tx.transactionHash, applicationData.jobId, chainId, userAddress);
     console.log(`[applyToJob] confirmed on ${config.name}:`, tx.transactionHash);
@@ -417,10 +421,12 @@ export async function startDirectContract(chainId, userAddress, contractData, on
     ],
     nativeOptions,
   );
-  const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-    from: userAddress,
-    value: lzFee,
-  }));
+  const tx = await sendTrackedContractMethod(
+    method,
+    await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+    emit,
+    { pendingMessage: `Direct contract submitted on ${config.name}; checking confirmation…` },
+  );
   const jobId = await resolvePostedJobId({
     receipt: tx,
     contract: readContract,
@@ -495,10 +501,12 @@ export async function startJob(chainId, userAddress, startData, onStatus, wallet
       nativeOptions
     );
 
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Job start submitted on ${config.name}; checking confirmation…` },
+    );
     emit(asyncApplicantStart
       ? `Start requested; waiting for canonical milestones and local escrow: ${tx.transactionHash}`
       : `Job started: ${tx.transactionHash}`);
@@ -549,10 +557,12 @@ export async function submitWork(chainId, userAddress, workData, onStatus, walle
       nativeOptions
     );
 
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Work submission sent on ${config.name}; checking confirmation…` },
+    );
     emit(`Work submitted: ${tx.transactionHash}`);
     saveTxHash('submitWork', tx.transactionHash, workData.jobId, chainId, userAddress);
     console.log(`[submitWork] confirmed on ${config.name}:`, tx.transactionHash);
@@ -607,10 +617,12 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
       nativeOptions
     );
 
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Payment release submitted on ${config.name}; checking confirmation…` },
+    );
     emit(`Payment release confirmed: ${tx.transactionHash}`);
     saveTxHash('releasePayment', tx.transactionHash, paymentData.jobId, chainId, userAddress);
     console.log(`[releasePayment] confirmed on ${config.name}:`, tx.transactionHash);
@@ -669,10 +681,12 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus, 
       nativeOptions
     );
 
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Dispute submitted on ${config.name}; checking confirmation…` },
+    );
     emit(`Dispute submitted: ${tx.transactionHash}`);
     saveTxHash('raiseDispute', tx.transactionHash, disputeData.jobId, chainId, userAddress);
     console.log(`[raiseDispute] confirmed on ${config.name}:`, tx.transactionHash);
@@ -723,10 +737,12 @@ export async function createProfile(chainId, userAddress, profileData, onStatus,
       ],
       nativeOptions
     );
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
-      from: userAddress,
-      value: lzFee,
-    }));
+    const tx = await sendTrackedContractMethod(
+      method,
+      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      emit,
+      { pendingMessage: `Profile creation submitted on ${config.name}; checking confirmation…` },
+    );
 
     emit(`Profile created: ${tx.transactionHash}`);
     console.log(`[createProfile] confirmed on ${config.name}:`, tx.transactionHash);

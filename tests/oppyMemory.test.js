@@ -43,6 +43,20 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
       chainId: 50,
       confirmed: true,
     }],
+    latestTransactionDiagnostic: {
+      attemptId: 'attempt-1',
+      action: 'startDirectContract',
+      walletName: 'MetaMask',
+      chainId: 50,
+      chainName: 'XDC Network',
+      phase: 'wallet',
+      step: 'approval',
+      status: 'wallet',
+      summary: 'Waiting for approval.',
+      nextStep: 'Open the wallet.',
+      safeToRetry: false,
+      checks: { walletReachable: true },
+    },
   }, storage);
 
   const loaded = loadOppyMemory(scope, [OPPY_JOB_GREETING], storage);
@@ -50,6 +64,8 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
   assert.equal(loaded.activeJob.jobId, '30365-6');
   assert.equal(loaded.activeJob.sourceChainName, 'XDC Network');
   assert.equal(loaded.recentTransactions[0].confirmed, true);
+  assert.equal(loaded.latestTransactionDiagnostic.step, 'approval');
+  assert.equal(loaded.latestTransactionDiagnostic.safeToRetry, false);
 });
 
 test('explicit job IDs replace pronoun memory while ordinary follow-ups retain it', () => {

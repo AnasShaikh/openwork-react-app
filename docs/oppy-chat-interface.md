@@ -83,10 +83,13 @@ adapters and must never be rerouted through the backend explorer fallback.
 
 The action card owns its progress instead of replacing unrelated chat messages. The
 minimum states are preparing, network switch, USDC approval, wallet signature,
-confirmed and failed. After 18 seconds in a wallet state it shows a non-destructive
-reminder to open the current wallet request and warns against starting a duplicate.
-A rejection unlocks Try again. A confirmed receipt permanently replaces the action
-button with its explorer link.
+broadcast, confirmed and failed. After 12 seconds in a wallet state, or 8 seconds after
+a broadcast, it runs read-only wallet and network diagnostics and warns against
+starting a duplicate. Retry remains disabled for pending or unknown outcomes and is
+unlocked only after an explicit cancellation, a reverted receipt or a repeatedly
+verified drop. A confirmed receipt permanently replaces the action button with its
+explorer link. The state machine, privacy boundary, limitations and maintenance
+runbook are documented in `docs/oppy-transaction-copilot.md`.
 
 Use provider-neutral language (`your wallet` or `EVM wallet`). Oppy discovers injected
 wallets through EIP-6963, with `window.ethereum.providers` as the compatibility
@@ -127,7 +130,9 @@ git diff --check
 ```
 
 The Oppy interface regression tests are in `tests/oppyChat.test.js`; provider discovery
-behavior is covered by `tests/injectedWalletProviders.test.js`. Browser review
+behavior is covered by `tests/injectedWalletProviders.test.js`; transaction diagnosis
+and duplicate-safe retry are covered by `tests/transactionDiagnostics.test.js` and
+`tests/txReliability.test.js`. Browser review
 must cover desktop and 390 x 844 mobile layouts, the enabled and disabled composer
 states, read-only action cards that preserve the `/chat` URL, job drill-down, inline
 application and dispute forms, launcher presence on a non-Oppy route, launcher absence

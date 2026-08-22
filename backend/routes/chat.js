@@ -83,6 +83,7 @@ router.post('/', async (req, res) => {
           activeJob: request.memory.activeJob,
           jobs: [],
           recentTransactions: request.memory.recentTransactions,
+          latestTransactionDiagnostic: request.memory.latestTransactionDiagnostic,
         };
     let explorer = null;
     if (explorerIntent) {
