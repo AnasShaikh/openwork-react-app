@@ -91,6 +91,23 @@ verified drop. A confirmed receipt permanently replaces the action button with i
 explorer link. The state machine, privacy boundary, limitations and maintenance
 runbook are documented in `docs/oppy-transaction-copilot.md`.
 
+Cross-chain progress is also owned by the transaction card that created it. Never
+render a singleton tracker from `activeJob`, and never preserve a completed tracker
+when the action name or source transaction hash changes. Job creation and Direct
+Contract creation may use canonical job creation as their final application-state
+proof. Payment release must instead compare canonical `totalPaid` with the snapshot
+taken immediately before the release; an already-existing job is not evidence that a
+new payment completed.
+
+`GET /api/oppy/cross-chain-status` combines the source receipt already observed by the
+client with the LayerZero destination transaction and a minimal Arbitrum Genesis read.
+For an Optimism or XDC payout, completion additionally requires Circle's attestation
+and a non-zero `usedNonces(bytes32)` result on the destination MessageTransmitter. The
+card may say `Payment received` only when every required signal agrees. A provider
+failure remains an in-progress/unavailable state and is retried automatically; it must
+never be converted into a green result. The verifier is read-only and falls back from
+the configured Arbitrum provider to the public Arbitrum RPC when necessary.
+
 Use provider-neutral language (`your wallet` or `EVM wallet`). Oppy discovers injected
 wallets through EIP-6963, with `window.ethereum.providers` as the compatibility
 fallback. When more than one wallet is installed, injection order must never choose
@@ -132,7 +149,9 @@ git diff --check
 The Oppy interface regression tests are in `tests/oppyChat.test.js`; provider discovery
 behavior is covered by `tests/injectedWalletProviders.test.js`; transaction diagnosis
 and duplicate-safe retry are covered by `tests/transactionDiagnostics.test.js` and
-`tests/txReliability.test.js`. Browser review
+`tests/txReliability.test.js`; transaction-scoped cross-chain proof is covered by
+`tests/crossChainSync.test.js` and
+`backend/tests/cross-chain-action-status.test.js`. Browser review
 must cover desktop and 390 x 844 mobile layouts, the enabled and disabled composer
 states, read-only action cards that preserve the `/chat` URL, job drill-down, inline
 application and dispute forms, launcher presence on a non-Oppy route, launcher absence

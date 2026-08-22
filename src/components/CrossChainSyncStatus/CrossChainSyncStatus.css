@@ -3,12 +3,19 @@
   border: 1px solid #cdd8ff;
   border-left: 4px solid #0047ff;
   border-radius: 16px;
+  box-sizing: border-box;
   box-shadow: 0 9px 28px rgba(31, 64, 154, 0.08);
   color: #17213a;
+  container-type: inline-size;
   font-family: 'Satoshi', sans-serif;
   max-width: 680px;
+  min-width: 0;
   padding: 18px 20px;
   width: 100%;
+}
+
+.tx-card > .cross-chain-sync {
+  margin-top: 14px;
 }
 
 .cross-chain-sync--synced {
@@ -17,12 +24,20 @@
   border-left-color: #16a34a;
 }
 
+.cross-chain-sync--failed {
+  background: linear-gradient(145deg, #fff7f7 0%, #ffffff 62%);
+  border-color: #f2c5c5;
+  border-left-color: #dc2626;
+}
+
 .cross-chain-sync__header {
   align-items: flex-start;
   display: flex;
   gap: 16px;
   justify-content: space-between;
 }
+
+.cross-chain-sync__header > div { min-width: 0; }
 
 .cross-chain-sync__eyebrow {
   color: #5f6f91;
@@ -66,6 +81,12 @@
   color: #147a3d;
 }
 
+.cross-chain-sync__badge--failed {
+  background: #fff0f0;
+  border-color: #f2c5c5;
+  color: #b42318;
+}
+
 .cross-chain-sync__steps {
   display: grid;
   gap: 8px;
@@ -73,6 +94,16 @@
   list-style: none;
   margin: 17px 0 14px;
   padding: 0;
+}
+
+.cross-chain-sync__steps--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@container (max-width: 560px) {
+  .cross-chain-sync__steps--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .cross-chain-sync__step {
@@ -126,6 +157,14 @@
 
 .cross-chain-sync__step--complete strong { color: #166534; }
 
+.cross-chain-sync__step--failed {
+  background: #fff1f1;
+  border-color: #f3c4c4;
+  color: #dc2626;
+}
+
+.cross-chain-sync__step--failed strong { color: #991b1b; }
+
 .cross-chain-sync__waiting-dot {
   border: 2px solid #cbd1dc;
   border-radius: 50%;
@@ -146,6 +185,12 @@
   line-height: 1.45;
   margin: 0 0 13px;
   padding: 9px 10px;
+}
+
+.cross-chain-sync__notice--failed {
+  background: #fff1f1;
+  border-color: #f3c4c4;
+  color: #991b1b;
 }
 
 .cross-chain-sync__footer {
@@ -188,6 +233,9 @@
 
 @media (max-width: 600px) {
   .cross-chain-sync { padding: 15px; }
+  .cross-chain-sync__header { flex-direction: column; gap: 10px; }
+  .cross-chain-sync__header h3 { flex-wrap: wrap; }
+  .cross-chain-sync__badge { align-self: flex-start; }
   .cross-chain-sync__steps { grid-template-columns: 1fr; }
   .cross-chain-sync__footer { align-items: flex-start; flex-direction: column; }
   .cross-chain-sync__footer button { padding-left: 0; }

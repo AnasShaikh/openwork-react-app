@@ -759,6 +759,35 @@ Commits `7655f91702345832ffb515b94b6e7ac150dccce3`, `b48281fd4c679f8babc5b62a3d8
 
 The verified release path burned `0.1 USDC` on Arbitrum in transaction `0x45985996d8bbd0ad39d36db06a4238cb3b6d8b636498f1e8b460d34a74f34f17`; XDC transaction `0x28ce7065d9190d3a016126a31676cb6207cf65a4ad5de8fa4187f9f6ff1a9518` consumed the Circle message and delivered `99,986` raw USDC units to applicant `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724` after the 14-unit protocol fee. This release only corrected application interpretation and UI state; it did not replay or alter those transactions.
 
+## Oppy transaction-scoped cross-chain status correction
+
+Oppy's former singleton Job Sync card was rendered from persisted `activeJob` memory.
+It also preserved its `synced` state across inputs and considered `Genesis.jobExists`
+sufficient proof for every action. Releasing a payment for an already-created job could
+therefore reuse the old green creation state immediately, even while LayerZero and CCTP
+were still processing.
+
+The tracker now lives inside the exact transaction review card and is keyed by action
+plus source transaction hash. Post Job and Direct Contract creation verify their own
+canonical creation state. Release Payment snapshots `totalPaid` before submission and
+requires all of the following before rendering `Payment received`: source receipt,
+LayerZero delivery with its Arbitrum destination transaction, an increase in canonical
+`totalPaid`, Circle completion and destination `usedNonces(bytes32)` consumption when
+the applicant is paid on Optimism or XDC. Temporary LayerZero, RPC or Circle failures
+remain non-final and retry automatically.
+
+Read-only verification against the reported XDC release
+`0x277cc1dda1dd882bac958c957be4db0f96ca95b039d69bfe6bbd3ca89d8515f9`
+resolved LayerZero destination transaction
+`0x8d26f0ccd6b744a8588402b38fed039545254fb0587ddd51a57c529bce1a954c`,
+canonical job `30365-9` at `0.1 USDC` total paid and consumed XDC event nonce
+`0x1a31b796c540b0da1c8b0e88fa9f1e5f56f20693680d167d781bfc5f206e1c21`.
+The configured Arbitrum provider was out of monthly capacity during this check, so the
+new public-RPC fallback was also exercised successfully. Desktop and 390 x 844 visual
+QA covered the tracker inside its transaction card; container-aware four-, two- and
+one-column layouts prevent cramped steps and horizontal overflow. This correction and
+its verification are read-only and submit no wallet or on-chain transaction.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.

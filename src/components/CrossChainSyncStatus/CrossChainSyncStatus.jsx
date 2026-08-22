@@ -1,51 +1,91 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, LoaderCircle, RefreshCw } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, CheckCircle2, CircleAlert, LoaderCircle, RefreshCw } from 'lucide-react';
 import {
   CROSS_CHAIN_SYNC_POLL_MS,
+  crossChainTrackingKey,
   getCrossChainSource,
   getCrossChainTrackingLinks,
-  readCanonicalJobSyncStatus,
+  isCrossChainSyncCandidate,
+  readCrossChainActionStatus,
 } from '../../services/crossChainSyncService';
 import './CrossChainSyncStatus.css';
 
-function stepStateClass(complete, active = false) {
+const DOMAIN_NAMES = new Map([[2, 'Optimism'], [3, 'Arbitrum'], [18, 'XDC Network']]);
+
+function stepStateClass(complete, active = false, failed = false) {
   if (complete) return 'cross-chain-sync__step cross-chain-sync__step--complete';
+  if (failed) return 'cross-chain-sync__step cross-chain-sync__step--failed';
   if (active) return 'cross-chain-sync__step cross-chain-sync__step--active';
   return 'cross-chain-sync__step';
 }
 
-function StepIcon({ complete, active }) {
+function StepIcon({ complete, active, failed }) {
   if (complete) return <CheckCircle2 aria-hidden="true" size={18} />;
+  if (failed) return <CircleAlert aria-hidden="true" size={18} />;
   if (active) return <LoaderCircle aria-hidden="true" className="cross-chain-sync__spinner" size={18} />;
   return <span aria-hidden="true" className="cross-chain-sync__waiting-dot" />;
 }
 
-export default function CrossChainSyncStatus({ activeJob }) {
-  const source = getCrossChainSource(activeJob);
-  const links = getCrossChainTrackingLinks(activeJob);
+function actionCopy(action) {
+  if (action === 'releasePayment') {
+    return {
+      eyebrow: 'Payment delivery',
+      sourceTitle: 'Release submitted',
+      canonicalTitle: 'OpenWork payment',
+      canonicalPending: 'Recording the payment',
+      canonicalComplete: 'Payment recorded',
+      completeBadge: 'Payment received',
+    };
+  }
+  if (action === 'startDirectContract') {
+    return {
+      eyebrow: 'Direct contract sync',
+      sourceTitle: 'Contract submitted',
+      canonicalTitle: 'OpenWork contract',
+      canonicalPending: 'Creating the contract',
+      canonicalComplete: 'Contract is ready',
+      completeBadge: 'Contract ready',
+    };
+  }
+  return {
+    eyebrow: 'Job sync',
+    sourceTitle: 'Job submitted',
+    canonicalTitle: 'OpenWork job',
+    canonicalPending: 'Creating the job',
+    canonicalComplete: 'Job is ready',
+    completeBadge: 'Job ready',
+  };
+}
+
+export default function CrossChainSyncStatus({ tracking }) {
+  const source = getCrossChainSource(tracking);
+  const trackingKey = crossChainTrackingKey(tracking);
+  const copy = actionCopy(tracking?.action);
   const [sync, setSync] = useState({ state: 'checking', checkedAt: null, error: null });
   const [refreshKey, setRefreshKey] = useState(0);
-
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
   useEffect(() => {
-    if (!source || activeJob?.sourceReceiptConfirmed !== true) return undefined;
+    setSync({ state: 'checking', checkedAt: null, error: null });
+    if (!isCrossChainSyncCandidate(tracking)) return undefined;
     let cancelled = false;
     let timer = null;
 
     const check = async () => {
-      setSync((current) => ({ ...current, state: current.state === 'synced' ? 'synced' : 'checking', error: null }));
       try {
-        const next = await readCanonicalJobSyncStatus(activeJob);
+        const next = await readCrossChainActionStatus(tracking);
         if (cancelled) return;
         setSync(next);
-        if (next.state !== 'synced') timer = window.setTimeout(check, CROSS_CHAIN_SYNC_POLL_MS);
+        if (!next.complete && next.state !== 'failed') {
+          const delay = next.state === 'unavailable' ? CROSS_CHAIN_SYNC_POLL_MS * 2 : CROSS_CHAIN_SYNC_POLL_MS;
+          timer = window.setTimeout(check, delay);
+        }
       } catch (error) {
         if (cancelled) return;
         setSync({
           state: 'unavailable',
           checkedAt: new Date().toISOString(),
-          error: error.message || 'Arbitrum status is temporarily unavailable',
+          error: error.message || 'Cross-chain status is temporarily unavailable',
         });
         timer = window.setTimeout(check, CROSS_CHAIN_SYNC_POLL_MS * 2);
       }
@@ -56,59 +96,84 @@ export default function CrossChainSyncStatus({ activeJob }) {
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [activeJob?.jobId, activeJob?.sourceReceiptConfirmed, activeJob?.sourceTxHash, refreshKey, source?.chainId]);
+  }, [trackingKey, refreshKey]);
 
-  if (!source || activeJob?.sourceReceiptConfirmed !== true) return null;
+  const links = useMemo(() => getCrossChainTrackingLinks(tracking, sync), [tracking, sync]);
+  if (!isCrossChainSyncCandidate(tracking) || !source) return null;
 
-  const synced = sync.state === 'synced';
-  const checking = sync.state === 'checking' || sync.state === 'syncing';
+  const complete = sync.complete === true;
+  const failed = sync.state === 'failed';
+  const layerZeroComplete = sync.layerZero?.state === 'delivered';
+  const layerZeroFailed = sync.layerZero?.state === 'failed';
+  const canonicalComplete = sync.canonical?.state === 'complete';
+  const cctpRequired = sync.cctp?.required === true
+    || (tracking.action === 'releasePayment' && Number(tracking.targetDomain) !== 3);
+  const cctpComplete = !cctpRequired || sync.cctp?.state === 'received';
+  const targetName = sync.cctp?.targetChainName || DOMAIN_NAMES.get(Number(tracking.targetDomain));
   const checkedTime = sync.checkedAt
     ? new Date(sync.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
+  const unavailable = sync.state === 'unavailable';
 
   return (
     <section
-      className={`cross-chain-sync ${synced ? 'cross-chain-sync--synced' : ''}`}
+      className={`cross-chain-sync ${complete ? 'cross-chain-sync--synced' : ''} ${failed ? 'cross-chain-sync--failed' : ''}`}
       aria-live="polite"
-      aria-label={`Cross-chain sync status for job ${activeJob.jobId}`}
+      aria-label={`${copy.eyebrow} status for job ${tracking.jobId}`}
     >
       <div className="cross-chain-sync__header">
         <div>
-          <span className="cross-chain-sync__eyebrow">Job sync</span>
-          <h3>{source.name} <ArrowRight aria-hidden="true" size={16} /> Arbitrum</h3>
-          <p>Job <strong>{activeJob.jobId}</strong></p>
+          <span className="cross-chain-sync__eyebrow">{copy.eyebrow}</span>
+          <h3>
+            {source.name} <ArrowRight aria-hidden="true" size={16} /> Arbitrum
+            {cctpRequired && targetName && <><ArrowRight aria-hidden="true" size={16} /> {targetName}</>}
+          </h3>
+          <p>Job <strong>{tracking.jobId}</strong></p>
         </div>
-        <span className={`cross-chain-sync__badge ${synced ? 'cross-chain-sync__badge--synced' : ''}`}>
-          {synced ? 'Synced' : (sync.state === 'unavailable' ? 'Checking' : 'In progress')}
+        <span className={`cross-chain-sync__badge ${complete ? 'cross-chain-sync__badge--synced' : ''} ${failed ? 'cross-chain-sync__badge--failed' : ''}`}>
+          {complete ? copy.completeBadge : (failed ? 'Needs attention' : 'In progress')}
         </span>
       </div>
 
-      <ol className="cross-chain-sync__steps">
+      <ol className={`cross-chain-sync__steps ${cctpRequired ? 'cross-chain-sync__steps--four' : ''}`}>
         <li className={stepStateClass(true)}>
           <StepIcon complete />
-          <div><strong>Job submitted</strong><span>Confirmed on {source.name}</span></div>
+          <div><strong>{copy.sourceTitle}</strong><span>Confirmed on {source.name}</span></div>
         </li>
-        <li className={stepStateClass(synced, checking)}>
-          <StepIcon complete={synced} active={checking} />
-          <div><strong>Network delivery</strong><span>{synced ? 'Delivered' : 'Sending to Arbitrum'}</span></div>
+        <li className={stepStateClass(layerZeroComplete, !layerZeroComplete && !layerZeroFailed, layerZeroFailed)}>
+          <StepIcon complete={layerZeroComplete} active={!layerZeroComplete && !layerZeroFailed} failed={layerZeroFailed} />
+          <div><strong>Network delivery</strong><span>{layerZeroComplete ? 'Delivered to Arbitrum' : (layerZeroFailed ? 'Delivery needs attention' : 'Sending to Arbitrum')}</span></div>
         </li>
-        <li className={stepStateClass(synced, false)}>
-          <StepIcon complete={synced} />
-          <div><strong>OpenWork update</strong><span>{synced ? 'Job is ready' : 'Finalizing job'}</span></div>
+        <li className={stepStateClass(canonicalComplete, layerZeroComplete && !canonicalComplete)}>
+          <StepIcon complete={canonicalComplete} active={layerZeroComplete && !canonicalComplete} />
+          <div><strong>{copy.canonicalTitle}</strong><span>{canonicalComplete ? copy.canonicalComplete : copy.canonicalPending}</span></div>
         </li>
+        {cctpRequired && (
+          <li className={stepStateClass(cctpComplete, canonicalComplete && !cctpComplete)}>
+            <StepIcon complete={cctpComplete} active={canonicalComplete && !cctpComplete} />
+            <div><strong>USDC received</strong><span>{cctpComplete ? `Confirmed on ${targetName}` : `Transferring to ${targetName || 'the payment chain'}`}</span></div>
+          </li>
+        )}
       </ol>
 
-      {sync.state === 'unavailable' && (
+      {unavailable && (
         <p className="cross-chain-sync__notice">
-          Your job is safe. We're having trouble checking the final status and will retry automatically.
+          The confirmed source transaction is safe. One live status provider is temporarily unavailable, so Oppy will keep checking and will not show completion early.
+        </p>
+      )}
+      {failed && (
+        <p className="cross-chain-sync__notice cross-chain-sync__notice--failed">
+          LayerZero reports that this delivery needs attention. Open Delivery details before attempting another transaction.
         </p>
       )}
 
       <div className="cross-chain-sync__footer">
         <div className="cross-chain-sync__links">
-          {links.sourceExplorerUrl && <a href={links.sourceExplorerUrl} target="_blank" rel="noreferrer">View transaction</a>}
+          {links.sourceExplorerUrl && <a href={links.sourceExplorerUrl} target="_blank" rel="noreferrer">Source transaction</a>}
           {links.layerZeroScanUrl && <a href={links.layerZeroScanUrl} target="_blank" rel="noreferrer">Delivery details</a>}
-          {synced && links.canonicalJobUrl && <a href={links.canonicalJobUrl}>Open job</a>}
+          {links.canonicalExplorerUrl && <a href={links.canonicalExplorerUrl} target="_blank" rel="noreferrer">Arbitrum transaction</a>}
+          {links.circleStatusUrl && cctpRequired && <a href={links.circleStatusUrl} target="_blank" rel="noreferrer">Circle status</a>}
+          {complete && links.canonicalJobUrl && <a href={links.canonicalJobUrl}>Open job</a>}
         </div>
         <button type="button" onClick={refresh} aria-label="Refresh cross-chain status">
           <RefreshCw aria-hidden="true" size={14} />

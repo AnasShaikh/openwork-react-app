@@ -15,6 +15,7 @@ const ipfsRoutes = require('./routes/ipfs');
 const chatRoutes = require('./routes/chat');
 const transcriptionRoutes = require('./routes/transcription');
 const oppyExplorerRoutes = require('./routes/oppy-explorer');
+const crossChainStatusRoutes = require('./routes/cross-chain-status');
 const docsRoutes = require('./routes/docs');
 const e2eTestRoute = require('./routes/e2e-test-route');
 const designReviewRouter = require('./routes/design-review');
@@ -94,6 +95,9 @@ app.use('/api/transcription', transcriptionRoutes);
 
 // Read-only canonical job, wallet, profile and platform data for Agent Oppy.
 app.use('/api/oppy/explore', oppyExplorerRoutes);
+
+// Transaction-scoped LayerZero, canonical-state and CCTP evidence for Oppy.
+app.use('/api/oppy/cross-chain-status', crossChainStatusRoutes);
 
 // Mount docs routes (machine-readable documentation for AI agents)
 app.use('/api/docs', docsRoutes);

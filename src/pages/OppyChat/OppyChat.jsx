@@ -114,11 +114,19 @@ function formatToolParamLabel(key) {
   return key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (letter) => letter.toUpperCase());
 }
 
+function usdcDecimalToBaseUnits(value) {
+  const text = String(value ?? '').trim();
+  if (!/^\d+(?:\.\d{1,6})?$/.test(text)) return null;
+  const [whole, fractional = ''] = text.split('.');
+  return (BigInt(whole) * 1_000_000n + BigInt(fractional.padEnd(6, '0'))).toString();
+}
+
 // ── Transaction Card ─────────────────────────────────────────────
 function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, onDiagnosticChange }) {
   const [txHash, setTxHash] = useState(null);
   const [txChainId, setTxChainId] = useState(null);
   const [jobId, setJobId] = useState(null);
+  const [tracking, setTracking] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState(null);
@@ -286,6 +294,7 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, o
         setTxHash(result.txHash);
         setTxChainId(result.chainId || null);
         setJobId(result.jobId || tool.params?.jobId || null);
+        setTracking(result.tracking || null);
         setStatus('submitted');
         setProgress({ phase: 'confirmed', message: result.message || 'Transaction confirmed.' });
         publishDiagnostic(updateTransactionDiagnostic(diagnosticRef.current, {
@@ -459,6 +468,10 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, o
           <a className="tx-hash-link" href={explorerUrl(txChainId || chainId, txHash)} target="_blank" rel="noreferrer">
             View on Explorer: {txHash.slice(0, 18)}…
           </a>
+          <CrossChainSyncStatus
+            key={`${tool.name}:${txHash}`}
+            tracking={tracking}
+          />
         </>
       ) : status === 'opened' ? (
         <div className="tx-success-msg">✓ Loaded here in Oppy</div>
@@ -1209,6 +1222,7 @@ const OppyChat = () => {
       };
 
       let result;
+      let trackingContext = null;
       switch (tool.name) {
         case 'postJob': {
           report({ phase: 'preparing', message: 'Preparing job details…' });
@@ -1377,6 +1391,10 @@ const OppyChat = () => {
           const deepDive = await fetchOppyExplorer(`/jobs/${encodeURIComponent(tool.params.jobId)}?wallet=${userAddress}`);
           if (deepDive.job?.viewerRole !== 'job giver') throw new Error('Only the job poster can release this payment.');
           const target = resolveReleaseTarget(deepDive);
+          trackingContext = {
+            targetDomain: target.targetChainDomain,
+            baselineTotalPaidRaw: usdcDecimalToBaseUnits(deepDive.job?.totalPaid),
+          };
           submissionAttempted = true;
           result = await releasePaymentCrossChain(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
@@ -1444,14 +1462,26 @@ const OppyChat = () => {
           confirmed: true,
         }));
       }
-      if (result.canonicalDeliveryPending) {
+      const crossChainDeliveryPending = chainIdDecimal !== 42161
+        && ['postJob', 'startDirectContract', 'releasePayment'].includes(tool.name);
+      if (result.canonicalDeliveryPending || crossChainDeliveryPending) {
         addBotMessage('Your source transaction is confirmed. OpenWork is now syncing it across networks; you can remain in this chat.');
       }
       return {
         txHash: result.transactionHash,
         jobId: confirmedJobId,
         chainId: chainIdDecimal,
-        message: result.canonicalDeliveryPending ? 'Source transaction confirmed; network delivery is in progress.' : 'Transaction confirmed.',
+        tracking: confirmedJobId ? {
+          action: tool.name,
+          jobId: confirmedJobId,
+          sourceChainId: chainIdDecimal,
+          sourceTxHash: result.transactionHash,
+          sourceReceiptConfirmed: true,
+          ...trackingContext,
+        } : null,
+        message: result.canonicalDeliveryPending || crossChainDeliveryPending
+          ? 'Source transaction confirmed; network delivery is in progress.'
+          : 'Transaction confirmed.',
       };
     } catch (error) {
       let message = error?.message || 'Transaction failed.';
@@ -1619,7 +1649,6 @@ const OppyChat = () => {
                 </div>
               );
             })}
-            <CrossChainSyncStatus activeJob={activeJob} />
             <div ref={messagesEndRef} />
           </div>
 

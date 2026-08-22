@@ -187,17 +187,22 @@ test('Oppy renders deterministic wallet, platform, search and job deep-dive card
   assert.match(memory, /message\.isDataCard/);
 });
 
-test('cross-chain posts show a polished three-stage job sync tracker', () => {
+test('cross-chain progress is action-scoped and payment completion uses independent evidence', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const tracker = source('src/components/CrossChainSyncStatus/CrossChainSyncStatus.jsx');
   const service = source('src/services/crossChainSyncService.js');
 
-  assert.match(chat, /<CrossChainSyncStatus activeJob=\{activeJob\} \/>/);
+  assert.match(chat, /key=\{`\$\{tool\.name\}:\$\{txHash\}`\}/);
+  assert.match(chat, /tracking=\{tracking\}/);
+  assert.doesNotMatch(chat, /<CrossChainSyncStatus activeJob=\{activeJob\}/);
+  assert.match(chat, /baselineTotalPaidRaw: usdcDecimalToBaseUnits/);
   assert.match(chat, /OpenWork is now syncing it across networks/);
   assert.match(tracker, /Network delivery/);
-  assert.match(tracker, /OpenWork update/);
-  assert.match(tracker, /Job is ready/);
-  assert.match(service, /jobExists\(activeJob\.jobId\)\.call\(\)/);
+  assert.match(tracker, /OpenWork payment/);
+  assert.match(tracker, /USDC received/);
+  assert.match(tracker, /Payment received/);
+  assert.match(service, /api\/oppy\/cross-chain-status/);
+  assert.doesNotMatch(service, /jobExists/);
   assert.match(service, /layerzeroscan\.com\/tx/);
 });
 
