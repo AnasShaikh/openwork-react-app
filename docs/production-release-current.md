@@ -6,21 +6,60 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 22 August 2026 18:17 IST |
+| Deployed at | 22 August 2026 19:17 IST |
 | Git branch | `main` |
-| Git commit | `70ff2dc9917a56944175d86e21568fee032ba2c5` |
-| Release gate | GitHub CI `32573526707`; frontend tests (`114/114`), backend tests (`62/62`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; desktop and 390×844 multi-wallet local QA plus 1280 px and 390 px live browser checks passed; CodeBuild, App Runner and public endpoint checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-70ff2dc9917a56944175d86e21568fee032ba2c5.zip` |
-| Source archive SHA-256 | `de72154e67aab6a00ffc1a7c2fa1dbe00355417ce588de7589709bf03df82375` |
-| CodeBuild | `openwork-react-app-prod-build:1b3501c5-9b60-4dac-99d9-7a32d7400f96` — succeeded |
-| ECR image | `openwork-app:prod-70ff2dc-20260822180907` |
-| ECR digest | `sha256:9ccbc1e65171336705570b91b7b5335b4bab821f9310075c4607bc21a3f8269d` |
+| Git commit | `9ecceed8216c881da384b044e2ba520677645871` |
+| Release gate | GitHub CI `32576301059`; frontend tests (`124/124`), backend tests (`63/63`), backend high-severity production dependency gate, JavaScript parse check, production frontend build and `git diff --check` passed; local and live 1280×720 transaction-recovery browser QA passed; CodeBuild, App Runner and public endpoint checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-9ecceed8216c881da384b044e2ba520677645871.zip` |
+| Source archive SHA-256 | `885fb8e0287ec49dea907509d34f5e810eaf14fc5f52f3fbe1793beddc742af7` |
+| CodeBuild | `openwork-react-app-prod-build:6575f39a-b06e-45e5-893a-6b15c099a2ab` — succeeded |
+| ECR image | `openwork-app:prod-9ecceed-20260822191008` |
+| ECR digest | `sha256:3bafb22fd42ba9de0c97cb72816641331261b596b4a43a3678f02837c66c4553` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `1272a68f367147af8ab72a14f8e05864` — succeeded |
+| App Runner operation | `638d048a567f4d7e8a15bb42a1b1e9dc` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-DaZHfU3e.js` — SHA-256 `af17f0e0d1450e782a0d53c34e32e7da54df8703796ad6fdcbfd576ed66a8e81` |
-| Rollback target | `openwork-app:prod-29882ea-20260822162913` |
-| Rollback digest | `sha256:48c85f7664d0828979ce9e42c3b81b945c047be5ea0b6b6670420a8c63fb3cff` |
+| Deployed JS asset | `/assets/index-BM-1ISSu.js` — SHA-256 `5f271988efe1f0cf9f787d5a9839c5af9cf9e7a623e803beac986cb12c5b9e5b` |
+| Rollback target | `openwork-app:prod-73359f3-20260822185719` |
+| Rollback digest | `sha256:a86c41ec499b0dcba184828ea23858ea6f1a2d6dcc7db6e90f183748f64381cc` |
+
+## Oppy transaction copilot
+
+Oppy now observes every supported chat-initiated write as a bounded transaction
+attempt. It records wallet and chain state, the approval and action phases, separate
+transaction hashes, broadcast and receipt progress, public-RPC freshness, native gas
+balance and pending nonce gaps. When an attempt stalls or fails, the chat explains
+what happened in plain language, gives the next useful step, exposes optional technical
+details and can recheck the live chain state without leaving `/chat`.
+
+Retry is deliberately state-based rather than model-decided. Confirmed, pending and
+unknown transactions are protected from duplicate submission. A retry is enabled for
+definitive pre-broadcast failures, user cancellation and reverted transactions; a
+missing transaction can be treated as dropped only after at least 30 seconds and three
+independent public-RPC misses. Oppy memory receives only a bounded sanitized summary:
+no private keys, signatures, raw calldata or secrets are stored or sent to the model.
+
+All Oppy-supported writes use the same tracked adapter, including USDC approval,
+job posting, applying, direct contracts, starting work, submissions, payments,
+disputes and profile creation. Regression coverage exercises classification,
+hash/receipt transitions, retry protection, memory sanitization and model context.
+The maintenance model, state machine, privacy boundary, limitations and test matrix
+are documented in `docs/oppy-transaction-copilot.md`.
+
+Local and production browser QA used a no-wallet pre-broadcast failure so no signature
+or transaction could be created. Production correctly displayed `No signing wallet
+was available`, preserved `Safe to retry` after a live-status check, and kept the
+diagnostic and recovery controls fully visible above the composer. At 1280×720 the
+chat was scrolled to the recovery state, the full diagnostic was visible and horizontal
+overflow was zero. `/healthz` returned `{"status":"ok"}`, App Runner served the exact
+immutable image above and the deployed bundle contained all diagnostic and guarded-
+retry markers.
+
+The first immutable-source CodeBuild attempt
+`openwork-react-app-prod-build:55cda4ae-e56e-4dfe-90f5-d6b89c247f3c`
+failed in `DOWNLOAD_SOURCE` because the CodeBuild role lacks `s3:ListBucket`; it
+produced no image. The documented canonical-source fallback then built the exact
+release archive. The canonical source object was restored immediately after source
+download, before deployment.
 
 ## Oppy explicit multi-wallet transaction binding
 
