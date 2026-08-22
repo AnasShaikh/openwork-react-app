@@ -3,10 +3,7 @@
 const express = require('express');
 const { createRateLimiter } = require('../middleware/security');
 const {
-  getJobDeepDive,
-  getPlatformOverview,
-  getWalletDashboard,
-  searchJobs,
+  runExplorerIntent,
 } = require('../services/oppy-explorer');
 
 const router = express.Router();
@@ -39,7 +36,7 @@ router.get('/wallet/:address', async (req, res) => {
     return res.status(400).json({ success: false, error: 'A valid EVM wallet address is required' });
   }
   try {
-    return res.json({ success: true, explorer: await getWalletDashboard(req.params.address) });
+    return res.json({ success: true, explorer: await runExplorerIntent({ type: 'wallet' }, req.params.address) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -47,7 +44,7 @@ router.get('/wallet/:address', async (req, res) => {
 
 router.get('/platform', async (_req, res) => {
   try {
-    return res.json({ success: true, explorer: await getPlatformOverview() });
+    return res.json({ success: true, explorer: await runExplorerIntent({ type: 'platform' }, null) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -59,7 +56,7 @@ router.get('/jobs/:jobId', async (req, res) => {
   }
   const wallet = validAddress(req.query.wallet) ? req.query.wallet : null;
   try {
-    return res.json({ success: true, explorer: await getJobDeepDive(req.params.jobId, wallet) });
+    return res.json({ success: true, explorer: await runExplorerIntent({ type: 'job', jobId: req.params.jobId }, wallet) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -71,10 +68,14 @@ router.get('/search', async (req, res) => {
     return res.status(400).json({ success: false, error: 'A search query or filter is required' });
   }
   try {
-    const explorer = await searchJobs(query, {
-      status: typeof req.query.status === 'string' ? req.query.status : '',
-      chain: typeof req.query.chain === 'string' ? req.query.chain : '',
-    });
+    const explorer = await runExplorerIntent({
+      type: 'search',
+      query,
+      filters: {
+        status: typeof req.query.status === 'string' ? req.query.status : '',
+        chain: typeof req.query.chain === 'string' ? req.query.chain : '',
+      },
+    }, null);
     return res.json({ success: true, explorer });
   } catch (error) {
     return sendError(res, error);
