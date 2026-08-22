@@ -212,14 +212,29 @@
 .chat-suggestion-chip:hover { background: #e0eaff; border-color: #0047FF; }
 
 /* Input bar */
+.chat-composer {
+  background: #fff;
+  border-top: 1.5px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
 .chat-input-bar {
   display: flex;
   align-items: center;
   gap: 10px;
   background: #fff;
   padding: 18px 24px 22px;
-  border-top: 1.5px solid #f0f0f0;
 }
+
+.chat-voice-status {
+  color: #5f6673;
+  font-family: 'Satoshi', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 24px 0;
+}
+
+.chat-voice-status--error { color: #b42318; }
 
 .chat-input {
   flex: 1;
@@ -236,6 +251,32 @@
 }
 .chat-input:focus { border-color: #0047FF; background: #fff; }
 .chat-input::placeholder { color: #b0b0b0; }
+
+.chat-voice-btn {
+  align-items: center;
+  background: #f4f6fa;
+  border: 1.5px solid #dce1e9;
+  border-radius: 10px;
+  color: #20252d;
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  height: 50px;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+  width: 50px;
+}
+.chat-voice-btn:hover { background: #e9eef9; border-color: #b9c6e0; }
+.chat-voice-btn:active { transform: scale(0.95); }
+.chat-voice-btn:focus-visible,
+.chat-send-btn:focus-visible { outline: 3px solid rgba(0, 71, 255, 0.24); outline-offset: 2px; }
+.chat-voice-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.chat-voice-btn--recording {
+  background: #fff0f0;
+  border-color: #e5484d;
+  color: #c62d31;
+}
+.chat-voice-btn--recording:hover { background: #ffe5e5; border-color: #c62d31; }
 
 .chat-send-btn {
   width: 50px; height: 50px;
@@ -650,6 +691,11 @@
     overflow: visible;
   }
 
+  .chat-voice-status {
+    font-size: 12px;
+    padding: 8px 14px 0;
+  }
+
   /* font-size 16px prevents iOS auto-zoom on focus */
   .chat-input {
     font-size: 16px !important;
@@ -658,7 +704,8 @@
     flex: 1 1 0%;
   }
 
-  .chat-send-btn {
+  .chat-send-btn,
+  .chat-voice-btn {
     width: 46px;
     min-width: 46px; /* never shrink */
     height: 46px;
