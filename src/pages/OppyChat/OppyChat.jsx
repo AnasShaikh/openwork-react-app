@@ -42,6 +42,14 @@ import {
   startOppyTranscription,
   voiceErrorMessage,
 } from '../../services/oppyTranscription';
+import {
+  discoverInjectedWallets,
+  getInjectedWallets,
+  getPreferredInjectedWallet,
+  rememberInjectedWallet,
+  subscribeInjectedWallets,
+  walletRpcErrorMessage,
+} from '../../services/injectedWalletProviders';
 import './OppyChat.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -223,6 +231,9 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
       <div className="tx-card-display">{tool.display}</div>
       <div className="tx-card-context">
         <div><span>Network</span><strong>{chainConfig?.name || 'Connect a supported wallet'}</strong></div>
+        {tool.kind !== 'navigation' && walletState.providerName && (
+          <div><span>Wallet</span><strong>{walletState.providerName}</strong></div>
+        )}
       </div>
       <div className="tx-card-params">
         {Object.entries(tool.params || {}).filter(([k, v]) => v !== '' && !(
@@ -567,7 +578,22 @@ function ExplorerCard({ data, onOpen, onAction }) {
 }
 
 // ── Wallet status bar ────────────────────────────────────────────
-function WalletBar({ walletState, onConnect, onSwitchChain }) {
+function WalletSelector({ walletOptions, activeWalletId, onSelectWallet }) {
+  if (walletOptions.length <= 1) return null;
+  return (
+    <select
+      className="wallet-status-bar__selector"
+      aria-label="Wallet used for transactions"
+      value={activeWalletId}
+      onChange={(event) => onSelectWallet(event.target.value)}
+    >
+      {!activeWalletId && <option value="">Choose wallet</option>}
+      {walletOptions.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name}</option>)}
+    </select>
+  );
+}
+
+function WalletBar({ walletState, walletOptions, activeWalletId, onConnect, onSwitchChain, onSelectWallet }) {
   if (!walletState.installed) {
     return (
       <div className="wallet-status-bar wallet-status-bar--warning">
@@ -588,6 +614,7 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
           <strong>Wallet not connected</strong>
           <small>Connect when you want Oppy to prepare an action.</small>
         </span>
+        <WalletSelector walletOptions={walletOptions} activeWalletId={activeWalletId} onSelectWallet={onSelectWallet} />
         <button type="button" className="wallet-status-bar__action" onClick={onConnect}>Connect wallet</button>
       </div>
     );
@@ -601,6 +628,7 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
           <small>Switch before preparing a wallet action.</small>
         </span>
         <span className="wallet-status-bar__actions">
+          <WalletSelector walletOptions={walletOptions} activeWalletId={activeWalletId} onSelectWallet={onSelectWallet} />
           {SUPPORTED_CHAINS.map((chain) => (
             <button key={chain.chainId} type="button" className="wallet-status-bar__action" onClick={() => onSwitchChain(chain.chainId)}>
               {chain.label}
@@ -617,13 +645,14 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
     <div className="wallet-status-bar wallet-status-bar--connected">
       <span className="wallet-status-bar__icon" aria-hidden="true"><CircleCheck size={17} /></span>
       <span className="wallet-status-bar__copy">
-        <strong>Wallet connected</strong>
+        <strong>{walletState.providerName || 'Wallet'} connected</strong>
         <small>
           <code>{short}</code>
           <span aria-hidden="true"> · </span>
           {getChainConfig(parseInt(walletState.chainId, 16))?.name}
         </small>
       </span>
+      <WalletSelector walletOptions={walletOptions} activeWalletId={activeWalletId} onSelectWallet={onSelectWallet} />
     </div>
   );
 }
@@ -636,12 +665,16 @@ const OppyChat = () => {
   const [voiceStatus, setVoiceStatus] = useState('idle');
   const [voiceNotice, setVoiceNotice] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [walletOptions, setWalletOptions] = useState(() => getInjectedWallets());
+  const [activeWalletId, setActiveWalletId] = useState(() => getPreferredInjectedWallet(getInjectedWallets())?.id || '');
   const [walletState, setWalletState] = useState({
     installed: false,
     connected: false,
     address: null,
     chainId: null,
     isCorrectChain: false,
+    providerId: null,
+    providerName: null,
   });
   const [chat, setChat] = useState([OPPY_JOB_GREETING]);
   const [activeJob, setActiveJob] = useState(null);
@@ -650,6 +683,7 @@ const OppyChat = () => {
   const inputRef = useRef(null);
   const transcriptionControllerRef = useRef(null);
   const voiceBaseInputRef = useRef('');
+  const walletProviderRef = useRef(null);
   const hydratedMemoryScopeRef = useRef(null);
   const skipMemoryPersistRef = useRef(false);
 
@@ -693,14 +727,16 @@ const OppyChat = () => {
     transcriptionControllerRef.current = null;
   }, []);
 
-  // Wallet detection
-  async function detectWallet() {
-    if (!window.ethereum) {
-      setWalletState({ installed: false, connected: false, address: null, chainId: null, isCorrectChain: false });
+  // Wallet discovery and binding. EIP-6963 keeps Brave Wallet, MetaMask, and
+  // other injected wallets separate instead of relying on whichever extension
+  // happened to win window.ethereum.
+  async function detectWallet(provider = walletProviderRef.current, walletOption = null) {
+    if (!provider) {
+      setWalletState({ installed: false, connected: false, address: null, chainId: null, isCorrectChain: false, providerId: null, providerName: null });
       return;
     }
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const accounts = await provider.request({ method: 'eth_accounts' });
+    const chainId = await provider.request({ method: 'eth_chainId' });
     const normalizedChainId = chainId.toLowerCase();
     setWalletState({
       installed: true,
@@ -708,39 +744,56 @@ const OppyChat = () => {
       address: accounts[0] || null,
       chainId: normalizedChainId,
       isCorrectChain: SUPPORTED_CHAIN_HEX.has(normalizedChainId),
+      providerId: walletOption?.id || activeWalletId,
+      providerName: walletOption?.name || 'Browser wallet',
     });
   }
 
   useEffect(() => {
-    // Mobile and extension wallets can inject window.ethereum after page load.
-    // Try immediately, then retry after 500ms and 1500ms if not found
-    detectWallet();
-    const t1 = setTimeout(detectWallet, 500);
-    const t2 = setTimeout(detectWallet, 1500);
-
-    // Also listen for the common injected-provider initialization event.
-    const onInit = () => detectWallet();
-    window.addEventListener('ethereum#initialized', onInit, { once: true });
-
-    const wireEvents = () => {
-      if (window.ethereum) {
-        window.ethereum.on('accountsChanged', detectWallet);
-        window.ethereum.on('chainChanged', detectWallet);
-      }
+    let mounted = true;
+    const updateWalletOptions = (options) => {
+      if (!mounted) return;
+      setWalletOptions(options);
+      setActiveWalletId((current) => (
+        options.some((wallet) => wallet.id === current)
+          ? current
+          : (getPreferredInjectedWallet(options)?.id || '')
+      ));
     };
-    wireEvents();
-    // Re-wire after retries in case ethereum appeared late
-    const t3 = setTimeout(wireEvents, 1500);
-
+    const unsubscribe = subscribeInjectedWallets(updateWalletOptions);
+    discoverInjectedWallets().then(updateWalletOptions);
     return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      window.removeEventListener('ethereum#initialized', onInit);
-      if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', detectWallet);
-        window.ethereum.removeListener('chainChanged', detectWallet);
-      }
+      mounted = false;
+      unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const walletOption = walletOptions.find((wallet) => wallet.id === activeWalletId)
+      || getPreferredInjectedWallet(walletOptions);
+    const provider = walletOption?.provider || null;
+    walletProviderRef.current = provider;
+    if (!provider) {
+      setWalletState({ installed: walletOptions.length > 0, connected: false, address: null, chainId: null, isCorrectChain: false, providerId: null, providerName: null });
+      return undefined;
+    }
+
+    rememberInjectedWallet(walletOption.id);
+    const sync = () => detectWallet(provider, walletOption).catch((error) => {
+      console.error('[OppyChat] Wallet detection failed:', error);
+      setWalletState({ installed: true, connected: false, address: null, chainId: null, isCorrectChain: false, providerId: walletOption.id, providerName: walletOption.name });
+    });
+    provider.on?.('accountsChanged', sync);
+    provider.on?.('chainChanged', sync);
+    sync();
+    const lateSync = window.setTimeout(sync, 750);
+
+    return () => {
+      window.clearTimeout(lateSync);
+      provider.removeListener?.('accountsChanged', sync);
+      provider.removeListener?.('chainChanged', sync);
+    };
+  }, [activeWalletId, walletOptions]);
 
   const sendMessage = async (userMsg) => {
     if (!userMsg.trim() || loading) return;
@@ -927,6 +980,8 @@ const OppyChat = () => {
   // ── Chat-native action handler ───────────────────────────────
   const handleTransaction = async (tool, formValues = {}, report = () => {}) => {
     console.log('[OppyChat] Action requested:', tool.name);
+    const walletProvider = walletProviderRef.current;
+    const walletOption = walletOptions.find((wallet) => wallet.provider === walletProvider) || null;
 
     try {
       if (tool.name === 'browseJobs') {
@@ -939,38 +994,38 @@ const OppyChat = () => {
       }
       if (tool.name === 'openMyJobs') {
         let address = walletState.address;
-        if (!address && window.ethereum) {
+        if (!address && walletProvider) {
           report({ phase: 'wallet', message: 'Connect your wallet to load your OpenWork activity.' });
-          [address] = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          await detectWallet();
+          [address] = await walletProvider.request({ method: 'eth_requestAccounts' });
+          await detectWallet(walletProvider, walletOption);
         }
         if (!address) throw new Error('Connect an EVM wallet to show your jobs.');
         await loadExplorerIntoChat(`/wallet/${address}`, report);
         return { openedInline: true };
       }
 
-      if (!window.ethereum) {
+      if (!walletProvider) {
         throw new Error('Enable Brave Wallet, MetaMask, or another EVM wallet extension to continue.');
       }
 
-      let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      let accounts = await walletProvider.request({ method: 'eth_accounts' });
       if (!accounts[0]) {
-        report({ phase: 'wallet', message: 'Connect your wallet to continue.' });
-        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        report({ phase: 'wallet', message: `Connect ${walletOption?.name || 'your selected wallet'} to continue.` });
+        accounts = await walletProvider.request({ method: 'eth_requestAccounts' });
       }
       const userAddress = accounts[0];
       if (!userAddress) throw new Error('Wallet connection was not completed.');
 
-      let chainIdDecimal = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
+      let chainIdDecimal = parseInt(await walletProvider.request({ method: 'eth_chainId' }), 16);
       const postingChainId = ['startJob', 'releasePayment', 'raiseDispute'].includes(tool.name) && tool.params?.jobId
         ? extractChainIdFromJobId(tool.params.jobId)
         : null;
       if (postingChainId && postingChainId !== chainIdDecimal) {
         const postingChain = getChainConfig(postingChainId);
         report({ phase: 'wallet', message: `Switch to ${postingChain?.name || `chain ${postingChainId}`} in your wallet.` });
-        await switchToChain(postingChainId);
+        await switchToChain(postingChainId, walletProvider);
         chainIdDecimal = postingChainId;
-        await detectWallet();
+        await detectWallet(walletProvider, walletOption);
       }
       const chainConfig = getChainConfig(chainIdDecimal);
       if (!chainConfig?.allowed) throw new Error(chainConfig?.reason || 'Switch to Arbitrum, Optimism, or XDC.');
@@ -1026,7 +1081,7 @@ const OppyChat = () => {
             jobGiver: userAddress,
             timestamp: new Date().toISOString(),
           });
-          result = await postJob(chainIdDecimal, userAddress, { jobDetailHash, descriptions: milestoneHashes, amounts: milestoneAmounts }, onStatus);
+          result = await postJob(chainIdDecimal, userAddress, { jobDetailHash, descriptions: milestoneHashes, amounts: milestoneAmounts }, onStatus, walletProvider);
           break;
         }
         case 'applyToJob': {
@@ -1073,7 +1128,7 @@ const OppyChat = () => {
             descriptions: milestoneHashes,
             amounts: applyAmounts,
             preferredChainDomain: chainConfig.cctpDomain,
-          }, onStatus);
+          }, onStatus, walletProvider);
           break;
         }
         case 'startDirectContract': {
@@ -1104,6 +1159,7 @@ const OppyChat = () => {
             spender: chainConfig.contracts.lowjc,
             amount: milestoneAmounts[0],
             onStatus,
+            walletProvider,
           });
           result = await startDirectContract(chainIdDecimal, userAddress, {
             jobTaker: tool.params.jobTaker,
@@ -1111,7 +1167,7 @@ const OppyChat = () => {
             descriptions: milestoneHashes,
             amounts: milestoneAmounts.map(String),
             jobTakerChainDomain: chainConfig.cctpDomain,
-          }, onStatus);
+          }, onStatus, walletProvider);
           break;
         }
         case 'startJob': {
@@ -1145,19 +1201,19 @@ const OppyChat = () => {
             ? application.proposedMilestones?.[0]?.amount
             : deepDive.milestones?.[0]?.amount;
           const firstAmountRaw = toUsdcBaseUnits(firstAmount, 'First milestone amount');
-          await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.lowjc, amount: firstAmountRaw, onStatus });
+          await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.lowjc, amount: firstAmountRaw, onStatus, walletProvider });
           result = await startJob(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
             applicationId: Number(application.id),
             useAppMilestones,
-          }, onStatus);
+          }, onStatus, walletProvider);
           break;
         }
         case 'submitWork': {
           report({ phase: 'preparing', message: 'Preparing the work submission…' });
           const workDetails = tool.params.workDetails || formValues.workDetails;
           const submissionHash = await uploadToIPFS({ workDetails, jobId: tool.params.jobId, submittedBy: userAddress, timestamp: new Date().toISOString() });
-          result = await submitWork(chainIdDecimal, userAddress, { jobId: tool.params.jobId, submissionHash }, onStatus);
+          result = await submitWork(chainIdDecimal, userAddress, { jobId: tool.params.jobId, submissionHash }, onStatus, walletProvider);
           break;
         }
         case 'releasePayment': {
@@ -1168,7 +1224,7 @@ const OppyChat = () => {
             jobId: tool.params.jobId,
             targetChainDomain: target.targetChainDomain,
             targetRecipient: target.targetRecipient,
-          }, onStatus);
+          }, onStatus, walletProvider);
           break;
         }
         case 'raiseDispute': {
@@ -1177,7 +1233,7 @@ const OppyChat = () => {
           if (deepDive.job?.statusCode !== 1) throw new Error('Disputes can only be raised while a job is in progress.');
           const feeAmount = toUsdcBaseUnits(formValues.compensation, 'Oracle fee');
           const disputedAmount = toUsdcBaseUnits(formValues.disputedAmount, 'Disputed amount');
-          await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.athenaClient, amount: feeAmount, onStatus });
+          await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.athenaClient, amount: feeAmount, onStatus, walletProvider });
           report({ phase: 'preparing', message: 'Securing the dispute details…' });
           const disputeHash = await uploadToIPFS({
             title: `Dispute for job ${tool.params.jobId}`,
@@ -1196,13 +1252,13 @@ const OppyChat = () => {
             oracleName: formValues.oracleName,
             feeAmount: feeAmount.toString(),
             disputedAmount: disputedAmount.toString(),
-          }, onStatus);
+          }, onStatus, walletProvider);
           break;
         }
         case 'createProfile': {
           report({ phase: 'preparing', message: 'Preparing profile details…' });
           const ipfsHash = await uploadToIPFS({ name: tool.params.name, skills: tool.params.skills, hourlyRate: tool.params.hourlyRate, walletAddress: userAddress });
-          result = await createProfile(chainIdDecimal, userAddress, { ipfsHash }, onStatus);
+          result = await createProfile(chainIdDecimal, userAddress, { ipfsHash }, onStatus, walletProvider);
           break;
         }
         default:
@@ -1239,6 +1295,8 @@ const OppyChat = () => {
       };
     } catch (error) {
       let message = error?.message || 'Transaction failed.';
+      const chainName = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.name;
+      message = walletRpcErrorMessage(error, walletOption?.name || walletState.providerName, chainName) || message;
       if (/user rejected|user denied|4001/i.test(message)) message = 'The wallet request was cancelled. Nothing else was submitted.';
       else if (/insufficient funds/i.test(message)) {
         const symbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
@@ -1251,8 +1309,11 @@ const OppyChat = () => {
 
   const handleConnectWallet = async () => {
     try {
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-      detectWallet();
+      const walletProvider = walletProviderRef.current;
+      const walletOption = walletOptions.find((wallet) => wallet.provider === walletProvider) || null;
+      if (!walletProvider) throw new Error('No EVM wallet is available.');
+      await walletProvider.request({ method: 'eth_requestAccounts' });
+      detectWallet(walletProvider, walletOption);
     } catch (err) {
       console.error('[OppyChat] Connect wallet error:', err);
     }
@@ -1260,11 +1321,18 @@ const OppyChat = () => {
 
   const handleSwitchChain = async (targetChainId = 42161) => {
     try {
-      await switchToChain(targetChainId);
-      await detectWallet();
+      const walletProvider = walletProviderRef.current;
+      const walletOption = walletOptions.find((wallet) => wallet.provider === walletProvider) || null;
+      await switchToChain(targetChainId, walletProvider);
+      await detectWallet(walletProvider, walletOption);
     } catch (switchError) {
       console.error('[OppyChat] Switch chain error:', switchError);
     }
+  };
+
+  const handleSelectWallet = (walletId) => {
+    rememberInjectedWallet(walletId);
+    setActiveWalletId(walletId);
   };
 
   const handleCancelTx = (idx) => {
@@ -1386,8 +1454,11 @@ const OppyChat = () => {
           {/* Wallet status bar */}
           <WalletBar
             walletState={walletState}
+            walletOptions={walletOptions}
+            activeWalletId={activeWalletId}
             onConnect={handleConnectWallet}
             onSwitchChain={handleSwitchChain}
+            onSelectWallet={handleSelectWallet}
           />
 
           {/* Input bar */}

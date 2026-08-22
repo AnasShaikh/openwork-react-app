@@ -775,6 +775,20 @@
 }
 
 .wallet-status-bar__action:hover { background: #f1f5ff; border-color: #b8c9f4; color: #0047ff; }
+.wallet-status-bar__selector {
+  appearance: auto;
+  background: #fff;
+  border: 1px solid #d5ddea;
+  border-radius: 9px;
+  color: #344058;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: 700 11px/1 'Satoshi', sans-serif;
+  max-width: 150px;
+  min-height: 34px;
+  padding: 8px 9px;
+}
+.wallet-status-bar__selector:focus-visible { border-color: #8aabff; outline: 3px solid rgba(0, 71, 255, 0.14); }
 .wallet-status-bar__hint { color: #778397; font-size: 10px; font-weight: 600; text-align: right; }
 .wallet-status-bar__action:focus-visible { outline: 3px solid rgba(0, 71, 255, 0.17); outline-offset: 2px; }
 .wallet-status-bar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -920,6 +934,7 @@
   .wallet-status-bar__icon { height: 28px; width: 28px; }
   .wallet-status-bar__copy small { display: none; }
   .wallet-status-bar__action { padding: 8px 9px; }
+  .wallet-status-bar__selector { min-height: 42px; }
 
   /* Input bar — account for browser chrome + safe area */
   .chat-input-bar {

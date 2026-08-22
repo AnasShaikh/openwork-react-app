@@ -88,10 +88,23 @@ reminder to open the current wallet request and warns against starting a duplica
 A rejection unlocks Try again. A confirmed receipt permanently replaces the action
 button with its explorer link.
 
-Use provider-neutral language (`your wallet` or `EVM wallet`) because `window.ethereum`
-may be Brave Wallet, MetaMask or another injected provider. Never claim MetaMask is
-required, never ask for a seed phrase or private key, and never submit a second write
-while the first provider request is unresolved.
+Use provider-neutral language (`your wallet` or `EVM wallet`). Oppy discovers injected
+wallets through EIP-6963, with `window.ethereum.providers` as the compatibility
+fallback. When more than one wallet is installed, injection order must never choose
+the signer: the user explicitly selects Brave Wallet, MetaMask or another provider in
+the wallet status row. The choice is stored under `ow_selected_wallet_provider`, and
+the selected wallet name also appears in every transaction review card.
+
+`src/services/injectedWalletProviders.js` owns discovery, identity, remembered
+selection and provider/RPC error copy. `OppyChat` must pass that exact provider to
+network switching, USDC approval and every `localChainService` write. Do not reintroduce
+bare `window.ethereum` reads or writes in the Oppy action path; doing so can show a
+Brave Wallet panel while silently sending the request to MetaMask. If the selected
+provider cannot reach the network, fail the card with the provider and network names
+and state that no transaction was submitted.
+
+Never claim MetaMask is required, never ask for a seed phrase or private key, and
+never submit a second write while the first provider request is unresolved.
 
 ## Responsive and accessibility requirements
 
@@ -113,12 +126,15 @@ npm run build
 git diff --check
 ```
 
-The Oppy interface regression tests are in `tests/oppyChat.test.js`. Browser review
+The Oppy interface regression tests are in `tests/oppyChat.test.js`; provider discovery
+behavior is covered by `tests/injectedWalletProviders.test.js`. Browser review
 must cover desktop and 390 x 844 mobile layouts, the enabled and disabled composer
 states, read-only action cards that preserve the `/chat` URL, job drill-down, inline
 application and dispute forms, launcher presence on a non-Oppy route, launcher absence
 on `/chat`, keyboard focus, control dimensions and horizontal overflow. Wallet-write
-QA must use a mock provider or stop before the action button; release verification
+QA must use a mock provider or stop before the action button. A multi-wallet mock must
+verify explicit selection, the wallet label on the review card, a 42 px mobile selector
+and zero horizontal overflow. Release verification
 must never approve USDC or submit a real transaction. After deployment, repeat the
 same checks against `https://app.openwork.technology` and confirm `/healthz` and
 `/chat` return HTTP 200.

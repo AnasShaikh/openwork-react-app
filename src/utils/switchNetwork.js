@@ -11,9 +11,9 @@ import { getChainConfig, toHexChainId } from "../config/chainConfig";
  * @param {number} chainId - Target chain ID
  * @returns {Promise<boolean>} True if successful
  */
-export async function switchToChain(chainId) {
-  if (!window.ethereum) {
-    throw new Error("No wallet detected. Please install MetaMask.");
+export async function switchToChain(chainId, walletProvider = window.ethereum) {
+  if (!walletProvider) {
+    throw new Error("No EVM wallet detected.");
   }
 
   const chainIdHex = toHexChainId(chainId);
@@ -21,7 +21,7 @@ export async function switchToChain(chainId) {
 
   try {
     // Try to switch to the network
-    await window.ethereum.request({
+    await walletProvider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: chainIdHex }],
     });
@@ -33,7 +33,7 @@ export async function switchToChain(chainId) {
     // Error code 4902 means the chain hasn't been added to MetaMask
     if (error.code === 4902 && config) {
       try {
-        await addChainToWallet(chainId);
+        await addChainToWallet(chainId, walletProvider);
         return true;
       } catch (addError) {
         console.error("Failed to add network:", addError);
@@ -52,8 +52,8 @@ export async function switchToChain(chainId) {
  * @param {number} chainId - Chain ID to add
  * @returns {Promise<void>}
  */
-export async function addChainToWallet(chainId) {
-  if (!window.ethereum) {
+export async function addChainToWallet(chainId, walletProvider = window.ethereum) {
+  if (!walletProvider) {
     throw new Error("No wallet detected.");
   }
 
@@ -65,7 +65,7 @@ export async function addChainToWallet(chainId) {
   const chainIdHex = toHexChainId(chainId);
 
   try {
-    await window.ethereum.request({
+    await walletProvider.request({
       method: 'wallet_addEthereumChain',
       params: [{
         chainId: chainIdHex,

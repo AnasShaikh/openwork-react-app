@@ -133,6 +133,25 @@ test('all supported Oppy actions stay inside chat and reuse canonical preflight 
   assert.match(chainService, /export async function startDirectContract/);
 });
 
+test('Oppy binds every transaction to an explicit injected wallet provider', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const providerService = source('src/services/injectedWalletProviders.js');
+  const actionService = source('src/services/oppyActionService.js');
+  const chainService = source('src/services/localChainService.js');
+  const switcher = source('src/utils/switchNetwork.js');
+
+  assert.match(providerService, /eip6963:requestProvider/);
+  assert.match(providerService, /eip6963:announceProvider/);
+  assert.match(providerService, /isBraveWallet/);
+  assert.match(providerService, /isMetaMask/);
+  assert.match(chat, /Wallet used for transactions/);
+  assert.match(chat, /walletProviderRef\.current/);
+  assert.match(chat, /walletRpcErrorMessage/);
+  assert.match(actionService, /new Web3\(walletProvider\)/);
+  assert.match(chainService, /getLOWJCContract\(chainId, walletProvider\)/);
+  assert.match(switcher, /switchToChain\(chainId, walletProvider = window\.ethereum\)/);
+});
+
 test('transaction chat persists conversation, active job and confirmed source receipts', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const service = source('src/services/localChainService.js');

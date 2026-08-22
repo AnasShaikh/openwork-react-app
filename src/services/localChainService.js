@@ -94,7 +94,7 @@ export function getReadOnlyWeb3(chainId) {
  * Get LOWJC contract instance for a specific chain.
  * Uses native-arb ABI for LOCAL_NATIVE chains (no _nativeOptions params).
  */
-export async function getLOWJCContract(chainId) {
+export async function getLOWJCContract(chainId, walletProvider = window.ethereum) {
   if (!isChainAllowed(chainId)) {
     const config = getChainConfig(chainId);
     throw new Error(config?.reason || "Transactions not allowed on this chain");
@@ -105,7 +105,8 @@ export async function getLOWJCContract(chainId) {
     throw new Error(`LOWJC contract not configured for chain ${chainId}`);
   }
 
-  const web3 = new Web3(window.ethereum);
+  if (!walletProvider) throw new Error('No EVM wallet provider is selected.');
+  const web3 = new Web3(walletProvider);
   const abi = isNativeArbChain(chainId) ? NATIVE_ARB_LOWJC_ABI : LOWJC_ABI;
   const contract = new web3.eth.Contract(abi, config.contracts.lowjc);
   // Tune the instance that actually sends. Callers cannot do this themselves:
@@ -147,7 +148,7 @@ export async function getReadOnlyLOWJCContract(chainId) {
  * @param {number} chainId - Chain ID
  * @returns {object} Web3 contract instance
  */
-export async function getAthenaClientContract(chainId) {
+export async function getAthenaClientContract(chainId, walletProvider = window.ethereum) {
   if (!isChainAllowed(chainId)) {
     const config = getChainConfig(chainId);
     throw new Error(config?.reason || "Transactions not allowed on this chain");
@@ -158,7 +159,8 @@ export async function getAthenaClientContract(chainId) {
     throw new Error(`Athena Client contract not configured for chain ${chainId}`);
   }
   
-  const web3 = new Web3(window.ethereum);
+  if (!walletProvider) throw new Error('No EVM wallet provider is selected.');
+  const web3 = new Web3(walletProvider);
   const abi = isNativeArbChain(chainId) ? NATIVE_ARB_ATHENA_CLIENT_ABI : ATHENA_CLIENT_ABI;
   const contract = new web3.eth.Contract(abi, config.contracts.athenaClient);
   applyTxTimeouts(contract, chainId);
@@ -231,10 +233,10 @@ export async function resolvePostedJobId({ receipt, contract, prefix, counterBef
  * @param {Function} [onStatus] - Optional callback(message) for UI status updates
  * @returns {Promise<object>} Transaction receipt
  */
-export async function postJob(chainId, userAddress, jobData, onStatus) {
+export async function postJob(chainId, userAddress, jobData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
     const readContract = await getReadOnlyLOWJCContract(chainId);
@@ -300,10 +302,10 @@ export async function postJob(chainId, userAddress, jobData, onStatus) {
  * @param {object}   applicationData
  * @param {Function} [onStatus]
  */
-export async function applyToJob(chainId, userAddress, applicationData, onStatus) {
+export async function applyToJob(chainId, userAddress, applicationData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
@@ -365,9 +367,9 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
  * @param {number} contractData.jobTakerChainDomain
  * @param {Function} [onStatus]
  */
-export async function startDirectContract(chainId, userAddress, contractData, onStatus) {
+export async function startDirectContract(chainId, userAddress, contractData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
-  const contract = await getLOWJCContract(chainId);
+  const contract = await getLOWJCContract(chainId, walletProvider);
   const readContract = await getReadOnlyLOWJCContract(chainId);
   const config = getChainConfig(chainId);
   const native = isNativeArbChain(chainId);
@@ -445,10 +447,10 @@ export async function startDirectContract(chainId, userAddress, contractData, on
  * @param {object}   startData    - { jobId, applicationId, useAppMilestones }
  * @param {Function} [onStatus]
  */
-export async function startJob(chainId, userAddress, startData, onStatus) {
+export async function startJob(chainId, userAddress, startData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
@@ -518,10 +520,10 @@ export async function startJob(chainId, userAddress, startData, onStatus) {
  * @param {object}   workData     - { jobId, submissionHash }
  * @param {Function} [onStatus]
  */
-export async function submitWork(chainId, userAddress, workData, onStatus) {
+export async function submitWork(chainId, userAddress, workData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
@@ -568,10 +570,10 @@ export async function submitWork(chainId, userAddress, workData, onStatus) {
  * @param {object}   paymentData  - { jobId, targetChainDomain, targetRecipient }
  * @param {Function} [onStatus]
  */
-export async function releasePaymentCrossChain(chainId, userAddress, paymentData, onStatus) {
+export async function releasePaymentCrossChain(chainId, userAddress, paymentData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
@@ -628,10 +630,10 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
  * @param {object}   disputeData  - { jobId, disputeHash, oracleName, feeAmount, disputedAmount }
  * @param {Function} [onStatus]
  */
-export async function raiseDispute(chainId, userAddress, disputeData, onStatus) {
+export async function raiseDispute(chainId, userAddress, disputeData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getAthenaClientContract(chainId);
+    const contract = await getAthenaClientContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
 
@@ -690,10 +692,10 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus) 
  * @param {object}   profileData  - { ipfsHash, referrerAddress }
  * @param {Function} [onStatus]
  */
-export async function createProfile(chainId, userAddress, profileData, onStatus) {
+export async function createProfile(chainId, userAddress, profileData, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
@@ -742,10 +744,10 @@ export async function createProfile(chainId, userAddress, profileData, onStatus)
  * @param {string}   portfolioHash
  * @param {Function} [onStatus]
  */
-export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus) {
+export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus, walletProvider) {
   const emit = onStatus || (() => {});
   try {
-    const contract = await getLOWJCContract(chainId);
+    const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.DEFAULT);
@@ -791,14 +793,15 @@ export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus
  * @param {string} spender - Contract address to approve
  * @param {string} amount - Amount in USDC units (not wei)
  */
-export async function approveUSDC(chainId, userAddress, spender, amount) {
+export async function approveUSDC(chainId, userAddress, spender, amount, walletProvider = window.ethereum) {
   try {
     const config = getChainConfig(chainId);
     if (!config || !config.contracts.usdc) {
       throw new Error("USDC not configured for this chain");
     }
     
-    const web3 = new Web3(window.ethereum);
+    if (!walletProvider) throw new Error('No EVM wallet provider is selected.');
+    const web3 = new Web3(walletProvider);
     
     // Standard ERC20 ABI for approve function
     const erc20ABI = [

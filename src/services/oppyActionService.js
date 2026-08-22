@@ -70,7 +70,7 @@ export async function fetchOppyExplorer(path) {
   return payload.explorer;
 }
 
-export async function ensureUsdcFunding({ chainId, owner, spender, amount, onStatus }) {
+export async function ensureUsdcFunding({ chainId, owner, spender, amount, onStatus, walletProvider }) {
   const required = BigInt(amount);
   const config = getChainConfig(chainId);
   if (!config?.contracts?.usdc || !spender) {
@@ -99,7 +99,8 @@ export async function ensureUsdcFunding({ chainId, owner, spender, amount, onSta
     phase: 'wallet',
     message: `Approve ${formatUsdcBaseUnits(required)} USDC in your wallet. The contract transaction comes next.`,
   });
-  const walletWeb3 = new Web3(window.ethereum);
+  if (!walletProvider) throw new Error('Select and connect the wallet you want to use, then retry.');
+  const walletWeb3 = new Web3(walletProvider);
   const walletToken = new walletWeb3.eth.Contract(ERC20_ABI, config.contracts.usdc);
   const approval = await walletToken.methods.approve(spender, required.toString()).send({
     from: owner,
@@ -147,4 +148,3 @@ export function resolveReleaseTarget(jobData) {
   }
   return { targetRecipient: address, targetChainDomain: domain };
 }
-
