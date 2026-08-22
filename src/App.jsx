@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Routes, Route, Link, BrowserRouter, Navigate } from "react-router-dom";
+import { Routes, Route, Link, BrowserRouter, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 import { Layout } from "./components/Layout/layout";
 import DirectContractForm from "./pages/DirectContractForm/DirectContractForm";
@@ -274,9 +274,14 @@ function MainPage() {
           Hover to get started
         </div>
       </div>
-      <HomeChatLauncher />
     </main>
   );
+}
+
+function GlobalOppyLauncher() {
+  const { pathname } = useLocation();
+  const isOppySurface = pathname === '/chat' || pathname === '/oppy';
+  return isOppySurface ? null : <HomeChatLauncher />;
 }
 
 export default function App() {
@@ -285,7 +290,6 @@ export default function App() {
   // Agent Oppy and the job-management chat have responsive standalone layouts.
   const isOppyRoute = window.location.pathname === '/oppy';
   const isChatRoute = window.location.pathname === '/chat';
-  const isHomeRoute = window.location.pathname === '/' || window.location.pathname === '/home';
 
   if (isMobile && !isOppyRoute && !isChatRoute) {
     return (
@@ -317,7 +321,7 @@ export default function App() {
             OpenWork is not yet available on mobile. Please open this site on a desktop browser.
           </p>
         </div>
-        {isHomeRoute && <HomeChatLauncher />}
+        <HomeChatLauncher />
       </div>
     );
   }
@@ -446,6 +450,7 @@ export default function App() {
           </Layout>
         } />
       </Routes>
+      <GlobalOppyLauncher />
     </BrowserRouter>
   );
 }
