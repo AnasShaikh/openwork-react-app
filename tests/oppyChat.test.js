@@ -175,13 +175,18 @@ test('public job chat overrides legacy jobs spacing and centers its header', () 
   assert.match(chat, /focus\(\{ preventScroll: true \}\)/);
 });
 
-test('App Runner Bedrock permissions are Sonnet 4.6 only and contain no static credentials', () => {
-  const policy = JSON.parse(source('infra/app-runner/bedrock-sonnet-4-6-policy.json'));
-  const resources = policy.Statement.flatMap((statement) => statement.Resource);
-  assert.ok(resources.includes(
+test('App Runner Oppy permissions constrain Bedrock and grant only streaming transcription', () => {
+  const policy = JSON.parse(source('infra/app-runner/oppy-runtime-policy.json'));
+  const bedrock = policy.Statement.find((statement) => statement.Sid === 'InvokeOpenWorkSonnet46InferenceProfile');
+  const transcribe = policy.Statement.find((statement) => statement.Sid === 'StartOppyStreamingTranscription');
+  assert.ok(bedrock.Resource.includes(
     'arn:aws:bedrock:us-east-1:256309399568:inference-profile/us.anthropic.claude-sonnet-4-6',
   ));
-  assert.ok(resources.every((resource) => resource.includes('anthropic.claude-sonnet-4-6')));
-  assert.equal(resources.some((resource) => resource.includes('*')), false);
+  assert.ok(bedrock.Resource.every((resource) => resource.includes('anthropic.claude-sonnet-4-6')));
+  assert.equal(bedrock.Resource.some((resource) => resource.includes('*')), false);
+  assert.equal(transcribe.Action, 'transcribe:StartStreamTranscriptionWebSocket');
+  assert.equal(transcribe.Resource, '*');
+  assert.equal(policy.Statement.some((statement) => String(statement.Action).includes('StartTranscriptionJob')), false);
   assert.doesNotMatch(source('backend/services/bedrock-chat.js'), /accessKeyId|secretAccessKey/);
+  assert.doesNotMatch(source('backend/services/transcribe-session.js'), /accessKeyId\s*:|secretAccessKey\s*:/);
 });

@@ -73,6 +73,15 @@ BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-6
 BEDROCK_MAX_TOKENS=1400
 CHAT_REQUESTS_PER_MINUTE=12
 CHAT_MAX_CONCURRENT_REQUESTS=20
+
+# Oppy dictation uses Amazon Transcribe Streaming through the same AWS role
+TRANSCRIBE_AWS_REGION=us-east-1
+TRANSCRIBE_LANGUAGE_CODE=en-IN
+TRANSCRIBE_MAX_DURATION_SECONDS=45
+TRANSCRIBE_SESSION_URL_TTL_SECONDS=60
+TRANSCRIBE_SESSIONS_PER_MINUTE=6
+# Optional; create the vocabulary in TRANSCRIBE_AWS_REGION first
+TRANSCRIBE_VOCABULARY_NAME=
 ```
 
 ### Important Notes:
@@ -80,7 +89,9 @@ CHAT_MAX_CONCURRENT_REQUESTS=20
 - **RPC URLs**: Use reliable providers (Infura, Alchemy, etc.) with high rate limits
 - **Private Key**: NEVER commit your `.env` file to git
 - **Agent Oppy**: In AWS, grant the runtime role only the policy in
-  `infra/app-runner/bedrock-sonnet-4-6-policy.json`. Do not configure static AWS access keys.
+  `infra/app-runner/oppy-runtime-policy.json`. Do not configure static AWS access keys.
+- **Voice input**: See `docs/oppy-voice-transcription.md` for the browser support,
+  privacy, IAM, quota and verification runbook.
 
 ## 🚀 Running the Server
 

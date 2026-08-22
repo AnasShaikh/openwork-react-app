@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1004.0",
+    "@smithy/eventstream-codec": "^4.2.11",
     "@google/generative-ai": "^0.24.1",
     "framer-motion": "^12.23.24",
     "google-auth-library": "^10.6.1",

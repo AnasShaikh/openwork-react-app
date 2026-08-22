@@ -1,7 +1,7 @@
 import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowRight, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleCheck, Search, Send, UserRound } from 'lucide-react';
+import { ArrowRight, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleCheck, Mic, Search, Send, Square, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BlueButton from '../../components/BlueButton/BlueButton';
 import CrossChainSyncStatus from '../../components/CrossChainSyncStatus/CrossChainSyncStatus';
@@ -24,6 +24,11 @@ import {
   sanitizeActiveJob,
   saveOppyMemory,
 } from '../../services/oppyMemory';
+import {
+  mergeComposerTranscript,
+  startOppyTranscription,
+  voiceErrorMessage,
+} from '../../services/oppyTranscription';
 import './OppyChat.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -459,6 +464,8 @@ const OppyChat = () => {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('idle');
+  const [voiceNotice, setVoiceNotice] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [walletState, setWalletState] = useState({
     installed: false,
@@ -472,6 +479,8 @@ const OppyChat = () => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const transcriptionControllerRef = useRef(null);
+  const voiceBaseInputRef = useRef('');
   const hydratedMemoryScopeRef = useRef(null);
   const skipMemoryPersistRef = useRef(false);
 
@@ -508,6 +517,11 @@ const OppyChat = () => {
 
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => () => {
+    transcriptionControllerRef.current?.cancel();
+    transcriptionControllerRef.current = null;
   }, []);
 
   // Wallet detection
@@ -628,8 +642,56 @@ const OppyChat = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (['starting', 'listening', 'finalizing'].includes(voiceStatus)) return;
     sendMessage(input);
     setInput('');
+  };
+
+  const handleVoiceButton = async () => {
+    if (voiceStatus === 'listening') {
+      const controller = transcriptionControllerRef.current;
+      if (controller) await controller.stop();
+      return;
+    }
+    if (voiceStatus === 'starting' || voiceStatus === 'finalizing') return;
+
+    voiceBaseInputRef.current = input;
+    setVoiceNotice('Preparing microphone…');
+    setVoiceStatus('starting');
+
+    try {
+      const controller = await startOppyTranscription({
+        backendUrl: BACKEND_URL,
+        onTranscript: ({ text }) => {
+          setInput(mergeComposerTranscript(voiceBaseInputRef.current, text));
+        },
+        onStatus: (status) => {
+          setVoiceStatus(status);
+          if (status === 'listening') setVoiceNotice('Listening… tap stop when you are done.');
+          if (status === 'finalizing') setVoiceNotice('Finishing transcription…');
+        },
+        onComplete: ({ hadTranscript, reason }) => {
+          transcriptionControllerRef.current = null;
+          setVoiceStatus('idle');
+          setVoiceNotice(
+            hadTranscript
+              ? (reason === 'limit' ? 'Recording limit reached. Review your text before sending.' : '')
+              : 'No speech detected. Try again.',
+          );
+          inputRef.current?.focus({ preventScroll: true });
+        },
+        onError: (error) => {
+          transcriptionControllerRef.current = null;
+          setVoiceStatus('error');
+          setVoiceNotice(voiceErrorMessage(error));
+        },
+      });
+      transcriptionControllerRef.current = controller;
+    } catch (error) {
+      transcriptionControllerRef.current = null;
+      setVoiceStatus('error');
+      setVoiceNotice(voiceErrorMessage(error));
+    }
   };
 
   const handleSuggestion = (prompt) => {
@@ -992,7 +1054,7 @@ const OppyChat = () => {
   const mobTitle  = mob ? { borderRadius:0, borderLeft:'none', borderRight:'none', borderTop:'none', height:64, minHeight:64, flexShrink:0, padding:'0 62px', width:'100%', boxSizing:'border-box' } : {};
   const mobCard   = mob ? { flex:1, display:'flex', flexDirection:'column', borderRadius:0, border:'none', overflow:'hidden', minHeight:0, minWidth:0, width:'100%', boxSizing:'border-box' } : {};
   const mobMsgs   = mob ? { flex:'1 1 0%', minHeight:0, minWidth:0, maxHeight:'none', padding:'14px 14px 8px 14px', overflowY:'auto', overflowX:'hidden', WebkitOverflowScrolling:'touch', width:'100%', boxSizing:'border-box' } : {};
-  const mobInput  = mob ? { padding:'10px 12px 16px 12px', flexShrink:0, background:'#fff', display:'flex', alignItems:'center', gap:10, boxSizing:'border-box', width:'100%', maxWidth:'100vw', borderTop:'1.5px solid #f0f0f0' } : {};
+  const mobInput  = mob ? { padding:'10px 12px 16px 12px', flexShrink:0, background:'#fff', display:'flex', alignItems:'center', gap:10, boxSizing:'border-box', width:'100%', maxWidth:'100vw' } : {};
   const mobField  = mob ? { fontSize:16, padding:'12px 13px', flex:'1 1 0%', minWidth:0, boxSizing:'border-box' } : {};
   const mobBtn    = mob ? { width:46, minWidth:46, height:46, flexShrink:0 } : {};
   const mobSugg   = mob ? { padding:'8px 14px', flexWrap:'nowrap', overflowX:'auto', WebkitOverflowScrolling:'touch', flexShrink:0 } : {};
@@ -1098,27 +1160,56 @@ const OppyChat = () => {
           />
 
           {/* Input bar */}
-          <form className="chat-input-bar" onSubmit={handleSubmit} style={mobInput}>
-            <input
-              ref={inputRef}
-              className="chat-input"
-              type="text"
-              placeholder="Ask Oppy or describe what you want to do…"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              disabled={loading}
-              style={mobField}
-            />
-            <button
-              type="submit"
-              className="chat-send-btn"
-              disabled={loading || !input.trim()}
-              aria-label="Send"
-              style={mobBtn}
-            >
-              <Send size={16} />
-            </button>
-          </form>
+          <div className="chat-composer">
+            {voiceNotice && (
+              <div
+                className={`chat-voice-status${voiceStatus === 'error' ? ' chat-voice-status--error' : ''}`}
+                role="status"
+                aria-live="polite"
+              >
+                {voiceNotice}
+              </div>
+            )}
+            <form className="chat-input-bar" onSubmit={handleSubmit} style={mobInput}>
+              <input
+                ref={inputRef}
+                className="chat-input"
+                type="text"
+                placeholder="Ask Oppy or describe what you want to do…"
+                value={input}
+                onChange={e => {
+                  setInput(e.target.value);
+                  if (voiceStatus === 'error') {
+                    setVoiceStatus('idle');
+                    setVoiceNotice('');
+                  }
+                }}
+                disabled={loading || ['starting', 'listening', 'finalizing'].includes(voiceStatus)}
+                style={mobField}
+              />
+              <button
+                type="button"
+                className={`chat-voice-btn${voiceStatus === 'listening' ? ' chat-voice-btn--recording' : ''}`}
+                onClick={handleVoiceButton}
+                disabled={loading || voiceStatus === 'starting' || voiceStatus === 'finalizing'}
+                aria-label={voiceStatus === 'listening' ? 'Stop voice input' : 'Start voice input'}
+                aria-pressed={voiceStatus === 'listening'}
+                title={voiceStatus === 'listening' ? 'Stop voice input' : 'Start voice input'}
+                style={mobBtn}
+              >
+                {voiceStatus === 'listening' ? <Square size={15} fill="currentColor" /> : <Mic size={18} />}
+              </button>
+              <button
+                type="submit"
+                className="chat-send-btn"
+                disabled={loading || !input.trim() || ['starting', 'listening', 'finalizing'].includes(voiceStatus)}
+                aria-label="Send"
+                style={mobBtn}
+              >
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
 
         </div>
       </div>

@@ -13,6 +13,7 @@ const registryRoutes = require('./routes/registry');
 const adminRoutes = require('./routes/admin');
 const ipfsRoutes = require('./routes/ipfs');
 const chatRoutes = require('./routes/chat');
+const transcriptionRoutes = require('./routes/transcription');
 const oppyExplorerRoutes = require('./routes/oppy-explorer');
 const docsRoutes = require('./routes/docs');
 const e2eTestRoute = require('./routes/e2e-test-route');
@@ -87,6 +88,9 @@ app.use('/api/ipfs', ipfsRoutes);
 
 // Mount chat routes
 app.use('/api/chat', chatRoutes);
+
+// Short-lived, rate-limited Amazon Transcribe WebSocket sessions for Oppy dictation.
+app.use('/api/transcription', transcriptionRoutes);
 
 // Read-only canonical job, wallet, profile and platform data for Agent Oppy.
 app.use('/api/oppy/explore', oppyExplorerRoutes);
