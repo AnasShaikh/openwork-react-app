@@ -6,6 +6,7 @@ const config = require('../config');
 const genesisAbi = require('../../src/ABIs/genesis_ABI.json');
 const genesisHelperAbi = require('../../src/ABIs/genesis_helper_ABI.json');
 const { getChainIdFromJobId, getChainNameFromJobId } = require('../utils/chain-utils');
+const { validateToolUse } = require('./chat-tools');
 
 const GENESIS_READER_ADDRESS = '0x72ee091C288512f0ee9eB42B8C152fbB127Dc782';
 const JOB_STATUSES = [0, 1, 2, 3];
@@ -100,6 +101,15 @@ function normalizeTransactionDiagnostic(value) {
   };
 }
 
+function normalizePreparedAction(value) {
+  if (!value || typeof value !== 'object') return null;
+  const validated = validateToolUse({
+    name: value.name,
+    input: value.params,
+  });
+  return validated?.kind === 'transaction' ? validated : null;
+}
+
 function sanitizeConversationMemory(memory = {}) {
   const rawActive = memory && typeof memory.activeJob === 'object' ? memory.activeJob : null;
   const activeJob = rawActive && validJobId(rawActive.jobId)
@@ -121,7 +131,8 @@ function sanitizeConversationMemory(memory = {}) {
     ? memory.recentTransactions.map(normalizeTransaction).filter(Boolean).slice(-12)
     : [];
   const latestTransactionDiagnostic = normalizeTransactionDiagnostic(memory.latestTransactionDiagnostic);
-  return { activeJob, recentTransactions, latestTransactionDiagnostic };
+  const lastPreparedAction = normalizePreparedAction(memory.lastPreparedAction);
+  return { activeJob, recentTransactions, latestTransactionDiagnostic, lastPreparedAction };
 }
 
 function rawJobValue(job, name, index, fallback = null) {
@@ -300,7 +311,7 @@ function prioritizeJobs(jobs, walletAddress, activeJobId, posterJobIds, recentTr
 async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies = {}) {
   const memory = sanitizeConversationMemory(memoryInput);
   if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress || '')) {
-    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], recentTransactions: memory.recentTransactions, latestTransactionDiagnostic: memory.latestTransactionDiagnostic };
+    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], recentTransactions: memory.recentTransactions, latestTransactionDiagnostic: memory.latestTransactionDiagnostic, lastPreparedAction: memory.lastPreparedAction };
   }
 
   try {
@@ -346,6 +357,7 @@ async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies
       jobs,
       recentTransactions: memory.recentTransactions,
       latestTransactionDiagnostic: memory.latestTransactionDiagnostic,
+      lastPreparedAction: memory.lastPreparedAction,
     };
   } catch (error) {
     return {
@@ -355,6 +367,7 @@ async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies
       jobs: [],
       recentTransactions: memory.recentTransactions,
       latestTransactionDiagnostic: memory.latestTransactionDiagnostic,
+      lastPreparedAction: memory.lastPreparedAction,
     };
   }
 }

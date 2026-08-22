@@ -2,6 +2,7 @@
 
 const registry = require('../../docs/mainnet-contracts.json');
 const { formatJobContext } = require('./oppy-job-context');
+const { TOOL_RULES } = require('./chat-tools');
 
 const SUPPORTED_JOB_CHAINS = new Map([
   [42161, 'Arbitrum One'],
@@ -48,6 +49,9 @@ const TOOL_CONTINUATION_HINTS = {
 };
 
 const QUESTION_OR_NEW_REQUEST = /^(?:what|why|how|when|where|who|which|can|could|would|should|is|are|do|does|did|tell\s+me|explain|show\s+me|find|search|browse|check)\b/i;
+const ACTION_RETRY_REQUEST = /\b(?:try\s+(?:it\s+|that\s+)?again|retry(?:\s+(?:it|that|the\s+action))?|go\s+ahead|do\s+it(?:\s+now)?|proceed|continue\s+(?:the\s+action|with\s+it)|prepare\s+(?:it|the\s+(?:transaction\s+)?card)|post\s+the\s+(?:transaction\s+)?card)\b/i;
+const NEGATED_ACTION_RETRY = /\b(?:do\s+not|don't|dont|never|stop|cancel)\b[\s\S]{0,30}\b(?:retry|try|proceed|continue|prepare|post)\b/i;
+const RETRY_SAFETY_QUESTION = /\b(?:can|could|should|may)\s+(?:i|we)\s+(?:retry|try\s+again)\b|\bis\s+it\s+safe\s+to\s+(?:retry|try\s+again)\b/i;
 
 const contractRows = registry.chains.flatMap((chain) => (
   chain.contracts.map((contract) => ({ ...contract, chain }))
@@ -203,12 +207,28 @@ function isActionContinuation(message, assistantMessage, toolName) {
   return Boolean(TOOL_CONTINUATION_HINTS[toolName]?.test(prompt));
 }
 
-function resolveTransactionToolIntent(message, history = []) {
+function isSafeActionRetryRequest(message) {
+  const reply = String(message || '').trim();
+  if (!reply || reply.length > 500 || NEGATED_ACTION_RETRY.test(reply) || RETRY_SAFETY_QUESTION.test(reply)) return false;
+  if (/^(?:prepared|ready)\s*\?*$/i.test(reply)) return true;
+  if (/\b(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:retry|try\s+(?:it\s+|that\s+)?again|do\s+it|proceed|prepare\s+it)\b/i.test(reply)) return true;
+  if (QUESTION_OR_NEW_REQUEST.test(reply)) return false;
+  return ACTION_RETRY_REQUEST.test(reply);
+}
+
+function resolveTransactionToolIntent(message, history = [], memory = {}) {
   const currentMatches = EXPLICIT_TOOL_INTENT_RULES
     .filter((rule) => rule.pattern.test(String(message || '').trim()))
     .map((rule) => rule.name);
   if (currentMatches.length === 1) return { name: currentMatches[0], source: 'current' };
   if (currentMatches.length > 1 || !Array.isArray(history)) return null;
+
+  const diagnostic = memory?.latestTransactionDiagnostic;
+  if (diagnostic?.safeToRetry === true
+    && TOOL_RULES[diagnostic.action]?.kind === 'transaction'
+    && isSafeActionRetryRequest(message)) {
+    return { name: diagnostic.action, source: 'safe-retry' };
+  }
 
   const recent = history.slice(-12);
   const lastEntry = recent[recent.length - 1];
@@ -237,6 +257,10 @@ function explicitToolIntentContext(toolIntent) {
   if (toolIntent.source === 'continuation') {
     return `\n\n## SERVER-RESOLVED ACTION CONTINUATION
 The user's current reply is a direct answer to your latest question while preparing \`${toolName}\`. Continue only \`${toolName}\`, using the relevant facts already supplied in this conversation, or ask one concise question if a required input is still missing. Never emit XML, a textual function call or a claim that a screen opened. Only the native \`${toolName}\` tool can open the review card.`;
+  }
+  if (toolIntent.source === 'safe-retry') {
+    return `\n\n## SERVER-VERIFIED SAFE ACTION RETRY
+The client proved that retrying the previous \`${toolName}\` attempt will not duplicate a live transaction and marked retry safe. Recreate exactly that validated review action now from the supplied previous action or recent conversation. Do not promise to prepare it later and do not answer with prose alone. Only the native \`${toolName}\` tool can render the review card.`;
   }
   return `\n\n## SERVER-DETECTED CURRENT ACTION
 The user's current message explicitly requests \`${toolName}\`. This current-turn intent overrides any different action discussed earlier. You may call only \`${toolName}\` for this turn, or ask one concise question if a required input is genuinely missing. Never continue, reopen or substitute a tool from an older conversation turn.`;
@@ -314,6 +338,7 @@ module.exports = {
   detectExplicitToolIntent,
   deployedCodeContext,
   extractEvmAddressFacts,
+  isSafeActionRetryRequest,
   registryContext,
   resolveTransactionToolIntent,
   sanitizeWalletState,

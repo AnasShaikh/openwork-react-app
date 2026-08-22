@@ -4,12 +4,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { modelToolName, validateRequest } = require('../routes/chat');
+const { modelToolName, resolveSafeReplayTool, validateRequest } = require('../routes/chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
   detectExplicitToolIntent,
   extractEvmAddressFacts,
+  isSafeActionRetryRequest,
   resolveTransactionToolIntent,
   sanitizeWalletState,
 } = require('../services/oppy-context');
@@ -41,6 +42,7 @@ test('chat requests are bounded and default to documentation mode', () => {
       activeJob: null,
       recentTransactions: [],
       latestTransactionDiagnostic: null,
+      lastPreparedAction: null,
     },
   });
   assert.match(validateRequest({ message: 'x'.repeat(2001) }).error, /2000/);
@@ -53,6 +55,26 @@ test('read-only navigation is resolved by the deterministic explorer, not Bedroc
   assert.equal(modelToolName({ name: 'openJob', source: 'current' }), null);
   assert.equal(modelToolName({ name: 'viewApplications', source: 'current' }), null);
   assert.equal(modelToolName({ name: 'releasePayment', source: 'current' }), 'releasePayment');
+});
+
+test('a sanitized safe retry replays the exact previous card without model discretion', () => {
+  const action = {
+    name: 'startDirectContract',
+    params: {
+      title: 'React Developer',
+      budget: 0.1,
+      description: 'Build the interface',
+      jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+    },
+  };
+  assert.equal(
+    resolveSafeReplayTool({ name: 'startDirectContract', source: 'safe-retry' }, { lastPreparedAction: action }, 'startDirectContract'),
+    action,
+  );
+  assert.equal(
+    resolveSafeReplayTool({ name: 'startDirectContract', source: 'current' }, { lastPreparedAction: action }, 'startDirectContract'),
+    null,
+  );
 });
 
 test('wallet context supports only the three production job chains', () => {
@@ -168,6 +190,42 @@ test('a direct answer resumes only the action behind the latest assistant questi
   assert.match(prompt, /Only the native `startDirectContract` tool can open the review card/);
 });
 
+test('safe natural-language retries replay the previous action instead of promising a card', () => {
+  const memory = {
+    latestTransactionDiagnostic: {
+      action: 'startDirectContract',
+      status: 'failed',
+      safeToRetry: true,
+    },
+  };
+  assert.equal(isSafeActionRetryRequest('have updated RPC lets try again'), true);
+  assert.equal(isSafeActionRetryRequest('can you retry it now?'), true);
+  assert.equal(isSafeActionRetryRequest('Prepared?'), true);
+  assert.equal(isSafeActionRetryRequest('is it safe to retry?'), false);
+  assert.equal(isSafeActionRetryRequest("don't retry it"), false);
+  assert.deepEqual(
+    resolveTransactionToolIntent('have updated RPC lets try again', [], memory),
+    { name: 'startDirectContract', source: 'safe-retry' },
+  );
+  assert.deepEqual(
+    resolveTransactionToolIntent('Prepared?', [], memory),
+    { name: 'startDirectContract', source: 'safe-retry' },
+  );
+  assert.equal(resolveTransactionToolIntent('try again', [], {
+    latestTransactionDiagnostic: { ...memory.latestTransactionDiagnostic, safeToRetry: false },
+  }), null);
+  assert.deepEqual(
+    resolveTransactionToolIntent('release payment for 30365-8', [], memory),
+    { name: 'releasePayment', source: 'current' },
+  );
+
+  const prompt = buildTransactionSystemPrompt('try again', { chainId: 50 }, {
+    toolIntent: { name: 'startDirectContract', source: 'safe-retry' },
+  });
+  assert.match(prompt, /SERVER-VERIFIED SAFE ACTION RETRY/);
+  assert.match(prompt, /Do not promise to prepare it later/);
+});
+
 test('conversation memory keeps only bounded job and receipt context', () => {
   const memory = sanitizeConversationMemory({
     activeJob: {
@@ -198,12 +256,23 @@ test('conversation memory keeps only bounded job and receipt context', () => {
       safeToRetry: false,
       checks: { walletReachable: true },
     },
+    lastPreparedAction: {
+      name: 'startDirectContract',
+      params: {
+        title: 'React Developer',
+        budget: 0.1,
+        description: 'Build the interface',
+        jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+      },
+    },
   });
   assert.equal(memory.activeJob.jobId, '30365-6');
   assert.equal(memory.activeJob.title, 'XDC test');
   assert.equal(memory.recentTransactions[0].confirmed, true);
   assert.equal(memory.latestTransactionDiagnostic.step, 'approval');
   assert.equal(memory.latestTransactionDiagnostic.checks.walletReachable, true);
+  assert.equal(memory.lastPreparedAction.name, 'startDirectContract');
+  assert.equal(memory.lastPreparedAction.params.title, 'React Developer');
   assert.equal(sanitizeConversationMemory({ activeJob: { jobId: '../bad' } }).activeJob, null);
 });
 
@@ -323,6 +392,43 @@ test('Bedrock receives only the tool matching an explicit current-turn action', 
   assert.deepEqual(commandInput.toolConfig.tools.map((entry) => entry.toolSpec.name), ['releasePayment']);
   assert.equal(result.tool.name, 'releasePayment');
   assert.deepEqual(result.tool.params, { jobId: '30365-8' });
+});
+
+test('Bedrock can require the verified retry tool instead of allowing prose-only output', async () => {
+  let commandInput;
+  const client = {
+    async send(command) {
+      commandInput = command.input;
+      return {
+        output: {
+          message: {
+            content: [{ toolUse: {
+              name: 'startDirectContract',
+              input: {
+                title: 'React Developer',
+                budget: 0.1,
+                description: 'Build the interface',
+                jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+              },
+            } }],
+          },
+        },
+      };
+    },
+  };
+
+  const result = await converse({
+    message: 'try again',
+    history: [],
+    systemPrompt: 'Retry the verified safe action.',
+    allowTools: true,
+    allowedToolNames: ['startDirectContract'],
+    forceToolName: 'startDirectContract',
+    client,
+  });
+
+  assert.deepEqual(commandInput.toolConfig.toolChoice, { tool: { name: 'startDirectContract' } });
+  assert.equal(result.tool.name, 'startDirectContract');
 });
 
 test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS credential chain', async () => {

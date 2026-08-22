@@ -51,6 +51,23 @@ test('wallet cancellation is explicitly retry-safe because nothing was broadcast
   assert.match(result.nextStep, /Nothing was submitted/i);
 });
 
+test('a network failure before any write call is explicitly retry-safe', () => {
+  const original = attempt();
+  const failed = updateTransactionDiagnostic(original, {
+    phase: 'error',
+    error: new Error('RPC endpoint not found or unavailable.'),
+    outcome: 'failed',
+    safeToRetry: true,
+    summary: 'The action stopped before any transaction was submitted.',
+    nextStep: 'Correct the wallet network, then retry.',
+    category: 'pre_broadcast',
+  });
+  assert.equal(failed.status, 'failed');
+  assert.equal(failed.safeToRetry, true);
+  assert.equal(failed.error.category, 'pre_broadcast');
+  assert.match(failed.summary, /before any transaction was submitted/);
+});
+
 test('unknown RPC failures protect retry until a read-only check resolves the outcome', () => {
   const result = classifyTransactionError({ message: 'RPC endpoint not found or unavailable.' });
   assert.equal(result.status, 'unknown');

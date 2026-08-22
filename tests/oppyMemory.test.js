@@ -7,6 +7,7 @@ import {
   jobChainFromId,
   loadOppyMemory,
   recordOppyTransaction,
+  sanitizePreparedAction,
   sanitizeOppyText,
   saveOppyMemory,
 } from '../src/services/oppyMemory.js';
@@ -57,6 +58,17 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
       safeToRetry: false,
       checks: { walletReachable: true },
     },
+    lastPreparedAction: {
+      name: 'startDirectContract',
+      kind: 'transaction',
+      display: 'Create a direct contract',
+      params: {
+        title: 'React Developer',
+        budget: 0.1,
+        description: 'Build the interface',
+        jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+      },
+    },
   }, storage);
 
   const loaded = loadOppyMemory(scope, [OPPY_JOB_GREETING], storage);
@@ -66,6 +78,17 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
   assert.equal(loaded.recentTransactions[0].confirmed, true);
   assert.equal(loaded.latestTransactionDiagnostic.step, 'approval');
   assert.equal(loaded.latestTransactionDiagnostic.safeToRetry, false);
+  assert.equal(loaded.lastPreparedAction.name, 'startDirectContract');
+  assert.equal(loaded.lastPreparedAction.params.budget, 0.1);
+});
+
+test('prepared-action memory is bounded to supported transaction tools', () => {
+  assert.equal(sanitizePreparedAction({ name: 'browseJobs', params: {} }), null);
+  assert.equal(sanitizePreparedAction({ name: 'startDirectContract', params: null }), null);
+  assert.equal(sanitizePreparedAction({
+    name: 'startDirectContract',
+    params: { description: 'x'.repeat(13 * 1024) },
+  }), null);
 });
 
 test('explicit job IDs replace pronoun memory while ordinary follow-ups retain it', () => {

@@ -1,7 +1,18 @@
 const STORAGE_PREFIX = 'openwork:oppy:memory:v2';
 const MAX_MESSAGES = 60;
 const MAX_TRANSACTIONS = 12;
+const MAX_PREPARED_ACTION_BYTES = 12 * 1024;
 const DIAGNOSTIC_STATES = new Set(['preparing', 'wallet', 'pending', 'confirmed', 'reverted', 'dropped', 'cancelled', 'failed', 'unknown']);
+const TRANSACTION_ACTIONS = new Set([
+  'postJob',
+  'applyToJob',
+  'startJob',
+  'submitWork',
+  'releasePayment',
+  'raiseDispute',
+  'createProfile',
+  'startDirectContract',
+]);
 
 export const OPPY_JOB_GREETING = {
   role: 'bot',
@@ -164,6 +175,25 @@ export function sanitizeTransactionDiagnostic(value) {
   };
 }
 
+export function sanitizePreparedAction(value) {
+  if (!value || typeof value !== 'object' || !TRANSACTION_ACTIONS.has(value.name)) return null;
+  if (!value.params || typeof value.params !== 'object' || Array.isArray(value.params)) return null;
+  try {
+    const serialized = JSON.stringify(value.params);
+    if (!serialized || serialized.length > MAX_PREPARED_ACTION_BYTES) return null;
+    const params = JSON.parse(serialized);
+    return {
+      name: value.name,
+      kind: 'transaction',
+      params,
+      display: typeof value.display === 'string' ? value.display.trim().slice(0, 240) : '',
+      requiresWalletSignature: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function loadOppyMemory(scope, fallbackMessages = [], storage = globalThis.localStorage) {
   try {
     const parsed = JSON.parse(storage?.getItem(storageKey(scope)) || 'null');
@@ -172,9 +202,10 @@ export function loadOppyMemory(scope, fallbackMessages = [], storage = globalThi
       activeJob: sanitizeActiveJob(parsed?.activeJob),
       recentTransactions: cleanTransactions(parsed?.recentTransactions),
       latestTransactionDiagnostic: sanitizeTransactionDiagnostic(parsed?.latestTransactionDiagnostic),
+      lastPreparedAction: sanitizePreparedAction(parsed?.lastPreparedAction),
     };
   } catch {
-    return { messages: fallbackMessages, activeJob: null, recentTransactions: [], latestTransactionDiagnostic: null };
+    return { messages: fallbackMessages, activeJob: null, recentTransactions: [], latestTransactionDiagnostic: null, lastPreparedAction: null };
   }
 }
 
@@ -185,6 +216,7 @@ export function saveOppyMemory(scope, memory, storage = globalThis.localStorage)
       activeJob: sanitizeActiveJob(memory?.activeJob),
       recentTransactions: cleanTransactions(memory?.recentTransactions),
       latestTransactionDiagnostic: sanitizeTransactionDiagnostic(memory?.latestTransactionDiagnostic),
+      lastPreparedAction: sanitizePreparedAction(memory?.lastPreparedAction),
       updatedAt: new Date().toISOString(),
     }));
   } catch { /* private browsing or storage quota: chat still works in memory */ }

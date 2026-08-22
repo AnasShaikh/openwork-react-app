@@ -35,6 +35,7 @@ import {
   recordOppyTransaction,
   sanitizeOppyText,
   sanitizeActiveJob,
+  sanitizePreparedAction,
   saveOppyMemory,
 } from '../../services/oppyMemory';
 import {
@@ -158,7 +159,22 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, o
     if (!next) return;
     diagnosticRef.current = next;
     setDiagnostic(next);
-    onDiagnosticChange?.(next);
+    const editableParams = tool.name === 'applyToJob'
+      ? { proposal: formValues.proposal, proposedAmount: formValues.proposedAmount || undefined }
+      : (tool.name === 'submitWork'
+        ? { workDetails: formValues.workDetails }
+        : (tool.name === 'raiseDispute'
+          ? {
+              reason: formValues.reason,
+              disputedAmount: formValues.disputedAmount,
+              compensation: formValues.compensation,
+              oracleName: formValues.oracleName,
+            }
+          : {}));
+    onDiagnosticChange?.(next, {
+      ...tool,
+      params: { ...(tool.params || {}), ...editableParams },
+    });
   };
 
   const runDiagnosticCheck = async () => {
@@ -290,6 +306,9 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, o
           message: result?.error || 'The action was not completed.',
           outcome: result?.outcome,
           safeToRetry: result?.safeToRetry,
+          summary: result?.summary,
+          nextStep: result?.nextStep,
+          category: result?.category,
         }));
       }
     } catch (error) {
@@ -799,6 +818,7 @@ const OppyChat = () => {
   const [activeJob, setActiveJob] = useState(null);
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [latestTransactionDiagnostic, setLatestTransactionDiagnostic] = useState(null);
+  const [lastPreparedAction, setLastPreparedAction] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const transcriptionControllerRef = useRef(null);
@@ -818,6 +838,7 @@ const OppyChat = () => {
     setActiveJob(memory.activeJob);
     setRecentTransactions(memory.recentTransactions);
     setLatestTransactionDiagnostic(memory.latestTransactionDiagnostic);
+    setLastPreparedAction(memory.lastPreparedAction);
     setShowSuggestions(memory.messages.length <= 1);
   }, [memoryScope]);
 
@@ -832,8 +853,9 @@ const OppyChat = () => {
       activeJob,
       recentTransactions,
       latestTransactionDiagnostic,
+      lastPreparedAction,
     });
-  }, [memoryScope, chat, activeJob, recentTransactions, latestTransactionDiagnostic]);
+  }, [memoryScope, chat, activeJob, recentTransactions, latestTransactionDiagnostic, lastPreparedAction]);
 
   useEffect(() => {
     const messagesArea = messagesEndRef.current?.parentElement;
@@ -947,6 +969,7 @@ const OppyChat = () => {
             activeJob: messageActiveJob,
             recentTransactions,
             latestTransactionDiagnostic,
+            lastPreparedAction,
           },
         }),
       });
@@ -1110,6 +1133,7 @@ const OppyChat = () => {
     console.log('[OppyChat] Action requested:', tool.name);
     const walletProvider = walletProviderRef.current;
     const walletOption = walletOptions.find((wallet) => wallet.provider === walletProvider) || null;
+    let submissionAttempted = false;
 
     try {
       if (tool.name === 'browseJobs') {
@@ -1209,6 +1233,7 @@ const OppyChat = () => {
             jobGiver: userAddress,
             timestamp: new Date().toISOString(),
           });
+          submissionAttempted = true;
           result = await postJob(chainIdDecimal, userAddress, { jobDetailHash, descriptions: milestoneHashes, amounts: milestoneAmounts }, onStatus, walletProvider);
           break;
         }
@@ -1250,6 +1275,7 @@ const OppyChat = () => {
             appliedFromChainId: chainIdDecimal,
             timestamp: new Date().toISOString(),
           });
+          submissionAttempted = true;
           result = await applyToJob(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
             applicationHash,
@@ -1281,6 +1307,7 @@ const OppyChat = () => {
             jobTaker: tool.params.jobTaker,
             timestamp: new Date().toISOString(),
           });
+          submissionAttempted = true;
           await ensureUsdcFunding({
             chainId: chainIdDecimal,
             owner: userAddress,
@@ -1329,6 +1356,7 @@ const OppyChat = () => {
             ? application.proposedMilestones?.[0]?.amount
             : deepDive.milestones?.[0]?.amount;
           const firstAmountRaw = toUsdcBaseUnits(firstAmount, 'First milestone amount');
+          submissionAttempted = true;
           await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.lowjc, amount: firstAmountRaw, onStatus, walletProvider });
           result = await startJob(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
@@ -1341,6 +1369,7 @@ const OppyChat = () => {
           report({ phase: 'preparing', message: 'Preparing the work submission…' });
           const workDetails = tool.params.workDetails || formValues.workDetails;
           const submissionHash = await uploadToIPFS({ workDetails, jobId: tool.params.jobId, submittedBy: userAddress, timestamp: new Date().toISOString() });
+          submissionAttempted = true;
           result = await submitWork(chainIdDecimal, userAddress, { jobId: tool.params.jobId, submissionHash }, onStatus, walletProvider);
           break;
         }
@@ -1348,6 +1377,7 @@ const OppyChat = () => {
           const deepDive = await fetchOppyExplorer(`/jobs/${encodeURIComponent(tool.params.jobId)}?wallet=${userAddress}`);
           if (deepDive.job?.viewerRole !== 'job giver') throw new Error('Only the job poster can release this payment.');
           const target = resolveReleaseTarget(deepDive);
+          submissionAttempted = true;
           result = await releasePaymentCrossChain(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
             targetChainDomain: target.targetChainDomain,
@@ -1361,6 +1391,7 @@ const OppyChat = () => {
           if (deepDive.job?.statusCode !== 1) throw new Error('Disputes can only be raised while a job is in progress.');
           const feeAmount = toUsdcBaseUnits(formValues.compensation, 'Oracle fee');
           const disputedAmount = toUsdcBaseUnits(formValues.disputedAmount, 'Disputed amount');
+          submissionAttempted = true;
           await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.athenaClient, amount: feeAmount, onStatus, walletProvider });
           report({ phase: 'preparing', message: 'Securing the dispute details…' });
           const disputeHash = await uploadToIPFS({
@@ -1386,6 +1417,7 @@ const OppyChat = () => {
         case 'createProfile': {
           report({ phase: 'preparing', message: 'Preparing profile details…' });
           const ipfsHash = await uploadToIPFS({ name: tool.params.name, skills: tool.params.skills, hourlyRate: tool.params.hourlyRate, walletAddress: userAddress });
+          submissionAttempted = true;
           result = await createProfile(chainIdDecimal, userAddress, { ipfsHash }, onStatus, walletProvider);
           break;
         }
@@ -1430,8 +1462,30 @@ const OppyChat = () => {
         const symbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
         message = `The wallet does not have enough ${symbol} for network fees.`;
       }
-      report({ phase: 'error', message, error });
-      return { error: message, diagnosticError: error };
+      const preBroadcastFailure = !submissionAttempted;
+      report({
+        phase: 'error',
+        message,
+        error,
+        ...(preBroadcastFailure ? {
+          outcome: 'failed',
+          safeToRetry: true,
+          summary: 'The action stopped before any transaction was submitted.',
+          nextStep: 'The wallet or network setting can be corrected, then this action can be retried safely.',
+          category: 'pre_broadcast',
+        } : {}),
+      });
+      return {
+        error: message,
+        diagnosticError: error,
+        ...(preBroadcastFailure ? {
+          outcome: 'failed',
+          safeToRetry: true,
+          summary: 'The action stopped before any transaction was submitted.',
+          nextStep: 'The wallet or network setting can be corrected, then this action can be retried safely.',
+          category: 'pre_broadcast',
+        } : {}),
+      };
     }
   };
 
@@ -1529,7 +1583,10 @@ const OppyChat = () => {
                       walletState={walletState}
                       onConfirm={handleTransaction}
                       onDiagnose={handleDiagnoseTransaction}
-                      onDiagnosticChange={setLatestTransactionDiagnostic}
+                      onDiagnosticChange={(diagnostic, preparedAction) => {
+                        setLatestTransactionDiagnostic(diagnostic);
+                        setLastPreparedAction(sanitizePreparedAction(preparedAction));
+                      }}
                       onCancel={() => handleCancelTx(idx)}
                     />
                   </div>

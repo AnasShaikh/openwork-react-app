@@ -2,7 +2,7 @@
 
 const express = require('express');
 const { createRateLimiter } = require('../middleware/security');
-const { converse } = require('../services/bedrock-chat');
+const { ACTION_REVIEW_RESPONSE, converse } = require('../services/bedrock-chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
@@ -31,6 +31,13 @@ let inFlightRequests = 0;
 function modelToolName(toolIntent) {
   return toolIntent?.name && !EXPLORER_TOOL_NAMES.has(toolIntent.name)
     ? toolIntent.name
+    : null;
+}
+
+function resolveSafeReplayTool(toolIntent, memory, allowedToolName) {
+  return toolIntent?.source === 'safe-retry'
+    && memory?.lastPreparedAction?.name === allowedToolName
+    ? memory.lastPreparedAction
     : null;
 }
 
@@ -70,10 +77,29 @@ router.post('/', async (req, res) => {
   try {
     const transactionMode = request.mode === 'transactions';
     const toolIntent = transactionMode
-      ? resolveTransactionToolIntent(request.message, request.history)
+      ? resolveTransactionToolIntent(request.message, request.history, request.memory)
       : null;
     const explicitToolName = toolIntent?.name || null;
     const allowedToolName = modelToolName(toolIntent);
+    const replayTool = resolveSafeReplayTool(toolIntent, request.memory, allowedToolName);
+    if (replayTool) {
+      console.info('[chat] replayed verified safe action', {
+        mode: request.mode,
+        tool: replayTool.name,
+      });
+      return res.json({
+        success: true,
+        response: ACTION_REVIEW_RESPONSE,
+        tool: replayTool,
+        explorer: null,
+        model: 'deterministic-safe-retry',
+        context: {
+          activeJob: request.memory.activeJob || null,
+          canonicalJobHistoryAvailable: false,
+          canonicalJobCount: 0,
+        },
+      });
+    }
     const explorerIntent = transactionMode ? detectDataIntent(request.message, explicitToolName) : null;
     const jobContext = transactionMode && request.wallet.connected
       ? await getWalletJobContext(request.wallet.address, request.memory)
@@ -84,6 +110,7 @@ router.post('/', async (req, res) => {
           jobs: [],
           recentTransactions: request.memory.recentTransactions,
           latestTransactionDiagnostic: request.memory.latestTransactionDiagnostic,
+          lastPreparedAction: request.memory.lastPreparedAction,
         };
     let explorer = null;
     if (explorerIntent) {
@@ -116,6 +143,7 @@ router.post('/', async (req, res) => {
       systemPrompt,
       allowTools: transactionMode && Boolean(allowedToolName),
       allowedToolNames: allowedToolName ? [allowedToolName] : undefined,
+      forceToolName: toolIntent?.source === 'safe-retry' ? allowedToolName : undefined,
     });
 
     console.info('[chat] completed', {
@@ -156,3 +184,4 @@ router.post('/', async (req, res) => {
 module.exports = router;
 module.exports.validateRequest = validateRequest;
 module.exports.modelToolName = modelToolName;
+module.exports.resolveSafeReplayTool = resolveSafeReplayTool;

@@ -24,8 +24,9 @@ The lifecycle crosses five deliberately small boundaries:
 4. `TransactionCard` in `src/pages/OppyChat/OppyChat.jsx` renders the simple diagnosis,
    protected retry state, live check control and expandable technical detail.
 5. `src/services/oppyMemory.js` stores the latest sanitized attempt per connected
-   wallet. `/api/chat` validates that record and includes it in Oppy's server prompt so
-   questions such as “what happened?” are answered from observed state.
+   wallet together with the exact last validated action that produced it. `/api/chat`
+   validates both records so questions such as “what happened?” are answered from
+   observed state and safe retry commands can recreate the same review card.
 
 No private key, seed phrase, signature, raw calldata or browser-extension console log
 is collected. The record is bounded and contains only action metadata, public wallet
@@ -36,6 +37,7 @@ state, public transaction identifiers, sanitized error text and read-only checks
 | Observed state | Meaning | Retry |
 |---|---|---|
 | `preparing` | Local/IPFS/preflight work is running | Protected |
+| `failed` before any write adapter is entered | Wallet connection, chain switch, metadata or other preparation stopped before submission | Allowed; nothing was broadcast |
 | `wallet` | The selected wallet has not returned a hash | Protected while the request is open |
 | `pending` | The network knows the transaction | Protected; wait or use the wallet's speed-up flow |
 | `confirmed` | A successful receipt exists | Never retry |
@@ -52,6 +54,13 @@ approval is reused instead of requested again.
 The UI never unlocks retry merely because a timer elapsed. A timer starts a read-only
 check; only an explicit cancellation, reverted receipt or sufficiently verified drop
 can make retry safe.
+
+When the client has explicitly marked an attempt safe, natural-language commands such
+as “try again”, “retry it”, “go ahead” and “can you retry?” recreate the exact previous
+validated review card. This path is deterministic and does not depend on the model
+choosing to call a tool. A safety question such as “is it safe to retry?” remains
+read-only. If the previous outcome is pending or unknown, Oppy keeps retry protected
+and does not recreate an executable card.
 
 ## What Oppy can diagnose
 
@@ -95,7 +104,8 @@ When adding a new Oppy write:
 2. Emit `step: 'approval'` for prerequisite token approval and `step: 'action'` for
    the OpenWork write.
 3. Never classify a generic provider error as retry-safe if a broadcast outcome is
-   unknown.
+   unknown. Track whether the write adapter was entered so connection and network-
+   switch failures can be distinguished from errors after a submission attempt.
 4. Add the action to the bounded backend sanitizer only if new public diagnostic fields
    are required; never forward arbitrary client objects into the model prompt.
 5. Add tests for pending, confirmed, reverted, cancelled, dropped and RPC-unavailable
@@ -120,4 +130,3 @@ Browser QA must exercise simple and expanded technical states at desktop and 390
 confirm no horizontal overflow and verify that an unsafe failure disables `Retry
 safely`. Use mocks or a rejected wallet request; production QA must not approve USDC,
 sign a write or move funds.
-

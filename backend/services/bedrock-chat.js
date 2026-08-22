@@ -96,7 +96,7 @@ function extractResponse(message, allowTools, allowedToolNames) {
   };
 }
 
-async function converse({ message, history, systemPrompt, allowTools = false, allowedToolNames, client = getClient() }) {
+async function converse({ message, history, systemPrompt, allowTools = false, allowedToolNames, forceToolName, client = getClient() }) {
   const modelId = process.env.BEDROCK_MODEL_ID || DEFAULT_MODEL_ID;
   const messages = normalizeHistory(history);
   const previous = messages[messages.length - 1];
@@ -122,7 +122,12 @@ async function converse({ message, history, systemPrompt, allowTools = false, al
     const tools = allowedNames
       ? BEDROCK_TRANSACTION_TOOLS.filter((entry) => allowedNames.has(entry.toolSpec.name))
       : BEDROCK_TRANSACTION_TOOLS;
-    if (tools.length) commandInput.toolConfig = { tools };
+    if (tools.length) {
+      commandInput.toolConfig = { tools };
+      if (forceToolName && tools.some((entry) => entry.toolSpec.name === forceToolName)) {
+        commandInput.toolConfig.toolChoice = { tool: { name: forceToolName } };
+      }
+    }
   }
 
   const response = await client.send(new ConverseCommand(commandInput));
