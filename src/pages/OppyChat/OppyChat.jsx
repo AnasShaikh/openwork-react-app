@@ -838,7 +838,7 @@ const OppyChat = () => {
   useEffect(() => {
     const messagesArea = messagesEndRef.current?.parentElement;
     if (messagesArea) messagesArea.scrollTop = messagesArea.scrollHeight;
-  }, [chat]);
+  }, [chat, latestTransactionDiagnostic]);
 
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
