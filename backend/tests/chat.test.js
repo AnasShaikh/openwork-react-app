@@ -214,6 +214,8 @@ test('native Bedrock tool calls are strictly validated', () => {
     },
   });
   assert.equal(validDirectContract.name, 'startDirectContract');
+  assert.equal(validDirectContract.kind, 'transaction');
+  assert.equal(validDirectContract.requiresWalletSignature, true);
   assert.equal(validDirectContract.params.jobTaker, '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724');
   assert.equal(validateToolUse({
     name: 'releasePayment',
@@ -231,8 +233,8 @@ test('Bedrock response extraction exposes only validated native tools', () => {
   assert.equal(extractResponse(message, false).tool, null);
   const extracted = extractResponse(message, true).tool;
   assert.equal(extracted.name, 'releasePayment');
-  assert.equal(extracted.kind, 'review');
-  assert.equal(extracted.requiresWalletSignature, false);
+  assert.equal(extracted.kind, 'transaction');
+  assert.equal(extracted.requiresWalletSignature, true);
   assert.deepEqual(extracted.params, { jobId: '42161-24' });
   assert.equal(extractResponse(message, true).text, ACTION_REVIEW_RESPONSE);
   assert.equal(extractResponse({

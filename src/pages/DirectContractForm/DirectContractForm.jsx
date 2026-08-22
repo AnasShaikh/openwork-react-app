@@ -316,6 +316,7 @@ export default function DirectContractForm() {
   const [skillInput, setSkillInput] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [transactionState, setTransactionState] = useState(INITIAL_TRANSACTION_STATE);
+  const [walletWaitExtended, setWalletWaitExtended] = useState(false);
   const [platformFee, setPlatformFee] = useState(null);
   const [milestones, setMilestones] = useState(() => {
     const budgetParam = searchParams.get('budget');
@@ -329,6 +330,15 @@ export default function DirectContractForm() {
   const navigate = useNavigate();
   const submissionLockRef = useRef(false);
   const transactionInProgress = !["idle", "error"].includes(transactionState.phase);
+
+  useEffect(() => {
+    if (!["approval", "contract-signature"].includes(transactionState.phase)) {
+      setWalletWaitExtended(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setWalletWaitExtended(true), 18000);
+    return () => clearTimeout(timer);
+  }, [transactionState.phase]);
 
   const selectMilestoneType = (option) => {
     setSelectedOption(option);
@@ -537,7 +547,7 @@ export default function DirectContractForm() {
 
     try {
       if (!window.ethereum) {
-        throw new Error("MetaMask was not detected. Install or enable it to continue.");
+        throw new Error("No EVM wallet was detected. Enable Brave Wallet, MetaMask, or another wallet extension to continue.");
       }
 
       const web3 = new Web3(window.ethereum);
@@ -618,7 +628,7 @@ export default function DirectContractForm() {
       if (BigInt(currentAllowance) < firstMilestoneAmount) {
         setTransactionState({
           phase: "approval",
-          message: "Confirm the USDC approval in MetaMask. This is required before the contract can be created.",
+          message: "Confirm the USDC approval in your wallet. This is required before the contract can be created.",
           variant: "warning",
         });
 
@@ -675,7 +685,7 @@ export default function DirectContractForm() {
 
       setTransactionState({
         phase: "contract-signature",
-        message: "Confirm the direct contract transaction in MetaMask.",
+        message: "Confirm the direct contract transaction in your wallet.",
         variant: "warning",
       });
 
@@ -992,7 +1002,9 @@ export default function DirectContractForm() {
             />
             <div className="warning-form">
               <Warning
-                content={transactionState.message}
+                content={walletWaitExtended
+                  ? `${transactionState.message} Still waiting—open your wallet's pending requests and approve or reject the current request. Do not submit again.`
+                  : transactionState.message}
                 variant={transactionState.variant}
               />
             </div>

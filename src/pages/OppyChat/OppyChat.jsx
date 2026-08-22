@@ -8,12 +8,25 @@ import CrossChainSyncStatus from '../../components/CrossChainSyncStatus/CrossCha
 import {
   postJob,
   applyToJob,
+  startDirectContract,
+  startJob,
   submitWork,
+  releasePaymentCrossChain,
+  raiseDispute,
   createProfile,
 } from '../../services/localChainService';
-import { extractChainIdFromJobId, getChainConfig, getNativeChain } from '../../config/chainConfig';
+import { extractChainIdFromJobId, getChainConfig, getNativeChain, supportsApplicantMilestones } from '../../config/chainConfig';
 import { switchToChain } from '../../utils/switchNetwork';
 import GenesisABI from '../../ABIs/genesis_ABI.json';
+import {
+  ensureUsdcFunding,
+  explorerUrl,
+  fetchOppyExplorer,
+  loadActiveOracles,
+  resolveReleaseTarget,
+  resolveSelectedApplication,
+  toUsdcBaseUnits,
+} from '../../services/oppyActionService';
 import {
   OPPY_JOB_GREETING,
   activeJobFromMessage,
@@ -89,23 +102,102 @@ function formatToolParamLabel(key) {
 // ── Transaction Card ─────────────────────────────────────────────
 function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const [txHash, setTxHash] = useState(null);
+  const [txChainId, setTxChainId] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('idle');
+  const [progress, setProgress] = useState(null);
+  const [walletWaitExtended, setWalletWaitExtended] = useState(false);
+  const [oracles, setOracles] = useState([]);
+  const [oraclesLoading, setOraclesLoading] = useState(tool.name === 'raiseDispute');
+  const [formValues, setFormValues] = useState({
+    reason: tool.params?.reason || '',
+    disputedAmount: tool.params?.disputedAmount || '',
+    compensation: tool.params?.compensation || '',
+    oracleName: tool.params?.oracleName || '',
+    proposal: tool.params?.proposal || '',
+    proposedAmount: tool.params?.proposedAmount || '',
+    workDetails: tool.params?.workDetails || '',
+  });
+
+  useEffect(() => {
+    if (tool.name !== 'raiseDispute') return undefined;
+    let active = true;
+    loadActiveOracles()
+      .then((rows) => {
+        if (!active) return;
+        setOracles(rows);
+        setFormValues((current) => ({
+          ...current,
+          oracleName: current.oracleName || rows[0]?.name || '',
+        }));
+      })
+      .catch(() => { if (active) setOracles([]); })
+      .finally(() => { if (active) setOraclesLoading(false); });
+    return () => { active = false; };
+  }, [tool.name]);
+
+  useEffect(() => {
+    if (progress?.phase !== 'wallet') {
+      setWalletWaitExtended(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setWalletWaitExtended(true), 18000);
+    return () => clearTimeout(timer);
+  }, [progress?.phase, progress?.message]);
 
   const handleConfirm = async () => {
+    if (tool.name === 'applyToJob' && !formValues.proposal.trim()) {
+      setStatus('failed');
+      setProgress({ phase: 'error', message: 'Add a short proposal before continuing.' });
+      return;
+    }
+    if (tool.name === 'submitWork' && !formValues.workDetails.trim()) {
+      setStatus('failed');
+      setProgress({ phase: 'error', message: 'Describe the completed work before continuing.' });
+      return;
+    }
+    if (tool.name === 'raiseDispute') {
+      if (!formValues.reason.trim()) {
+        setStatus('failed');
+        setProgress({ phase: 'error', message: 'Add a clear dispute reason before continuing.' });
+        return;
+      }
+      if (!(Number(formValues.disputedAmount) > 0) || !(Number(formValues.compensation) > 0)) {
+        setStatus('failed');
+        setProgress({ phase: 'error', message: 'Disputed amount and oracle fee must both be greater than zero.' });
+        return;
+      }
+      if (!formValues.oracleName) {
+        setStatus('failed');
+        setProgress({ phase: 'error', message: 'Choose an active Skill Oracle before continuing.' });
+        return;
+      }
+    }
     setLoading(true);
+    setStatus('working');
+    setProgress({ phase: 'preparing', message: tool.kind === 'navigation' ? 'Loading OpenWork data…' : 'Preparing action…' });
     try {
-      const result = await onConfirm(tool);
+      const result = await onConfirm(tool, formValues, (update) => {
+        setStatus('working');
+        setProgress(typeof update === 'string' ? { phase: 'preparing', message: update } : update);
+      });
       if (result?.txHash) {
         setTxHash(result.txHash);
+        setTxChainId(result.chainId || null);
         setJobId(result.jobId || tool.params?.jobId || null);
         setStatus('submitted');
-      } else if (result?.navigated) {
+        setProgress({ phase: 'confirmed', message: result.message || 'Transaction confirmed.' });
+      } else if (result?.openedInline) {
         setStatus('opened');
+        setProgress({ phase: 'confirmed', message: 'Loaded below without leaving this chat.' });
       } else {
+        setProgress({ phase: 'error', message: result?.error || 'The action was not completed.' });
         setStatus('failed');
       }
+    } catch (error) {
+      setProgress({ phase: 'error', message: error?.message || 'The action was not completed.' });
+      setStatus('failed');
     } finally {
       setLoading(false);
     }
@@ -114,19 +206,15 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
   const chainId = walletState.chainId ? parseInt(walletState.chainId, 16) : null;
   const chainConfig = chainId ? getChainConfig(chainId) : null;
   const actionLabel = tool.kind === 'navigation'
-    ? 'Open'
-    : (tool.kind === 'review' ? 'Review details' : 'Confirm in wallet');
+    ? 'Show in chat'
+    : (walletState.connected ? 'Continue in wallet' : 'Connect and continue');
 
-  // Build explorer URL based on connected chain
-  const getExplorerUrl = (hash) => {
-    if (!window.ethereum) return `https://arbiscan.io/tx/${hash}`;
-    const chainId = parseInt(window.ethereum.chainId, 16);
-    const base = chainId === 10 ? 'https://optimistic.etherscan.io/tx/' :
-                 chainId === 50 ? 'https://xdcscan.com/tx/' :
-                 chainId === 8453 ? 'https://basescan.org/tx/' :
-                 chainId === 1 ? 'https://etherscan.io/tx/' :
-                 'https://arbiscan.io/tx/';
-    return `${base}${hash}`;
+  const updateField = (field) => (event) => {
+    setFormValues((current) => ({ ...current, [field]: event.target.value }));
+    if (status === 'failed') {
+      setStatus('idle');
+      setProgress(null);
+    }
   };
 
   return (
@@ -137,7 +225,9 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
         <div><span>Network</span><strong>{chainConfig?.name || 'Connect a supported wallet'}</strong></div>
       </div>
       <div className="tx-card-params">
-        {Object.entries(tool.params || {}).map(([k, v]) => (
+        {Object.entries(tool.params || {}).filter(([k, v]) => v !== '' && !(
+          tool.name === 'raiseDispute' && ['reason', 'disputedAmount', 'compensation', 'oracleName'].includes(k)
+        )).map(([k, v]) => (
           <div className="tx-param-row" key={k}>
             <span className="tx-param-key">{formatToolParamLabel(k)}:</span>
             <span className="tx-param-value">{formatToolParamValue(v)}</span>
@@ -147,30 +237,84 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel }) {
       {tool.name === 'postJob' && (
         <p className="tx-card-note">Posting this job will not move any USDC.</p>
       )}
-      {tool.kind === 'review' && (
-        <p className="tx-card-note">You can check the latest job details before continuing.</p>
+      {tool.name === 'applyToJob' && (
+        <div className="tx-card-form">
+          <label>
+            <span>Proposal</span>
+            <textarea value={formValues.proposal} onChange={updateField('proposal')} rows={3} placeholder="What makes you a good fit?" />
+          </label>
+          <label>
+            <span>Proposed total (USDC, optional)</span>
+            <input inputMode="decimal" value={formValues.proposedAmount} onChange={updateField('proposedAmount')} placeholder="Use the job milestones" />
+          </label>
+        </div>
       )}
-      {status === 'idle' ? (
+      {tool.name === 'submitWork' && (
+        <div className="tx-card-form">
+          <label>
+            <span>Completed work and deliverables</span>
+            <textarea value={formValues.workDetails} onChange={updateField('workDetails')} rows={4} placeholder="Describe what you completed and where to review it." />
+          </label>
+        </div>
+      )}
+      {tool.name === 'raiseDispute' && (
+        <div className="tx-card-form">
+          <label>
+            <span>Reason and evidence</span>
+            <textarea value={formValues.reason} onChange={updateField('reason')} rows={3} />
+          </label>
+          <div className="tx-card-form__grid">
+            <label>
+              <span>Amount disputed (USDC)</span>
+              <input inputMode="decimal" value={formValues.disputedAmount} onChange={updateField('disputedAmount')} placeholder="0.00" />
+            </label>
+            <label>
+              <span>Oracle fee (USDC)</span>
+              <input inputMode="decimal" value={formValues.compensation} onChange={updateField('compensation')} placeholder="0.00" />
+            </label>
+          </div>
+          <label>
+            <span>Skill Oracle</span>
+            <select value={formValues.oracleName} onChange={updateField('oracleName')} disabled={oraclesLoading}>
+              <option value="">{oraclesLoading ? 'Loading active oracles…' : 'Choose an active oracle'}</option>
+              {oracles.map((oracle) => (
+                <option key={oracle.name} value={oracle.name}>{oracle.name} · {oracle.memberCount} member{oracle.memberCount === 1 ? '' : 's'}</option>
+              ))}
+            </select>
+          </label>
+          <p className="tx-card-note">The oracle fee is charged in USDC. You will approve it separately if your current allowance is insufficient.</p>
+        </div>
+      )}
+      {progress && ['working', 'failed'].includes(status) && (
+        <div className={`tx-progress tx-progress--${progress.phase || 'preparing'}`} aria-live="polite">
+          <span className="tx-progress__indicator" aria-hidden="true" />
+          <span><strong>{progress.phase === 'wallet' ? 'Waiting for your wallet' : progress.phase === 'error' ? 'Needs attention' : 'In progress'}</strong><small>{progress.message}</small></span>
+        </div>
+      )}
+      {walletWaitExtended && status === 'working' && (
+        <p className="tx-wallet-help">Still waiting. Open your wallet’s pending requests and approve or reject the current request. Do not start a second transaction.</p>
+      )}
+      {['idle', 'failed'].includes(status) ? (
         <div className="tx-card-actions">
           <BlueButton
-            label={loading ? 'Opening…' : actionLabel}
+            label={loading ? 'Working…' : (status === 'failed' ? 'Try again' : actionLabel)}
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || oraclesLoading}
             style={{ fontSize: '13px', height: '36px', padding: '0 16px', opacity: loading ? 0.7 : 1 }}
           />
           {!loading && <button className="tx-cancel-btn" onClick={onCancel}>Cancel</button>}
         </div>
-      ) : status === 'submitted' && txHash ? (
+      ) : status === 'working' ? null : status === 'submitted' && txHash ? (
         <>
-          <div className="tx-success-msg">✓ {jobId ? `Job ${jobId} transaction submitted` : 'Transaction submitted'}</div>
-          <a className="tx-hash-link" href={getExplorerUrl(txHash)} target="_blank" rel="noreferrer">
+          <div className="tx-success-msg">✓ {jobId ? `Job ${jobId} confirmed` : 'Transaction confirmed'}</div>
+          <a className="tx-hash-link" href={explorerUrl(txChainId || chainId, txHash)} target="_blank" rel="noreferrer">
             View on Explorer: {txHash.slice(0, 18)}…
           </a>
         </>
       ) : status === 'opened' ? (
-        <div className="tx-success-msg">✓ Opened the review screen</div>
+        <div className="tx-success-msg">✓ Loaded here in Oppy</div>
       ) : (
-        <div className="tx-failed-msg">The action was not completed. Review Oppy's latest message.</div>
+        <div className="tx-failed-msg">The action was not completed.</div>
       )}
     </div>
   );
@@ -194,10 +338,10 @@ function metricValue(value, suffix = '') {
   return `${value}${suffix}`;
 }
 
-function ExplorerLink({ href, children, navigate }) {
+function ExplorerLink({ href, children, onOpen }) {
   if (!href) return null;
   return (
-    <button type="button" className="oppy-data-link" onClick={() => navigate(href)}>
+    <button type="button" className="oppy-data-link" onClick={() => onOpen(href)}>
       {children}<ArrowRight size={14} aria-hidden="true" />
     </button>
   );
@@ -215,12 +359,12 @@ function StatusBreakdown({ values = {} }) {
   );
 }
 
-function JobRows({ jobs = [], navigate }) {
+function JobRows({ jobs = [], onOpen }) {
   if (!jobs.length) return <p className="oppy-data-empty">No matching jobs.</p>;
   return (
     <div className="oppy-data-job-list">
       {jobs.map((job) => (
-        <button type="button" key={job.jobId} className="oppy-data-job" onClick={() => navigate(job.href)}>
+        <button type="button" key={job.jobId} className="oppy-data-job" onClick={() => onOpen(job.href)}>
           <span className="oppy-data-job-main">
             <strong>{job.title || `Job ${job.jobId}`}</strong>
             <small>{job.jobId} · {job.chain} · {job.status}</small>
@@ -236,7 +380,7 @@ function JobRows({ jobs = [], navigate }) {
   );
 }
 
-function WalletDashboardCard({ data, navigate }) {
+function WalletDashboardCard({ data, onOpen }) {
   if (data.available === false) {
     return <div className="oppy-data-card oppy-data-card--error">{data.error}</div>;
   }
@@ -269,20 +413,20 @@ function WalletDashboardCard({ data, navigate }) {
             <div className={`oppy-attention-item ${item.priority === 'high' ? 'is-high' : ''}`} key={`${item.kind}-${item.jobId}`}>
               <CircleCheck size={17} />
               <span><strong>{item.label}</strong><small>{item.title} · {item.jobId} · {item.chain}</small><em>{item.detail}</em></span>
-              <ExplorerLink href={item.href} navigate={navigate}>Open</ExplorerLink>
+              <ExplorerLink href={item.href} onOpen={onOpen}>Open here</ExplorerLink>
             </div>
           ))}
         </div>
       ) : <p className="oppy-data-empty">You're all caught up.</p>}
       <details className="oppy-data-details">
         <summary>Recent jobs <span>{data.jobs?.length || 0}</span></summary>
-        <JobRows jobs={data.jobs} navigate={navigate} />
+        <JobRows jobs={data.jobs} onOpen={onOpen} />
       </details>
     </div>
   );
 }
 
-function PlatformOverviewCard({ data, navigate }) {
+function PlatformOverviewCard({ data, onOpen }) {
   const summary = data.summary || {};
   return (
     <div className="oppy-data-card">
@@ -305,24 +449,24 @@ function PlatformOverviewCard({ data, navigate }) {
         </div>
       )}
       <div className="oppy-data-section-title"><h4>Recent jobs</h4><span>Newest first</span></div>
-      <JobRows jobs={data.recentJobs} navigate={navigate} />
+      <JobRows jobs={data.recentJobs} onOpen={onOpen} />
     </div>
   );
 }
 
-function SearchResultsCard({ data, navigate }) {
+function SearchResultsCard({ data, onOpen }) {
   return (
     <div className="oppy-data-card">
       <div className="oppy-data-heading">
         <div className="oppy-data-icon"><Search size={18} /></div>
         <div><span>JOB SEARCH</span><h3>{data.resultCount} result{data.resultCount === 1 ? '' : 's'} for “{data.query}”</h3></div>
       </div>
-      <JobRows jobs={data.results} navigate={navigate} />
+      <JobRows jobs={data.results} onOpen={onOpen} />
     </div>
   );
 }
 
-function JobDeepDiveCard({ data, navigate }) {
+function JobDeepDiveCard({ data, onOpen, onAction }) {
   if (data.available === false) return <div className="oppy-data-card oppy-data-card--error">{data.error}</div>;
   const job = data.job || {};
   return (
@@ -330,7 +474,7 @@ function JobDeepDiveCard({ data, navigate }) {
       <div className="oppy-data-heading">
         <div className="oppy-data-icon"><BriefcaseBusiness size={18} /></div>
         <div><span>JOB {job.jobId}</span><h3>{job.title || `Job ${job.jobId}`}</h3><p>{job.chain} · {job.status}{job.viewerRole ? ` · You are the ${job.viewerRole}` : ''}</p></div>
-        <ExplorerLink href={job.href} navigate={navigate}>Job page</ExplorerLink>
+        <span className="oppy-data-live"><i />Live</span>
       </div>
       {job.description && <p className="oppy-job-description">{job.description}</p>}
       <div className="oppy-data-metrics">
@@ -343,7 +487,30 @@ function JobDeepDiveCard({ data, navigate }) {
       {data.nextAction && (
         <div className="oppy-next-action">
           <span><strong>{data.nextAction.label}</strong><small>{data.nextAction.detail}</small></span>
-          <ExplorerLink href={data.nextAction.href} navigate={navigate}>Review</ExplorerLink>
+          {data.nextAction.kind === 'review-work' ? (
+            <button type="button" className="oppy-data-link" onClick={() => onAction({
+              name: 'releasePayment', kind: 'transaction',
+              display: `Release the current milestone payment for job ${data.job.jobId}`,
+              params: { jobId: data.job.jobId },
+            })}>Continue here<ArrowRight size={14} /></button>
+          ) : data.nextAction.kind === 'submit-work' ? (
+            <button type="button" className="oppy-data-link" onClick={() => onAction({
+              name: 'submitWork', kind: 'transaction',
+              display: `Submit work for job ${data.job.jobId}`,
+              params: { jobId: data.job.jobId, workDetails: '' },
+            })}>Continue here<ArrowRight size={14} /></button>
+          ) : (
+            <ExplorerLink href={data.nextAction.href} onOpen={onOpen}>Continue here</ExplorerLink>
+          )}
+        </div>
+      )}
+      {data.job.statusCode === 0 && data.job.viewerRole !== 'job giver' && (
+        <div className="oppy-inline-cta">
+          <span><strong>Interested in this job?</strong><small>Prepare an application without leaving Oppy.</small></span>
+          <button type="button" className="oppy-data-link" onClick={() => onAction({
+            name: 'applyToJob', kind: 'transaction', display: `Apply to job ${data.job.jobId}`,
+            params: { jobId: data.job.jobId, proposal: '' },
+          })}>Apply here<ArrowRight size={14} /></button>
         </div>
       )}
       <div className="oppy-data-section-title"><h4>Milestones</h4><span>{data.milestones?.length || 0}</span></div>
@@ -362,7 +529,17 @@ function JobDeepDiveCard({ data, navigate }) {
               <div className={`oppy-application ${application.selected ? 'is-selected' : ''}`} key={application.id}>
                 <span><strong>{application.profile?.name || `${application.applicant.slice(0, 8)}…${application.applicant.slice(-4)}`}</strong><small>Application #{application.id}{application.selected ? ' · Selected' : ''}</small></span>
                 <span>{application.profile?.ratingAverage ?? '—'} ★<small>{application.profile?.portfolioCount ?? 0} portfolio items</small></span>
-                {application.profile?.href && <ExplorerLink href={application.profile.href} navigate={navigate}>Profile</ExplorerLink>}
+                <span className="oppy-application__actions">
+                  {data.job.viewerRole === 'job giver' && data.job.statusCode === 0 && (
+                    <button type="button" className="oppy-data-link" onClick={() => onAction({
+                      name: 'startJob',
+                      kind: 'transaction',
+                      display: `Hire ${application.profile?.name || application.applicant} for job ${data.job.jobId}`,
+                      params: { jobId: data.job.jobId, applicantAddress: application.applicant, applicationId: application.id, useAppMilestones: false },
+                    })}>Hire here<ArrowRight size={14} /></button>
+                  )}
+                  {application.profile?.href && <ExplorerLink href={application.profile.href} onOpen={onOpen}>Profile here</ExplorerLink>}
+                </span>
               </div>
             ))}
           </div>
@@ -380,12 +557,12 @@ function JobDeepDiveCard({ data, navigate }) {
   );
 }
 
-function ExplorerCard({ data, navigate }) {
+function ExplorerCard({ data, onOpen, onAction }) {
   if (!data) return null;
-  if (data.type === 'wallet-dashboard') return <WalletDashboardCard data={data} navigate={navigate} />;
-  if (data.type === 'platform-overview') return <PlatformOverviewCard data={data} navigate={navigate} />;
-  if (data.type === 'job-search') return <SearchResultsCard data={data} navigate={navigate} />;
-  if (data.type === 'job-deep-dive') return <JobDeepDiveCard data={data} navigate={navigate} />;
+  if (data.type === 'wallet-dashboard') return <WalletDashboardCard data={data} onOpen={onOpen} />;
+  if (data.type === 'platform-overview') return <PlatformOverviewCard data={data} onOpen={onOpen} />;
+  if (data.type === 'job-search') return <SearchResultsCard data={data} onOpen={onOpen} />;
+  if (data.type === 'job-deep-dive') return <JobDeepDiveCard data={data} onOpen={onOpen} onAction={onAction} />;
   return null;
 }
 
@@ -397,16 +574,9 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
         <span className="wallet-status-bar__icon" aria-hidden="true"><WalletCards size={17} /></span>
         <span className="wallet-status-bar__copy">
           <strong>Wallet features are off</strong>
-          <small>Install MetaMask to use job and payment actions.</small>
+          <small>Enable an EVM wallet extension to use job and payment actions.</small>
         </span>
-        <a
-          className="wallet-status-bar__action"
-          href="https://metamask.io/download/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Install MetaMask
-        </a>
+        <span className="wallet-status-bar__hint">Brave Wallet, MetaMask, or another EVM wallet</span>
       </div>
     );
   }
@@ -542,13 +712,13 @@ const OppyChat = () => {
   }
 
   useEffect(() => {
-    // MetaMask mobile injects window.ethereum slightly after page load
+    // Mobile and extension wallets can inject window.ethereum after page load.
     // Try immediately, then retry after 500ms and 1500ms if not found
     detectWallet();
     const t1 = setTimeout(detectWallet, 500);
     const t2 = setTimeout(detectWallet, 1500);
 
-    // Also listen for MetaMask's explicit init event
+    // Also listen for the common injected-provider initialization event.
     const onInit = () => detectWallet();
     window.addEventListener('ethereum#initialized', onInit, { once: true });
 
@@ -707,116 +877,143 @@ const OppyChat = () => {
     });
   }
 
-  // ── Transaction handler ──────────────────────────────────────
-  const handleTransaction = async (tool) => {
-    console.log('[OppyChat] Transaction requested:', tool);
+  const appendExplorerCard = (data) => {
+    setChat((current) => [...current, { role: 'bot', isDataCard: true, data }]);
+  };
+
+  const appendActionCard = (tool) => {
+    setChat((current) => [...current, { role: 'bot', isTxCard: true, tool }]);
+  };
+
+  const loadExplorerIntoChat = async (path, report) => {
+    report?.({ phase: 'preparing', message: 'Loading live OpenWork data…' });
+    const explorer = await fetchOppyExplorer(path);
+    appendExplorerCard(explorer);
+    return explorer;
+  };
+
+  const openInlineHref = async (href) => {
+    try {
+      const value = String(href || '');
+      const jobMatch = value.match(/\/(?:job-details|job-deep-view|view-job-applications)\/([^/?#]+)/);
+      const releaseMatch = value.match(/\/release-payment\/([^/?#]+)/);
+      const disputeMatch = value.match(/\/raise-dispute\/([^/?#]+)/);
+      const profileMatch = value.match(/\/profile\/(0x[a-fA-F0-9]{40})/);
+      if (releaseMatch) {
+        const jobId = decodeURIComponent(releaseMatch[1]);
+        appendActionCard({ name: 'releasePayment', kind: 'transaction', display: `Release the current milestone payment for job ${jobId}`, params: { jobId } });
+        return;
+      }
+      if (disputeMatch) {
+        const jobId = decodeURIComponent(disputeMatch[1]);
+        appendActionCard({ name: 'raiseDispute', kind: 'transaction', display: `Raise a dispute for job ${jobId}`, params: { jobId, reason: '' } });
+        return;
+      }
+      if (jobMatch) {
+        const jobId = decodeURIComponent(jobMatch[1]);
+        await loadExplorerIntoChat(`/jobs/${encodeURIComponent(jobId)}${walletState.address ? `?wallet=${walletState.address}` : ''}`);
+        return;
+      }
+      if (profileMatch) {
+        await loadExplorerIntoChat(`/wallet/${profileMatch[1]}`);
+        return;
+      }
+      throw new Error('This OpenWork view is not available inside Oppy yet.');
+    } catch (error) {
+      addBotMessage(`I couldn't load that here: ${error.message}`);
+    }
+  };
+
+  // ── Chat-native action handler ───────────────────────────────
+  const handleTransaction = async (tool, formValues = {}, report = () => {}) => {
+    console.log('[OppyChat] Action requested:', tool.name);
 
     try {
       if (tool.name === 'browseJobs') {
-        navigate('/browse-jobs');
-        return { navigated: true };
+        await loadExplorerIntoChat('/search?status=Open', report);
+        return { openedInline: true };
       }
-      if (tool.name === 'openJob') {
-        navigate(`/job-details/${encodeURIComponent(tool.params.jobId)}`);
-        return { navigated: true };
+      if (tool.name === 'openJob' || tool.name === 'viewApplications') {
+        await loadExplorerIntoChat(`/jobs/${encodeURIComponent(tool.params.jobId)}${walletState.address ? `?wallet=${walletState.address}` : ''}`, report);
+        return { openedInline: true };
       }
-      if (tool.name === 'viewApplications') {
-        navigate(`/view-job-applications/${encodeURIComponent(tool.params.jobId)}`);
-        return { navigated: true };
+      if (tool.name === 'openMyJobs') {
+        let address = walletState.address;
+        if (!address && window.ethereum) {
+          report({ phase: 'wallet', message: 'Connect your wallet to load your OpenWork activity.' });
+          [address] = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          await detectWallet();
+        }
+        if (!address) throw new Error('Connect an EVM wallet to show your jobs.');
+        await loadExplorerIntoChat(`/wallet/${address}`, report);
+        return { openedInline: true };
       }
 
       if (!window.ethereum) {
-        addBotMessage('Please install MetaMask to use wallet-backed job actions.');
-        return { error: 'Wallet unavailable' };
+        throw new Error('Enable Brave Wallet, MetaMask, or another EVM wallet extension to continue.');
       }
 
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
-      const chainIdDecimal = parseInt(chainHex, 16);
+      let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts[0]) {
+        report({ phase: 'wallet', message: 'Connect your wallet to continue.' });
+        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      }
       const userAddress = accounts[0];
+      if (!userAddress) throw new Error('Wallet connection was not completed.');
 
-      if (!userAddress) {
-        addBotMessage('Please connect your wallet first.');
-        return { error: 'Wallet not connected' };
+      let chainIdDecimal = parseInt(await window.ethereum.request({ method: 'eth_chainId' }), 16);
+      const postingChainId = ['startJob', 'releasePayment', 'raiseDispute'].includes(tool.name) && tool.params?.jobId
+        ? extractChainIdFromJobId(tool.params.jobId)
+        : null;
+      if (postingChainId && postingChainId !== chainIdDecimal) {
+        const postingChain = getChainConfig(postingChainId);
+        report({ phase: 'wallet', message: `Switch to ${postingChain?.name || `chain ${postingChainId}`} in your wallet.` });
+        await switchToChain(postingChainId);
+        chainIdDecimal = postingChainId;
+        await detectWallet();
       }
+      const chainConfig = getChainConfig(chainIdDecimal);
+      if (!chainConfig?.allowed) throw new Error(chainConfig?.reason || 'Switch to Arbitrum, Optimism, or XDC.');
 
-      if (tool.name === 'openMyJobs') {
-        navigate(`/profile/${userAddress}/jobs`);
-        return { navigated: true };
-      }
-
-      const reviewOnPostingChain = async (path) => {
-        const postingChainId = extractChainIdFromJobId(tool.params.jobId);
-        if (postingChainId && postingChainId !== chainIdDecimal) {
-          const postingChain = getChainConfig(postingChainId);
-          addBotMessage(`Switching to ${postingChain?.name || `chain ${postingChainId}`} to continue…`);
-          await switchToChain(postingChainId);
-          await detectWallet();
+      const onStatus = (message) => {
+        if (message && typeof message === 'object') {
+          report(message);
+          return;
         }
-        navigate(path);
-        return { navigated: true };
+        const text = String(message || 'Preparing action…');
+        const lower = text.toLowerCase();
+        const phase = lower.includes('confirm in') || lower.includes('your wallet')
+          ? 'wallet'
+          : (lower.includes('quote') || lower.includes('estimating') ? 'quoting' : 'preparing');
+        report({ phase, message: text.replace(/metaMask/gi, 'your wallet') });
       };
 
-      if (tool.name === 'releasePayment') {
-        return reviewOnPostingChain(`/release-payment/${encodeURIComponent(tool.params.jobId)}`);
-      }
-      if (tool.name === 'raiseDispute') {
-        return reviewOnPostingChain(`/raise-dispute/${encodeURIComponent(tool.params.jobId)}`);
-      }
-      if (tool.name === 'startDirectContract') {
-        const dcParams = new URLSearchParams({
-          title: tool.params.title || '',
-          description: tool.params.description || '',
-          budget: String(tool.params.budget || ''),
-          taker: tool.params.jobTaker || '',
-        });
-        navigate(`/direct-contract?${dcParams.toString()}`);
-        return { navigated: true };
-      }
-
-      const onStatus = (msg) => addBotMessage(msg, true);
-
-      const explorerBase =
-        chainIdDecimal === 42161 ? 'https://arbiscan.io/tx/' :
-        chainIdDecimal === 10    ? 'https://optimistic.etherscan.io/tx/' :
-        chainIdDecimal === 50    ? 'https://xdcscan.com/tx/' :
-        chainIdDecimal === 8453  ? 'https://basescan.org/tx/' :
-                                   'https://etherscan.io/tx/';
-
-      // ── Helper: IPFS upload ────────────────────────────────
       const uploadToIPFS = async (data) => {
         const res = await fetch(`${BACKEND_URL}/api/ipfs/upload-json`, {
           method: 'POST',
-          headers: {
-            ...(await uploadAuthHeaders()), 'Content-Type': 'application/json' },
+          headers: { ...(await uploadAuthHeaders()), 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
         const json = await res.json().catch(() => null);
-        if (!res.ok) {
-          throw new Error(json?.error || `IPFS upload failed (HTTP ${res.status})`);
-        }
+        if (!res.ok) throw new Error(json?.error || `IPFS upload failed (HTTP ${res.status})`);
         const hash = json?.hash || json?.IpfsHash;
         if (!hash) throw new Error('IPFS upload response did not contain a content hash');
         return hash;
       };
 
       let result;
-
       switch (tool.name) {
         case 'postJob': {
-          addBotMessage('Preparing your job…');
+          report({ phase: 'preparing', message: 'Preparing job details…' });
           const budget = Number(tool.params.budget) || 0;
-          const milestones = (tool.params.milestones || [{ description: tool.params.description, amount: budget }])
-            .map((milestone, index) => ({
-              title: milestone.title || `Milestone ${index + 1}`,
-              content: milestone.content || milestone.description,
-              description: milestone.description,
-              amount: Number(milestone.amount),
-            }));
-
-          // Upload each milestone description to IPFS
+          const milestones = (tool.params.milestones || [{ description: tool.params.description, amount: budget }]).map((milestone, index) => ({
+            title: milestone.title || `Milestone ${index + 1}`,
+            content: milestone.content || milestone.description,
+            description: milestone.description,
+            amount: Number(milestone.amount),
+          }));
           const milestoneHashes = await Promise.all(milestones.map((milestone) => uploadToIPFS(milestone)));
-          const milestoneAmounts = milestones.map((milestone) => Math.floor(milestone.amount * 1000000));
+          const milestoneAmounts = milestones.map((milestone) => Number(toUsdcBaseUnits(milestone.amount, 'Milestone amount')));
           const jobDetailHash = await uploadToIPFS({
             title: tool.params.title,
             description: tool.params.description,
@@ -825,174 +1022,204 @@ const OppyChat = () => {
             milestones,
             milestoneHashes,
             attachments: [],
-            totalCompensation: milestoneAmounts.reduce((sum, amount) => sum + amount, 0) / 1000000,
+            totalCompensation: milestones.reduce((sum, milestone) => sum + milestone.amount, 0),
             jobGiver: userAddress,
             timestamp: new Date().toISOString(),
           });
-
-          result = await postJob(chainIdDecimal, userAddress, {
-            jobDetailHash,
-            descriptions: milestoneHashes,
-            amounts: milestoneAmounts,
-          }, onStatus);
+          result = await postJob(chainIdDecimal, userAddress, { jobDetailHash, descriptions: milestoneHashes, amounts: milestoneAmounts }, onStatus);
           break;
         }
-
         case 'applyToJob': {
-          // Determine amounts: use the explicit proposal, or the canonical job milestones.
+          // Determine amounts from the explicit proposal or authoritative on-chain milestones.
           // Never invent a payment amount if the read fails.
           let applyAmounts;
-          if (tool.params.proposedAmount && Number(tool.params.proposedAmount) > 0) {
-            applyAmounts = [Math.round(Number(tool.params.proposedAmount) * 1e6)];
+          const proposal = tool.params.proposal || formValues.proposal;
+          const proposedAmount = tool.params.proposedAmount || formValues.proposedAmount;
+          if (Number(proposedAmount) > 0) {
+            applyAmounts = [Number(toUsdcBaseUnits(proposedAmount, 'Proposed amount'))];
           } else {
-            try {
-              addBotMessage('Fetching job milestone amounts from contract…', true);
-              const nativeChain = getNativeChain();
-              const arbRpc = nativeChain?.rpcUrl || 'https://arb1.arbitrum.io/rpc';
-              const genesisAddress = nativeChain?.contracts?.genesis;
-              if (!genesisAddress) throw new Error('No genesis address');
-              const Web3 = (await import('web3')).default;
-              const arbWeb3 = new Web3(arbRpc);
-              const genesisContract = new arbWeb3.eth.Contract(GenesisABI, genesisAddress);
-              const jobData = await genesisContract.methods.getJob(tool.params.jobId).call();
-              const milestones = jobData?.milestonePayments || jobData[6] || [];
-              if (!milestones.length) throw new Error('The job has no canonical milestone amounts');
-              applyAmounts = milestones.map((milestone) => Number(milestone.amount || milestone[1] || 0));
-              if (applyAmounts.some((amount) => !Number.isFinite(amount) || amount <= 0)) {
-                throw new Error('The job contains an invalid canonical milestone amount');
-              }
-            } catch (e) {
-              console.warn('[applyToJob] Could not fetch job milestones:', e.message);
-              throw new Error(`Could not load the job's milestone amounts: ${e.message}`);
-            }
+            report({ phase: 'preparing', message: 'Loading the job’s milestone amounts…' });
+            const nativeChain = getNativeChain();
+            const Web3 = (await import('web3')).default;
+            const arbWeb3 = new Web3(nativeChain?.rpcUrl || 'https://arb1.arbitrum.io/rpc');
+            const genesisContract = new arbWeb3.eth.Contract(GenesisABI, nativeChain?.contracts?.genesis);
+            const jobData = await genesisContract.methods.getJob(tool.params.jobId).call();
+            const milestones = jobData?.milestonePayments || jobData[6] || [];
+            if (!milestones.length) throw new Error('The job has no authoritative milestone amounts.');
+            applyAmounts = milestones.map((milestone) => Number(milestone.amount || milestone[1] || 0));
+            if (applyAmounts.some((amount) => !Number.isFinite(amount) || amount <= 0)) throw new Error('The job contains an invalid milestone amount.');
           }
-
-          addBotMessage('Preparing your application…', true);
           const proposedMilestones = applyAmounts.map((amount, index) => ({
             title: `Milestone ${index + 1}`,
-            content: tool.params.proposal,
-            description: tool.params.proposal,
-            amount: amount / 1000000,
+            content: proposal,
+            description: proposal,
+            amount: amount / 1e6,
           }));
           const milestoneHashes = await Promise.all(proposedMilestones.map((milestone) => uploadToIPFS(milestone)));
-          const chainConfig = getChainConfig(chainIdDecimal);
           const applicationHash = await uploadToIPFS({
-            description: tool.params.proposal,
+            description: proposal,
             applicant: userAddress,
             jobId: tool.params.jobId,
             milestones: proposedMilestones,
             attachments: [],
-            preferredChain: chainConfig?.name,
-            appliedFromChain: chainConfig?.name,
+            preferredChain: chainConfig.name,
+            appliedFromChain: chainConfig.name,
             appliedFromChainId: chainIdDecimal,
             timestamp: new Date().toISOString(),
           });
-
           result = await applyToJob(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
             applicationHash,
             descriptions: milestoneHashes,
             amounts: applyAmounts,
-            preferredChainDomain: chainConfig?.cctpDomain,
+            preferredChainDomain: chainConfig.cctpDomain,
           }, onStatus);
           break;
         }
-
+        case 'startDirectContract': {
+          report({ phase: 'preparing', message: 'Preparing direct-contract milestones…' });
+          const milestones = (tool.params.milestones || [{ description: tool.params.description, amount: tool.params.budget }]).map((milestone, index) => ({
+            title: milestone.title || `Milestone ${index + 1}`,
+            content: milestone.content || milestone.description,
+            description: milestone.description,
+            amount: Number(milestone.amount),
+          }));
+          const milestoneAmounts = milestones.map((milestone) => toUsdcBaseUnits(milestone.amount, 'Milestone amount'));
+          const milestoneHashes = await Promise.all(milestones.map((milestone) => uploadToIPFS(milestone)));
+          const jobDetailHash = await uploadToIPFS({
+            title: tool.params.title,
+            description: tool.params.description,
+            milestoneType: milestones.length === 1 ? 'Single Milestone' : 'Multiple Milestones',
+            milestones,
+            milestoneHashes,
+            attachments: [],
+            totalCompensation: milestones.reduce((sum, milestone) => sum + milestone.amount, 0),
+            jobGiver: userAddress,
+            jobTaker: tool.params.jobTaker,
+            timestamp: new Date().toISOString(),
+          });
+          await ensureUsdcFunding({
+            chainId: chainIdDecimal,
+            owner: userAddress,
+            spender: chainConfig.contracts.lowjc,
+            amount: milestoneAmounts[0],
+            onStatus,
+          });
+          result = await startDirectContract(chainIdDecimal, userAddress, {
+            jobTaker: tool.params.jobTaker,
+            jobDetailHash,
+            descriptions: milestoneHashes,
+            amounts: milestoneAmounts.map(String),
+            jobTakerChainDomain: chainConfig.cctpDomain,
+          }, onStatus);
+          break;
+        }
         case 'startJob': {
-          // Determine applicationId: use provided value, or look up from Genesis contract
-          let resolvedApplicationId = tool.params.applicationId;
-          const applicantAddress = tool.params.applicantAddress || tool.params.applicant;
-
-          if (!resolvedApplicationId && applicantAddress) {
-            try {
-              addBotMessage(`Looking up application ID for ${applicantAddress.slice(0, 8)}… on Arbitrum…`);
-              const nativeChain = getNativeChain();
-              const arbRpc = nativeChain?.rpcUrl || 'https://arb1.arbitrum.io/rpc';
-              const genesisAddress = nativeChain?.contracts?.genesis;
-              if (!genesisAddress) throw new Error('No genesis address');
-              const Web3 = (await import('web3')).default;
-              const arbWeb3 = new Web3(arbRpc);
-              const genesisContract = new arbWeb3.eth.Contract(GenesisABI, genesisAddress);
-              const appCount = Number(await genesisContract.methods.getJobApplicationCount(tool.params.jobId).call());
-              // Genesis application IDs are 1-indexed.
-              for (let i = 1; i <= appCount; i++) {
-                const app = await genesisContract.methods.getJobApplication(tool.params.jobId, i).call();
-                const appApplicant = app?.applicant || app[2];
-                if (appApplicant && appApplicant.toLowerCase() === applicantAddress.toLowerCase()) {
-                  resolvedApplicationId = Number(app?.id ?? app[0] ?? i);
-                  break;
-                }
+          const deepDive = await fetchOppyExplorer(`/jobs/${encodeURIComponent(tool.params.jobId)}?wallet=${userAddress}`);
+          let application = tool.params.applicationId
+            ? deepDive.applications?.find((candidate) => Number(candidate.id) === Number(tool.params.applicationId))
+            : resolveSelectedApplication(deepDive, tool.params.applicantAddress);
+          if (!application && tool.params.applicantAddress) {
+            report({ phase: 'preparing', message: 'Finding the selected application in the full job history…' });
+            const nativeChain = getNativeChain();
+            const Web3 = (await import('web3')).default;
+            const arbWeb3 = new Web3(nativeChain?.rpcUrl || 'https://arb1.arbitrum.io/rpc');
+            const genesis = new arbWeb3.eth.Contract(GenesisABI, nativeChain?.contracts?.genesis);
+            const applicationCount = Number(await genesis.methods.getJobApplicationCount(tool.params.jobId).call());
+            for (let applicationId = 1; applicationId <= applicationCount; applicationId += 1) {
+              const candidate = await genesis.methods.getJobApplication(tool.params.jobId, applicationId).call();
+              const address = candidate?.applicant || candidate?.[2];
+              if (address?.toLowerCase() === tool.params.applicantAddress.toLowerCase()) {
+                const proposedMilestones = Array.from(candidate?.proposedMilestones || candidate?.[4] || []).map((milestone) => ({
+                  amount: Number(milestone?.amount || milestone?.[1] || 0) / 1e6,
+                }));
+                application = { id: Number(candidate?.id || candidate?.[0] || applicationId), applicant: address, proposedMilestones };
+                break;
               }
-              if (resolvedApplicationId === undefined || resolvedApplicationId === null) {
-                throw new Error(`No application found for ${applicantAddress} on job ${tool.params.jobId}`);
-              }
-              addBotMessage('Opening the hiring review…', true);
-            } catch (e) {
-              addBotMessage(`Could not auto-lookup application ID: ${e.message}`);
-              return { error: e.message };
             }
           }
-
-          if (resolvedApplicationId === undefined || resolvedApplicationId === null) {
-            addBotMessage('Please provide the applicant\'s wallet address so I can look up their application.');
-            return { error: 'Application not found' };
-          }
-
-          const postingChainId = extractChainIdFromJobId(tool.params.jobId);
-          if (postingChainId && postingChainId !== chainIdDecimal) {
-            await switchToChain(postingChainId);
-            await detectWallet();
-          }
-          const startParams = new URLSearchParams({
+          if (!application) throw new Error('The selected application is not available for this job.');
+          if (deepDive.job?.viewerRole !== 'job giver') throw new Error('Only the job poster can start this job.');
+          const useAppMilestones = Boolean(tool.params.useAppMilestones && supportsApplicantMilestones(chainIdDecimal));
+          const firstAmount = useAppMilestones
+            ? application.proposedMilestones?.[0]?.amount
+            : deepDive.milestones?.[0]?.amount;
+          const firstAmountRaw = toUsdcBaseUnits(firstAmount, 'First milestone amount');
+          await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.lowjc, amount: firstAmountRaw, onStatus });
+          result = await startJob(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
-            applicationId: String(resolvedApplicationId),
-            useAppMilestones: String(tool.params.useAppMilestones === true),
-          });
-          navigate(`/view-received-application?${startParams.toString()}`);
-          return { navigated: true };
+            applicationId: Number(application.id),
+            useAppMilestones,
+          }, onStatus);
+          break;
         }
-
         case 'submitWork': {
-          addBotMessage('Preparing your work submission…');
-          const submissionHash = await uploadToIPFS({ workDetails: tool.params.workDetails, jobId: tool.params.jobId });
-          result = await submitWork(chainIdDecimal, userAddress, {
+          report({ phase: 'preparing', message: 'Preparing the work submission…' });
+          const workDetails = tool.params.workDetails || formValues.workDetails;
+          const submissionHash = await uploadToIPFS({ workDetails, jobId: tool.params.jobId, submittedBy: userAddress, timestamp: new Date().toISOString() });
+          result = await submitWork(chainIdDecimal, userAddress, { jobId: tool.params.jobId, submissionHash }, onStatus);
+          break;
+        }
+        case 'releasePayment': {
+          const deepDive = await fetchOppyExplorer(`/jobs/${encodeURIComponent(tool.params.jobId)}?wallet=${userAddress}`);
+          if (deepDive.job?.viewerRole !== 'job giver') throw new Error('Only the job poster can release this payment.');
+          const target = resolveReleaseTarget(deepDive);
+          result = await releasePaymentCrossChain(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
-            submissionHash,
+            targetChainDomain: target.targetChainDomain,
+            targetRecipient: target.targetRecipient,
           }, onStatus);
           break;
         }
-
-        case 'createProfile': {
-          addBotMessage('Preparing your profile…');
-          const ipfsHash = await uploadToIPFS({
-            name: tool.params.name,
-            skills: tool.params.skills,
-            hourlyRate: tool.params.hourlyRate,
-            walletAddress: userAddress,
+        case 'raiseDispute': {
+          const deepDive = await fetchOppyExplorer(`/jobs/${encodeURIComponent(tool.params.jobId)}?wallet=${userAddress}`);
+          if (!['job giver', 'selected applicant'].includes(deepDive.job?.viewerRole)) throw new Error('Only the job poster or selected freelancer can raise this dispute.');
+          if (deepDive.job?.statusCode !== 1) throw new Error('Disputes can only be raised while a job is in progress.');
+          const feeAmount = toUsdcBaseUnits(formValues.compensation, 'Oracle fee');
+          const disputedAmount = toUsdcBaseUnits(formValues.disputedAmount, 'Disputed amount');
+          await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.athenaClient, amount: feeAmount, onStatus });
+          report({ phase: 'preparing', message: 'Securing the dispute details…' });
+          const disputeHash = await uploadToIPFS({
+            title: `Dispute for job ${tool.params.jobId}`,
+            description: formValues.reason,
+            disputeAmount: Number(formValues.disputedAmount),
+            compensation: Number(formValues.compensation),
+            selectedOracle: formValues.oracleName,
+            jobId: tool.params.jobId,
+            raisedBy: userAddress,
+            respondent: deepDive.job.viewerRole === 'job giver' ? deepDive.job.selectedApplicant : deepDive.job.jobGiver,
+            timestamp: new Date().toISOString(),
           });
-          result = await createProfile(chainIdDecimal, userAddress, {
-            ipfsHash,
+          result = await raiseDispute(chainIdDecimal, userAddress, {
+            jobId: tool.params.jobId,
+            disputeHash,
+            oracleName: formValues.oracleName,
+            feeAmount: feeAmount.toString(),
+            disputedAmount: disputedAmount.toString(),
           }, onStatus);
           break;
         }
-
+        case 'createProfile': {
+          report({ phase: 'preparing', message: 'Preparing profile details…' });
+          const ipfsHash = await uploadToIPFS({ name: tool.params.name, skills: tool.params.skills, hourlyRate: tool.params.hourlyRate, walletAddress: userAddress });
+          result = await createProfile(chainIdDecimal, userAddress, { ipfsHash }, onStatus);
+          break;
+        }
         default:
-          addBotMessage(`Unknown transaction type: ${tool.name}`);
-          return { error: 'Unknown action' };
+          throw new Error(`Oppy does not recognize the action “${tool.name}”.`);
       }
 
-      if (!result?.transactionHash) throw new Error('The wallet action did not return a transaction hash');
+      if (!result?.transactionHash) throw new Error('The wallet action did not return a transaction hash.');
       const confirmedJobId = result.jobId || tool.params?.jobId || null;
       if (confirmedJobId) {
-        const nextActiveJob = sanitizeActiveJob({
+        setActiveJob(sanitizeActiveJob({
           jobId: confirmedJobId,
-          title: tool.name === 'postJob' ? tool.params.title : activeJob?.title,
+          title: ['postJob', 'startDirectContract'].includes(tool.name) ? tool.params.title : activeJob?.title,
           sourceChainId: chainIdDecimal,
-          sourceChainName: getChainConfig(chainIdDecimal)?.name,
+          sourceChainName: chainConfig.name,
           sourceTxHash: result.transactionHash,
           sourceReceiptConfirmed: true,
-        });
-        setActiveJob(nextActiveJob);
+        }));
         setRecentTransactions((current) => recordOppyTransaction(current, {
           action: tool.name,
           jobId: confirmedJobId,
@@ -1001,24 +1228,24 @@ const OppyChat = () => {
           confirmed: true,
         }));
       }
-      const jobCopy = confirmedJobId ? ` for job **${confirmedJobId}**` : '';
-      const deliveryCopy = result.canonicalDeliveryPending
-        ? '\n\nYour job is syncing across networks. The status below will update automatically.'
-        : '';
-      addBotMessage(`✅ Transaction confirmed${jobCopy}!\n\n[View on explorer](${explorerBase}${result.transactionHash})${deliveryCopy}`);
-      return { txHash: result.transactionHash, jobId: confirmedJobId };
-
-    } catch (error) {
-      const msg = error.message || 'Transaction failed';
-      if (msg.includes('user rejected') || msg.includes('4001')) {
-        addBotMessage("Transaction cancelled. Let me know when you're ready to try again.");
-      } else if (msg.includes('insufficient funds')) {
-        const nativeSymbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
-        addBotMessage(`You don't have enough ${nativeSymbol} for gas fees on the connected chain.`);
-      } else {
-        addBotMessage(`Transaction failed: ${msg}`);
+      if (result.canonicalDeliveryPending) {
+        addBotMessage('Your source transaction is confirmed. OpenWork is now syncing it across networks; you can remain in this chat.');
       }
-      return { error: msg };
+      return {
+        txHash: result.transactionHash,
+        jobId: confirmedJobId,
+        chainId: chainIdDecimal,
+        message: result.canonicalDeliveryPending ? 'Source transaction confirmed; network delivery is in progress.' : 'Transaction confirmed.',
+      };
+    } catch (error) {
+      let message = error?.message || 'Transaction failed.';
+      if (/user rejected|user denied|4001/i.test(message)) message = 'The wallet request was cancelled. Nothing else was submitted.';
+      else if (/insufficient funds/i.test(message)) {
+        const symbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
+        message = `The wallet does not have enough ${symbol} for network fees.`;
+      }
+      report({ phase: 'error', message });
+      return { error: message };
     }
   };
 
@@ -1094,7 +1321,7 @@ const OppyChat = () => {
               if (msg.isDataCard) {
                 return (
                   <div className="chat-msg-row bot chat-msg-row--data" key={idx}>
-                    <ExplorerCard data={msg.data} navigate={navigate} />
+                    <ExplorerCard data={msg.data} onOpen={openInlineHref} onAction={appendActionCard} />
                   </div>
                 );
               }

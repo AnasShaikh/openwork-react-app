@@ -66,7 +66,7 @@ const BEDROCK_TRANSACTION_TOOLS = [
     proposal: textProperty('Application proposal.'),
     proposedAmount: amountProperty('Proposed amount in USDC.'),
   }, ['jobId', 'proposal']),
-  tool('startJob', 'Open the canonical start-job review for a selected applicant. The review handles exact USDC balance and allowance checks.', {
+  tool('startJob', 'Prepare hiring a selected applicant inside Oppy. The inline action checks the posting chain and exact first-milestone USDC funding.', {
     jobId: jobIdProperty,
     applicantAddress: { type: 'string', description: 'Selected applicant wallet address.', pattern: ADDRESS_PATTERN },
     useAppMilestones: { type: 'boolean', description: 'Whether to use the application milestones when the posting chain supports them.' },
@@ -75,39 +75,42 @@ const BEDROCK_TRANSACTION_TOOLS = [
     jobId: jobIdProperty,
     workDetails: textProperty('Description of the completed work and deliverables.'),
   }, ['jobId', 'workDetails']),
-  tool('releasePayment', 'Open the canonical release-payment review for a job milestone.', {
+  tool('releasePayment', 'Prepare the current milestone payment release inside Oppy.', {
     jobId: jobIdProperty,
   }, ['jobId']),
-  tool('raiseDispute', 'Open the dispute form for a job so the user can review evidence, oracle and fee details.', {
+  tool('raiseDispute', 'Prepare a dispute inside Oppy. The inline card can collect or confirm the disputed amount, active oracle and oracle fee.', {
     jobId: jobIdProperty,
     reason: textProperty('Reason for the dispute.'),
+    disputedAmount: amountProperty('Optional amount in dispute in USDC. The inline card asks for it when omitted.'),
+    compensation: amountProperty('Optional Skill Oracle fee in USDC. The inline card asks for it when omitted.'),
+    oracleName: textProperty('Optional active Skill Oracle name. The inline card provides the live list when omitted.', 160),
   }, ['jobId', 'reason']),
   tool('createProfile', 'Prepare a basic OpenWork freelancer profile.', {
     name: textProperty('Public display name.', 120),
     skills: { type: 'array', items: textProperty('One skill.', 80), minItems: 1, maxItems: 20 },
     hourlyRate: amountProperty('Public hourly rate in USDC.'),
   }, ['name', 'skills', 'hourlyRate']),
-  tool('startDirectContract', 'Open the direct-contract form with details prefilled for review.', {
+  tool('startDirectContract', 'Prepare a direct contract inside Oppy, including exact first-milestone USDC funding checks.', {
     title: textProperty('Contract title.', 160),
     budget: amountProperty('Total budget in USDC.'),
     description: textProperty('Contract requirements.'),
     jobTaker: { type: 'string', description: 'Freelancer wallet address.', pattern: ADDRESS_PATTERN },
   }, ['title', 'budget', 'description', 'jobTaker']),
-  tool('openMyJobs', 'Open the connected wallet profile job history.', {}, []),
-  tool('openJob', 'Open one job detail page.', { jobId: jobIdProperty }, ['jobId']),
-  tool('browseJobs', 'Open the public job marketplace.', {}, []),
-  tool('viewApplications', 'Open all received applications for one posted job.', { jobId: jobIdProperty }, ['jobId']),
+  tool('openMyJobs', 'Show the connected wallet job history inside Oppy.', {}, []),
+  tool('openJob', 'Show one job in Oppy.', { jobId: jobIdProperty }, ['jobId']),
+  tool('browseJobs', 'Show open marketplace jobs inside Oppy.', {}, []),
+  tool('viewApplications', 'Show all received applications for one posted job inside Oppy.', { jobId: jobIdProperty }, ['jobId']),
 ];
 
 const TOOL_RULES = {
   postJob: { required: ['title', 'budget', 'description'], kind: 'transaction' },
   applyToJob: { required: ['jobId', 'proposal'], kind: 'transaction' },
-  startJob: { required: ['jobId', 'applicantAddress'], kind: 'review' },
+  startJob: { required: ['jobId', 'applicantAddress'], kind: 'transaction' },
   submitWork: { required: ['jobId', 'workDetails'], kind: 'transaction' },
-  releasePayment: { required: ['jobId'], kind: 'review' },
-  raiseDispute: { required: ['jobId', 'reason'], kind: 'review' },
+  releasePayment: { required: ['jobId'], kind: 'transaction' },
+  raiseDispute: { required: ['jobId', 'reason'], kind: 'transaction' },
   createProfile: { required: ['name', 'skills', 'hourlyRate'], kind: 'transaction' },
-  startDirectContract: { required: ['title', 'budget', 'description', 'jobTaker'], kind: 'review' },
+  startDirectContract: { required: ['title', 'budget', 'description', 'jobTaker'], kind: 'transaction' },
   openMyJobs: { required: [], kind: 'navigation' },
   openJob: { required: ['jobId'], kind: 'navigation' },
   browseJobs: { required: [], kind: 'navigation' },
@@ -203,7 +206,19 @@ function validateToolUse(toolUse) {
       const jobId = cleanJobId(input.jobId);
       const reason = cleanString(input.reason);
       if (!jobId || !reason) return null;
-      params = { jobId, reason };
+      const disputedAmount = input.disputedAmount === undefined ? null : cleanAmount(input.disputedAmount);
+      const compensation = input.compensation === undefined ? null : cleanAmount(input.compensation);
+      const oracleName = input.oracleName === undefined ? '' : cleanString(input.oracleName, 160);
+      if ((input.disputedAmount !== undefined && !disputedAmount)
+        || (input.compensation !== undefined && !compensation)
+        || (input.oracleName !== undefined && !oracleName)) return null;
+      params = {
+        jobId,
+        reason,
+        ...(disputedAmount ? { disputedAmount } : {}),
+        ...(compensation ? { compensation } : {}),
+        ...(oracleName ? { oracleName } : {}),
+      };
       break;
     }
     case 'createProfile': {
@@ -236,16 +251,16 @@ function validateToolUse(toolUse) {
   const labels = {
     postJob: `Post “${params.title}” with a ${params.budget} USDC budget`,
     applyToJob: `Apply to job ${params.jobId}`,
-    startJob: `Review hiring ${params.applicantAddress} for job ${params.jobId}`,
+    startJob: `Hire ${params.applicantAddress} for job ${params.jobId}`,
     submitWork: `Submit work for job ${params.jobId}`,
-    releasePayment: `Review milestone release for job ${params.jobId}`,
-    raiseDispute: `Review a dispute for job ${params.jobId}`,
+    releasePayment: `Release the current milestone payment for job ${params.jobId}`,
+    raiseDispute: `Raise a dispute for job ${params.jobId}`,
     createProfile: `Create the public profile “${params.name}”`,
-    startDirectContract: `Review a direct contract with ${params.jobTaker}`,
-    openMyJobs: 'Open my job history',
-    openJob: `Open job ${params.jobId}`,
-    browseJobs: 'Browse available jobs',
-    viewApplications: `View applications for job ${params.jobId}`,
+    startDirectContract: `Create a direct contract with ${params.jobTaker}`,
+    openMyJobs: 'Show my job history here',
+    openJob: `Show job ${params.jobId} here`,
+    browseJobs: 'Show available jobs here',
+    viewApplications: `Show applications for job ${params.jobId} here`,
   };
 
   return {

@@ -55,6 +55,10 @@ export const DESTINATION_GAS_ESTIMATES = {
   SUBMIT_WORK: 800000,
   LOCK_MILESTONE: 500000,
   START_JOB: 800000,
+  // Direct contracts carry the full job and milestone payload to the native
+  // chain. Keep the established 1.6m production allowance used by the
+  // canonical direct-contract screen.
+  START_DIRECT_CONTRACT: 1600000,
   // Includes canonical application lookup plus the native-to-local callback send.
   START_JOB_WITH_MILESTONE_SYNC: 1500000,
   DEFAULT: 800000

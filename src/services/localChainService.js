@@ -352,6 +352,93 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
 }
 
 /**
+ * Create a direct contract and lock its first milestone.
+ * The caller must complete the exact USDC balance/allowance preflight first.
+ *
+ * @param {number} chainId
+ * @param {string} userAddress
+ * @param {object} contractData
+ * @param {string} contractData.jobTaker
+ * @param {string} contractData.jobDetailHash
+ * @param {string[]} contractData.descriptions
+ * @param {(string|number)[]} contractData.amounts Raw six-decimal USDC amounts
+ * @param {number} contractData.jobTakerChainDomain
+ * @param {Function} [onStatus]
+ */
+export async function startDirectContract(chainId, userAddress, contractData, onStatus) {
+  const emit = onStatus || (() => {});
+  const contract = await getLOWJCContract(chainId);
+  const readContract = await getReadOnlyLOWJCContract(chainId);
+  const config = getChainConfig(chainId);
+  const native = isNativeArbChain(chainId);
+  const counterBefore = Number(await readContract.methods.getJobCount().call());
+  const jobIdPrefix = native ? chainId : config.layerzero.eid;
+  const predictedJobId = `${jobIdPrefix}-${counterBefore + 1}`;
+  const nativeOptions = native
+    ? null
+    : buildLzOptions(DESTINATION_GAS_ESTIMATES.START_DIRECT_CONTRACT);
+  let lzFee = '0';
+
+  if (!native) {
+    emit('Getting the cross-chain network quote…');
+    const quoteWeb3 = getReadOnlyWeb3(chainId);
+    const encodedPayload = quoteWeb3.eth.abi.encodeParameters(
+      ['string', 'address', 'address', 'string', 'string', 'string[]', 'uint256[]', 'uint32'],
+      [
+        'startDirectContract',
+        userAddress,
+        contractData.jobTaker,
+        predictedJobId,
+        contractData.jobDetailHash,
+        contractData.descriptions,
+        contractData.amounts,
+        contractData.jobTakerChainDomain,
+      ],
+    );
+    lzFee = await estimateLayerZeroFee(chainId, 'START_DIRECT_CONTRACT', {
+      encodedPayload,
+      nativeOptions,
+    });
+  }
+
+  emit(`Creating the direct contract on ${config.name} — confirm in your wallet…`);
+  const method = createLOWJCWrite(
+    contract,
+    config,
+    LOWJC_OPERATIONS.START_DIRECT_CONTRACT,
+    [
+      contractData.jobTaker,
+      contractData.jobDetailHash,
+      contractData.descriptions,
+      contractData.amounts,
+      contractData.jobTakerChainDomain,
+    ],
+    nativeOptions,
+  );
+  const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
+    from: userAddress,
+    value: lzFee,
+  }));
+  const jobId = await resolvePostedJobId({
+    receipt: tx,
+    contract: readContract,
+    prefix: jobIdPrefix,
+    counterBefore,
+  });
+  emit(`Direct contract confirmed: ${tx.transactionHash}`);
+  saveTxHash('startDirectContract', tx.transactionHash, jobId, chainId, userAddress, {
+    sourceReceiptConfirmed: true,
+    canonicalDeliveryPending: !native,
+  });
+  return {
+    ...tx,
+    jobId,
+    sourceChainId: chainId,
+    canonicalDeliveryPending: !native,
+  };
+}
+
+/**
  * Start a job (requires prior USDC approval via approveUSDC)
  * @param {number}   chainId
  * @param {string}   userAddress  - Job giver
@@ -786,6 +873,7 @@ export function getContractAddress(chainId, contractType) {
 export default {
   postJob,
   applyToJob,
+  startDirectContract,
   startJob,
   submitWork,
   releasePaymentCrossChain,
