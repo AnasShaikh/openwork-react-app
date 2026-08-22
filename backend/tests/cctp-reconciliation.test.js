@@ -77,6 +77,40 @@ test('an incomplete Circle attestation is not reported as delivered', async () =
   assert.deepEqual(result, { completed: false, reason: 'attestation_incomplete' });
 });
 
+test('a failed destination RPC falls back before deciding whether the nonce was consumed', async () => {
+  const queriedRpcUrls = [];
+  const deps = dependencies({ usedNonce: '1' });
+  deps.destinationConfig = {
+    ...deps.destinationConfig,
+    rpcUrls: ['https://primary.invalid', 'https://fallback.invalid'],
+  };
+  delete deps.destinationConfig.rpcUrl;
+  deps.createWeb3 = (rpcUrl) => {
+    queriedRpcUrls.push(rpcUrl);
+    class FallbackContract {
+      constructor() {
+        this.methods = {
+          usedNonces: () => ({
+            call: async () => {
+              if (rpcUrl === 'https://primary.invalid') throw new Error('primary unavailable');
+              return '1';
+            },
+          }),
+        };
+      }
+    }
+    return { eth: { Contract: FallbackContract } };
+  };
+
+  const result = await reconcileCCTPTransfer({
+    source_tx_hash: '0xsource',
+    source_domain: 3,
+  }, deps);
+
+  assert.equal(result.completed, true);
+  assert.deepEqual(queriedRpcUrls, ['https://primary.invalid', 'https://fallback.invalid']);
+});
+
 test('receive execution reconciles generic relayer races against usedNonces', () => {
   const executor = fs.readFileSync(path.join(__dirname, '..', 'utils', 'tx-executor.js'), 'utf8');
   assert.match(executor, /transceiver static-call failure/);
