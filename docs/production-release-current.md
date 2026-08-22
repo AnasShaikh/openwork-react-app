@@ -788,6 +788,29 @@ QA covered the tracker inside its transaction card; container-aware four-, two- 
 one-column layouts prevent cramped steps and horizontal overflow. This correction and
 its verification are read-only and submit no wallet or on-chain transaction.
 
+The production smoke check also found that `https://rpc.xdc.network` aborts the exact
+`usedNonces(bytes32)` proof after five seconds even though its basic block query is
+healthy. Commit `3fd8419d64f043b8a82c6571f5ecbd1e482a1c5e` adds ordered, read-only
+destination RPC fallbacks; it never treats an unavailable provider as proof of
+delivery. The reported release now resolves `complete: true` in production only after
+the XDC MessageTransmitter returns `1` for the Circle event nonce.
+
+| Release field | Verified value |
+|---|---|
+| Feature commit | `70be95ee76fda4a56e53cc3987e2749437567bc9` |
+| Deployed commit | `3fd8419d64f043b8a82c6571f5ecbd1e482a1c5e` |
+| Frontend tests | `127/127` passed |
+| Backend tests | `71/71` passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-3fd8419.zip` |
+| Source SHA-256 | `0e4c745e83fa0029b7cf732f1a27a3b1fc0326e5f2b0a45e27914a08f8d39cc1` |
+| CodeBuild | `openwork-react-app-prod-build:573bd81a-9b05-417e-837c-77246824dbc0` — succeeded |
+| ECR image | `openwork-app:prod-3fd8419-20260822222527` |
+| ECR digest | `sha256:509c743d9fc715703d9b9d30fe890093b2bfae1be3862b4e24f22201aea03948` |
+| App Runner operation | `9a6d49cecc9b4b599f9ae4e05bc0613a` — succeeded 22 August 2026 at 22:32:39 IST |
+| Live JavaScript | `/assets/index-BOPjcjQ3.js` — SHA-256 `0d79fc0537f9e3cb8606d8a5600affe39d0ae6e10a33a5007a816aadf000976c` |
+| Live stylesheet | `/assets/index-BPtjwY2Q.css` — SHA-256 `744351d515274ba530d4016c8b2a57eb6a5cf7f35730100d48a44cc1ae5e725e` |
+| Public gates | `/healthz` returned `{"status":"ok"}`; `/chat` returned HTTP `200`; historical release verifier returned `complete: true` |
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -798,7 +821,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-58c546a-20260807185813` |
-| ECR digest | `sha256:fee58b3800062f26f2c7239103b69d8e42fe0c401c6ac95da6e438c1e85c684e` |
+| ECR image | `openwork-app:prod-5aa9b4e-20260822195255` |
+| ECR digest | `sha256:4ef4ca7f6f837e95529e94df738405edfcfed0d6241668644f62bd9d229dcf70` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
