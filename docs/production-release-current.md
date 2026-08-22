@@ -6,21 +6,49 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 22 August 2026 19:17 IST |
+| Deployed at | 22 August 2026 20:00 IST |
 | Git branch | `main` |
-| Git commit | `9ecceed8216c881da384b044e2ba520677645871` |
-| Release gate | GitHub CI `32576301059`; frontend tests (`124/124`), backend tests (`63/63`), backend high-severity production dependency gate, JavaScript parse check, production frontend build and `git diff --check` passed; local and live 1280×720 transaction-recovery browser QA passed; CodeBuild, App Runner and public endpoint checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-9ecceed8216c881da384b044e2ba520677645871.zip` |
-| Source archive SHA-256 | `885fb8e0287ec49dea907509d34f5e810eaf14fc5f52f3fbe1793beddc742af7` |
-| CodeBuild | `openwork-react-app-prod-build:6575f39a-b06e-45e5-893a-6b15c099a2ab` — succeeded |
-| ECR image | `openwork-app:prod-9ecceed-20260822191008` |
-| ECR digest | `sha256:3bafb22fd42ba9de0c97cb72816641331261b596b4a43a3678f02837c66c4553` |
+| Git commit | `5aa9b4eff793967686afa490e02060d293b36940` |
+| Release gate | GitHub CI `32578230466`; frontend tests (`126/126`), backend tests (`66/66`), backend high-severity production dependency gate, JavaScript parse check, production frontend build and `git diff --check` passed; local and live deterministic-retry browser QA passed; CodeBuild, App Runner, public endpoint and production-log checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-5aa9b4eff793967686afa490e02060d293b36940.zip` |
+| Source archive SHA-256 | `7ca79a52294876ce2885e96a967b7e694b6aeadfe81ed8a20c816843edeb502c` |
+| CodeBuild | `openwork-react-app-prod-build:7a1c9b3c-20b6-4cd9-9eb9-8068846c9842` — succeeded |
+| ECR image | `openwork-app:prod-5aa9b4e-20260822195255` |
+| ECR digest | `sha256:4ef4ca7f6f837e95529e94df738405edfcfed0d6241668644f62bd9d229dcf70` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `638d048a567f4d7e8a15bb42a1b1e9dc` — succeeded |
+| App Runner operation | `7fdaf0cd5c674406b98ad0ad8ee70260` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BM-1ISSu.js` — SHA-256 `5f271988efe1f0cf9f787d5a9839c5af9cf9e7a623e803beac986cb12c5b9e5b` |
-| Rollback target | `openwork-app:prod-73359f3-20260822185719` |
-| Rollback digest | `sha256:a86c41ec499b0dcba184828ea23858ea6f1a2d6dcc7db6e90f183748f64381cc` |
+| Deployed JS asset | `/assets/index-BzsunG5M.js` — SHA-256 `b5e04ea90b0f901ab5ffe62b566587991f754ceb8b3d04013870598f723e0fd1` |
+| Rollback target | `openwork-app:prod-9ecceed-20260822191008` |
+| Rollback digest | `sha256:3bafb22fd42ba9de0c97cb72816641331261b596b4a43a3678f02837c66c4553` |
+
+## Oppy deterministic action execution and retry
+
+Oppy previously allowed the model to respond to a retry request with prose such as
+`Preparing the transaction card now` without actually emitting a transaction tool.
+The chat now persists the exact validated action associated with the latest attempt,
+revalidates it on the backend and deterministically replays it for natural retry
+commands such as `try again`, `retry it`, `go ahead` and `Prepared?`. The current
+message still wins when the user explicitly requests a different action.
+
+Failures that occur before any write adapter is entered—including wallet discovery
+or network-switch failures—are now recorded as pre-broadcast failures with an
+explicit `Safe to retry` state. Once a write-capable adapter has been entered, the
+existing conservative transaction diagnostics continue to protect pending, unknown
+or potentially broadcast transactions from accidental duplication. Stored actions
+are allowlisted, bounded and validated on both client and server.
+
+Local QA reproduced a missing-wallet pre-submission failure, verified the new
+plain-language diagnostic and sent the exact reported command
+`have updated RPC lets try again`. The same action card returned immediately with the
+original title, 0.1 USDC budget, description, freelancer and XDC intent. The identical
+flow passed on production after rollout. The application log recorded
+`replayed verified safe action` for `startDirectContract`, proving that the backend
+used deterministic replay rather than a model promise. The public bundle contains the
+new pre-submission and persisted-action markers, `/healthz` returned
+`{"status":"ok"}` and App Runner reports `RUNNING` on the immutable image above.
+The browser used for verification had no EVM wallet, so no signature, approval or
+on-chain transaction was requested or submitted.
 
 ## Oppy transaction copilot
 
