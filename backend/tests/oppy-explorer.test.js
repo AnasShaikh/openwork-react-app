@@ -95,6 +95,14 @@ test('data intent detection is deterministic and never competes with an explicit
   assert.deepEqual(detectDataIntent('What needs my attention?'), { type: 'wallet' });
   assert.deepEqual(detectDataIntent('Platform overview'), { type: 'platform' });
   assert.deepEqual(detectDataIntent('Explore job 30365-8'), { type: 'job', jobId: '30365-8' });
+  assert.deepEqual(detectDataIntent('Find open design jobs', 'browseJobs'), {
+    type: 'search',
+    query: 'Find open design jobs',
+    filters: { status: 'open', chain: '' },
+  });
+  assert.deepEqual(detectDataIntent('Show my jobs', 'openMyJobs'), { type: 'wallet' });
+  assert.deepEqual(detectDataIntent('Show job 30365-8', 'openJob'), { type: 'job', jobId: '30365-8' });
+  assert.deepEqual(detectDataIntent('View applications for 30365-8', 'viewApplications'), { type: 'job', jobId: '30365-8' });
   assert.equal(detectDataIntent('release payment for 30365-8', 'releasePayment'), null);
 });
 

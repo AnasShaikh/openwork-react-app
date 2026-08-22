@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { validateRequest } = require('../routes/chat');
+const { modelToolName, validateRequest } = require('../routes/chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
@@ -44,6 +44,14 @@ test('chat requests are bounded and default to documentation mode', () => {
   });
   assert.match(validateRequest({ message: 'x'.repeat(2001) }).error, /2000/);
   assert.equal(validateRequest({ message: ' ' }).error, 'Message is required');
+});
+
+test('read-only navigation is resolved by the deterministic explorer, not Bedrock tools', () => {
+  assert.equal(modelToolName({ name: 'browseJobs', source: 'current' }), null);
+  assert.equal(modelToolName({ name: 'openMyJobs', source: 'current' }), null);
+  assert.equal(modelToolName({ name: 'openJob', source: 'current' }), null);
+  assert.equal(modelToolName({ name: 'viewApplications', source: 'current' }), null);
+  assert.equal(modelToolName({ name: 'releasePayment', source: 'current' }), 'releasePayment');
 });
 
 test('wallet context supports only the three production job chains', () => {
