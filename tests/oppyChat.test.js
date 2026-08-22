@@ -23,20 +23,39 @@ test('Oppy is available in docs, full-screen docs chat, and public job chat', ()
   assert.match(standalone, /mode: 'docs'/);
 });
 
-test('the home page exposes an accessible design-system chat launcher', () => {
+test('every product page exposes the polished Oppy launcher outside Oppy surfaces', () => {
   const app = source('src/App.jsx');
   const launcher = source('src/components/HomeChatLauncher/HomeChatLauncher.jsx');
   const styles = source('src/components/HomeChatLauncher/HomeChatLauncher.css');
 
-  assert.match(app, /<HomeChatLauncher\s*\/>/);
-  assert.match(app, /isHomeRoute && <HomeChatLauncher\s*\/>/);
+  assert.match(app, /function GlobalOppyLauncher\(\)/);
+  assert.match(app, /pathname === '\/chat' \|\| pathname === '\/oppy'/);
+  assert.match(app, /<GlobalOppyLauncher\s*\/>/);
   assert.match(launcher, /href="\/chat"/);
   assert.match(launcher, /aria-label="Chat with Agent Oppy"/);
   assert.match(launcher, /Ask Oppy/);
+  assert.match(launcher, /Open assistant/);
   assert.match(styles, /position: fixed;/);
-  assert.match(styles, /linear-gradient\(180deg, #0047ff/);
+  assert.match(styles, /background: rgba\(255, 255, 255, 0\.94\)/);
+  assert.match(styles, /linear-gradient\(145deg, #0f50ff/);
   assert.match(styles, /\.home-chat-launcher:focus-visible/);
+  assert.match(styles, /\.home-chat-launcher__presence/);
   assert.match(styles, /@media \(max-width: 768px\)/);
+});
+
+test('Oppy chat uses one cohesive composer and refined message hierarchy', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const styles = source('src/pages/OppyChat/OppyChat.css');
+
+  assert.match(chat, /className="chat-input-shell"/);
+  assert.match(chat, /placeholder="Ask Oppy anything…"/);
+  assert.match(chat, /<ArrowUp size=\{18\}/);
+  assert.match(chat, /className="chat-message-avatar"/);
+  assert.match(chat, /wallet-status-bar__copy/);
+  assert.match(styles, /\.chat-input-shell:focus-within/);
+  assert.match(styles, /\.chat-bubble\.bot \{[\s\S]*?border-radius: 7px 18px 18px 18px;/);
+  assert.match(styles, /\.chat-send-btn \{[\s\S]*?linear-gradient\(145deg, #0d4fff/);
+  assert.match(styles, /\.wallet-status-bar__action:focus-visible/);
 });
 
 test('the embedded docs assistant renders readable structured conversation UI', () => {
@@ -169,7 +188,7 @@ test('public job chat overrides legacy jobs spacing and centers its header', () 
 
   assert.match(styles, /\.oppy-chat-page \.view-jobs-container \{[\s\S]*?top: 0 !important;/);
   assert.match(styles, /\.oppy-chat-page \.title-section \{[\s\S]*?justify-content: center;/);
-  assert.match(styles, /\.oppy-chat-page \.backButtonV \{[\s\S]*?height: 48px;[\s\S]*?position: absolute;[\s\S]*?width: 48px;/);
+  assert.match(styles, /\.oppy-chat-page \.backButtonV \{[\s\S]*?height: 42px;[\s\S]*?position: absolute;[\s\S]*?width: 42px;/);
   assert.match(chat, /<button[\s\S]*?className="backButtonV"[\s\S]*?aria-label="Go back"/);
   assert.doesNotMatch(chat, /scrollIntoView/);
   assert.match(chat, /focus\(\{ preventScroll: true \}\)/);

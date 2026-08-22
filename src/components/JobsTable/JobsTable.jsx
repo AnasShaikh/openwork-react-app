@@ -97,7 +97,7 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                 <div className="title-option">
                     {
                         titleOptions.map((options, index) => (
-                            <DropDown label={options.title} options={options.items} />
+                            <DropDown key={`${options.title}-${index}`} label={options.title} options={options.items} />
                             // <FilterOption label={'Table Columns'} />
                         ))
                     }
@@ -153,10 +153,10 @@ export default function JobsTable({ title, tableData, currentPage, totalPages, o
                         </tr>
                     </thead>
                     <tbody>
-                        {tableData.map((job) => (
-                            <tr key={job.jobId}>
+                        {tableData.map((job, rowIndex) => (
+                            <tr key={job.jobId ?? `${currentPage}-${rowIndex}`}>
                                 {job.map((item, i) => (
-                                    <td>{item}</td>
+                                    <td key={i}>{item}</td>
                                 ))}
                             </tr>
                         ))}

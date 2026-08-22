@@ -1,7 +1,7 @@
 import { uploadAuthHeaders } from '../../services/uploadAuth';
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowRight, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleCheck, Mic, Search, Send, Square, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp, Bot, BriefcaseBusiness, ChartNoAxesColumn, CircleAlert, CircleCheck, Mic, Search, Square, UserRound, WalletCards } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BlueButton from '../../components/BlueButton/BlueButton';
 import CrossChainSyncStatus from '../../components/CrossChainSyncStatus/CrossChainSyncStatus';
@@ -391,35 +391,19 @@ function ExplorerCard({ data, navigate }) {
 
 // ── Wallet status bar ────────────────────────────────────────────
 function WalletBar({ walletState, onConnect, onSwitchChain }) {
-  const barStyle = {
-    borderTop: '1px solid #f0f0f0',
-    padding: '8px 16px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  };
-  const pillBase = {
-    borderRadius: '20px',
-    padding: '4px 12px',
-    fontSize: '12px',
-    fontWeight: 600,
-    border: 'none',
-    cursor: 'default',
-  };
-  const greenPill = { ...pillBase, background: '#e8f5e9', color: '#2e7d32' };
-  const amberPill = { ...pillBase, background: '#fff8e1', color: '#f57f17' };
-  const orangePill = { ...pillBase, background: '#fff3e0', color: '#e65100' };
-  const blueBtn = { ...pillBase, background: '#0047FF', color: 'white', cursor: 'pointer' };
-
   if (!walletState.installed) {
     return (
-      <div className="wallet-status-bar" style={barStyle}>
-        <span style={amberPill}>⚠ MetaMask not installed</span>
+      <div className="wallet-status-bar wallet-status-bar--warning">
+        <span className="wallet-status-bar__icon" aria-hidden="true"><WalletCards size={17} /></span>
+        <span className="wallet-status-bar__copy">
+          <strong>Wallet features are off</strong>
+          <small>Install MetaMask to use job and payment actions.</small>
+        </span>
         <a
+          className="wallet-status-bar__action"
           href="https://metamask.io/download/"
           target="_blank"
           rel="noreferrer"
-          style={{ ...blueBtn, textDecoration: 'none', display: 'inline-block' }}
         >
           Install MetaMask
         </a>
@@ -428,20 +412,31 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
   }
   if (!walletState.connected) {
     return (
-      <div className="wallet-status-bar" style={barStyle}>
-        <button style={blueBtn} onClick={onConnect}>Connect Wallet</button>
+      <div className="wallet-status-bar">
+        <span className="wallet-status-bar__icon" aria-hidden="true"><WalletCards size={17} /></span>
+        <span className="wallet-status-bar__copy">
+          <strong>Wallet not connected</strong>
+          <small>Connect when you want Oppy to prepare an action.</small>
+        </span>
+        <button type="button" className="wallet-status-bar__action" onClick={onConnect}>Connect wallet</button>
       </div>
     );
   }
   if (!walletState.isCorrectChain) {
     return (
-      <div className="wallet-status-bar wallet-status-bar--wrap" style={barStyle}>
-        <span style={orangePill}>Wrong network</span>
-        {SUPPORTED_CHAINS.map((chain) => (
-          <button key={chain.chainId} style={blueBtn} onClick={() => onSwitchChain(chain.chainId)}>
-            {chain.label}
-          </button>
-        ))}
+      <div className="wallet-status-bar wallet-status-bar--warning wallet-status-bar--wrap">
+        <span className="wallet-status-bar__icon" aria-hidden="true"><CircleAlert size={17} /></span>
+        <span className="wallet-status-bar__copy">
+          <strong>Choose a supported network</strong>
+          <small>Switch before preparing a wallet action.</small>
+        </span>
+        <span className="wallet-status-bar__actions">
+          {SUPPORTED_CHAINS.map((chain) => (
+            <button key={chain.chainId} type="button" className="wallet-status-bar__action" onClick={() => onSwitchChain(chain.chainId)}>
+              {chain.label}
+            </button>
+          ))}
+        </span>
       </div>
     );
   }
@@ -449,11 +444,15 @@ function WalletBar({ walletState, onConnect, onSwitchChain }) {
     ? `${walletState.address.slice(0, 6)}…${walletState.address.slice(-4)}`
     : '';
   return (
-    <div className="wallet-status-bar" style={barStyle}>
-      <span style={greenPill}>● Connected</span>
-      <span style={{ fontSize: '12px', color: '#555', fontFamily: 'monospace' }}>{short}</span>
-      <span style={{ fontSize: '12px', color: '#555' }}>
-        {getChainConfig(parseInt(walletState.chainId, 16))?.name}
+    <div className="wallet-status-bar wallet-status-bar--connected">
+      <span className="wallet-status-bar__icon" aria-hidden="true"><CircleCheck size={17} /></span>
+      <span className="wallet-status-bar__copy">
+        <strong>Wallet connected</strong>
+        <small>
+          <code>{short}</code>
+          <span aria-hidden="true"> · </span>
+          {getChainConfig(parseInt(walletState.chainId, 16))?.name}
+        </small>
       </span>
     </div>
   );
@@ -1056,8 +1055,8 @@ const OppyChat = () => {
   const mobMsgs   = mob ? { flex:'1 1 0%', minHeight:0, minWidth:0, maxHeight:'none', padding:'14px 14px 8px 14px', overflowY:'auto', overflowX:'hidden', WebkitOverflowScrolling:'touch', width:'100%', boxSizing:'border-box' } : {};
   const mobInput  = mob ? { padding:'10px 12px 16px 12px', flexShrink:0, background:'#fff', display:'flex', alignItems:'center', gap:10, boxSizing:'border-box', width:'100%', maxWidth:'100vw' } : {};
   const mobField  = mob ? { fontSize:16, padding:'12px 13px', flex:'1 1 0%', minWidth:0, boxSizing:'border-box' } : {};
-  const mobBtn    = mob ? { width:46, minWidth:46, height:46, flexShrink:0 } : {};
-  const mobSugg   = mob ? { padding:'8px 14px', flexWrap:'nowrap', overflowX:'auto', WebkitOverflowScrolling:'touch', flexShrink:0 } : {};
+  const mobBtn    = mob ? { width:42, minWidth:42, height:42, flexShrink:0 } : {};
+  const mobSugg   = mob ? { padding:'8px 14px 8px 49px', flexWrap:'nowrap', overflowX:'auto', WebkitOverflowScrolling:'touch', flexShrink:0 } : {};
 
   return (
     <div className="oppy-chat-page" style={mobPage}>
@@ -1072,11 +1071,12 @@ const OppyChat = () => {
             onClick={() => navigate(-1)}
             aria-label="Go back"
           >
-            <img className="backIconV" src="/back.svg" alt="Back" />
+            <ArrowLeft size={19} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <div className="oppy-chat-header">
             <div className="oppy-chat-icon">
-              <Bot size={18} color="#fff" />
+              <Bot size={19} color="#fff" strokeWidth={2.1} />
+              <span className="oppy-chat-icon__presence" aria-hidden="true" />
             </div>
             <div className="oppy-chat-header-text">
               <span className="oppy-chat-title">Agent Oppy</span>
@@ -1113,6 +1113,7 @@ const OppyChat = () => {
               if (msg.isThinking) {
                 return (
                   <div className="chat-msg-row bot" key={idx}>
+                    <span className="chat-message-avatar" aria-hidden="true"><Bot size={14} /></span>
                     <div className="chat-bubble bot">
                       <div className="thinking-dots">
                         <span /><span /><span />
@@ -1123,6 +1124,9 @@ const OppyChat = () => {
               }
               return (
                 <div className={`chat-msg-row ${msg.role === 'user' ? 'user' : 'bot'}`} key={idx}>
+                  {msg.role === 'bot' && (
+                    <span className="chat-message-avatar" aria-hidden="true"><Bot size={14} /></span>
+                  )}
                   <div className={`chat-bubble ${msg.role === 'user' ? 'user' : 'bot'}`}>
                     {msg.role === 'bot' ? (
                       <ReactMarkdown>{sanitizeOppyText(msg.text)}</ReactMarkdown>
@@ -1163,51 +1167,55 @@ const OppyChat = () => {
           <div className="chat-composer">
             {voiceNotice && (
               <div
-                className={`chat-voice-status${voiceStatus === 'error' ? ' chat-voice-status--error' : ''}`}
+                className={`chat-voice-status chat-voice-status--${voiceStatus}`}
                 role="status"
                 aria-live="polite"
               >
+                <span className="chat-voice-status__dot" aria-hidden="true" />
                 {voiceNotice}
               </div>
             )}
             <form className="chat-input-bar" onSubmit={handleSubmit} style={mobInput}>
-              <input
-                ref={inputRef}
-                className="chat-input"
-                type="text"
-                placeholder="Ask Oppy or describe what you want to do…"
-                value={input}
-                onChange={e => {
-                  setInput(e.target.value);
-                  if (voiceStatus === 'error') {
-                    setVoiceStatus('idle');
-                    setVoiceNotice('');
-                  }
-                }}
-                disabled={loading || ['starting', 'listening', 'finalizing'].includes(voiceStatus)}
-                style={mobField}
-              />
-              <button
-                type="button"
-                className={`chat-voice-btn${voiceStatus === 'listening' ? ' chat-voice-btn--recording' : ''}`}
-                onClick={handleVoiceButton}
-                disabled={loading || voiceStatus === 'starting' || voiceStatus === 'finalizing'}
-                aria-label={voiceStatus === 'listening' ? 'Stop voice input' : 'Start voice input'}
-                aria-pressed={voiceStatus === 'listening'}
-                title={voiceStatus === 'listening' ? 'Stop voice input' : 'Start voice input'}
-                style={mobBtn}
-              >
-                {voiceStatus === 'listening' ? <Square size={15} fill="currentColor" /> : <Mic size={18} />}
-              </button>
-              <button
-                type="submit"
-                className="chat-send-btn"
-                disabled={loading || !input.trim() || ['starting', 'listening', 'finalizing'].includes(voiceStatus)}
-                aria-label="Send"
-                style={mobBtn}
-              >
-                <Send size={16} />
-              </button>
+              <div className="chat-input-shell">
+                <input
+                  ref={inputRef}
+                  className="chat-input"
+                  type="text"
+                  placeholder="Ask Oppy anything…"
+                  value={input}
+                  onChange={e => {
+                    setInput(e.target.value);
+                    if (voiceStatus === 'error') {
+                      setVoiceStatus('idle');
+                      setVoiceNotice('');
+                    }
+                  }}
+                  disabled={loading || ['starting', 'listening', 'finalizing'].includes(voiceStatus)}
+                  style={mobField}
+                />
+                <button
+                  type="button"
+                  className={`chat-voice-btn${voiceStatus === 'listening' ? ' chat-voice-btn--recording' : ''}`}
+                  onClick={handleVoiceButton}
+                  disabled={loading || voiceStatus === 'starting' || voiceStatus === 'finalizing'}
+                  aria-label={voiceStatus === 'listening' ? 'Stop voice input' : 'Start voice input'}
+                  aria-pressed={voiceStatus === 'listening'}
+                  title={voiceStatus === 'listening' ? 'Stop voice input' : 'Start voice input'}
+                  style={mobBtn}
+                >
+                  {voiceStatus === 'listening' ? <Square size={13} fill="currentColor" /> : <Mic size={17} />}
+                </button>
+                <button
+                  type="submit"
+                  className="chat-send-btn"
+                  disabled={loading || !input.trim() || ['starting', 'listening', 'finalizing'].includes(voiceStatus)}
+                  aria-label="Send"
+                  title="Send message"
+                  style={mobBtn}
+                >
+                  <ArrowUp size={18} strokeWidth={2.3} />
+                </button>
+              </div>
             </form>
           </div>
 
