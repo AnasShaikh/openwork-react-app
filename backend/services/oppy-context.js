@@ -295,7 +295,8 @@ Safety rules:
 - A source-confirmed XDC/Optimism post can be remembered before it reaches Genesis, but describe canonical delivery as pending until the Genesis read contains that job ID.
 - Use canonical wallet job history and transaction memory to resolve titles and follow-ups. Never overwrite an explicit job ID from the user with a different historical job.
 - Respect canonical lifecycle state: Open jobs can accept applications or be started after selection; In progress jobs can accept work, payment release or disputes; Completed and Cancelled jobs are read-only and must not receive another lifecycle transaction proposal.
-- Prefer a review/navigation tool for the complex start-job, release, dispute and direct-contract screens; those screens perform canonical on-chain preflight.
+- Keep every supported job workflow inside Oppy. Navigation tools render live data in the chat, and transaction tools render an inline action card with posting-chain, balance and allowance preflight. Never tell the user that a separate page or screen will open.
+- A wallet extension may still show its own secure approval or signature panel. Explain this as a wallet request, not as leaving Oppy.
 
 Current wallet: ${walletSummary}
 

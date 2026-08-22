@@ -67,13 +67,13 @@ export function buildOppyChatContext(walletState = {}) {
 
   context += `\n\n## CURRENT USER WALLET STATE\n`;
   if (!walletState.installed) {
-    context += `- MetaMask: NOT INSTALLED\n- Status: User needs to install MetaMask first\n- MetaMask install URL: https://metamask.io/download/\n`;
+    context += `- EVM wallet: NOT AVAILABLE\n- Status: User needs to enable Brave Wallet, MetaMask, or another EVM wallet extension\n`;
   } else if (!walletState.connected) {
-    context += `- MetaMask: Installed but NOT connected\n- Status: User needs to connect wallet\n`;
+    context += `- EVM wallet: Available but NOT connected\n- Status: User needs to connect wallet\n`;
   } else if (!walletState.isCorrectChain) {
-    context += `- MetaMask: Connected (${walletState.address})\n- Chain: ${walletState.chainId} (NOT a supported chain)\n- Transaction chains: Arbitrum One (0xa4b1), Optimism (0xa), XDC Network (0x32)\n- Governance chain: Ethereum (0x1)\n`;
+    context += `- EVM wallet: Connected (${walletState.address})\n- Chain: ${walletState.chainId} (NOT a supported chain)\n- Transaction chains: Arbitrum One (0xa4b1), Optimism (0xa), XDC Network (0x32)\n- Governance chain: Ethereum (0x1)\n`;
   } else {
-    context += `- MetaMask: Connected ✓\n- Address: ${walletState.address}\n- Chain: ${walletState.chainId} ✓\n`;
+    context += `- EVM wallet: Connected ✓\n- Address: ${walletState.address}\n- Chain: ${walletState.chainId} ✓\n`;
   }
 
   return context;

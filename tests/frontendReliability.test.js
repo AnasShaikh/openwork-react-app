@@ -252,6 +252,17 @@ test('direct-contract confirmation is duplicate-safe and reload-safe', () => {
   assert.match(app, /path="\/direct-contract-status\/:jobId"/);
 });
 
+test('legacy direct-contract approval gives provider-neutral recovery guidance', () => {
+  const directContract = source('src/pages/DirectContractForm/DirectContractForm.jsx');
+
+  assert.match(directContract, /const \[walletWaitExtended, setWalletWaitExtended\] = useState\(false\)/);
+  assert.match(directContract, /setTimeout\(\(\) => setWalletWaitExtended\(true\), 18000\)/);
+  assert.match(directContract, /open your wallet's pending requests/);
+  assert.match(directContract, /Do not submit again/);
+  assert.match(directContract, /Brave Wallet, MetaMask, or another wallet extension/);
+  assert.doesNotMatch(directContract, /Confirm the USDC approval in MetaMask/);
+});
+
 test('native Arbitrum payment release preflights through the configured RPC', () => {
   const releasePayment = source('src/pages/ReleasePayment/ReleasePayment.jsx');
   const localChainService = source('src/services/localChainService.js');

@@ -101,7 +101,7 @@ test('job posting never approves or transfers USDC and application amounts fail 
   assert.doesNotMatch(chat, /1 USDC fallback/);
   assert.match(chat, /Never invent a payment amount if the read fails/);
   assert.match(chat, /Posting this job will not move any USDC/);
-  assert.match(chat, /for \(let i = 1; i <= appCount; i\+\+\)/);
+  assert.match(chat, /resolveSelectedApplication\(deepDive, tool\.params\.applicantAddress\)/);
 });
 
 test('Oppy uploads metadata through the canonical IPFS JSON route and renders structured parameters', () => {
@@ -116,12 +116,21 @@ test('Oppy uploads metadata through the canonical IPFS JSON route and renders st
   assert.match(styles, /\.tx-param-value \{[^}]*white-space: pre-wrap;/);
 });
 
-test('complex value-moving actions use canonical review screens', () => {
+test('all supported Oppy actions stay inside chat and reuse canonical preflight services', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
-  assert.match(chat, /`\/release-payment\/\$\{encodeURIComponent\(tool\.params\.jobId\)\}`/);
-  assert.match(chat, /`\/raise-dispute\/\$\{encodeURIComponent\(tool\.params\.jobId\)\}`/);
-  assert.match(chat, /`\/view-received-application\?\$\{startParams\.toString\(\)\}`/);
-  assert.match(chat, /`\/direct-contract\?\$\{dcParams\.toString\(\)\}`/);
+  const actionService = source('src/services/oppyActionService.js');
+  const chainService = source('src/services/localChainService.js');
+  assert.match(chat, /fetchOppyExplorer\(/);
+  assert.match(chat, /appendExplorerCard\(explorer\)/);
+  assert.match(chat, /await ensureUsdcFunding\(\{/);
+  assert.match(chat, /await startDirectContract\(/);
+  assert.match(chat, /await startJob\(/);
+  assert.match(chat, /await releasePaymentCrossChain\(/);
+  assert.match(chat, /await raiseDispute\(/);
+  assert.doesNotMatch(chat, /navigate\(`\/(?:direct-contract|release-payment|raise-dispute|view-received-application)/);
+  assert.match(actionService, /methods\.allowance\(owner, spender\)/);
+  assert.match(actionService, /Still waiting|wallet/i);
+  assert.match(chainService, /export async function startDirectContract/);
 });
 
 test('transaction chat persists conversation, active job and confirmed source receipts', () => {
@@ -165,7 +174,7 @@ test('cross-chain posts show a polished three-stage job sync tracker', () => {
   const service = source('src/services/crossChainSyncService.js');
 
   assert.match(chat, /<CrossChainSyncStatus activeJob=\{activeJob\} \/>/);
-  assert.match(chat, /Your job is syncing across networks/);
+  assert.match(chat, /OpenWork is now syncing it across networks/);
   assert.match(tracker, /Network delivery/);
   assert.match(tracker, /OpenWork update/);
   assert.match(tracker, /Job is ready/);
