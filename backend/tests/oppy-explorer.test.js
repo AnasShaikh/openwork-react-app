@@ -8,6 +8,7 @@ const {
   getJobDeepDive,
   getPlatformOverview,
   getWalletDashboard,
+  runExplorerIntent,
   searchJobs,
 } = require('../services/oppy-explorer');
 const { resetCachesForTest } = require('../services/oppy-job-context');
@@ -129,6 +130,45 @@ test('platform overview and job search aggregate live ledger metadata', async ()
   const promptContext = formatExplorerContext(overview);
   assert.match(promptContext, /"budget": "0\.5"/);
   assert.doesNotMatch(promptContext, /"nominalBudget":/);
+});
+
+test('explorer reads retry the public Arbitrum RPC when the configured provider is exhausted', async () => {
+  resetCachesForTest();
+  const rpcCalls = [];
+  class FallbackWeb3 {
+    constructor(rpcUrl) {
+      rpcCalls.push(rpcUrl);
+      this.eth = {
+        Contract: class {
+          constructor() {
+            this.methods = {
+              getJobsByStatus: (status) => ({
+                call: async () => {
+                  if (rpcUrl === 'https://capacity-exhausted.example') throw new Error('Monthly capacity limit exceeded');
+                  return status === 0 ? [rawJob({ status: 0 })] : [];
+                },
+              }),
+            };
+          }
+        },
+      };
+    }
+  }
+
+  const result = await runExplorerIntent({
+    type: 'search',
+    query: 'find open design jobs',
+    filters: { status: 'open', chain: '' },
+  }, null, {
+    Web3: FallbackWeb3,
+    primaryRpcUrl: 'https://capacity-exhausted.example',
+    publicRpcUrl: 'https://public-arbitrum.example',
+    fetch: dependencies().fetch,
+  });
+
+  assert.deepEqual(rpcCalls, ['https://capacity-exhausted.example', 'https://public-arbitrum.example']);
+  assert.equal(result.type, 'job-search');
+  assert.equal(result.results[0].jobId, '30365-8');
 });
 
 test('job deep dive joins milestones, applications, profiles and submissions', async () => {

@@ -20,6 +20,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const MAX_INDEXED_METADATA = 80;
 const MAX_DEEP_DIVE_APPLICATIONS = 20;
 const MAX_DEEP_DIVE_SUBMISSIONS = 20;
+const PUBLIC_ARBITRUM_RPC = 'https://arb1.arbitrum.io/rpc';
 const CHAIN_DOMAIN_NAMES = new Map([[2, 'Optimism'], [3, 'Arbitrum One'], [18, 'XDC Network']]);
 
 function validAddress(value) {
@@ -544,16 +545,30 @@ function detectDataIntent(message, explicitToolName = null) {
 
 async function runExplorerIntent(intent, walletAddress, dependencies = {}) {
   if (!intent) return null;
-  if (intent.type === 'wallet') {
-    if (!validAddress(walletAddress)) {
-      return { type: 'wallet-dashboard', available: false, error: 'Connect a wallet to explore your OpenWork data.' };
+
+  const execute = async (resolvedDependencies) => {
+    if (intent.type === 'wallet') {
+      if (!validAddress(walletAddress)) {
+        return { type: 'wallet-dashboard', available: false, error: 'Connect a wallet to explore your OpenWork data.' };
+      }
+      return getWalletDashboard(walletAddress, resolvedDependencies);
     }
-    return getWalletDashboard(walletAddress, dependencies);
+    if (intent.type === 'platform') return getPlatformOverview(resolvedDependencies);
+    if (intent.type === 'job') return getJobDeepDive(intent.jobId, walletAddress, resolvedDependencies);
+    if (intent.type === 'search') return searchJobs(intent.query, intent.filters, resolvedDependencies);
+    return null;
+  };
+
+  if (dependencies.rpcUrl) return execute(dependencies);
+  const primaryRpcUrl = dependencies.primaryRpcUrl || config.ARBITRUM_RPC;
+  const fallbackRpcUrl = dependencies.publicRpcUrl || PUBLIC_ARBITRUM_RPC;
+  try {
+    return await execute({ ...dependencies, rpcUrl: primaryRpcUrl });
+  } catch (error) {
+    if (!fallbackRpcUrl || fallbackRpcUrl === primaryRpcUrl) throw error;
+    console.warn('[oppy-explorer] configured RPC unavailable; retrying the public Arbitrum endpoint');
+    return execute({ ...dependencies, rpcUrl: fallbackRpcUrl });
   }
-  if (intent.type === 'platform') return getPlatformOverview(dependencies);
-  if (intent.type === 'job') return getJobDeepDive(intent.jobId, walletAddress, dependencies);
-  if (intent.type === 'search') return searchJobs(intent.query, intent.filters, dependencies);
-  return null;
 }
 
 function formatExplorerContext(explorer) {
@@ -572,6 +587,7 @@ ${compact}`;
 
 module.exports = {
   MAX_INDEXED_METADATA,
+  PUBLIC_ARBITRUM_RPC,
   detectDataIntent,
   formatExplorerContext,
   getJobDeepDive,
