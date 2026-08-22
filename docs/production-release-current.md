@@ -6,21 +6,55 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 22 August 2026 16:36 IST |
+| Deployed at | 22 August 2026 18:17 IST |
 | Git branch | `main` |
-| Git commit | `29882ea457df8d0028f12aaa3a05a60a4664a19d` |
-| Release gate | PRs `#14`, `#15` and `#17`; GitHub CI `32567482636`, `32568238890` and `32568925070`; frontend tests (`111/111`), backend tests (`62/62`), high-severity production dependency gate, production frontend build and `git diff --check` passed; desktop and 390×844 local/live browser checks passed; CodeBuild, App Runner and public endpoint checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-29882ea457df8d0028f12aaa3a05a60a4664a19d.zip` |
-| Source archive SHA-256 | `b2b5b7427e68ebbfefebd4a5df8ae1044fe3d54d77e0a62908ded9f4893c5bd5` |
-| CodeBuild | `openwork-react-app-prod-build:4eff0771-7b96-4bfb-8ca1-baaf2cae4a62` — succeeded |
-| ECR image | `openwork-app:prod-29882ea-20260822162913` |
-| ECR digest | `sha256:48c85f7664d0828979ce9e42c3b81b945c047be5ea0b6b6670420a8c63fb3cff` |
+| Git commit | `70ff2dc9917a56944175d86e21568fee032ba2c5` |
+| Release gate | GitHub CI `32573526707`; frontend tests (`114/114`), backend tests (`62/62`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; desktop and 390×844 multi-wallet local QA plus 1280 px and 390 px live browser checks passed; CodeBuild, App Runner and public endpoint checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-70ff2dc9917a56944175d86e21568fee032ba2c5.zip` |
+| Source archive SHA-256 | `de72154e67aab6a00ffc1a7c2fa1dbe00355417ce588de7589709bf03df82375` |
+| CodeBuild | `openwork-react-app-prod-build:1b3501c5-9b60-4dac-99d9-7a32d7400f96` — succeeded |
+| ECR image | `openwork-app:prod-70ff2dc-20260822180907` |
+| ECR digest | `sha256:9ccbc1e65171336705570b91b7b5335b4bab821f9310075c4607bc21a3f8269d` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `17a1f61b05df4f2a9934b084b2831ec5` — succeeded |
+| App Runner operation | `1272a68f367147af8ab72a14f8e05864` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CEUoIDN2.js` — SHA-256 `63784091f0708e88b52b5882a36dc2d6b050cb90c85b8d343aa8c4290cb86c80` |
-| Rollback target | `openwork-app:prod-94b8698-20260822140958` |
-| Rollback digest | `sha256:c1fcaef3457f0d45d32d9265c1f63c47281bed3eaef3ca4d6abe7748c2d269c2` |
+| Deployed JS asset | `/assets/index-DaZHfU3e.js` — SHA-256 `af17f0e0d1450e782a0d53c34e32e7da54df8703796ad6fdcbfd576ed66a8e81` |
+| Rollback target | `openwork-app:prod-29882ea-20260822162913` |
+| Rollback digest | `sha256:48c85f7664d0828979ce9e42c3b81b945c047be5ea0b6b6670420a8c63fb3cff` |
+
+## Oppy explicit multi-wallet transaction binding
+
+Oppy previously used the browser-global `window.ethereum` provider. In Brave with
+both Brave Wallet and MetaMask installed, the global belonged to MetaMask while the
+user was watching the Brave Wallet panel. The XDC USDC preflight succeeded through
+OpenWork's read-only RPC, but the approval write went to MetaMask, which returned
+`RPC endpoint not found or unavailable`; consequently Brave Wallet showed no request.
+No approval or contract transaction was submitted in the reported attempt.
+
+Oppy now discovers wallets through EIP-6963 and the legacy injected-provider array.
+One installed wallet is selected automatically; two or more require an explicit
+choice in the chat wallet row, and that choice is remembered. The selected wallet is
+named on every review card and the exact provider object is passed to account reads,
+network switching, USDC approval and every OpenWork write adapter. Provider/RPC
+failures identify the selected wallet and network and state that no transaction was
+submitted instead of leaving the card in a misleading pending state.
+
+Automated coverage includes real provider-selection behavior for Brave Wallet,
+MetaMask and an EIP-6963 Coinbase announcement. Local visual QA reviewed the connected
+wallet row and direct-contract review card at desktop and 390×844; the mobile selector
+is 42 px and the page has no horizontal overflow. Production returned HTTP 200 for
+`/chat`, `/healthz` returned `{"status":"ok"}`, the live JS and CSS assets contained
+the wallet-selection markers, the 390 px live chat had no horizontal overflow and its
+voice and Send controls remained 42×42 px. Live browser logs contained no warnings or
+errors. Verification did not request a signature, approve USDC, move tokens or submit
+an on-chain transaction.
+
+The first immutable CodeBuild attempt
+`openwork-react-app-prod-build:3b056afc-2cd1-462f-bcb3-643ce425e3da`
+failed during `DOWNLOAD_SOURCE` because the build role lacks `s3:ListBucket`; it
+produced no image. The documented pinned-project-source fallback built the exact
+archive above, and the CodeBuild project source was restored immediately to
+`source/openwork-react-app-src.zip` before deployment.
 
 ## Oppy chat-native job workflows
 
