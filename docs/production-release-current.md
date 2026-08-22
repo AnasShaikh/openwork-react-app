@@ -6,21 +6,49 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 22 August 2026 12:54 IST |
+| Deployed at | 22 August 2026 14:18 IST |
 | Git branch | `main` |
-| Git commit | `23fc526f2ad81b3c4d8f0bf44865a399521402d1` |
-| Release gate | PR `#12`; GitHub CI `32558910429`; frontend tests (`109/109`), backend tests (`60/60`), backend production audit, backend parse checks, production frontend build and `git diff --check` passed; desktop and 390px local/live browser checks passed; CodeBuild, App Runner, public endpoint and direct AWS WebSocket checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-23fc526f2ad81b3c4d8f0bf44865a399521402d1.zip` |
-| Source archive SHA-256 | `11ef5ce62efc06bb5bc0cffc8950671f876c30be9040e55ef6a6a5e8b9347c6e` |
-| CodeBuild | `openwork-react-app-prod-build:463fe5a6-2b03-4a37-b3b1-59b4ad561674` — succeeded |
-| ECR image | `openwork-app:prod-23fc526-20260822124441` |
-| ECR digest | `sha256:785729e99345e67df9dfef57bddc8623569c71fc8e33a938e151a6f8f08e65c4` |
+| Git commit | `94b8698739de63ae3ca34eaea8c6dbfef0def848` |
+| Release gate | PR `#13`; GitHub CI `32562791113`; frontend tests (`110/110`), backend tests (`60/60`), backend production audit, backend parse checks, production frontend build and `git diff --check` passed; desktop and 390×844 local/live browser checks passed; CodeBuild, App Runner, public endpoints and transcription-session checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-94b8698739de63ae3ca34eaea8c6dbfef0def848.zip` |
+| Source archive SHA-256 | `5ce0868846ef6580249ff54141f6d378f0ec88948278c1d6ce12e9a4353a116b` |
+| CodeBuild | `openwork-react-app-prod-build:8e008d07-af21-4302-86ce-184e45c9b1d5` — succeeded |
+| ECR image | `openwork-app:prod-94b8698-20260822140958` |
+| ECR digest | `sha256:c1fcaef3457f0d45d32d9265c1f63c47281bed3eaef3ca4d6abe7748c2d269c2` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `d0ca62a9065c4f5894f3108f060fd5f0` — succeeded |
+| App Runner operation | `7814e76063524db68b7bc08ce80c84bd` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-DrJZL4fY.js` — SHA-256 `154748075c737ad0a29c6242e885eff23f70fcd1ad2ab11e6d7de97e6fdf7b14` |
-| Rollback target | `openwork-app:prod-dd2f4fc-20260816130704` |
-| Rollback digest | `sha256:f2111be7a11fc1b9f715e512613ddf7316ed7ba1fe33e42c9c8f79b5510f2694` |
+| Deployed JS asset | `/assets/index-BEUXJCb2.js` — SHA-256 `1b302b8f4bc27558be8617e888d0d95797690af40a071b7fc12bc9ab2d9db7e0` |
+| Rollback target | `openwork-app:prod-23fc526-20260822124441` |
+| Rollback digest | `sha256:785729e99345e67df9dfef57bddc8623569c71fc8e33a938e151a6f8f08e65c4` |
+
+## Global Oppy launcher and chat interface polish
+
+The `Ask Oppy` launcher is now available across product routes rather than only on the
+home page. It is intentionally absent from `/chat` and `/oppy`, where an additional
+entry point would be redundant. Desktop uses a compact assistant card with the Oppy
+icon, availability indicator, label and destination cue; mobile collapses it to a 52 px
+icon control while preserving its accessible name and `/chat` destination.
+
+The public chat now has a cohesive assistant header, message hierarchy and composer.
+Assistant messages have a restrained Oppy avatar, user messages use the OpenWork blue
+gradient, suggestions are lighter action cards and wallet state is a structured status
+row. Text input, voice input and Send share one focus-aware surface; the microphone is
+secondary and the enabled Send action uses a clear blue up arrow. Voice remains
+dictation only and never sends automatically. Maintenance rules and responsive and
+accessibility requirements are in `docs/oppy-chat-interface.md`.
+
+Automated coverage verifies global route placement, Oppy-route exclusions, accessible
+labels, responsive launcher behavior and the unified composer. Local browser review
+covered 1280×720 and 390×844 layouts, including disabled, focused and enabled composer
+states. It also found and removed pre-existing missing-key warnings in the jobs table.
+Live checks confirmed the 191×58 px desktop launcher, 52×52 px mobile launcher, 42 px
+mic and Send targets, successful mobile click-through, no horizontal overflow and no
+launcher duplication inside chat. The deployed bundle contains the release copy and
+style markers. `/`, `/healthz`, `/chat` and `/oppy-transcription-worklet.js` returned
+HTTP 200, and the sanitized voice-session response remained `en-IN`, 16 kHz, 45 seconds
+with a signed `wss` stream URL. Verification submitted no chat message, microphone
+audio, wallet request or on-chain transaction.
 
 ## Oppy Indian English voice dictation
 
