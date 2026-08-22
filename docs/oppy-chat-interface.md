@@ -75,6 +75,12 @@ contracts use the deployed five-argument native Arbitrum signature or six-argume
 cross-chain signature through `contractWriteRouter`; UI code must not construct a
 contract selector independently.
 
+Backend explorer reads first use the configured Arbitrum RPC and retry the public
+Arbitrum endpoint when that provider is unavailable or out of capacity. Both chat and
+`/api/oppy/explore/*` go through the same fallback boundary. This is read-only
+resilience; wallet writes and transaction preflights keep their existing chain
+adapters and must never be rerouted through the backend explorer fallback.
+
 The action card owns its progress instead of replacing unrelated chat messages. The
 minimum states are preparing, network switch, USDC approval, wallet signature,
 confirmed and failed. After 18 seconds in a wallet state it shows a non-destructive
