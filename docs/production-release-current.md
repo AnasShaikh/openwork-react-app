@@ -811,6 +811,53 @@ the XDC MessageTransmitter returns `1` for the Circle event nonce.
 | Live stylesheet | `/assets/index-BPtjwY2Q.css` — SHA-256 `744351d515274ba530d4016c8b2a57eb6a5cf7f35730100d48a44cc1ae5e725e` |
 | Public gates | `/healthz` returned `{"status":"ok"}`; `/chat` returned HTTP `200`; historical release verifier returned `complete: true` |
 
+## Oppy follow-up completion-answer correction
+
+Commit `4c619950c3e7d3df461d58d87c74e54fa63ed010` fixes the contradictory
+answer observed immediately after Direct Contract job `30365-10` showed
+`Contract ready`. The visual tracker already had transaction-scoped LayerZero and
+Arbitrum proof, but the next message used the separate broad wallet-ledger context.
+When the configured provider was over capacity, the model saw only that degraded read,
+called the Direct Contract a job post and incorrectly said final delivery was unknown.
+
+Short status follow-ups such as `is it done?`, `did it go through?` and `status for
+30365-10` now bypass generative interpretation. The backend selects the exact latest
+confirmed transaction for the active job, reruns the same action-specific cross-chain
+verifier and returns a deterministic answer. Direct Contract answers require the
+contract-ready canonical state. Release Payment memory now also preserves the target
+CCTP domain and pre-release `totalPaid` baseline, so a later status question cannot
+declare payment completion without its independent payment delta and destination
+receipt evidence.
+
+Production verification replayed `is it done?` with source transaction
+`0xecc5034446bc27421dfd528f1e7aa2557daf3c997956083889744ef91f71090b`.
+The live `/api/chat` response used model label `deterministic-cross-chain-status`,
+identified action `startDirectContract`, resolved LayerZero destination transaction
+`0x30e275108466f80a6a9abe19ab31fde2b2be580312eb4db6f1d25dd0c0a79e3d`,
+confirmed canonical job `30365-10` at status `1`, and answered that the Direct Contract
+is active with no retry needed.
+
+| Release field | Verified value |
+|---|---|
+| Deployed commit | `4c619950c3e7d3df461d58d87c74e54fa63ed010` |
+| Frontend tests | `127/127` passed |
+| Backend tests | `76/76` passed |
+| Production build | Vite build passed; existing chunk-size warnings only |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-4c61995.zip` |
+| Source SHA-256 | `95f62d459d84fe30fa3ff965c00631c56a87ed04360bc0add2dbdac651d7fac2` |
+| CodeBuild | `openwork-react-app-prod-build:aa781e63-782f-4f5e-930b-45533acdfdf1` — succeeded |
+| ECR image | `openwork-app:prod-4c61995-20260823111610` |
+| ECR digest | `sha256:ad43e7e06534b0d8da48ed275d59b5be790a6ff4508b2c8ff4b4773030cd6c64` |
+| App Runner operation | `438baa39924a4885a68eb8f442b7ed87` — succeeded 23 August 2026 at 12:29:13 IST |
+| Live JavaScript | `/assets/index-UHjdeSzX.js` — SHA-256 `be18df660a62290ddaa178d202bd428984db9701b41388350476643d0f240c07` |
+| Public gates | `/healthz` returned `{"status":"ok"}`; exact `/api/chat` replay returned `complete: true` and the correct Direct Contract answer |
+
+The managed runtime still reports two pre-existing infrastructure warnings: no external
+database persistence and an exhausted configured Alchemy allowance for the global
+PaymentReleased recovery listener. The transaction-scoped Oppy verifier is insulated
+by its public Arbitrum fallback and passed this release gate. The listener warning is a
+separate relayer-availability item and is not represented as fixed by this release.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -821,7 +868,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-5aa9b4e-20260822195255` |
-| ECR digest | `sha256:4ef4ca7f6f837e95529e94df738405edfcfed0d6241668644f62bd9d229dcf70` |
+| ECR image | `openwork-app:prod-3fd8419-20260822222527` |
+| ECR digest | `sha256:509c743d9fc715703d9b9d30fe890093b2bfae1be3862b4e24f22201aea03948` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
