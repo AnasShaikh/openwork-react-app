@@ -236,11 +236,13 @@ test('conversation memory keeps only bounded job and receipt context', () => {
       sourceReceiptConfirmed: true,
     },
     recentTransactions: [{
-      action: 'postJob',
+      action: 'releasePayment',
       jobId: '30365-6',
       txHash: `0x${'b'.repeat(64)}`,
       chainId: 50,
       confirmed: true,
+      targetDomain: 18,
+      baselineTotalPaidRaw: '250000',
     }],
     latestTransactionDiagnostic: {
       attemptId: 'attempt-1',
@@ -269,6 +271,8 @@ test('conversation memory keeps only bounded job and receipt context', () => {
   assert.equal(memory.activeJob.jobId, '30365-6');
   assert.equal(memory.activeJob.title, 'XDC test');
   assert.equal(memory.recentTransactions[0].confirmed, true);
+  assert.equal(memory.recentTransactions[0].targetDomain, 18);
+  assert.equal(memory.recentTransactions[0].baselineTotalPaidRaw, '250000');
   assert.equal(memory.latestTransactionDiagnostic.step, 'approval');
   assert.equal(memory.latestTransactionDiagnostic.checks.walletReachable, true);
   assert.equal(memory.lastPreparedAction.name, 'startDirectContract');

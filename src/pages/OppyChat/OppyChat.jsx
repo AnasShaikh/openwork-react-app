@@ -1460,6 +1460,7 @@ const OppyChat = () => {
           txHash: result.transactionHash,
           chainId: chainIdDecimal,
           confirmed: true,
+          ...trackingContext,
         }));
       }
       const crossChainDeliveryPending = chainIdDecimal !== 42161

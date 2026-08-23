@@ -115,6 +115,13 @@ function cleanTransactions(transactions) {
         const action = typeof transaction.action === 'string' ? transaction.action.trim().slice(0, 40) : '';
         const jobId = /^\d+-\d+$/.test(transaction.jobId || '') ? transaction.jobId : null;
         const txHash = /^0x[a-fA-F0-9]{64}$/.test(transaction.txHash || '') ? transaction.txHash : null;
+        const targetDomain = transaction.targetDomain === null || transaction.targetDomain === undefined
+          ? null
+          : Number(transaction.targetDomain);
+        const baselineTotalPaidRaw = typeof transaction.baselineTotalPaidRaw === 'string'
+          && /^\d+$/.test(transaction.baselineTotalPaidRaw)
+          ? transaction.baselineTotalPaidRaw
+          : null;
         if (!action || (!jobId && !txHash)) return [];
         return [{
           action,
@@ -122,6 +129,8 @@ function cleanTransactions(transactions) {
           txHash,
           chainId: Number(transaction.chainId) || null,
           confirmed: transaction.confirmed === true,
+          targetDomain: Number.isInteger(targetDomain) ? targetDomain : null,
+          baselineTotalPaidRaw,
         }];
       }).slice(-MAX_TRANSACTIONS)
     : [];

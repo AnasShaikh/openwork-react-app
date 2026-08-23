@@ -43,6 +43,13 @@ function normalizeTransaction(value) {
     ? value.txHash
     : null;
   const chainId = Number(value.chainId);
+  const targetDomain = value.targetDomain === null || value.targetDomain === undefined
+    ? null
+    : Number(value.targetDomain);
+  const baselineTotalPaidRaw = typeof value.baselineTotalPaidRaw === 'string'
+    && /^\d+$/.test(value.baselineTotalPaidRaw)
+    ? value.baselineTotalPaidRaw
+    : null;
   const action = typeof value.action === 'string' ? value.action.trim().slice(0, 40) : '';
   if (!action || (!jobId && !txHash)) return null;
   return {
@@ -51,6 +58,8 @@ function normalizeTransaction(value) {
     txHash,
     chainId: Number.isInteger(chainId) ? chainId : null,
     confirmed: value.confirmed === true,
+    targetDomain: Number.isInteger(targetDomain) ? targetDomain : null,
+    baselineTotalPaidRaw,
   };
 }
 

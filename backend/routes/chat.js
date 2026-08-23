@@ -19,6 +19,7 @@ const {
   formatExplorerContext,
   runExplorerIntent,
 } = require('../services/oppy-explorer');
+const { resolveCrossChainStatusAnswer } = require('../services/oppy-cross-chain-answer');
 
 const router = express.Router();
 
@@ -97,6 +98,29 @@ router.post('/', async (req, res) => {
           activeJob: request.memory.activeJob || null,
           canonicalJobHistoryAvailable: false,
           canonicalJobCount: 0,
+        },
+      });
+    }
+    const crossChainAnswer = transactionMode && !allowedToolName
+      ? await resolveCrossChainStatusAnswer(request.message, request.memory)
+      : null;
+    if (crossChainAnswer) {
+      console.info('[chat] answered from transaction-scoped cross-chain evidence', {
+        action: crossChainAnswer.transaction.action,
+        jobId: crossChainAnswer.transaction.jobId,
+        state: crossChainAnswer.status.state,
+      });
+      return res.json({
+        success: true,
+        response: crossChainAnswer.text,
+        tool: null,
+        explorer: null,
+        crossChainStatus: crossChainAnswer.status,
+        model: 'deterministic-cross-chain-status',
+        context: {
+          activeJob: request.memory.activeJob || null,
+          canonicalJobHistoryAvailable: crossChainAnswer.status.canonical?.state !== 'unavailable',
+          canonicalJobCount: crossChainAnswer.status.canonical?.jobExists ? 1 : 0,
         },
       });
     }
