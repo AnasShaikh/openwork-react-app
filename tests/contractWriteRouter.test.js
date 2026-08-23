@@ -149,6 +149,100 @@ test('cross-chain gas estimation retains the required LayerZero fee', async () =
   );
 });
 
+test('native funding preflight includes LayerZero value and buffered gas', async () => {
+  const checks = [];
+  const method = { estimateGas: async () => 400000n };
+  const chain = {
+    chainId: 50,
+    name: 'XDC Network',
+    nativeCurrency: { symbol: 'XDC' },
+    requiresLzFee: true,
+    rpcUrl: 'https://example.invalid',
+  };
+  const value = 4_500_000_000_000_000_000n;
+  const gasPrice = 12_625_000_000n;
+
+  const sendOptions = await buildEstimatedWriteSendOptions(
+    method,
+    chain,
+    { from: '0x0000000000000000000000000000000000000001', value },
+    {
+      readNativeFunding: async () => ({
+        balanceWei: 5_000_000_000_000_000_000n,
+        gasPriceWei: gasPrice,
+      }),
+      onNativeBalanceCheck: (check) => checks.push(check),
+    },
+  );
+
+  const bufferedGas = 500000n;
+  assert.equal(sendOptions.gas, bufferedGas.toString());
+  assert.equal(checks.length, 1);
+  assert.equal(checks[0].requiredWei, (value + bufferedGas * gasPrice).toString());
+  assert.equal(checks[0].sufficient, true);
+  assert.equal(checks[0].gasIncluded, true);
+});
+
+test('native funding preflight blocks before gas estimation when the quote exceeds balance', async () => {
+  let estimated = false;
+  const method = { estimateGas: async () => { estimated = true; return 400000n; } };
+  const chain = {
+    chainId: 50,
+    name: 'XDC Network',
+    nativeCurrency: { symbol: 'XDC' },
+    requiresLzFee: true,
+    rpcUrl: 'https://example.invalid',
+  };
+  const checks = [];
+
+  await assert.rejects(
+    buildEstimatedWriteSendOptions(
+      method,
+      chain,
+      {
+        from: '0x0000000000000000000000000000000000000001',
+        value: 4_525_823_000_000_000_000n,
+      },
+      {
+        readNativeFunding: async () => ({
+          balanceWei: 289_296_832_824_877_939n,
+          gasPriceWei: 12_625_000_000n,
+        }),
+        onNativeBalanceCheck: (check) => checks.push(check),
+      },
+    ),
+    (error) => {
+      assert.equal(error.code, 'NATIVE_BALANCE_TOO_LOW');
+      assert.match(error.message, /4\.525823 XDC/);
+      assert.match(error.message, /0\.289296 XDC/);
+      assert.match(error.message, /No transaction was submitted/);
+      return true;
+    },
+  );
+  assert.equal(estimated, false);
+  assert.equal(checks[0].sufficient, false);
+  assert.equal(checks[0].gasIncluded, false);
+});
+
+test('native funding preflight fails closed when every read-only RPC is unavailable', async () => {
+  const method = { estimateGas: async () => 400000n };
+  await assert.rejects(
+    buildEstimatedWriteSendOptions(
+      method,
+      {
+        chainId: 50,
+        name: 'XDC Network',
+        nativeCurrency: { symbol: 'XDC' },
+        requiresLzFee: true,
+        rpcUrl: 'https://example.invalid',
+      },
+      { from: '0x0000000000000000000000000000000000000001', value: 1n },
+      { readNativeFunding: async () => { throw new Error('down'); } },
+    ),
+    (error) => error.code === 'NATIVE_BALANCE_UNAVAILABLE' && /no wallet request was opened/i.test(error.message),
+  );
+});
+
 test('native ABI files expose every routed Arbitrum selector', () => {
   const lowjc = abiSignatures('src/ABIs/native-arb-lowjc_ABI.json');
   const athena = abiSignatures('src/ABIs/native-arb-athena-client_ABI.json');

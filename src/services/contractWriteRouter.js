@@ -13,6 +13,12 @@ export const WRITE_MODES = Object.freeze({
   CROSS_CHAIN: "cross_chain",
 });
 
+const PUBLIC_RPC_FALLBACKS = Object.freeze({
+  10: ['https://mainnet.optimism.io'],
+  50: ['https://rpc.xinfin.network', 'https://erpc.xinfin.network'],
+  42161: ['https://arb1.arbitrum.io/rpc'],
+});
+
 export const LOWJC_OPERATIONS = Object.freeze({
   POST_JOB: "postJob",
   APPLY_TO_JOB: "applyToJob",
@@ -173,7 +179,11 @@ export async function buildEstimatedWriteSendOptions(
   method,
   chainConfig,
   options,
-  { bufferBps = 2500 } = {}
+  {
+    bufferBps = 2500,
+    readNativeFunding,
+    onNativeBalanceCheck,
+  } = {}
 ) {
   if (typeof method?.estimateGas !== "function") {
     throw new Error("The configured contract method cannot estimate gas");
@@ -184,6 +194,26 @@ export async function buildEstimatedWriteSendOptions(
 
   const sendOptions = buildWriteSendOptions(chainConfig, options);
   const { gas: _ignoredGas, ...estimateOptions } = sendOptions;
+  const fundingSnapshot = await readNativeFundingSnapshot(
+    chainConfig,
+    sendOptions.from,
+    { readNativeFunding },
+  );
+  const nativeValueWei = BigInt(sendOptions.value || 0);
+
+  // Some RPCs reject eth_estimateGas when msg.value already exceeds the
+  // sender's balance. Resolve that case ourselves first so the UI can explain
+  // the exact shortfall and, critically, never opens a doomed wallet request.
+  if (fundingSnapshot && fundingSnapshot.balanceWei < nativeValueWei) {
+    const result = nativeFundingResult(chainConfig, fundingSnapshot, {
+      nativeValueWei,
+      gasCostWei: 0n,
+      gasIncluded: false,
+    });
+    onNativeBalanceCheck?.(result);
+    throw nativeFundingError(chainConfig, result);
+  }
+
   const estimatedGas = BigInt(await method.estimateGas(estimateOptions));
   if (estimatedGas <= 0n) {
     throw new Error("Contract gas estimation returned an invalid value");
@@ -210,9 +240,121 @@ export async function buildEstimatedWriteSendOptions(
     withGas.maxFeePerGas !== undefined ||
     withGas.maxPriorityFeePerGas !== undefined;
 
-  if (callerChoseFees) return withGas;
+  const finalized = callerChoseFees
+    ? withGas
+    : { ...withGas, ...(await deriveFeeCeiling(chainConfig)) };
 
-  return { ...withGas, ...(await deriveFeeCeiling(chainConfig)) };
+  if (fundingSnapshot) {
+    const feePerGas = BigInt(
+      finalized.maxFeePerGas
+      || finalized.gasPrice
+      || fundingSnapshot.gasPriceWei,
+    );
+    const result = nativeFundingResult(chainConfig, fundingSnapshot, {
+      nativeValueWei,
+      gasCostWei: bufferedGas * feePerGas,
+      gasIncluded: true,
+    });
+    onNativeBalanceCheck?.(result);
+    if (!result.sufficient) throw nativeFundingError(chainConfig, result);
+  }
+
+  return finalized;
+}
+
+function formatNativeWei(value, decimals = 18, precision = 6) {
+  const amount = BigInt(value || 0);
+  const base = 10n ** BigInt(decimals);
+  const whole = amount / base;
+  const fraction = (amount % base).toString().padStart(decimals, '0').slice(0, precision).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function nativeFundingResult(chainConfig, snapshot, { nativeValueWei, gasCostWei, gasIncluded }) {
+  const requiredWei = nativeValueWei + gasCostWei;
+  const shortfallWei = requiredWei > snapshot.balanceWei
+    ? requiredWei - snapshot.balanceWei
+    : 0n;
+  return {
+    chainId: Number(chainConfig?.chainId) || null,
+    chainName: chainConfig?.name || 'this network',
+    symbol: chainConfig?.nativeCurrency?.symbol || 'native token',
+    balanceWei: snapshot.balanceWei.toString(),
+    requiredWei: requiredWei.toString(),
+    nativeValueWei: nativeValueWei.toString(),
+    gasCostWei: gasCostWei.toString(),
+    shortfallWei: shortfallWei.toString(),
+    sufficient: shortfallWei === 0n,
+    gasIncluded,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+function nativeFundingError(chainConfig, result) {
+  const symbol = result.symbol;
+  const balance = formatNativeWei(result.balanceWei);
+  const required = formatNativeWei(result.requiredWei);
+  const shortfall = formatNativeWei(result.shortfallWei);
+  const qualifier = result.gasIncluded ? 'including the quoted cross-chain value and buffered gas' : 'before gas';
+  const error = new Error(
+    `Not enough ${symbol} on ${chainConfig?.name || 'this network'}. `
+    + `This action requires at least ${required} ${symbol} ${qualifier}; `
+    + `the connected wallet has ${balance} ${symbol} and is short by at least ${shortfall} ${symbol}. `
+    + 'No transaction was submitted.',
+  );
+  error.code = 'NATIVE_BALANCE_TOO_LOW';
+  error.nativeFunding = result;
+  return error;
+}
+
+/**
+ * Read the sender's native balance and current gas price from the configured
+ * read-only RPC. This deliberately does not use the injected wallet provider:
+ * balance checks are public reads and must not depend on MetaMask middleware.
+ *
+ * A configured production RPC is fail-closed. If Oppy cannot verify funding,
+ * it does not open a wallet request whose affordability is unknown.
+ */
+async function readNativeFundingSnapshot(chainConfig, address, dependencies = {}) {
+  const rpcUrl = chainConfig?.rpcUrl;
+  if (!rpcUrl || !address) return null;
+
+  try {
+    const read = dependencies.readNativeFunding || (async (url, owner) => {
+      const { default: Web3 } = await import('web3');
+      const web3 = new Web3(url);
+      const [balanceWei, gasPriceWei] = await Promise.all([
+        web3.eth.getBalance(owner),
+        web3.eth.getGasPrice(),
+      ]);
+      return { balanceWei, gasPriceWei };
+    });
+    const rpcUrls = [
+      rpcUrl,
+      ...(PUBLIC_RPC_FALLBACKS[Number(chainConfig?.chainId)] || []),
+    ].filter((value, index, all) => value && all.indexOf(value) === index);
+    const timedRead = (url) => {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Native balance read timed out')), 7000);
+      });
+      return Promise.race([read(url, address), timeout]).finally(() => clearTimeout(timer));
+    };
+    const snapshot = await Promise.any(rpcUrls.map(timedRead));
+    const balanceWei = BigInt(snapshot?.balanceWei);
+    const gasPriceWei = BigInt(snapshot?.gasPriceWei);
+    if (balanceWei < 0n || gasPriceWei <= 0n) throw new Error('Invalid native funding response');
+    return { balanceWei, gasPriceWei };
+  } catch (cause) {
+    const symbol = chainConfig?.nativeCurrency?.symbol || 'native-token';
+    const error = new Error(
+      `Oppy could not verify the live ${symbol} balance on ${chainConfig?.name || 'this network'}, `
+      + 'so no wallet request was opened. Check the network RPC and try again.',
+    );
+    error.code = 'NATIVE_BALANCE_UNAVAILABLE';
+    error.cause = cause;
+    throw error;
+  }
 }
 
 /**

@@ -75,6 +75,14 @@ contracts use the deployed five-argument native Arbitrum signature or six-argume
 cross-chain signature through `contractWriteRouter`; UI code must not construct a
 contract selector independently.
 
+Native-token affordability is a shared write-boundary concern, not model advice.
+`contractWriteRouter` reads the live public balance and gas price, includes the exact
+payable LayerZero quote and buffered source gas, and stops before the wallet opens when
+funds are short. `/api/chat` routes native-balance questions to the deterministic
+`oppy-native-balance` reader before transaction-intent detection, so “Do I have enough
+XDC to post a job?” returns a live balance instead of opening a Post Job card. The job
+indexer is not involved in this read.
+
 Backend explorer reads first use the configured Arbitrum RPC and retry the public
 Arbitrum endpoint when that provider is unavailable or out of capacity. Both chat and
 `/api/oppy/explore/*` go through the same fallback boundary. This is read-only

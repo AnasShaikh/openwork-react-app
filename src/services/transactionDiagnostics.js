@@ -42,6 +42,31 @@ export function classifyTransactionError(error) {
   const code = errorCode(error);
   const txHash = extractHash(error);
 
+  if (code === 'NATIVE_BALANCE_TOO_LOW') {
+    return {
+      category: 'insufficient_gas',
+      status: 'failed',
+      safeToRetry: true,
+      summary: 'The live native-token balance cannot cover this transaction.',
+      nextStep: 'Top up the amount shown in the funding check, then retry. Nothing was submitted.',
+      message,
+      code,
+      txHash,
+    };
+  }
+  if (code === 'NATIVE_BALANCE_UNAVAILABLE') {
+    return {
+      category: 'rpc',
+      status: 'failed',
+      safeToRetry: true,
+      summary: 'Oppy could not verify the live native-token balance.',
+      nextStep: 'Nothing was submitted. Restore the network RPC connection, then retry.',
+      message,
+      code,
+      txHash,
+    };
+  }
+
   if (code === 4001 || /user rejected|user denied|request rejected|cancelled by user/i.test(message)) {
     return {
       category: 'cancelled',
@@ -167,12 +192,38 @@ export function updateTransactionDiagnostic(current, update = {}) {
   next.phase = phase;
   next.step = step;
 
+  if (update.nativeFunding && typeof update.nativeFunding === 'object') {
+    const funding = update.nativeFunding;
+    const digits = (value) => (typeof value === 'string' && /^\d+$/.test(value) ? value : null);
+    next.checks = {
+      ...(next.checks || {}),
+      nativeBalanceWei: digits(funding.balanceWei),
+      nativeRequiredWei: digits(funding.requiredWei),
+      nativeValueWei: digits(funding.nativeValueWei),
+      nativeGasCostWei: digits(funding.gasCostWei),
+      nativeShortfallWei: digits(funding.shortfallWei),
+      nativeSymbol: typeof funding.symbol === 'string' ? funding.symbol.slice(0, 16) : null,
+      nativeFundingSufficient: funding.sufficient === true,
+      nativeFundingGasIncluded: funding.gasIncluded === true,
+      nativeFundingCheckedAt: typeof funding.checkedAt === 'string' ? funding.checkedAt.slice(0, 40) : nowIso(),
+    };
+  }
+
   if (hash) {
     if (step === 'approval') next.approvalTxHash = hash;
     else next.txHash = hash;
   }
 
-  if (phase === 'wallet') {
+  if (phase === 'funding') {
+    next.status = 'preparing';
+    next.safeToRetry = false;
+    next.summary = next.checks?.nativeFundingSufficient
+      ? 'The live native-token balance covers the quoted transaction.'
+      : 'The live native-token balance is too low for the quoted transaction.';
+    next.nextStep = next.checks?.nativeFundingSufficient
+      ? 'Oppy is continuing with the wallet request.'
+      : 'Top up the shortfall shown below. No transaction was submitted.';
+  } else if (phase === 'wallet') {
     next.status = 'wallet';
     next.safeToRetry = false;
     next.summary = step === 'approval' ? 'Your wallet is waiting for USDC approval.' : 'Your wallet is waiting for confirmation.';
@@ -389,6 +440,11 @@ export function diagnosticTechnicalRows(diagnostic) {
     ['Network', `${diagnostic.chainName}${diagnostic.chainId ? ` (${diagnostic.chainId})` : ''}`],
     ['State', `${diagnostic.phase} · ${diagnostic.status}`],
   ];
+  if (diagnostic.checks?.nativeBalanceWei) rows.push(['Native balance (wei)', diagnostic.checks.nativeBalanceWei]);
+  if (diagnostic.checks?.nativeRequiredWei) rows.push(['Native required (wei)', diagnostic.checks.nativeRequiredWei]);
+  if (diagnostic.checks?.nativeShortfallWei && diagnostic.checks.nativeShortfallWei !== '0') {
+    rows.push(['Native shortfall (wei)', diagnostic.checks.nativeShortfallWei]);
+  }
   if (diagnostic.txHash) rows.push(['Transaction', diagnostic.txHash]);
   if (diagnostic.approvalTxHash) rows.push(['Approval', diagnostic.approvalTxHash]);
   if (diagnostic.checks?.blockNumber !== undefined) rows.push(['Latest block', String(diagnostic.checks.blockNumber)]);

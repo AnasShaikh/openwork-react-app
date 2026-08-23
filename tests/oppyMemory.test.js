@@ -58,7 +58,16 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
       summary: 'Waiting for approval.',
       nextStep: 'Open the wallet.',
       safeToRetry: false,
-      checks: { walletReachable: true },
+      checks: {
+        walletReachable: true,
+        nativeBalanceWei: '289296832824877939',
+        nativeRequiredWei: '4530000000000000000',
+        nativeShortfallWei: '4240703167175122061',
+        nativeSymbol: 'XDC',
+        nativeFundingSufficient: false,
+        nativeFundingGasIncluded: true,
+        nativeFundingCheckedAt: '2026-08-23T08:00:00.000Z',
+      },
     },
     lastPreparedAction: {
       name: 'startDirectContract',
@@ -82,6 +91,8 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
   assert.equal(loaded.recentTransactions[0].baselineTotalPaidRaw, '0');
   assert.equal(loaded.latestTransactionDiagnostic.step, 'approval');
   assert.equal(loaded.latestTransactionDiagnostic.safeToRetry, false);
+  assert.equal(loaded.latestTransactionDiagnostic.checks.nativeBalanceWei, '289296832824877939');
+  assert.equal(loaded.latestTransactionDiagnostic.checks.nativeFundingSufficient, false);
   assert.equal(loaded.lastPreparedAction.name, 'startDirectContract');
   assert.equal(loaded.lastPreparedAction.params.budget, 0.1);
 });

@@ -147,6 +147,9 @@ export function sanitizeTransactionDiagnostic(value) {
       ? Number(candidate)
       : null
   );
+  const digitsOrNull = (candidate) => (
+    typeof candidate === 'string' && /^\d+$/.test(candidate) ? candidate : null
+  );
   const checks = value.checks && typeof value.checks === 'object' ? {
     rpcReachable: typeof value.checks.rpcReachable === 'boolean' ? value.checks.rpcReachable : null,
     walletReachable: typeof value.checks.walletReachable === 'boolean' ? value.checks.walletReachable : null,
@@ -156,6 +159,21 @@ export function sanitizeTransactionDiagnostic(value) {
     blockNumber: integerOrNull(value.checks.blockNumber),
     pendingNonceGap: integerOrNull(value.checks.pendingNonceGap),
     checkedAt: typeof value.checks.checkedAt === 'string' ? value.checks.checkedAt.slice(0, 40) : null,
+    nativeBalanceWei: digitsOrNull(value.checks.nativeBalanceWei),
+    nativeRequiredWei: digitsOrNull(value.checks.nativeRequiredWei),
+    nativeValueWei: digitsOrNull(value.checks.nativeValueWei),
+    nativeGasCostWei: digitsOrNull(value.checks.nativeGasCostWei),
+    nativeShortfallWei: digitsOrNull(value.checks.nativeShortfallWei),
+    nativeSymbol: typeof value.checks.nativeSymbol === 'string' ? value.checks.nativeSymbol.slice(0, 16) : null,
+    nativeFundingSufficient: typeof value.checks.nativeFundingSufficient === 'boolean'
+      ? value.checks.nativeFundingSufficient
+      : null,
+    nativeFundingGasIncluded: typeof value.checks.nativeFundingGasIncluded === 'boolean'
+      ? value.checks.nativeFundingGasIncluded
+      : null,
+    nativeFundingCheckedAt: typeof value.checks.nativeFundingCheckedAt === 'string'
+      ? value.checks.nativeFundingCheckedAt.slice(0, 40)
+      : null,
   } : {};
   return {
     attemptId: typeof value.attemptId === 'string' ? value.attemptId.slice(0, 80) : null,

@@ -75,6 +75,9 @@ function normalizeTransactionDiagnostic(value) {
       ? Number(candidate)
       : null
   );
+  const digitsOrNull = (candidate) => (
+    typeof candidate === 'string' && /^\d+$/.test(candidate) ? candidate : null
+  );
   const states = new Set(['preparing', 'wallet', 'pending', 'confirmed', 'reverted', 'dropped', 'cancelled', 'failed', 'unknown']);
   const checks = value.checks && typeof value.checks === 'object' ? {
     rpcReachable: typeof value.checks.rpcReachable === 'boolean' ? value.checks.rpcReachable : null,
@@ -85,6 +88,21 @@ function normalizeTransactionDiagnostic(value) {
     blockNumber: integerOrNull(value.checks.blockNumber),
     pendingNonceGap: integerOrNull(value.checks.pendingNonceGap),
     checkedAt: typeof value.checks.checkedAt === 'string' ? value.checks.checkedAt.slice(0, 40) : null,
+    nativeBalanceWei: digitsOrNull(value.checks.nativeBalanceWei),
+    nativeRequiredWei: digitsOrNull(value.checks.nativeRequiredWei),
+    nativeValueWei: digitsOrNull(value.checks.nativeValueWei),
+    nativeGasCostWei: digitsOrNull(value.checks.nativeGasCostWei),
+    nativeShortfallWei: digitsOrNull(value.checks.nativeShortfallWei),
+    nativeSymbol: typeof value.checks.nativeSymbol === 'string' ? value.checks.nativeSymbol.slice(0, 16) : null,
+    nativeFundingSufficient: typeof value.checks.nativeFundingSufficient === 'boolean'
+      ? value.checks.nativeFundingSufficient
+      : null,
+    nativeFundingGasIncluded: typeof value.checks.nativeFundingGasIncluded === 'boolean'
+      ? value.checks.nativeFundingGasIncluded
+      : null,
+    nativeFundingCheckedAt: typeof value.checks.nativeFundingCheckedAt === 'string'
+      ? value.checks.nativeFundingCheckedAt.slice(0, 40)
+      : null,
   } : {};
   return {
     attemptId: typeof value.attemptId === 'string' ? value.attemptId.slice(0, 80) : null,
@@ -101,6 +119,7 @@ function normalizeTransactionDiagnostic(value) {
     txHash: hash(value.txHash),
     approvalTxHash: hash(value.approvalTxHash),
     safeToRetry: value.safeToRetry === true,
+    updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt.slice(0, 40) : null,
     checks,
     error: value.error && typeof value.error === 'object' ? {
       category: typeof value.error.category === 'string' ? value.error.category.slice(0, 40) : null,

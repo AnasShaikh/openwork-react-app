@@ -1493,7 +1493,8 @@ const OppyChat = () => {
         const symbol = getChainConfig(parseInt(walletState.chainId || '0x0', 16))?.nativeCurrency?.symbol || 'native currency';
         message = `The wallet does not have enough ${symbol} for network fees.`;
       }
-      const preBroadcastFailure = !submissionAttempted;
+      const verifiedPreBroadcast = ['NATIVE_BALANCE_TOO_LOW', 'NATIVE_BALANCE_UNAVAILABLE'].includes(error?.code);
+      const preBroadcastFailure = !submissionAttempted || verifiedPreBroadcast;
       report({
         phase: 'error',
         message,
@@ -1502,8 +1503,10 @@ const OppyChat = () => {
           outcome: 'failed',
           safeToRetry: true,
           summary: 'The action stopped before any transaction was submitted.',
-          nextStep: 'The wallet or network setting can be corrected, then this action can be retried safely.',
-          category: 'pre_broadcast',
+          nextStep: error?.code === 'NATIVE_BALANCE_TOO_LOW'
+            ? 'Top up the native-token shortfall shown in the live funding check, then retry safely.'
+            : 'The wallet or network setting can be corrected, then this action can be retried safely.',
+          category: error?.code === 'NATIVE_BALANCE_TOO_LOW' ? 'insufficient_gas' : 'pre_broadcast',
         } : {}),
       });
       return {
@@ -1513,8 +1516,10 @@ const OppyChat = () => {
           outcome: 'failed',
           safeToRetry: true,
           summary: 'The action stopped before any transaction was submitted.',
-          nextStep: 'The wallet or network setting can be corrected, then this action can be retried safely.',
-          category: 'pre_broadcast',
+          nextStep: error?.code === 'NATIVE_BALANCE_TOO_LOW'
+            ? 'Top up the native-token shortfall shown in the live funding check, then retry safely.'
+            : 'The wallet or network setting can be corrected, then this action can be retried safely.',
+          category: error?.code === 'NATIVE_BALANCE_TOO_LOW' ? 'insufficient_gas' : 'pre_broadcast',
         } : {}),
       };
     }

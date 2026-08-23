@@ -42,6 +42,27 @@ import { resolveDirectContractJobId } from "../utils/directContractReceipt";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
+function formatNativeFundingAmount(value) {
+  const amount = BigInt(value || 0);
+  const base = 10n ** 18n;
+  const whole = amount / base;
+  const fraction = (amount % base).toString().padStart(18, '0').slice(0, 6).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function nativeFundingOptions(emit) {
+  return {
+    onNativeBalanceCheck: (check) => emit({
+      phase: 'funding',
+      step: 'action',
+      nativeFunding: check,
+      message: check.sufficient
+        ? `Live ${check.symbol} balance verified: ${formatNativeFundingAmount(check.balanceWei)} available; about ${formatNativeFundingAmount(check.requiredWei)} required including gas.`
+        : `Live ${check.symbol} balance is too low: ${formatNativeFundingAmount(check.balanceWei)} available; at least ${formatNativeFundingAmount(check.requiredWei)} required. No transaction was submitted.`,
+    }),
+  };
+}
+
 /**
  * Persist a tx hash to the backend so users can always retrieve it later.
  * Fire-and-forget — never blocks the main flow.
@@ -256,8 +277,6 @@ export async function postJob(chainId, userAddress, jobData, onStatus, walletPro
       lzFee = await estimateLayerZeroFee(chainId, "POST_JOB", { encodedPayload, nativeOptions });
     }
 
-    emit(`Submitting job post on ${config.name} — confirm in wallet...`);
-
     const method = createLOWJCWrite(
       contract,
       config,
@@ -266,9 +285,16 @@ export async function postJob(chainId, userAddress, jobData, onStatus, walletPro
       nativeOptions
     );
 
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Submitting job post on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Job post submitted on ${config.name}; checking confirmation…` },
     );
@@ -325,8 +351,6 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
       lzFee = await estimateLayerZeroFee(chainId, "APPLY_JOB", { encodedPayload, nativeOptions });
     }
 
-    emit(`Submitting application on ${config.name} — confirm in wallet...`);
-
     const method = createLOWJCWrite(
       contract,
       config,
@@ -341,9 +365,16 @@ export async function applyToJob(chainId, userAddress, applicationData, onStatus
       nativeOptions
     );
 
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Submitting application on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Application submitted on ${config.name}; checking confirmation…` },
     );
@@ -407,7 +438,6 @@ export async function startDirectContract(chainId, userAddress, contractData, on
     });
   }
 
-  emit(`Creating the direct contract on ${config.name} — confirm in your wallet…`);
   const method = createLOWJCWrite(
     contract,
     config,
@@ -421,9 +451,16 @@ export async function startDirectContract(chainId, userAddress, contractData, on
     ],
     nativeOptions,
   );
+  const sendOptions = await buildEstimatedWriteSendOptions(
+    method,
+    config,
+    { from: userAddress, value: lzFee },
+    nativeFundingOptions(emit),
+  );
+  emit(`Creating the direct contract on ${config.name} — confirm in your wallet…`);
   const tx = await sendTrackedContractMethod(
     method,
-    await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+    sendOptions,
     emit,
     { pendingMessage: `Direct contract submitted on ${config.name}; checking confirmation…` },
   );
@@ -491,8 +528,6 @@ export async function startJob(chainId, userAddress, startData, onStatus, wallet
       );
     }
 
-    emit(`Starting job on ${config.name} — confirm in wallet...`);
-
     const method = createLOWJCWrite(
       contract,
       config,
@@ -501,9 +536,16 @@ export async function startJob(chainId, userAddress, startData, onStatus, wallet
       nativeOptions
     );
 
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Starting job on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Job start submitted on ${config.name}; checking confirmation…` },
     );
@@ -547,8 +589,6 @@ export async function submitWork(chainId, userAddress, workData, onStatus, walle
       lzFee = await estimateLayerZeroFee(chainId, "DEFAULT", { encodedPayload, nativeOptions });
     }
 
-    emit(`Submitting work on ${config.name} — confirm in wallet...`);
-
     const method = createLOWJCWrite(
       contract,
       config,
@@ -557,9 +597,16 @@ export async function submitWork(chainId, userAddress, workData, onStatus, walle
       nativeOptions
     );
 
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Submitting work on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Work submission sent on ${config.name}; checking confirmation…` },
     );
@@ -605,8 +652,6 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
       lzFee = await estimateLayerZeroFee(chainId, "RELEASE_PAYMENT", { encodedPayload, nativeOptions });
     }
 
-    emit(`Releasing payment on ${config.name} — confirm in wallet...`);
-
     // Native Arb: call unified releasePayment(jobId) — NOWJC auto-routes to applicant
     // Cross-chain: call releasePaymentCrossChain with target domain + recipient
     const method = createLOWJCWrite(
@@ -617,9 +662,16 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
       nativeOptions
     );
 
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Releasing payment on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Payment release submitted on ${config.name}; checking confirmation…` },
     );
@@ -665,8 +717,6 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus, 
         .call()).toString();
     }
 
-    emit(`Raising dispute on ${config.name} — confirm in wallet...`);
-
     const method = createAthenaWrite(
       contract,
       config,
@@ -681,9 +731,16 @@ export async function raiseDispute(chainId, userAddress, disputeData, onStatus, 
       nativeOptions
     );
 
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Raising dispute on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Dispute submitted on ${config.name}; checking confirmation…` },
     );
@@ -726,7 +783,6 @@ export async function createProfile(chainId, userAddress, profileData, onStatus,
       lzFee = await estimateLayerZeroFee(chainId, "DEFAULT", { encodedPayload, nativeOptions });
     }
 
-    emit(`Creating profile on ${config.name} — confirm in wallet...`);
     const method = createLOWJCWrite(
       contract,
       config,
@@ -737,9 +793,16 @@ export async function createProfile(chainId, userAddress, profileData, onStatus,
       ],
       nativeOptions
     );
+    const sendOptions = await buildEstimatedWriteSendOptions(
+      method,
+      config,
+      { from: userAddress, value: lzFee },
+      nativeFundingOptions(emit),
+    );
+    emit(`Creating profile on ${config.name} — confirm in wallet...`);
     const tx = await sendTrackedContractMethod(
       method,
-      await buildEstimatedWriteSendOptions(method, config, { from: userAddress, value: lzFee }),
+      sendOptions,
       emit,
       { pendingMessage: `Profile creation submitted on ${config.name}; checking confirmation…` },
     );
@@ -778,7 +841,6 @@ export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus
       lzFee = await estimateLayerZeroFee(chainId, "DEFAULT", { encodedPayload, nativeOptions });
     }
 
-    emit(`Adding portfolio on ${config.name} — confirm in wallet...`);
     const method = createLOWJCWrite(
       contract,
       config,
@@ -786,10 +848,12 @@ export async function addPortfolio(chainId, userAddress, portfolioHash, onStatus
       [portfolioHash],
       nativeOptions
     );
-    const tx = await method.send(await buildEstimatedWriteSendOptions(method, config, {
+    const sendOptions = await buildEstimatedWriteSendOptions(method, config, {
       from: userAddress,
       value: lzFee,
-    }));
+    }, nativeFundingOptions(emit));
+    emit(`Adding portfolio on ${config.name} — confirm in wallet...`);
+    const tx = await method.send(sendOptions);
 
     emit(`Portfolio added: ${tx.transactionHash}`);
     console.log(`[addPortfolio] confirmed on ${config.name}:`, tx.transactionHash);

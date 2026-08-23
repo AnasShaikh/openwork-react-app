@@ -55,6 +55,38 @@ The UI never unlocks retry merely because a timer elapsed. A timer starts a read
 check; only an explicit cancellation, reverted receipt or sufficiently verified drop
 can make retry safe.
 
+## Native balance and full-cost preflight
+
+Every write routed through `buildEstimatedWriteSendOptions` now fails closed before
+the injected wallet opens. The shared preflight reads the sender's native balance and
+gas price from the configured read-only RPC (with public XDC, Optimism and Arbitrum
+fallbacks), then compares it with:
+
+```text
+required native funds = payable LayerZero quote + buffered gas limit × fee ceiling
+```
+
+This distinction is essential on XDC. The source-chain gas charge may be small, but a
+LayerZero message can require several XDC as `msg.value`. Copy such as “1–2 XDC should
+be enough” is therefore prohibited unless a fresh exact quote proves it. If the live
+balance is below `msg.value`, Oppy stops even before gas estimation. If every read-only
+RPC is unavailable, the check also stops rather than opening a wallet request with an
+unknown outcome.
+
+`localChainService` emits the sanitized funding snapshot before the wallet phase:
+balance, total requirement, message value, buffered gas cost, shortfall, symbol and
+timestamp. `transactionDiagnostics` persists those public fields in bounded wallet
+memory. A later balance question is answered deterministically by
+`backend/services/oppy-native-balance.js`, which refreshes the public on-chain balance
+without using the canonical job indexer. If the latest action has a funding snapshot,
+Oppy can give an exact yes/no comparison; otherwise it reports the live balance and
+states that the current action must first receive its dynamic quote.
+
+The wallet prompt is created only after quote, balance and gas preflight succeed. A
+`NATIVE_BALANCE_TOO_LOW` or `NATIVE_BALANCE_UNAVAILABLE` error is proven
+pre-broadcast, records that no transaction was submitted and permits a safe retry
+after the user tops up or RPC connectivity returns.
+
 When the client has explicitly marked an attempt safe, natural-language commands such
 as “try again”, “retry it”, “go ahead” and “can you retry?” recreate the exact previous
 validated review card. This path is deterministic and does not depend on the model
@@ -72,6 +104,8 @@ and does not recreate an executable card.
   queue that can make later writes appear stuck.
 - Whether failure copy indicates cancellation, insufficient native gas, USDC funding,
   a contract revert, wallet/RPC failure or an unresolved outcome.
+- The live native-token balance and, after an action quote, whether it covers the full
+  payable value plus buffered source-chain gas.
 - Which substep is active: USDC approval or the OpenWork contract action.
 
 Oppy automatically checks a wallet phase after 12 seconds and a broadcast phase after
@@ -108,7 +142,9 @@ When adding a new Oppy write:
    switch failures can be distinguished from errors after a submission attempt.
 4. Add the action to the bounded backend sanitizer only if new public diagnostic fields
    are required; never forward arbitrary client objects into the model prompt.
-5. Add tests for pending, confirmed, reverted, cancelled, dropped and RPC-unavailable
+5. Keep the write on `buildEstimatedWriteSendOptions`; bypassing it also bypasses the
+   native-funding guard. Emit the wallet phase only after the builder succeeds.
+6. Add tests for pending, confirmed, reverted, cancelled, dropped and RPC-unavailable
    behavior as applicable.
 
 ## Verification
@@ -124,7 +160,9 @@ git diff --check
 
 Primary coverage lives in `tests/transactionDiagnostics.test.js`,
 `tests/txReliability.test.js`, `tests/oppyMemory.test.js`,
-`backend/tests/chat.test.js` and `backend/tests/oppy-job-context.test.js`.
+`tests/contractWriteRouter.test.js`, `backend/tests/chat.test.js`,
+`backend/tests/oppy-native-balance.test.js` and
+`backend/tests/oppy-job-context.test.js`.
 
 Browser QA must exercise simple and expanded technical states at desktop and 390 px,
 confirm no horizontal overflow and verify that an unsafe failure disables `Retry

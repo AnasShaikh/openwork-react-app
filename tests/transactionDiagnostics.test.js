@@ -68,6 +68,39 @@ test('a network failure before any write call is explicitly retry-safe', () => {
   assert.match(failed.summary, /before any transaction was submitted/);
 });
 
+test('native funding checks remain available to later chat questions', () => {
+  const diagnostic = updateTransactionDiagnostic(attempt(), {
+    phase: 'funding',
+    nativeFunding: {
+      balanceWei: '289296832824877939',
+      requiredWei: '4530000000000000000',
+      nativeValueWei: '4525823000000000000',
+      gasCostWei: '4177000000000000',
+      shortfallWei: '4240703167175122061',
+      symbol: 'XDC',
+      sufficient: false,
+      gasIncluded: true,
+      checkedAt: '2026-08-23T08:00:00.000Z',
+    },
+  });
+  assert.equal(diagnostic.status, 'preparing');
+  assert.equal(diagnostic.checks.nativeBalanceWei, '289296832824877939');
+  assert.equal(diagnostic.checks.nativeRequiredWei, '4530000000000000000');
+  assert.equal(diagnostic.checks.nativeFundingSufficient, false);
+  assert.match(diagnostic.nextStep, /Top up/);
+});
+
+test('native balance failures are retry-safe and known to be pre-broadcast', () => {
+  const result = classifyTransactionError({
+    code: 'NATIVE_BALANCE_TOO_LOW',
+    message: 'Not enough XDC. No transaction was submitted.',
+  });
+  assert.equal(result.status, 'failed');
+  assert.equal(result.safeToRetry, true);
+  assert.equal(result.category, 'insufficient_gas');
+  assert.match(result.nextStep, /Nothing was submitted/);
+});
+
 test('unknown RPC failures protect retry until a read-only check resolves the outcome', () => {
   const result = classifyTransactionError({ message: 'RPC endpoint not found or unavailable.' });
   assert.equal(result.status, 'unknown');

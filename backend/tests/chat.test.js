@@ -256,7 +256,16 @@ test('conversation memory keeps only bounded job and receipt context', () => {
       summary: 'Waiting for approval.',
       nextStep: 'Open the wallet.',
       safeToRetry: false,
-      checks: { walletReachable: true },
+      checks: {
+        walletReachable: true,
+        nativeBalanceWei: '289296832824877939',
+        nativeRequiredWei: '4530000000000000000',
+        nativeShortfallWei: '4240703167175122061',
+        nativeSymbol: 'XDC',
+        nativeFundingSufficient: false,
+        nativeFundingGasIncluded: true,
+        nativeFundingCheckedAt: '2026-08-23T08:00:00.000Z',
+      },
     },
     lastPreparedAction: {
       name: 'startDirectContract',
@@ -275,6 +284,9 @@ test('conversation memory keeps only bounded job and receipt context', () => {
   assert.equal(memory.recentTransactions[0].baselineTotalPaidRaw, '250000');
   assert.equal(memory.latestTransactionDiagnostic.step, 'approval');
   assert.equal(memory.latestTransactionDiagnostic.checks.walletReachable, true);
+  assert.equal(memory.latestTransactionDiagnostic.checks.nativeBalanceWei, '289296832824877939');
+  assert.equal(memory.latestTransactionDiagnostic.checks.nativeRequiredWei, '4530000000000000000');
+  assert.equal(memory.latestTransactionDiagnostic.checks.nativeFundingSufficient, false);
   assert.equal(memory.lastPreparedAction.name, 'startDirectContract');
   assert.equal(memory.lastPreparedAction.params.title, 'React Developer');
   assert.equal(sanitizeConversationMemory({ activeJob: { jobId: '../bad' } }).activeJob, null);

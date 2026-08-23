@@ -20,6 +20,7 @@ const {
   runExplorerIntent,
 } = require('../services/oppy-explorer');
 const { resolveCrossChainStatusAnswer } = require('../services/oppy-cross-chain-answer');
+const { resolveNativeBalanceAnswer } = require('../services/oppy-native-balance');
 
 const router = express.Router();
 
@@ -77,6 +78,38 @@ router.post('/', async (req, res) => {
   inFlightRequests += 1;
   try {
     const transactionMode = request.mode === 'transactions';
+    // Balance questions are read-only questions even when they mention the
+    // action being funded (for example, "enough XDC to post a job?"). Resolve
+    // them before action-intent detection so wording like "post a job" cannot
+    // accidentally create a transaction card.
+    const nativeBalanceAnswer = transactionMode
+      ? await resolveNativeBalanceAnswer(request.message, request.wallet, request.memory)
+      : null;
+    if (nativeBalanceAnswer) {
+      console.info('[chat] answered from live native balance', {
+        chainId: nativeBalanceAnswer.chainId,
+        balanceAvailable: nativeBalanceAnswer.balanceWei !== null,
+      });
+      return res.json({
+        success: true,
+        response: nativeBalanceAnswer.text,
+        tool: null,
+        explorer: null,
+        nativeBalance: {
+          chainId: nativeBalanceAnswer.chainId,
+          chainName: nativeBalanceAnswer.chainName || null,
+          symbol: nativeBalanceAnswer.symbol || null,
+          balanceWei: nativeBalanceAnswer.balanceWei,
+          requirementWei: nativeBalanceAnswer.requirementWei || null,
+        },
+        model: 'deterministic-native-balance',
+        context: {
+          activeJob: request.memory.activeJob || null,
+          canonicalJobHistoryAvailable: false,
+          canonicalJobCount: 0,
+        },
+      });
+    }
     const toolIntent = transactionMode
       ? resolveTransactionToolIntent(request.message, request.history, request.memory)
       : null;
