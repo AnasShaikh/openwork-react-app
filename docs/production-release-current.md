@@ -858,6 +858,41 @@ PaymentReleased recovery listener. The transaction-scoped Oppy verifier is insul
 by its public Arbitrum fallback and passed this release gate. The listener warning is a
 separate relayer-availability item and is not represented as fixed by this release.
 
+## Oppy live native-balance and funding-preflight release
+
+Commit `d671e169d774f9159b304eae1629291954abb787` makes native-token
+funding a mandatory, transaction-scoped preflight rather than an indexer-dependent
+guess. Oppy can answer XDC, Optimism and Arbitrum native-balance questions directly
+from read-only chain RPCs. Before any supported payable wallet write, the frontend now
+compares the live native balance with the current LayerZero quote plus buffered gas and
+fails closed before opening the injected wallet when funds are insufficient or every
+balance endpoint is unavailable.
+
+The exact production balance replay for wallet
+`0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C` used model label
+`deterministic-native-balance` and returned `0.289296832824877939 XDC` directly from
+XDC Network. A separate read-only quote for releasing the current milestone on job
+`30365-10` returned `4.504461534394187956 XDC` before gas, establishing a minimum
+shortfall of `4.215164701569310017 XDC`. No wallet request, contract write or on-chain
+transaction was submitted during either verification.
+
+| Release field | Verified value |
+|---|---|
+| Deployed commit | `d671e169d774f9159b304eae1629291954abb787` |
+| GitHub CI | Run `32627825937` — succeeded |
+| Frontend tests | `132/132` passed |
+| Backend tests | `80/80` passed |
+| Production build | Vite build passed; existing chunk-size warnings only |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-d671e169d774f9159b304eae1629291954abb787.zip` |
+| Source SHA-256 | `63efe8b43de5ee6023afe36518d33f56ed399ee65ac8ee0861f0f9323c25eb39` |
+| CodeBuild | `openwork-react-app-prod-build:8f98199d-2d5d-4f81-bd19-5787bb57a814` — succeeded |
+| ECR image | `openwork-app:prod-d671e16-20260823134749` |
+| ECR digest | `sha256:da8c9a8f3a96a3064aab1960bfb2d8b6612f35bb517aff290082d5c0bc74c191` |
+| App Runner operation | `e7f6afd919cd4060a51a4ac9c069d284` — succeeded 24 August 2026 at 18:03:13 IST |
+| Live JavaScript | `/assets/index-aB5KpIVa.js` — SHA-256 `14ea374d6b79b49c4a2179b0c0aa035fe6343e67f86dea45a95524f7deb767dd` |
+| Public gates | `/healthz` returned `{"status":"ok"}`; `/chat` returned HTTP `200`; the exact `/api/chat` balance replay returned the live XDC balance with model `deterministic-native-balance` |
+| Visual gate | Production `/chat` rendered the Oppy composer, voice-input button and wallet boundary with no browser warnings or errors |
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -868,7 +903,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-3fd8419-20260822222527` |
-| ECR digest | `sha256:509c743d9fc715703d9b9d30fe890093b2bfae1be3862b4e24f22201aea03948` |
+| ECR image | `openwork-app:prod-4c61995-20260823111610` |
+| ECR digest | `sha256:ad43e7e06534b0d8da48ed275d59b5be790a6ff4508b2c8ff4b4773030cd6c64` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
