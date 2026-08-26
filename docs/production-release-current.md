@@ -893,6 +893,58 @@ transaction was submitted during either verification.
 | Public gates | `/healthz` returned `{"status":"ok"}`; `/chat` returned HTTP `200`; the exact `/api/chat` balance replay returned the live XDC balance with model `deterministic-native-balance` |
 | Visual gate | Production `/chat` rendered the Oppy composer, voice-input button and wallet boundary with no browser warnings or errors |
 
+## Oppy latest-job identity recovery release
+
+Commit `72bca49a95888f961b44a133d6578bda068ca2f8` fixes the stale-job answer
+reported after Oppy remembered job `30365-7` and then treated an exhausted provider as
+a reason to ask the user for the newer job ID. Latest-job identity questions now bypass
+generative interpretation. Oppy first checks source-confirmed browser receipts, then
+server receipt history when configured, and independently reads the connected wallet's
+ordered `getJobsByPoster` history. The lightweight identity read is separate from the
+full job-ledger/indexer path, retries the public Arbitrum endpoint, and updates the
+active chat job so the next lifecycle action uses the recovered ID.
+
+The exact production replay supplied stale active-job and receipt memory for
+`30365-7`, followed by `I dont remember, can you check?`. The live `/api/chat`
+response used model label `deterministic-job-identity`, recovered `30365-10` from the
+wallet's canonical creation order and answered: `Your latest posted job is 30365-10
+on XDC Network. It is present in OpenWork's live job history.` It did not invoke
+Bedrock, prepare a transaction, ask the user to inspect an explorer or submit an
+on-chain write.
+
+The release also corrected production configuration drift. The App Runner Arbitrum
+parameter still referenced an exhausted Alchemy allowance even though an earlier
+release record said it had been rotated. SSM parameter
+`/openwork/react-app/prod/ARBITRUM_MAINNET_RPC_URL` is now version `4` and resolves to
+`https://arb1.arbitrum.io/rpc`. The same immutable image was recycled to load it.
+Post-restart logs contain no monthly-capacity error; the 5,000-block startup scan
+completed and the PaymentReleased listener began at block `498546655`. CodeBuild's
+role was also missing the `s3:ListBucket` action now required to download an overridden
+source object. Its inline policy now grants that action only for the existing build
+bucket and `source/*` prefix.
+
+| Release field | Verified value |
+|---|---|
+| Deployed commit | `72bca49a95888f961b44a133d6578bda068ca2f8` |
+| Frontend tests | `132/132` passed |
+| Backend tests | `86/86` passed |
+| Production build | Vite build passed; existing chunk-size warnings only |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-72bca49a95888f961b44a133d6578bda068ca2f8.zip` |
+| Source SHA-256 | `38c345716915d4b38fa452d84d4089ea92a83507bb016f4365cb0b2d9c410ae2` |
+| CodeBuild | `openwork-react-app-prod-build:02250a5c-04f3-4d5c-8eca-9509871b8591` — succeeded |
+| ECR image | `openwork-app:prod-72bca49-20260826100546` |
+| ECR digest | `sha256:ba7507a27c997c20cc83f68a211c1a61684b123b52ea17dcf009cb21c968596b` |
+| App Runner image update | `fcf76fc19a6a4d33aa4994e04097077d` — succeeded 26 August 2026 at 15:48:45 IST |
+| App Runner RPC reload | `105eab9bcbe541b0b02b005d6b4ebe42` — succeeded 26 August 2026 at 15:55:15 IST |
+| Public gates | `/healthz` returned `{"status":"ok"}`; `/chat` returned HTTP `200`; exact stale-memory `/api/chat` replay returned `30365-10` with model `deterministic-job-identity` |
+
+Two unrelated operational warnings remain explicit rather than being represented as
+fixed: App Runner has no external database configured, so the chain and browser memory
+remain the durable recovery sources; and the Arbitrum service wallet
+`0x93514040f43aB16D52faAe7A3f380c4089D844F9` has approximately `0.000500 ETH`, below
+the backend's relayer reserve threshold. Funding that service wallet is a separate
+on-chain operation and was not performed by this release.
+
 ## IPFS infrastructure
 
 Production uploads no longer depend on the unhealthy Lighthouse and Pinata accounts. The frugal AWS provider uses one `t4g.small`, an encrypted retained 30 GiB data volume, CloudFront TLS and four weekly incremental snapshots. Its verified fixed estimate is approximately `$18.95/month` before AWS credits, plus small usage-based transfer and snapshot charges. The complete record is `docs/ipfs-aws-production-2026-07-19.md`.
@@ -903,7 +955,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-4c61995-20260823111610` |
-| ECR digest | `sha256:ad43e7e06534b0d8da48ed275d59b5be790a6ff4508b2c8ff4b4773030cd6c64` |
+| ECR image | `openwork-app:prod-d671e16-20260823134749` |
+| ECR digest | `sha256:da8c9a8f3a96a3064aab1960bfb2d8b6612f35bb517aff290082d5c0bc74c191` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
