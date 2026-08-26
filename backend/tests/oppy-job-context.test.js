@@ -100,6 +100,71 @@ test('a confirmed XDC source job remains active while canonical delivery is pend
   assert.match(formatJobContext(context), /canonical Arbitrum delivery still unconfirmed/);
 });
 
+test('wallet context recovers confirmed job transactions from durable server history', async () => {
+  resetCachesForTest();
+  const context = await getWalletJobContext(wallet, {
+    activeJob: { jobId: '30365-7', sourceChainId: 50, sourceReceiptConfirmed: true },
+  }, {
+    jobs: [rawJob({ id: '30365-10', jobDetailHash: '' })],
+    posterJobIds: ['30365-7', '30365-10'],
+    walletTransactions: [{
+      action: 'startDirectContract',
+      jobId: '30365-10',
+      txHash: `0x${'d'.repeat(64)}`,
+      chainId: 50,
+      confirmed: true,
+      createdAt: '2026-08-23T05:38:52.000Z',
+    }],
+    fetch: async () => ({ ok: false }),
+  });
+
+  assert.deepEqual(context.posterJobIds, ['30365-7', '30365-10']);
+  assert.equal(context.durableTransactions[0].jobId, '30365-10');
+  assert.match(formatJobContext(context), /Durable confirmed transaction history/);
+  assert.match(formatJobContext(context), /startDirectContract: 30365-10/);
+});
+
+test('wallet context retries the public RPC when the configured provider is exhausted', async () => {
+  resetCachesForTest();
+  const rpcCalls = [];
+  class FallbackWeb3 {
+    constructor(rpcUrl) {
+      rpcCalls.push(rpcUrl);
+      this.eth = {
+        Contract: class {
+          constructor() {
+            this.methods = {
+              getJobsByStatus: (status) => ({
+                call: async () => {
+                  if (rpcUrl === 'https://capacity-exhausted.example') throw new Error('Monthly capacity limit exceeded');
+                  return status === 1 ? [rawJob({ id: '30365-10', jobDetailHash: '' })] : [];
+                },
+              }),
+              getJobsByPoster: () => ({
+                call: async () => ['30365-10'],
+              }),
+            };
+          }
+        },
+      };
+    }
+  }
+
+  const context = await getWalletJobContext(wallet, {}, {
+    Web3: FallbackWeb3,
+    rpcUrl: 'https://capacity-exhausted.example',
+    publicRpcUrl: 'https://public-arbitrum.example',
+    walletTransactions: [],
+    fetch: async () => ({ ok: false }),
+  });
+
+  assert.equal(context.available, true);
+  assert.equal(context.jobs[0].jobId, '30365-10');
+  assert.deepEqual(context.posterJobIds, ['30365-10']);
+  assert.ok(rpcCalls.includes('https://capacity-exhausted.example'));
+  assert.ok(rpcCalls.includes('https://public-arbitrum.example'));
+});
+
 test('latest transaction diagnostics ground simple and technical chat answers', () => {
   const formatted = formatJobContext({
     available: true,

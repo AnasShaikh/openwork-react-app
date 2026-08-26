@@ -11,6 +11,7 @@ const {
   sanitizeWalletState,
 } = require('../services/oppy-context');
 const {
+  getWalletJobIdentityContext,
   getWalletJobContext,
   sanitizeConversationMemory,
 } = require('../services/oppy-job-context');
@@ -20,6 +21,7 @@ const {
   runExplorerIntent,
 } = require('../services/oppy-explorer');
 const { resolveCrossChainStatusAnswer } = require('../services/oppy-cross-chain-answer');
+const { isJobIdentityQuestion, resolveJobIdentityAnswer } = require('../services/oppy-job-identity');
 const { resolveNativeBalanceAnswer } = require('../services/oppy-native-balance');
 
 const router = express.Router();
@@ -158,6 +160,37 @@ router.post('/', async (req, res) => {
       });
     }
     const explorerIntent = transactionMode ? detectDataIntent(request.message, explicitToolName) : null;
+    const jobIdentityRequested = transactionMode
+      && !allowedToolName
+      && isJobIdentityQuestion(request.message, request.history);
+    if (jobIdentityRequested) {
+      const identityContext = await getWalletJobIdentityContext(
+        request.wallet.address,
+        request.memory,
+      );
+      const jobIdentityAnswer = resolveJobIdentityAnswer(
+        request.message,
+        request.history,
+        identityContext,
+      );
+      const recoveredJob = jobIdentityAnswer.job || identityContext.activeJob || null;
+      console.info('[chat] answered from verified job identity', {
+        jobId: recoveredJob?.jobId || null,
+        evidence: recoveredJob?.evidence || null,
+      });
+      return res.json({
+        success: true,
+        response: jobIdentityAnswer.text,
+        tool: null,
+        explorer: null,
+        model: 'deterministic-job-identity',
+        context: {
+          activeJob: recoveredJob,
+          canonicalJobHistoryAvailable: identityContext.available === true,
+          canonicalJobCount: identityContext.posterJobIds?.length || 0,
+        },
+      });
+    }
     const jobContext = transactionMode && request.wallet.connected
       ? await getWalletJobContext(request.wallet.address, request.memory)
       : {

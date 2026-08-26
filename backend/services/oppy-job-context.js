@@ -3,6 +3,7 @@
 const fetch = require('node-fetch');
 const { Web3 } = require('web3');
 const config = require('../config');
+const db = require('../db/db');
 const genesisAbi = require('../../src/ABIs/genesis_ABI.json');
 const genesisHelperAbi = require('../../src/ABIs/genesis_helper_ABI.json');
 const { getChainIdFromJobId, getChainNameFromJobId } = require('../utils/chain-utils');
@@ -16,6 +17,7 @@ const LEDGER_CACHE_MS = 30_000;
 const METADATA_CACHE_MS = 10 * 60_000;
 const MAX_CONTEXT_JOBS = 12;
 const MAX_METADATA_BYTES = 64 * 1024;
+const PUBLIC_ARBITRUM_RPC = 'https://arb1.arbitrum.io/rpc';
 
 let ledgerCache = { expiresAt: 0, value: null, promise: null };
 const metadataCache = new Map();
@@ -51,6 +53,12 @@ function normalizeTransaction(value) {
     ? value.baselineTotalPaidRaw
     : null;
   const action = typeof value.action === 'string' ? value.action.trim().slice(0, 40) : '';
+  const createdAtValue = typeof value.createdAt === 'string' || value.createdAt instanceof Date
+    ? new Date(value.createdAt)
+    : null;
+  const createdAt = createdAtValue && Number.isFinite(createdAtValue.getTime())
+    ? createdAtValue.toISOString()
+    : null;
   if (!action || (!jobId && !txHash)) return null;
   return {
     action,
@@ -60,7 +68,43 @@ function normalizeTransaction(value) {
     confirmed: value.confirmed === true,
     targetDomain: Number.isInteger(targetDomain) ? targetDomain : null,
     baselineTotalPaidRaw,
+    createdAt,
   };
+}
+
+function parseMetadata(value) {
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string') return {};
+  try { return JSON.parse(value); } catch { return {}; }
+}
+
+async function readWalletTransactions(walletAddress, dependencies = {}) {
+  if (Array.isArray(dependencies.walletTransactions)) {
+    return dependencies.walletTransactions.map(normalizeTransaction).filter(Boolean);
+  }
+  const database = dependencies.db || db;
+  const rows = await withTimeout(database.all(
+    `SELECT job_id, action, tx_hash, chain_id, metadata, created_at
+     FROM job_transactions
+     WHERE LOWER(wallet_address) = LOWER($1)
+       AND action IN ('postJob', 'startDirectContract', 'releasePayment')
+     ORDER BY created_at DESC
+     LIMIT 24`,
+    walletAddress,
+  ), 2_000, 'Durable wallet transaction read');
+  return rows.map((row) => {
+    const metadata = parseMetadata(row.metadata);
+    return normalizeTransaction({
+      action: row.action,
+      jobId: row.job_id,
+      txHash: row.tx_hash,
+      chainId: row.chain_id,
+      confirmed: true,
+      targetDomain: metadata.targetDomain,
+      baselineTotalPaidRaw: metadata.baselineTotalPaidRaw,
+      createdAt: row.created_at,
+    });
+  }).filter(Boolean);
 }
 
 function normalizeTransactionDiagnostic(value) {
@@ -313,6 +357,43 @@ async function readPosterOrder(walletAddress, dependencies = {}) {
   return withTimeout(genesis.methods.getJobsByPoster(walletAddress).call(), 5_000, 'Wallet job-history read');
 }
 
+async function readWithRpcFallback(reader, dependencies = {}, label = 'OpenWork read') {
+  const primaryRpcUrl = dependencies.rpcUrl || config.ARBITRUM_RPC;
+  const fallbackRpcUrl = dependencies.publicRpcUrl || PUBLIC_ARBITRUM_RPC;
+  try {
+    return await reader(primaryRpcUrl);
+  } catch (primaryError) {
+    if (!fallbackRpcUrl || fallbackRpcUrl === primaryRpcUrl) throw primaryError;
+    console.warn(`[oppy-job-context] configured RPC unavailable for ${label}; retrying the public Arbitrum endpoint`);
+    return reader(fallbackRpcUrl);
+  }
+}
+
+async function getWalletJobIdentityContext(walletAddress, memoryInput = {}, dependencies = {}) {
+  const memory = sanitizeConversationMemory(memoryInput);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress || '')) {
+    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], posterJobIds: [], durableTransactions: [], recentTransactions: memory.recentTransactions };
+  }
+  const [posterResult, durableTransactions] = await Promise.all([
+    readWithRpcFallback(
+      (rpcUrl) => readPosterOrder(walletAddress, { ...dependencies, rpcUrl }),
+      dependencies,
+      'wallet job history',
+    ).then((posterJobIds) => ({ available: true, posterJobIds }))
+      .catch((error) => ({ available: false, reason: error.message, posterJobIds: [] })),
+    readWalletTransactions(walletAddress, dependencies).catch(() => []),
+  ]);
+  return {
+    available: posterResult.available,
+    reason: posterResult.reason,
+    activeJob: memory.activeJob,
+    jobs: [],
+    posterJobIds: posterResult.posterJobIds.filter(validJobId).slice(-100),
+    durableTransactions,
+    recentTransactions: memory.recentTransactions,
+  };
+}
+
 function walletRole(job, walletAddress) {
   const wallet = lower(walletAddress);
   if (lower(job.jobGiver) === wallet) return 'job giver';
@@ -339,14 +420,18 @@ function prioritizeJobs(jobs, walletAddress, activeJobId, posterJobIds, recentTr
 async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies = {}) {
   const memory = sanitizeConversationMemory(memoryInput);
   if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress || '')) {
-    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], recentTransactions: memory.recentTransactions, latestTransactionDiagnostic: memory.latestTransactionDiagnostic, lastPreparedAction: memory.lastPreparedAction };
+    return { available: false, reason: 'wallet not connected', activeJob: memory.activeJob, jobs: [], posterJobIds: [], durableTransactions: [], recentTransactions: memory.recentTransactions, latestTransactionDiagnostic: memory.latestTransactionDiagnostic, lastPreparedAction: memory.lastPreparedAction };
   }
 
+  const identityContext = await getWalletJobIdentityContext(walletAddress, memory, dependencies);
   try {
-    const [ledger, posterJobIds] = await Promise.all([
-      readLedger(dependencies),
-      readPosterOrder(walletAddress, dependencies).catch(() => []),
-    ]);
+    const ledger = await readWithRpcFallback(
+      (rpcUrl) => readLedger({ ...dependencies, rpcUrl }),
+      dependencies,
+      'canonical job ledger',
+    );
+    const posterJobIds = identityContext.posterJobIds;
+    const durableTransactions = identityContext.durableTransactions;
     const selected = prioritizeJobs(
       ledger,
       walletAddress,
@@ -383,6 +468,8 @@ async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies
       available: true,
       activeJob,
       jobs,
+      posterJobIds: posterJobIds.filter(validJobId).slice(-100),
+      durableTransactions,
       recentTransactions: memory.recentTransactions,
       latestTransactionDiagnostic: memory.latestTransactionDiagnostic,
       lastPreparedAction: memory.lastPreparedAction,
@@ -393,6 +480,8 @@ async function getWalletJobContext(walletAddress, memoryInput = {}, dependencies
       reason: error.message,
       activeJob: memory.activeJob,
       jobs: [],
+      posterJobIds: identityContext.posterJobIds,
+      durableTransactions: identityContext.durableTransactions,
       recentTransactions: memory.recentTransactions,
       latestTransactionDiagnostic: memory.latestTransactionDiagnostic,
       lastPreparedAction: memory.lastPreparedAction,
@@ -432,6 +521,11 @@ ${jobLines}
 Recent transaction memory:
 ${txLines}
 
+Durable confirmed transaction history:
+${context.durableTransactions?.length
+    ? context.durableTransactions.map((tx) => `- ${tx.action}: ${tx.jobId || 'job unresolved'}${tx.txHash ? `; tx ${tx.txHash}` : ''}; chain ${tx.chainId ?? 'unknown'}; receipt confirmed.`).join('\n')
+    : '- No server-persisted confirmed transactions were loaded.'}
+
 Latest transaction attempt diagnostic:
 ${diagnosticLines}
 
@@ -449,9 +543,11 @@ module.exports = {
   fetchMetadata,
   formatUsdc,
   formatJobContext,
+  getWalletJobIdentityContext,
   getWalletJobContext,
   normalizeLedgerJob,
   normalizeTransactionDiagnostic,
+  readWalletTransactions,
   readLedger,
   resetCachesForTest,
   sanitizeConversationMemory,
