@@ -6,21 +6,69 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 28 August 2026 14:42 IST |
+| Deployed at | 28 August 2026 21:18 IST |
 | Git branch | `main` |
-| Git commit | `84354779b4976ca152dcd150401bc72056362559` |
-| Release gate | GitHub CI `33157669186`; frontend tests (`136/136`), backend tests (`111/111`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; the exact recipient-receipt follow-up, live XDC/LayerZero/Arbitrum/Circle evidence, App Runner, public endpoints and browser console/layout checks all passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-84354779b4976ca152dcd150401bc72056362559.zip` |
-| Source archive SHA-256 | `75f224e798c42fddd6d14705d8d8db8fea6720c73ecb74e77c9523fb7670bf74` |
-| CodeBuild | `openwork-react-app-prod-build:f17f2bab-1e35-4ca4-bb26-cce5335e0929` — succeeded |
-| ECR image | `openwork-app:prod-8435477-20260828143225` |
-| ECR digest | `sha256:ecc3e67412e3164cefcd281dd67f627cb84167ae1d15d50ab78da9c5b9532174` |
+| Git commit | `c39f82842fd4537522cc81656fb16b3aca035391` |
+| Release gate | GitHub CI `33186166959`; frontend tests (`139/139`), backend tests (`119/119`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; exact job `30365-13` source proof, live XDC/LayerZero/Arbitrum/Circle evidence, recovery calldata, user-wallet static call, App Runner, public endpoints and browser console/layout checks all passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-c39f82842fd4537522cc81656fb16b3aca035391.zip` |
+| Source archive SHA-256 | `846dadc82ec1f5bd667b2941d5db0ba2450244d67ceafed93f98c5ba8d2ad9d9` |
+| CodeBuild | `openwork-react-app-prod-build:fd839473-4270-4295-9e0c-16605374ca57` — succeeded |
+| ECR image | `openwork-app:prod-c39f828-20260828210938` |
+| ECR digest | `sha256:c32c7ab85521a73098af41d21aee93e5038009d434254905fd83c7e781f2301b` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `d20946766a00450f94d306b496b732da` — succeeded |
+| App Runner operation | `cc1b80a1dfce46d186c65d90c88682d9` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BGKz6Zbm.js` — SHA-256 `590364cdd9ba7954257358764dbf4e91ab224bd3eb72d2d55a86d4511fae2a4a` |
-| Rollback target | `openwork-app:prod-38877c3-20260828135122` |
-| Rollback digest | `sha256:28ff6d0bacb0c435583d753863e068e0182757b41d5148ebca4614a8b11340a9` |
+| Deployed JS asset | `/assets/index-CTUPKfKe.js` — SHA-256 `10750461375f90f4bfd31a58552f39782ba7ca12680ce98f33ad3e29acfe2d2c` |
+| Rollback target | `openwork-app:prod-8435477-20260828143225` |
+| Rollback digest | `sha256:ecc3e67412e3164cefcd281dd67f627cb84167ae1d15d50ab78da9c5b9532174` |
+
+## Oppy relayer readiness and self-service CCTP recovery
+
+Oppy now checks every relayer-dependent action before opening a wallet request and
+again at the write boundary. The check verifies the configured relayer address,
+destination RPC agreement, relayer contract code, destination gas price and the
+service wallet's native balance against both an operational floor and the action's
+estimated gas requirement. Direct contracts, milestone releases, payment locks and
+the legacy transaction pages all fail closed with a specific reason when an automatic
+relay cannot safely complete. Unsupported recovery paths are blocked before the user
+signs; supported Circle receive paths offer a non-custodial fallback.
+
+The cross-chain card no longer spins indefinitely. It distinguishes source mining,
+LayerZero delivery, canonical OpenWork state, Circle attestation, nonce consumption
+and relayer readiness. Once Circle has attested an unused message, the card can display
+`Complete with my wallet`. The browser obtains fixed `receiveMessage` calldata from the
+backend, switches to the exact destination chain, performs a static call and gas/balance
+preflight, and submits one destination transaction only after the user approves it in
+their wallet. A second backend read immediately before submission prevents a duplicate
+receive if the relayer wins the race.
+
+Production acceptance used the exact stalled direct contract job `30365-13`. Its XDC
+source transaction
+`0x2589ab9ce1086bde920c651abfdd09e0edd8cd313394998bd860e792b9b73c71`
+was confirmed, the deployed direct-contract selector and exact job event were proven,
+LayerZero delivered it to Arbitrum in
+`0xc43723c70e182c53b5001133e41313a19722630813b2118648f084725a7cc56c`,
+and the canonical contract is ready. Circle attestation is available, but its nonce
+`0x07693c872de081d04baea644179c407d7f7cab75b2d033394c7c48784a61a8ae`
+is still unused, so production now returns `requires-action` instead of a perpetual
+in-progress state. The exact recovery plan targets Arbitrum MessageTransmitterV2
+`0x81D40F21F12A8F0E3252Bccb954D722d4c464B64`; the mint recipient is the deployed
+OpenWork contract `0x8efbf240240613803b9c9e716d4b5ad1388afd99` and the amount is `100000`
+raw USDC.
+
+The automatic service wallet
+`0x93514040f43aB16D52faAe7A3f380c4089D844F9` had `500271764959100` wei on
+Arbitrum at acceptance, below the `1000000000000000` wei operational floor by
+`499728235040900` wei. The connected main wallet
+`0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C` passed the exact Arbitrum
+`receiveMessage` static call and had sufficient ETH for the buffered `158719` gas
+estimate. Acceptance did not send a transaction, request a signature, approve a token
+or move funds. Oppy's persisted transaction receipt restores the latest incomplete
+tracker after a reload, while the backend reconstructs authoritative state from live
+chain data; an external application database is not required for this recovery.
+
+Operational details and the maintenance runbook are in
+`docs/oppy-relayer-recovery.md`.
 
 ## Oppy release-payout receipt truth
 
