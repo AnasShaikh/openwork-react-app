@@ -6,21 +6,63 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 28 August 2026 14:02 IST |
+| Deployed at | 28 August 2026 14:42 IST |
 | Git branch | `main` |
-| Git commit | `38877c3e534b9d447c83e7629a03a9d925c0d5c7` |
-| Release gate | GitHub CI `33154961048`; frontend tests (`136/136`), backend tests (`110/110`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; the exact stale-job escrow follow-up, live XDC/LayerZero/Arbitrum/Circle evidence, App Runner and public endpoints all passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-38877c3e534b9d447c83e7629a03a9d925c0d5c7.zip` |
-| Source archive SHA-256 | `870dbd52e08d2dbc1087b0acd5ca7fe3258e7973302470793abb67ae30d9c49f` |
-| CodeBuild | `openwork-react-app-prod-build:1e0151ee-5089-44d4-8f50-78198f572c24` — succeeded |
-| ECR image | `openwork-app:prod-38877c3-20260828135122` |
-| ECR digest | `sha256:28ff6d0bacb0c435583d753863e068e0182757b41d5148ebca4614a8b11340a9` |
+| Git commit | `84354779b4976ca152dcd150401bc72056362559` |
+| Release gate | GitHub CI `33157669186`; frontend tests (`136/136`), backend tests (`111/111`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; the exact recipient-receipt follow-up, live XDC/LayerZero/Arbitrum/Circle evidence, App Runner, public endpoints and browser console/layout checks all passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-84354779b4976ca152dcd150401bc72056362559.zip` |
+| Source archive SHA-256 | `75f224e798c42fddd6d14705d8d8db8fea6720c73ecb74e77c9523fb7670bf74` |
+| CodeBuild | `openwork-react-app-prod-build:f17f2bab-1e35-4ca4-bb26-cce5335e0929` — succeeded |
+| ECR image | `openwork-app:prod-8435477-20260828143225` |
+| ECR digest | `sha256:ecc3e67412e3164cefcd281dd67f627cb84167ae1d15d50ab78da9c5b9532174` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `070ee6f300004325ab57adc53f22aeef` — succeeded |
+| App Runner operation | `d20946766a00450f94d306b496b732da` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-fEOES_K2.js` — SHA-256 `56859f40da40106ec1df145a92617caf23878e5a9ead7f8f4586939ad51027a0` |
-| Rollback target | `openwork-app:prod-38ba68f-20260828130123` |
-| Rollback digest | `sha256:0bb3b5ddb76ba3393adc90406593815d55c0fbd8acdfe1fa6c1dcaa3839d8c80` |
+| Deployed JS asset | `/assets/index-BGKz6Zbm.js` — SHA-256 `590364cdd9ba7954257358764dbf4e91ab224bd3eb72d2d55a86d4511fae2a4a` |
+| Rollback target | `openwork-app:prod-38877c3-20260828135122` |
+| Rollback digest | `sha256:28ff6d0bacb0c435583d753863e068e0182757b41d5148ebca4614a8b11340a9` |
+
+## Oppy release-payout receipt truth
+
+The reported payment card for job `30365-12` was correct: release transaction
+`0xea081a9783fea98e5990c28eaa0dd42e154e452e638abc9277818ce71d76f0e9`
+was confirmed on XDC, delivered to Arbitrum in transaction
+`0x278969384599514dfd0b081e55015e6f80a376c3e681a4c1a4b856c9923a673c`,
+recorded `0.1 USDC` paid canonically, and its Circle message was consumed in XDC
+domain 18 for recipient `0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724` and amount `100000`
+raw USDC. The user's unreloaded tab could still render an older frontend bundle, but
+new chat messages already reached the current backend. The later prose answer saying
+the recipient payout was still pending on Arbitrum was therefore a backend reasoning
+error, not stale frontend copy.
+
+The job inspection tool previously returned only the direct contract's creation-funding
+delivery. The model combined that older Arbitrum-escrow transfer with the job's newer
+`totalPaid` state and incorrectly described the release payout as pending. Job inspection
+now labels and returns `creationFundingDelivery` separately from
+`latestActionDelivery`. Release receipt questions are also resolved directly from the
+latest confirmed release transaction, including its amount, recipient and destination
+chain, without a model call. The prompt explicitly forbids using creation-funding
+delivery to answer whether the freelancer received a later release.
+
+Future payment releases now persist the Circle destination domain, recipient and
+pre-release paid-state baseline with the durable transaction record. This preserves
+the exact proof inputs across a page reload instead of relying only on the open tab's
+bounded memory.
+
+Production acceptance replayed the exact reported sentence, `can you check if the job
+taker received the money?`, with job `30365-12` active. Oppy returned model identifier
+`deterministic-cross-chain-status` and stated that the `0.1 USDC` receipt for
+`0xc28455…7724` was confirmed on XDC and no retry was needed. `/healthz` returned
+`{"status":"ok"}`, `/` and `/chat` returned HTTP 200, App Runner reported `RUNNING`,
+and the deployed browser had zero warning/error console entries and no horizontal
+overflow at 1280 px. Verification made no wallet request and submitted no transaction,
+approval or token transfer.
+
+The first CodeBuild attempt, `0507660b-bf5c-442c-a8c1-68bfc4137d6e`, stopped in
+`DOWNLOAD_SOURCE` with a transient S3 `NoSuchKey`. The exact immutable object was then
+verified at the release key and the unchanged source and image tag succeeded in build
+`f17f2bab-1e35-4ca4-bb26-cce5335e0929`. The existing no-external-database and
+conservative low-relayer-wallet alerts remain operationally separate from this fix.
 
 ## Oppy direct-contract funding truth and active-job binding
 
