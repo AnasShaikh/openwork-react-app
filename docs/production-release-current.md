@@ -6,21 +6,21 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 28 August 2026 23:19 IST |
+| Deployed at | 28 August 2026 23:55 IST |
 | Git branch | `main` |
-| Git commit | `11c6b6208393e1f1ba3129871d33c4551d0d9e0b` |
-| Release gate | GitHub CI `33195652918`; frontend tests (`139/139`), backend tests (`122/122`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; App Runner health, public routes, cache/compression headers, transfer timing and browser console/layout/render checks all passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-11c6b6208393e1f1ba3129871d33c4551d0d9e0b.zip` |
-| Source archive SHA-256 | `e0b979b722eaecb00e1c317b1cd9070ed5d93e210a99ee3f1f64ceeadafcfcf0` |
-| CodeBuild | `openwork-react-app-prod-build:4c4baa78-e673-45b5-886e-5b5dc0added2` — succeeded |
-| ECR image | `openwork-app:prod-11c6b62-20260828230950` |
-| ECR digest | `sha256:f44ee9318971555f6e934989ea2e9e726b26b99ca91cc1c311f6d47aaec46d33` |
+| Git commit | `ff2354dd506cf5a28f5e07c67ed1232b00f9b682` |
+| Release gate | GitHub CI `33198242715`; frontend tests (`141/141`), backend tests (`122/122`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; App Runner health, public bundle identity, job `30365-13` live status and browser console/layout/render checks all passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-ff2354dd506cf5a28f5e07c67ed1232b00f9b682.zip` |
+| Source archive SHA-256 | `378c857b26708320a395f39cfa0505a754de4772fc29a75677ec8bb335d5db36` |
+| CodeBuild | `openwork-react-app-prod-build:dd77d139-70ce-464d-991a-a784fe9a8ce2` — succeeded |
+| ECR image | `openwork-app:prod-ff2354d-20260828234410` |
+| ECR digest | `sha256:85cde6ca7872b4cfbe7d62200d8e93260e5504ab7280dc322435e704c12d0cf7` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `28650cf027b640b7bb2d843c5749faf0` — succeeded |
+| App Runner operation | `2e7517b9ca214124a88b5e05e6e5f0a4` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-CTUPKfKe.js` — SHA-256 `10750461375f90f4bfd31a58552f39782ba7ca12680ce98f33ad3e29acfe2d2c` |
-| Rollback target | `openwork-app:prod-8435477-20260828143225` |
-| Rollback digest | `sha256:ecc3e67412e3164cefcd281dd67f627cb84167ae1d15d50ab78da9c5b9532174` |
+| Deployed JS asset | `/assets/index-B7dT1rLj.js` — SHA-256 `24b96ce56c654ebb42aa3d77743bb9b57bb35f0d756416f0113bf3496ff49afa` |
+| Rollback target | `openwork-app:prod-11c6b62-20260828230950` |
+| Rollback digest | `sha256:f44ee9318971555f6e934989ea2e9e726b26b99ca91cc1c311f6d47aaec46d33` |
 
 ## Frontend startup delivery and blank-page recovery
 
@@ -83,13 +83,35 @@ source transaction
 was confirmed, the deployed direct-contract selector and exact job event were proven,
 LayerZero delivered it to Arbitrum in
 `0xc43723c70e182c53b5001133e41313a19722630813b2118648f084725a7cc56c`,
-and the canonical contract is ready. Circle attestation is available, but its nonce
+and the canonical contract is ready. At recovery-plan acceptance, Circle attestation
+was available and nonce
 `0x07693c872de081d04baea644179c407d7f7cab75b2d033394c7c48784a61a8ae`
-is still unused, so production now returns `requires-action` instead of a perpetual
-in-progress state. The exact recovery plan targets Arbitrum MessageTransmitterV2
+was unused, so production returned `requires-action` instead of a perpetual in-progress
+state. The exact recovery plan targets Arbitrum MessageTransmitterV2
 `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64`; the mint recipient is the deployed
 OpenWork contract `0x8efbf240240613803b9c9e716d4b5ad1388afd99` and the amount is `100000`
 raw USDC.
+
+The user subsequently completed that permissionless receive with the connected wallet.
+The live transaction-specific endpoint now reports `state: complete`, the same Circle
+nonce consumed, `100000` raw USDC received by the deployed OpenWork contract on Arbitrum,
+and no remaining self-relay action. No source transaction should be retried.
+
+That recovery exposed two frontend defects. First, the initial Arbitrum submission was
+rejected before broadcast because its `maxFeePerGas` of `20002000` wei was already below
+the block base fee of `20026000` wei. Wallet recovery now derives an explicit EIP-1559
+ceiling at five times the latest base fee, computes affordability against that ceiling,
+re-reads replay protection after wallet/network selection, and reconciles any send error
+against the live Circle nonce before allowing a retry. A proven pre-broadcast fee rejection
+now says that no transaction was sent and offers a safe wallet retry instead of displaying
+the raw RPC error.
+
+Second, once `30365-13` became complete, the generic persisted-history fallback selected
+an older unresolved `30365-9` release card. Restored trackers are now scoped to the active
+job; completion cannot reveal an unrelated historical tracker. Status updates also persist
+the verified CCTP target domain, tracker-local recovery state resets when the transaction
+identity changes, and missing legacy destination metadata renders as `the destination
+chain` instead of `undefined`.
 
 The automatic service wallet
 `0x93514040f43aB16D52faAe7A3f380c4089D844F9` had `500271764959100` wei on
@@ -1194,7 +1216,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-72bca49-20260826100546` |
-| ECR digest | `sha256:ba7507a27c997c20cc83f68a211c1a61684b123b52ea17dcf009cb21c968596b` |
+| ECR image | `openwork-app:prod-11c6b62-20260828230950` |
+| ECR digest | `sha256:f44ee9318971555f6e934989ea2e9e726b26b99ca91cc1c311f6d47aaec46d33` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.

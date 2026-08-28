@@ -51,13 +51,13 @@ RPC or provider failures are `unavailable`, LayerZero reverts are `failed`, and 
 - proves that the destination nonce is unused;
 - fixes the transaction target to the configured MessageTransmitter or CCTP transceiver.
 
-The browser switches to the destination chain, performs a static call, estimates gas, checks the user's native-token balance and asks the selected wallet to sign the one-time destination receive. It refetches the plan after a static-call failure so a relayer race becomes `already completed`, not a duplicate. No private key, arbitrary destination or arbitrary calldata is accepted from the browser.
+The browser switches to the destination chain and refetches the recovery plan before it performs a static call, estimates gas, checks the user's native-token balance and asks the selected wallet to sign the one-time destination receive. EIP-1559 destinations use a ceiling derived from the latest block base fee with five-times headroom; the same ceiling is used for the affordability check. Legacy destinations use a padded live gas price. After any send error, Oppy reads the plan again so a relayer race becomes `already completed`, not a duplicate. A fee-cap rejection proven to have happened before broadcast is explicitly safe to retry; unknown outcomes remain retry-protected. No private key, arbitrary destination or arbitrary calldata is accepted from the browser.
 
 The source OpenWork transaction must never be replayed during this recovery. The user pays only destination gas; Circle delivers the already-burned USDC. No new USDC approval is required.
 
 ## Existing stalled transactions
 
-Oppy persists confirmed source receipts separately from ephemeral transaction cards. After a reload or deployment it restores the latest incomplete direct-contract or release tracker above the composer. Therefore an attested, unconsumed transaction such as job `30365-13` can be resumed in the same wallet-scoped chat without recreating the job.
+Oppy persists confirmed source receipts separately from ephemeral transaction cards. After a reload or deployment it restores an incomplete direct-contract or release tracker only when it belongs to the active job above the composer. Completing the active job never exposes an unrelated older tracker. Therefore an attested, unconsumed transaction can be resumed in the same wallet-scoped chat without recreating the job, while historical unresolved work remains available through an explicit job request.
 
 ## Operator runbook
 
