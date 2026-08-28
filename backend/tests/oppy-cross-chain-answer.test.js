@@ -45,6 +45,8 @@ test('simple completion follow-ups are recognized without hijacking new actions'
   assert.equal(isCrossChainStatusQuestion('is it done?'), true);
   assert.equal(isCrossChainStatusQuestion('Has the contract synced yet?'), true);
   assert.equal(isCrossChainStatusQuestion('status for 30365-10'), true);
+  assert.equal(isCrossChainStatusQuestion('is it confirmed?'), true);
+  assert.equal(isCrossChainStatusQuestion('did my money thing actually happen'), false);
   assert.equal(isCrossChainStatusQuestion('release the payment'), false);
   assert.equal(isCrossChainStatusQuestion('create another direct contract'), false);
 });

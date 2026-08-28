@@ -11,8 +11,8 @@ function isCrossChainStatusQuestion(message) {
   const text = String(message || '').trim().toLowerCase();
   if (!text) return false;
   return [
-    /^(?:so\s+)?is\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction))\s+(?:done|complete|completed|ready|successful)(?:\s+yet)?\??$/,
-    /^(?:so\s+)?(?:did|has)\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction))\s+(?:go\s+through|sync|synced|complete|completed|finish|finished|deliver|delivered|succeed|succeeded)(?:\s+yet)?\??$/,
+    /^(?:so\s+)?is\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction))\s+(?:done|complete|completed|ready|successful|confirmed|mined|finalized)(?:\s+yet)?\??$/,
+    /^(?:so\s+)?(?:did|has)\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction))\s+(?:go\s+through|sync|synced|complete|completed|finish|finished|deliver|delivered|succeed|succeeded|confirm|confirmed|mine|mined|finalize|finalized)(?:\s+yet)?\??$/,
     /^(?:check\s+)?(?:the\s+)?(?:live\s+)?status(?:\s+(?:of|for)\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction)|\d+-\d+))?\??$/,
     /^(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:live\s+)?status\s+(?:of|for)\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction)|\d+-\d+)\??$/,
   ].some((pattern) => pattern.test(text));

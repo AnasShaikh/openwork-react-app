@@ -2,6 +2,7 @@
 
 const ADDRESS_PATTERN = '^0x[a-fA-F0-9]{40}$';
 const JOB_ID_PATTERN = '^[0-9]+(?:-[0-9]+)?$';
+const TRANSACTION_HASH_PATTERN = '^0x[a-fA-F0-9]{64}$';
 
 const textProperty = (description, maxLength = 4000) => ({
   type: 'string',
@@ -102,6 +103,46 @@ const BEDROCK_TRANSACTION_TOOLS = [
   tool('viewApplications', 'Show all received applications for one posted job inside Oppy.', { jobId: jobIdProperty }, ['jobId']),
 ];
 
+const BEDROCK_READ_TOOLS = [
+  tool('inspectTransaction', 'Read the live state of the current, latest, or explicitly referenced transaction. Use this for any natural-language question about whether an action worked, finished, confirmed, synced, failed, disappeared, is still waiting, or is safe to retry. This tool never signs or submits a transaction.', {
+    jobId: {
+      ...jobIdProperty,
+      description: 'Optional OpenWork job ID. Omit it when the user refers to the current or latest action.',
+    },
+    transactionHash: {
+      type: 'string',
+      description: 'Optional full EVM transaction hash copied from the conversation or supplied by the user.',
+      pattern: TRANSACTION_HASH_PATTERN,
+    },
+    chainId: {
+      type: 'integer',
+      description: 'Optional source chain ID when explicitly known.',
+      enum: [10, 50, 42161],
+    },
+    action: {
+      type: 'string',
+      description: 'Optional OpenWork action when explicitly known.',
+      enum: ['postJob', 'applyToJob', 'startJob', 'submitWork', 'releasePayment', 'raiseDispute', 'createProfile', 'startDirectContract'],
+    },
+  }),
+  tool('inspectWalletFunding', 'Read the connected wallet native gas balance and USDC balance on a supported OpenWork chain. Use this whenever the user asks whether they can afford an action, why funding failed, what is missing, or how to make a transaction succeed. This tool never requests a signature.', {
+    chainId: {
+      type: 'integer',
+      description: 'Optional chain to inspect. Omit it to use the connected wallet network or the latest attempted action.',
+      enum: [10, 50, 42161],
+    },
+  }),
+  tool('inspectJob', 'Read the current canonical OpenWork job state and the next action available to the connected wallet. Use this for layman questions about what happened to a job, what the user can do next, why an action is unavailable, or whether payment/work is ready.', {
+    jobId: {
+      ...jobIdProperty,
+      description: 'Optional OpenWork job ID. Omit it to inspect the active job from the conversation.',
+    },
+  }),
+  tool('inspectLatestAttempt', 'Inspect the latest wallet attempt, its last observed phase, sanitized error, retry protection, and prepared action. Use this when the user says nothing happened, the wallet did not open, it is stuck, it failed, or asks what to do next without using technical terminology.', {}),
+];
+
+const READ_TOOL_NAMES = new Set(BEDROCK_READ_TOOLS.map((entry) => entry.toolSpec.name));
+
 const TOOL_RULES = {
   postJob: { required: ['title', 'budget', 'description'], kind: 'transaction' },
   applyToJob: { required: ['jobId', 'proposal'], kind: 'transaction' },
@@ -133,6 +174,11 @@ function cleanJobId(value) {
 function cleanAddress(value) {
   const result = cleanString(value, 42);
   return new RegExp(ADDRESS_PATTERN).test(result) ? result : null;
+}
+
+function cleanTransactionHash(value) {
+  const result = cleanString(value, 66);
+  return new RegExp(TRANSACTION_HASH_PATTERN).test(result) ? result : null;
 }
 
 function cleanAmount(value) {
@@ -273,10 +319,55 @@ function validateToolUse(toolUse) {
   };
 }
 
+function validateReadToolUse(toolUse) {
+  if (!toolUse || !READ_TOOL_NAMES.has(toolUse.name) || !isPlainObject(toolUse.input)) return null;
+  const input = toolUse.input;
+  let params;
+
+  if (toolUse.name === 'inspectTransaction') {
+    const jobId = input.jobId === undefined ? null : cleanJobId(input.jobId);
+    const transactionHash = input.transactionHash === undefined ? null : cleanTransactionHash(input.transactionHash);
+    const chainId = input.chainId === undefined ? null : Number(input.chainId);
+    const action = input.action === undefined ? null : cleanString(input.action, 40);
+    if ((input.jobId !== undefined && !jobId)
+      || (input.transactionHash !== undefined && !transactionHash)
+      || (input.chainId !== undefined && ![10, 50, 42161].includes(chainId))
+      || (input.action !== undefined && TOOL_RULES[action]?.kind !== 'transaction')) return null;
+    params = {
+      ...(jobId ? { jobId } : {}),
+      ...(transactionHash ? { transactionHash } : {}),
+      ...(chainId ? { chainId } : {}),
+      ...(action ? { action } : {}),
+    };
+  } else if (toolUse.name === 'inspectWalletFunding') {
+    const chainId = input.chainId === undefined ? null : Number(input.chainId);
+    if (input.chainId !== undefined && ![10, 50, 42161].includes(chainId)) return null;
+    params = chainId ? { chainId } : {};
+  } else if (toolUse.name === 'inspectJob') {
+    const jobId = input.jobId === undefined ? null : cleanJobId(input.jobId);
+    if (input.jobId !== undefined && !jobId) return null;
+    params = jobId ? { jobId } : {};
+  } else {
+    params = {};
+  }
+
+  return {
+    id: cleanString(toolUse.toolUseId, 128) || undefined,
+    name: toolUse.name,
+    kind: 'read',
+    params,
+    requiresWalletSignature: false,
+  };
+}
+
 module.exports = {
   ADDRESS_PATTERN,
+  BEDROCK_READ_TOOLS,
   BEDROCK_TRANSACTION_TOOLS,
   JOB_ID_PATTERN,
+  READ_TOOL_NAMES,
+  TRANSACTION_HASH_PATTERN,
   TOOL_RULES,
+  validateReadToolUse,
   validateToolUse,
 };

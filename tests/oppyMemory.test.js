@@ -10,6 +10,7 @@ import {
   sanitizePreparedAction,
   sanitizeOppyText,
   saveOppyMemory,
+  updateOppyTransactionDelivery,
 } from '../src/services/oppyMemory.js';
 
 function memoryStorage() {
@@ -45,6 +46,15 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
       confirmed: true,
       targetDomain: 18,
       baselineTotalPaidRaw: '0',
+      delivery: {
+        state: 'complete',
+        complete: true,
+        networkState: 'delivered',
+        canonicalState: 'complete',
+        paymentState: 'received',
+        destinationTxHash: `0x${'d'.repeat(64)}`,
+        checkedAt: '2026-08-28T04:59:46.000Z',
+      },
     }],
     latestTransactionDiagnostic: {
       attemptId: 'attempt-1',
@@ -89,6 +99,9 @@ test('Oppy persists bounded conversation and XDC active-job memory per wallet', 
   assert.equal(loaded.recentTransactions[0].confirmed, true);
   assert.equal(loaded.recentTransactions[0].targetDomain, 18);
   assert.equal(loaded.recentTransactions[0].baselineTotalPaidRaw, '0');
+  assert.equal(loaded.recentTransactions[0].delivery.state, 'complete');
+  assert.equal(loaded.recentTransactions[0].delivery.canonicalState, 'complete');
+  assert.equal(loaded.recentTransactions[0].delivery.destinationTxHash, `0x${'d'.repeat(64)}`);
   assert.equal(loaded.latestTransactionDiagnostic.step, 'approval');
   assert.equal(loaded.latestTransactionDiagnostic.safeToRetry, false);
   assert.equal(loaded.latestTransactionDiagnostic.checks.nativeBalanceWei, '289296832824877939');
@@ -142,6 +155,35 @@ test('history excludes greetings and stale transaction cards and keeps recent re
     confirmed: true,
   });
   assert.equal(txs[0].jobId, '30365-6');
+});
+
+test('live tracker updates the matching transaction and Oppy receives only the latest twelve messages', () => {
+  const txHash = `0x${'e'.repeat(64)}`;
+  const transactions = updateOppyTransactionDelivery([{
+    action: 'startDirectContract',
+    jobId: '30365-11',
+    txHash,
+    chainId: 50,
+    confirmed: true,
+  }], { sourceTxHash: txHash }, {
+    state: 'complete',
+    complete: true,
+    checkedAt: '2026-08-28T05:00:00.000Z',
+    layerZero: { state: 'delivered', destinationTxHash: `0x${'f'.repeat(64)}` },
+    canonical: { state: 'complete' },
+    cctp: { state: 'received' },
+  });
+  assert.equal(transactions[0].delivery.state, 'complete');
+  assert.equal(transactions[0].delivery.networkState, 'delivered');
+  assert.equal(transactions[0].delivery.canonicalState, 'complete');
+
+  const history = historyForOppy(Array.from({ length: 20 }, (_, index) => ({
+    role: index % 2 ? 'bot' : 'user',
+    text: `message ${index}`,
+  })));
+  assert.equal(history.length, 12);
+  assert.equal(history[0].text, 'message 8');
+  assert.equal(history.at(-1).text, 'message 19');
 });
 
 test('stored Oppy text removes internal traces and renders tables as readable bullets', () => {

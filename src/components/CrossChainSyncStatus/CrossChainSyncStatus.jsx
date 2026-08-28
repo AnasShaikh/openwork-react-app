@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, CircleAlert, LoaderCircle, RefreshCw } from 'lucide-react';
 import {
   CROSS_CHAIN_SYNC_POLL_MS,
@@ -57,13 +57,18 @@ function actionCopy(action) {
   };
 }
 
-export default function CrossChainSyncStatus({ tracking }) {
+export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
   const source = getCrossChainSource(tracking);
   const trackingKey = crossChainTrackingKey(tracking);
   const copy = actionCopy(tracking?.action);
   const [sync, setSync] = useState({ state: 'checking', checkedAt: null, error: null });
   const [refreshKey, setRefreshKey] = useState(0);
+  const onStatusChangeRef = useRef(onStatusChange);
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
+
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
 
   useEffect(() => {
     setSync({ state: 'checking', checkedAt: null, error: null });
@@ -76,6 +81,7 @@ export default function CrossChainSyncStatus({ tracking }) {
         const next = await readCrossChainActionStatus(tracking);
         if (cancelled) return;
         setSync(next);
+        onStatusChangeRef.current?.(tracking, next);
         if (!next.complete && next.state !== 'failed') {
           const delay = next.state === 'unavailable' ? CROSS_CHAIN_SYNC_POLL_MS * 2 : CROSS_CHAIN_SYNC_POLL_MS;
           timer = window.setTimeout(check, delay);
@@ -86,6 +92,11 @@ export default function CrossChainSyncStatus({ tracking }) {
           state: 'unavailable',
           checkedAt: new Date().toISOString(),
           error: error.message || 'Cross-chain status is temporarily unavailable',
+        });
+        onStatusChangeRef.current?.(tracking, {
+          state: 'unavailable',
+          complete: false,
+          checkedAt: new Date().toISOString(),
         });
         timer = window.setTimeout(check, CROSS_CHAIN_SYNC_POLL_MS * 2);
       }

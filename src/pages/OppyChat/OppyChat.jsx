@@ -37,6 +37,7 @@ import {
   sanitizeActiveJob,
   sanitizePreparedAction,
   saveOppyMemory,
+  updateOppyTransactionDelivery,
 } from '../../services/oppyMemory';
 import {
   mergeComposerTranscript,
@@ -122,7 +123,7 @@ function usdcDecimalToBaseUnits(value) {
 }
 
 // ── Transaction Card ─────────────────────────────────────────────
-function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, onDiagnosticChange }) {
+function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, onDiagnosticChange, onTrackingChange }) {
   const [txHash, setTxHash] = useState(null);
   const [txChainId, setTxChainId] = useState(null);
   const [jobId, setJobId] = useState(null);
@@ -471,6 +472,7 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, o
           <CrossChainSyncStatus
             key={`${tool.name}:${txHash}`}
             tracking={tracking}
+            onStatusChange={onTrackingChange}
           />
         </>
       ) : status === 'opened' ? (
@@ -1622,6 +1624,9 @@ const OppyChat = () => {
                       onDiagnosticChange={(diagnostic, preparedAction) => {
                         setLatestTransactionDiagnostic(diagnostic);
                         setLastPreparedAction(sanitizePreparedAction(preparedAction));
+                      }}
+                      onTrackingChange={(trackingUpdate, statusUpdate) => {
+                        setRecentTransactions((current) => updateOppyTransactionDelivery(current, trackingUpdate, statusUpdate));
                       }}
                       onCancel={() => handleCancelTx(idx)}
                     />

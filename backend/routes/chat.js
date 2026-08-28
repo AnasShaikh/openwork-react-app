@@ -23,11 +23,13 @@ const {
 const { resolveCrossChainStatusAnswer } = require('../services/oppy-cross-chain-answer');
 const { isJobIdentityQuestion, resolveJobIdentityAnswer } = require('../services/oppy-job-identity');
 const { resolveNativeBalanceAnswer } = require('../services/oppy-native-balance');
+const { executeOppyReadTool } = require('../services/oppy-agent-tools');
+const { BEDROCK_READ_TOOLS, BEDROCK_TRANSACTION_TOOLS, TOOL_RULES } = require('../services/chat-tools');
 
 const router = express.Router();
 
 const MAX_MESSAGE_LENGTH = 2000;
-const MAX_HISTORY_ITEMS = 24;
+const MAX_HISTORY_ITEMS = 12;
 const MAX_CONCURRENT_REQUESTS = Number(process.env.CHAT_MAX_CONCURRENT_REQUESTS || 20);
 const EXPLORER_TOOL_NAMES = new Set(['browseJobs', 'openMyJobs', 'openJob', 'viewApplications']);
 let inFlightRequests = 0;
@@ -37,6 +39,10 @@ function modelToolName(toolIntent) {
     ? toolIntent.name
     : null;
 }
+
+const NATURAL_TRANSACTION_TOOL_NAMES = BEDROCK_TRANSACTION_TOOLS
+  .map((entry) => entry.toolSpec.name)
+  .filter((name) => TOOL_RULES[name]?.kind === 'transaction');
 
 function resolveSafeReplayTool(toolIntent, memory, allowedToolName) {
   return toolIntent?.source === 'safe-retry'
@@ -227,13 +233,36 @@ router.post('/', async (req, res) => {
       : buildDocsSystemPrompt(request.message);
     const systemPrompt = `${baseSystemPrompt}${explorer ? `\n\n${formatExplorerContext(explorer)}` : ''}`;
 
+    // Explicit actions retain the narrow one-tool boundary. When no keyword
+    // router recognized the wording, the model may still understand a clear
+    // layman request by choosing from every review-only transaction tool. Read
+    // tools are always available in transaction mode and never request a
+    // signature or submit a write.
+    const naturalActionDiscovery = transactionMode && !explicitToolName && !explorerIntent;
+    const allowedTransactionToolNames = allowedToolName
+      ? [allowedToolName]
+      : (naturalActionDiscovery ? NATURAL_TRANSACTION_TOOL_NAMES : []);
+
     const result = await converse({
       message: request.message,
       history: request.history,
       systemPrompt,
-      allowTools: transactionMode && Boolean(allowedToolName),
-      allowedToolNames: allowedToolName ? [allowedToolName] : undefined,
+      allowTools: allowedTransactionToolNames.length > 0,
+      allowedToolNames: allowedTransactionToolNames,
       forceToolName: toolIntent?.source === 'safe-retry' ? allowedToolName : undefined,
+      readTools: transactionMode ? BEDROCK_READ_TOOLS : [],
+      executeReadTool: transactionMode
+        ? (tool) => executeOppyReadTool(tool, {
+            message: request.message,
+            history: request.history,
+            wallet: request.wallet,
+            memory: request.memory,
+            jobContext,
+          })
+        : undefined,
+      maxTokens: transactionMode
+        ? Number(process.env.OPPY_AGENT_MAX_OUTPUT_TOKENS || 1000)
+        : Number(process.env.BEDROCK_MAX_TOKENS || 1400),
     });
 
     console.info('[chat] completed', {
@@ -241,6 +270,11 @@ router.post('/', async (req, res) => {
       modelId: result.modelId,
       inputTokens: result.usage?.inputTokens,
       outputTokens: result.usage?.outputTokens,
+      cacheReadInputTokens: result.usage?.cacheReadInputTokens,
+      cacheWriteInputTokens: result.usage?.cacheWriteInputTokens,
+      modelCalls: result.agent?.modelCalls || 1,
+      readToolCalls: result.agent?.readToolCalls || 0,
+      readToolNames: result.agent?.readToolNames || [],
       tool: result.tool?.name || null,
     });
 
@@ -250,6 +284,7 @@ router.post('/', async (req, res) => {
       tool: result.tool || null,
       explorer,
       model: result.modelId,
+      agent: result.agent || { modelCalls: 1, readToolCalls: 0, readToolNames: [] },
       context: transactionMode ? {
         activeJob: jobContext.activeJob || null,
         canonicalJobHistoryAvailable: jobContext.available === true,
@@ -274,4 +309,5 @@ router.post('/', async (req, res) => {
 module.exports = router;
 module.exports.validateRequest = validateRequest;
 module.exports.modelToolName = modelToolName;
+module.exports.NATURAL_TRANSACTION_TOOL_NAMES = NATURAL_TRANSACTION_TOOL_NAMES;
 module.exports.resolveSafeReplayTool = resolveSafeReplayTool;

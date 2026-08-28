@@ -4,11 +4,18 @@ const {
   BedrockRuntimeClient,
   ConverseCommand,
 } = require('@aws-sdk/client-bedrock-runtime');
-const { BEDROCK_TRANSACTION_TOOLS, validateToolUse } = require('./chat-tools');
+const {
+  BEDROCK_TRANSACTION_TOOLS,
+  validateReadToolUse,
+  validateToolUse,
+} = require('./chat-tools');
 
 const DEFAULT_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
 const DEFAULT_REGION = 'us-east-1';
-const MAX_HISTORY_ITEMS = 24;
+const MAX_HISTORY_ITEMS = 12;
+const DEFAULT_MAX_READ_TOOL_ROUNDS = 1;
+const DEFAULT_MAX_MODEL_CALLS = 2;
+const MAX_TOOL_RESULT_BYTES = 20 * 1024;
 
 let sharedClient;
 
@@ -96,7 +103,77 @@ function extractResponse(message, allowTools, allowedToolNames) {
   };
 }
 
-async function converse({ message, history, systemPrompt, allowTools = false, allowedToolNames, forceToolName, client = getClient() }) {
+function aggregateUsage(current = {}, next = {}) {
+  const keys = [
+    'inputTokens',
+    'outputTokens',
+    'totalTokens',
+    'cacheReadInputTokens',
+    'cacheWriteInputTokens',
+  ];
+  return keys.reduce((usage, key) => {
+    const value = Number(current[key] || 0) + Number(next[key] || 0);
+    if (value || current[key] !== undefined || next[key] !== undefined) usage[key] = value;
+    return usage;
+  }, {});
+}
+
+function transactionTools(allowTools, allowedToolNames) {
+  if (!allowTools) return [];
+  const allowedNames = Array.isArray(allowedToolNames) && allowedToolNames.length
+    ? new Set(allowedToolNames)
+    : null;
+  return allowedNames
+    ? BEDROCK_TRANSACTION_TOOLS.filter((entry) => allowedNames.has(entry.toolSpec.name))
+    : BEDROCK_TRANSACTION_TOOLS;
+}
+
+function boundedToolResult(value) {
+  try {
+    const serialized = JSON.stringify(value ?? null);
+    if (serialized.length <= MAX_TOOL_RESULT_BYTES) return JSON.parse(serialized);
+    return {
+      available: false,
+      truncated: true,
+      explanation: 'The read returned more detail than Oppy can safely place in one model turn. Ask for a narrower job or transaction.',
+    };
+  } catch {
+    return { available: false, explanation: 'The read result could not be normalized safely.' };
+  }
+}
+
+function validatedTransactionUses(content, allowedToolNames) {
+  const allowed = Array.isArray(allowedToolNames) && allowedToolNames.length
+    ? new Set(allowedToolNames)
+    : null;
+  return content.flatMap((block) => {
+    const tool = block?.toolUse ? validateToolUse(block.toolUse) : null;
+    return tool && (!allowed || allowed.has(tool.name)) ? [tool] : [];
+  });
+}
+
+function validatedReadUses(content, readToolNames) {
+  const allowed = new Set(readToolNames || []);
+  return content.flatMap((block) => {
+    const tool = block?.toolUse ? validateReadToolUse(block.toolUse) : null;
+    return tool && allowed.has(tool.name) && tool.id ? [tool] : [];
+  });
+}
+
+async function converse({
+  message,
+  history,
+  systemPrompt,
+  allowTools = false,
+  allowedToolNames,
+  forceToolName,
+  readTools = [],
+  executeReadTool,
+  maxReadToolRounds = Number(process.env.OPPY_AGENT_MAX_READ_TOOL_ROUNDS || DEFAULT_MAX_READ_TOOL_ROUNDS),
+  maxModelCalls = Number(process.env.OPPY_AGENT_MAX_MODEL_CALLS || DEFAULT_MAX_MODEL_CALLS),
+  maxTokens = Number(process.env.BEDROCK_MAX_TOKENS || 1400),
+  client = getClient(),
+}) {
   const modelId = process.env.BEDROCK_MODEL_ID || DEFAULT_MODEL_ID;
   const messages = normalizeHistory(history);
   const previous = messages[messages.length - 1];
@@ -106,48 +183,107 @@ async function converse({ message, history, systemPrompt, allowTools = false, al
     messages.push({ role: 'user', content: [{ text: message }] });
   }
 
-  const commandInput = {
-    modelId,
-    messages,
-    system: [{ text: systemPrompt }],
-    inferenceConfig: {
-      temperature: 0.2,
-      maxTokens: Number(process.env.BEDROCK_MAX_TOKENS || 1400),
-    },
-  };
-  if (allowTools) {
-    const allowedNames = Array.isArray(allowedToolNames) && allowedToolNames.length
-      ? new Set(allowedToolNames)
-      : null;
-    const tools = allowedNames
-      ? BEDROCK_TRANSACTION_TOOLS.filter((entry) => allowedNames.has(entry.toolSpec.name))
-      : BEDROCK_TRANSACTION_TOOLS;
+  const writeTools = transactionTools(allowTools, allowedToolNames);
+  const boundedCalls = Math.max(1, Math.min(3, Number(maxModelCalls) || DEFAULT_MAX_MODEL_CALLS));
+  const boundedReadRounds = Math.max(0, Math.min(boundedCalls - 1, Number(maxReadToolRounds) || 0));
+  let readRounds = 0;
+  let usage = {};
+  const readToolNamesUsed = [];
+
+  for (let callIndex = 0; callIndex < boundedCalls; callIndex += 1) {
+    const activeReadTools = readRounds < boundedReadRounds ? readTools : [];
+    const tools = [...writeTools, ...activeReadTools];
+    const commandInput = {
+      modelId,
+      messages,
+      system: [{ text: systemPrompt }],
+      inferenceConfig: {
+        temperature: 0.2,
+        maxTokens,
+      },
+    };
     if (tools.length) {
       commandInput.toolConfig = { tools };
       if (forceToolName && tools.some((entry) => entry.toolSpec.name === forceToolName)) {
         commandInput.toolConfig.toolChoice = { tool: { name: forceToolName } };
       }
     }
+
+    const response = await client.send(new ConverseCommand(commandInput));
+    usage = aggregateUsage(usage, response.usage);
+    const outputMessage = response.output?.message || { role: 'assistant', content: [] };
+    const content = Array.isArray(outputMessage.content) ? outputMessage.content : [];
+    const writeUses = validatedTransactionUses(content, allowedToolNames);
+    if (writeUses.length === 1) {
+      return {
+        text: ACTION_REVIEW_RESPONSE,
+        tool: writeUses[0],
+        modelId,
+        usage,
+        agent: { modelCalls: callIndex + 1, readToolCalls: readToolNamesUsed.length, readToolNames: readToolNamesUsed },
+      };
+    }
+    if (writeUses.length > 1) {
+      return {
+        text: 'I found more than one possible wallet action. Tell me which one you want to do first.',
+        tool: null,
+        modelId,
+        usage,
+        agent: { modelCalls: callIndex + 1, readToolCalls: readToolNamesUsed.length, readToolNames: readToolNamesUsed },
+      };
+    }
+
+    const readUses = validatedReadUses(content, activeReadTools.map((entry) => entry.toolSpec.name));
+    if (readUses.length && typeof executeReadTool === 'function' && readRounds < boundedReadRounds) {
+      const results = await Promise.all(readUses.map(async (toolUse) => {
+        readToolNamesUsed.push(toolUse.name);
+        try {
+          return {
+            toolUseId: toolUse.id,
+            status: 'success',
+            content: [{ json: boundedToolResult(await executeReadTool(toolUse)) }],
+          };
+        } catch (error) {
+          return {
+            toolUseId: toolUse.id,
+            status: 'error',
+            content: [{ json: { available: false, error: String(error?.message || 'Read-only tool failed').slice(0, 500) } }],
+          };
+        }
+      }));
+      messages.push({ role: 'assistant', content });
+      messages.push({ role: 'user', content: results.map((toolResult) => ({ toolResult })) });
+      readRounds += 1;
+      continue;
+    }
+
+    const extracted = extractResponse(outputMessage, false, allowedToolNames);
+    return {
+      ...extracted,
+      modelId,
+      usage,
+      agent: { modelCalls: callIndex + 1, readToolCalls: readToolNamesUsed.length, readToolNames: readToolNamesUsed },
+    };
   }
 
-  const response = await client.send(new ConverseCommand(commandInput));
-  const extracted = extractResponse(response.output?.message, allowTools, allowedToolNames);
   return {
-    ...extracted,
+    text: 'I could not finish the live check within this request. No transaction was submitted; please ask me to check the status again.',
+    tool: null,
     modelId,
-    usage: response.usage ? {
-      inputTokens: response.usage.inputTokens,
-      outputTokens: response.usage.outputTokens,
-      totalTokens: response.usage.totalTokens,
-    } : undefined,
+    usage,
+    agent: { modelCalls: boundedCalls, readToolCalls: readToolNamesUsed.length, readToolNames: readToolNamesUsed },
   };
 }
 
 module.exports = {
   ACTION_REVIEW_RESPONSE,
+  DEFAULT_MAX_MODEL_CALLS,
+  DEFAULT_MAX_READ_TOOL_ROUNDS,
   DEFAULT_MODEL_ID,
   MALFORMED_ACTION_RESPONSE,
   MAX_HISTORY_ITEMS,
+  aggregateUsage,
+  boundedToolResult,
   converse,
   extractResponse,
   normalizeHistory,

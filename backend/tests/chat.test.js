@@ -4,7 +4,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { modelToolName, resolveSafeReplayTool, validateRequest } = require('../routes/chat');
+const {
+  NATURAL_TRANSACTION_TOOL_NAMES,
+  modelToolName,
+  resolveSafeReplayTool,
+  validateRequest,
+} = require('../routes/chat');
 const {
   buildDocsSystemPrompt,
   buildTransactionSystemPrompt,
@@ -15,7 +20,11 @@ const {
   sanitizeWalletState,
 } = require('../services/oppy-context');
 const { sanitizeConversationMemory } = require('../services/oppy-job-context');
-const { validateToolUse } = require('../services/chat-tools');
+const {
+  BEDROCK_READ_TOOLS,
+  validateReadToolUse,
+  validateToolUse,
+} = require('../services/chat-tools');
 const {
   ACTION_REVIEW_RESPONSE,
   DEFAULT_MODEL_ID,
@@ -25,6 +34,39 @@ const {
   normalizeHistory,
   sanitizeAssistantText,
 } = require('../services/bedrock-chat');
+
+test('natural-language discovery exposes every review-only write action and no navigation action', () => {
+  assert.ok(NATURAL_TRANSACTION_TOOL_NAMES.includes('startDirectContract'));
+  assert.ok(NATURAL_TRANSACTION_TOOL_NAMES.includes('releasePayment'));
+  assert.equal(NATURAL_TRANSACTION_TOOL_NAMES.includes('openJob'), false);
+  assert.equal(NATURAL_TRANSACTION_TOOL_NAMES.includes('browseJobs'), false);
+});
+
+test('read tools accept bounded live-check inputs and never request a wallet signature', () => {
+  const hash = `0x${'a'.repeat(64)}`;
+  const valid = validateReadToolUse({
+    toolUseId: 'read-1',
+    name: 'inspectTransaction',
+    input: { transactionHash: hash, chainId: 50, action: 'releasePayment' },
+  });
+  assert.deepEqual(valid, {
+    id: 'read-1',
+    name: 'inspectTransaction',
+    kind: 'read',
+    params: { transactionHash: hash, chainId: 50, action: 'releasePayment' },
+    requiresWalletSignature: false,
+  });
+  assert.equal(validateReadToolUse({
+    toolUseId: 'read-2',
+    name: 'inspectTransaction',
+    input: { chainId: 1 },
+  }), null);
+  assert.equal(validateReadToolUse({
+    toolUseId: 'read-3',
+    name: 'inspectTransaction',
+    input: { action: 'browseJobs' },
+  }), null);
+});
 
 test('chat requests are bounded and default to documentation mode', () => {
   assert.deepEqual(validateRequest({ message: '  hello  ' }), {
@@ -447,6 +489,63 @@ test('Bedrock can require the verified retry tool instead of allowing prose-only
   assert.equal(result.tool.name, 'startDirectContract');
 });
 
+test('Bedrock runs one parallel read round and returns the grounded natural-language answer', async () => {
+  const commands = [];
+  const executed = [];
+  const client = {
+    async send(command) {
+      commands.push(command.input);
+      if (commands.length === 1) {
+        return {
+          output: {
+            message: {
+              role: 'assistant',
+              content: [
+                { toolUse: { toolUseId: 'read-tx', name: 'inspectTransaction', input: {} } },
+                { toolUse: { toolUseId: 'read-wallet', name: 'inspectWalletFunding', input: { chainId: 50 } } },
+              ],
+            },
+          },
+          usage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+        };
+      }
+      return {
+        output: { message: { role: 'assistant', content: [{ text: 'It is still syncing. Do not retry yet.' }] } },
+        usage: { inputTokens: 80, outputTokens: 10, totalTokens: 90 },
+      };
+    },
+  };
+
+  const result = await converse({
+    message: 'Why is my money thing still hanging?',
+    history: [],
+    systemPrompt: 'Use live evidence.',
+    allowTools: false,
+    readTools: BEDROCK_READ_TOOLS,
+    executeReadTool: async (tool) => {
+      executed.push(tool.name);
+      return tool.name === 'inspectTransaction'
+        ? { state: 'in-progress', safeToRetry: false }
+        : { native: { balance: '5', sufficient: true } };
+    },
+    client,
+  });
+
+  assert.equal(commands.length, 2);
+  assert.deepEqual(executed.sort(), ['inspectTransaction', 'inspectWalletFunding']);
+  assert.equal(commands[1].messages.at(-2).role, 'assistant');
+  assert.equal(commands[1].messages.at(-1).role, 'user');
+  assert.equal(commands[1].messages.at(-1).content.length, 2);
+  assert.equal(commands[1].toolConfig, undefined);
+  assert.equal(result.text, 'It is still syncing. Do not retry yet.');
+  assert.deepEqual(result.usage, { inputTokens: 180, outputTokens: 30, totalTokens: 210 });
+  assert.deepEqual(result.agent, {
+    modelCalls: 2,
+    readToolCalls: 2,
+    readToolNames: ['inspectTransaction', 'inspectWalletFunding'],
+  });
+});
+
 test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS credential chain', async () => {
   let commandInput;
   const history = Array.from({ length: 40 }, (_, index) => ({
@@ -473,13 +572,13 @@ test('Bedrock uses the callable Sonnet 4.6 inference profile and the default AWS
 
   assert.equal(DEFAULT_MODEL_ID, 'us.anthropic.claude-sonnet-4-6');
   assert.equal(commandInput.modelId, DEFAULT_MODEL_ID);
-  assert.equal(commandInput.messages.length, 25);
+  assert.equal(commandInput.messages.length, 13);
   assert.equal(commandInput.system[0].text, 'Grounded prompt');
   assert.equal(commandInput.inferenceConfig.temperature, 0.2);
   assert.equal(commandInput.inferenceConfig.topP, undefined);
   assert.ok(commandInput.toolConfig.tools.length >= 10);
   assert.deepEqual(result.usage, { inputTokens: 10, outputTokens: 2, totalTokens: 12 });
-  assert.equal(normalizeHistory(history).length, 24);
+  assert.equal(normalizeHistory(history).length, 12);
 
   const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'bedrock-chat.js'), 'utf8');
   assert.doesNotMatch(source, /accessKeyId|secretAccessKey|AWS_ACCESS_KEY_ID/);

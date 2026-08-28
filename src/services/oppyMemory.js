@@ -3,6 +3,8 @@ const MAX_MESSAGES = 60;
 const MAX_TRANSACTIONS = 12;
 const MAX_PREPARED_ACTION_BYTES = 12 * 1024;
 const DIAGNOSTIC_STATES = new Set(['preparing', 'wallet', 'pending', 'confirmed', 'reverted', 'dropped', 'cancelled', 'failed', 'unknown']);
+const DELIVERY_STATES = new Set(['checking', 'in-progress', 'complete', 'failed', 'unavailable']);
+const DELIVERY_STEP_STATES = new Set(['pending', 'delivered', 'complete', 'received', 'failed', 'unavailable']);
 const TRANSACTION_ACTIONS = new Set([
   'postJob',
   'applyToJob',
@@ -123,6 +125,19 @@ function cleanTransactions(transactions) {
           ? transaction.baselineTotalPaidRaw
           : null;
         if (!action || (!jobId && !txHash)) return [];
+        const delivery = transaction.delivery && typeof transaction.delivery === 'object'
+          ? {
+              state: DELIVERY_STATES.has(transaction.delivery.state) ? transaction.delivery.state : 'checking',
+              complete: transaction.delivery.complete === true,
+              networkState: DELIVERY_STEP_STATES.has(transaction.delivery.networkState) ? transaction.delivery.networkState : null,
+              canonicalState: DELIVERY_STEP_STATES.has(transaction.delivery.canonicalState) ? transaction.delivery.canonicalState : null,
+              paymentState: DELIVERY_STEP_STATES.has(transaction.delivery.paymentState) ? transaction.delivery.paymentState : null,
+              destinationTxHash: /^0x[a-fA-F0-9]{64}$/.test(transaction.delivery.destinationTxHash || '')
+                ? transaction.delivery.destinationTxHash
+                : null,
+              checkedAt: typeof transaction.delivery.checkedAt === 'string' ? transaction.delivery.checkedAt.slice(0, 40) : null,
+            }
+          : null;
         return [{
           action,
           jobId,
@@ -131,6 +146,7 @@ function cleanTransactions(transactions) {
           confirmed: transaction.confirmed === true,
           targetDomain: Number.isInteger(targetDomain) ? targetDomain : null,
           baselineTotalPaidRaw,
+          delivery,
         }];
       }).slice(-MAX_TRANSACTIONS)
     : [];
@@ -274,9 +290,32 @@ export function recordOppyTransaction(transactions, transaction) {
   }).slice(-MAX_TRANSACTIONS);
 }
 
+export function updateOppyTransactionDelivery(transactions, tracking, status) {
+  if (!/^0x[a-fA-F0-9]{64}$/.test(tracking?.sourceTxHash || '') || !status || typeof status !== 'object') {
+    return cleanTransactions(transactions);
+  }
+  const key = tracking.sourceTxHash.toLowerCase();
+  return cleanTransactions((transactions || []).map((transaction) => (
+    transaction?.txHash?.toLowerCase() === key
+      ? {
+          ...transaction,
+          delivery: {
+            state: status.state,
+            complete: status.complete === true,
+            networkState: status.layerZero?.state || null,
+            canonicalState: status.canonical?.state || null,
+            paymentState: status.cctp?.state || null,
+            destinationTxHash: status.layerZero?.destinationTxHash || null,
+            checkedAt: status.checkedAt || new Date().toISOString(),
+          },
+        }
+      : transaction
+  )));
+}
+
 export function historyForOppy(messages) {
   return cleanMessages(messages)
     .filter((message) => message.text !== OPPY_JOB_GREETING.text)
-    .slice(-24)
+    .slice(-12)
     .map((message) => ({ role: message.role === 'bot' ? 'oppy' : message.role, text: message.text }));
 }

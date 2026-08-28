@@ -61,6 +61,15 @@ test('wallet job context puts the active XDC job first and enriches its title', 
       txHash: `0x${'a'.repeat(64)}`,
       chainId: 50,
       confirmed: true,
+      delivery: {
+        state: 'complete',
+        complete: true,
+        networkState: 'delivered',
+        canonicalState: 'complete',
+        paymentState: 'received',
+        destinationTxHash: `0x${'b'.repeat(64)}`,
+        checkedAt: '2026-08-28T05:00:00.000Z',
+      },
     }],
   }, {
     jobs: [rawJob(), rawJob({ id: '42161-27', jobDetailHash: '', status: 0, selectedApplicant: zero })],
@@ -75,6 +84,8 @@ test('wallet job context puts the active XDC job first and enriches its title', 
   assert.equal(context.jobs[0].title, 'Minimal XDC cycle');
   assert.match(formatJobContext(context), /Active job: 30365-6/);
   assert.match(formatJobContext(context), /XDC Network; In progress/);
+  assert.equal(context.recentTransactions[0].delivery.state, 'complete');
+  assert.match(formatJobContext(context), /last live delivery check complete/);
 });
 
 test('a confirmed XDC source job remains active while canonical delivery is pending', async () => {

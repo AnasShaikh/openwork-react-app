@@ -162,6 +162,8 @@ test('transaction chat persists conversation, active job and confirmed source re
   assert.match(chat, /saveOppyMemory\(memoryScope/);
   assert.match(chat, /activeJobFromMessage\(userMsg, activeJob\)/);
   assert.match(chat, /recentTransactions/);
+  assert.match(chat, /updateOppyTransactionDelivery/);
+  assert.match(chat, /onTrackingChange=/);
   assert.match(chat, /result\.jobId \|\| tool\.params\?\.jobId/);
   assert.match(service, /await resolvePostedJobId\(\{/);
   assert.match(service, /saveTxHash\('postJob', tx\.transactionHash, jobId/);
@@ -198,6 +200,7 @@ test('cross-chain progress is action-scoped and payment completion uses independ
   assert.match(chat, /baselineTotalPaidRaw: usdcDecimalToBaseUnits/);
   assert.match(chat, /OpenWork is now syncing it across networks/);
   assert.match(tracker, /Network delivery/);
+  assert.match(tracker, /onStatusChangeRef\.current\?\.\(tracking, next\)/);
   assert.match(tracker, /OpenWork payment/);
   assert.match(tracker, /USDC received/);
   assert.match(tracker, /Payment received/);

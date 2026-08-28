@@ -48,6 +48,7 @@ A commit here does not deploy everything. Each target has its own trigger.
   its original March date for link stability; read its `Last audited` field rather than
   assuming it is stale.
 - [Current production release](docs/production-release-current.md) records the exact source commit, immutable image, deployment operation, verification, and rollback target.
+- [Oppy transaction copilot](docs/oppy-transaction-copilot.md) documents the natural-language agent loop, live transaction evidence, retry boundary, AWS cost controls and maintenance tests.
 - [Chain configuration](src/config/chainConfig.js) is the frontend runtime manifest for Arbitrum, Optimism, XDC, and supported test networks.
 
 **Addresses are recorded in more than one place.** The live registry is canonical, but

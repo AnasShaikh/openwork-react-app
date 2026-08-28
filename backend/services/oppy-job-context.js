@@ -60,6 +60,22 @@ function normalizeTransaction(value) {
     ? createdAtValue.toISOString()
     : null;
   if (!action || (!jobId && !txHash)) return null;
+  const rawDelivery = value.delivery && typeof value.delivery === 'object' ? value.delivery : null;
+  const deliveryState = new Set(['checking', 'in-progress', 'complete', 'failed', 'unavailable']);
+  const stepState = new Set(['pending', 'delivered', 'complete', 'received', 'failed', 'unavailable']);
+  const destinationTxHash = typeof rawDelivery?.destinationTxHash === 'string'
+    && /^0x[a-fA-F0-9]{64}$/.test(rawDelivery.destinationTxHash)
+    ? rawDelivery.destinationTxHash
+    : null;
+  const delivery = rawDelivery ? {
+    state: deliveryState.has(rawDelivery.state) ? rawDelivery.state : 'checking',
+    complete: rawDelivery.complete === true,
+    networkState: stepState.has(rawDelivery.networkState) ? rawDelivery.networkState : null,
+    canonicalState: stepState.has(rawDelivery.canonicalState) ? rawDelivery.canonicalState : null,
+    paymentState: stepState.has(rawDelivery.paymentState) ? rawDelivery.paymentState : null,
+    destinationTxHash,
+    checkedAt: typeof rawDelivery.checkedAt === 'string' ? rawDelivery.checkedAt.slice(0, 40) : null,
+  } : null;
   return {
     action,
     jobId,
@@ -69,6 +85,7 @@ function normalizeTransaction(value) {
     targetDomain: Number.isInteger(targetDomain) ? targetDomain : null,
     baselineTotalPaidRaw,
     createdAt,
+    delivery,
   };
 }
 
@@ -501,7 +518,7 @@ function formatJobContext(context = {}) {
       )).join('\n')
     : '- No canonical wallet jobs were loaded.';
   const txLines = context.recentTransactions?.length
-    ? context.recentTransactions.map((tx) => `- ${tx.action}: ${tx.jobId || 'job unresolved'}${tx.txHash ? `; tx ${tx.txHash}` : ''}; chain ${tx.chainId ?? 'unknown'}; ${tx.confirmed ? 'receipt confirmed' : 'status not asserted'}.`).join('\n')
+    ? context.recentTransactions.map((tx) => `- ${tx.action}: ${tx.jobId || 'job unresolved'}${tx.txHash ? `; tx ${tx.txHash}` : ''}; chain ${tx.chainId ?? 'unknown'}; ${tx.confirmed ? 'receipt confirmed' : 'status not asserted'}${tx.delivery ? `; last live delivery check ${tx.delivery.state} (network ${tx.delivery.networkState || 'unknown'}, OpenWork ${tx.delivery.canonicalState || 'unknown'}, payment ${tx.delivery.paymentState || 'not required'}) at ${tx.delivery.checkedAt || 'unknown time'}` : ''}.`).join('\n')
     : '- No recent browser-confirmed job transactions were supplied.';
   const diagnostic = context.latestTransactionDiagnostic;
   const diagnosticLines = diagnostic

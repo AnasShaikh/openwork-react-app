@@ -11,6 +11,66 @@ The copilot is an observer and coordinator. It never signs, switches networks,
 approves tokens or sends a transaction during diagnosis. Every write still requires an
 explicit click in Oppy followed by the selected wallet's secure confirmation.
 
+## Natural-language agent runtime
+
+Oppy uses a bounded tool loop rather than a second autonomous framework. Sonnet can
+interpret ordinary language such as “why is my money thing hanging?”, resolve “it”
+from the current job and recent transaction, and choose either a read-only inspection
+or one review-card action. The implementation does not require a deterministic keyword
+match. Existing deterministic routes remain as a fast path for common, unambiguous
+questions, but unfamiliar wording falls through to the same grounded agent.
+
+The live read tools are deliberately narrow:
+
+- `inspectTransaction` resolves a supplied or remembered transaction hash, reads its
+  source-chain receipt and, where applicable, joins LayerZero delivery, canonical
+  OpenWork state and CCTP payment evidence.
+- `inspectWalletFunding` reads the connected wallet's native token and USDC balances
+  and compares them with the most recent known action requirement.
+- `inspectJob` reads the active or requested canonical job and its available next
+  action.
+- `inspectLatestAttempt` exposes the sanitized wallet phase, error category, known
+  hashes and retry-protection state already observed by the browser.
+
+The model may request several independent reads in one response; the backend executes
+them concurrently and gives all results back in one tool-result turn. It gets one read
+round by default and must then answer the user. A write tool is never executed by the
+backend: it only returns a validated, non-custodial review card. The browser repeats
+the canonical chain, balance, allowance, quote and gas preflights before the selected
+wallet can request a signature.
+
+The cross-chain tracker now reports every live poll into the same bounded transaction
+memory sent on the next chat turn. A completed direct-contract sync therefore cannot
+be mistaken for a later payment-release result, and a later natural-language question
+can use the latest transaction-specific delivery evidence rather than a stale UI card.
+
+### Cost envelope
+
+The production defaults are designed to preserve AWS credits:
+
+| Control | Default | Effect |
+|---|---:|---|
+| Browser history stored per wallet | 60 safe messages | Keeps the user experience durable without sending all history to AWS |
+| History sent to Bedrock | 12 safe messages | Bounds every request's input context |
+| Model calls | 1 normally, 2 when a live read is requested | Prevents open-ended agent loops |
+| Read rounds | 1 | Forces a grounded answer after one batched read |
+| Transaction output cap | 1,000 tokens | Bounds generated output |
+| Tool-result payload | 20 KiB | Prevents an RPC or indexer response from inflating context |
+
+Deterministic balance, job-identity, explorer and common transaction-status paths use
+zero Bedrock calls. Read tools use public RPC and existing application services; they
+do not create new AWS compute jobs. Usage, model-call count and read-tool names are
+logged without prompts, credentials or raw tool results. Operators may reduce the
+limits with `OPPY_AGENT_MAX_MODEL_CALLS`, `OPPY_AGENT_MAX_READ_TOOL_ROUNDS` and
+`OPPY_AGENT_MAX_OUTPUT_TOKENS`; the runtime hard-clamps model calls to three and cannot
+run more read rounds than remaining model calls.
+
+This is intentionally smaller than adopting Hermes or another general-purpose agent
+runtime. OpenWork already has the required transaction adapters, memory, live readers,
+retry state machine and wallet boundary. A second orchestration stack would duplicate
+those controls, increase prompt/tool overhead and create another security and
+operations surface without improving the user's signing boundary.
+
 ## Architecture
 
 The lifecycle crosses five deliberately small boundaries:
@@ -27,6 +87,9 @@ The lifecycle crosses five deliberately small boundaries:
    wallet together with the exact last validated action that produced it. `/api/chat`
    validates both records so questions such as “what happened?” are answered from
    observed state and safe retry commands can recreate the same review card.
+6. `backend/services/bedrock-chat.js` runs the bounded model/read-tool loop, while
+   `backend/services/oppy-agent-tools.js` resolves conversational references and
+   executes the four allowlisted live inspections.
 
 No private key, seed phrase, signature, raw calldata or browser-extension console log
 is collected. The record is bounded and contains only action metadata, public wallet
@@ -161,6 +224,7 @@ git diff --check
 Primary coverage lives in `tests/transactionDiagnostics.test.js`,
 `tests/txReliability.test.js`, `tests/oppyMemory.test.js`,
 `tests/contractWriteRouter.test.js`, `backend/tests/chat.test.js`,
+`backend/tests/oppy-agent-tools.test.js`,
 `backend/tests/oppy-native-balance.test.js` and
 `backend/tests/oppy-job-context.test.js`.
 
