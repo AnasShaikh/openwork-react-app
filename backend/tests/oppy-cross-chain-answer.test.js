@@ -36,7 +36,11 @@ function completeStatus(action = 'startDirectContract') {
     source: { chainName: 'XDC Network' },
     layerZero: { state: 'delivered' },
     canonical: { state: 'complete', jobExists: true },
-    cctp: { required: action === 'releasePayment', state: 'received', targetChainName: 'XDC Network' },
+    cctp: {
+      required: ['startDirectContract', 'releasePayment'].includes(action),
+      state: 'received',
+      targetChainName: action === 'startDirectContract' ? 'Arbitrum One' : 'XDC Network',
+    },
     links: { canonicalExplorerUrl: `https://arbiscan.io/tx/${destinationTxHash}` },
   };
 }
@@ -46,6 +50,7 @@ test('simple completion follow-ups are recognized without hijacking new actions'
   assert.equal(isCrossChainStatusQuestion('Has the contract synced yet?'), true);
   assert.equal(isCrossChainStatusQuestion('status for 30365-10'), true);
   assert.equal(isCrossChainStatusQuestion('is it confirmed?'), true);
+  assert.equal(isCrossChainStatusQuestion('okay was the money locked on arbitrum?'), true);
   assert.equal(isCrossChainStatusQuestion('did my money thing actually happen'), false);
   assert.equal(isCrossChainStatusQuestion('release the payment'), false);
   assert.equal(isCrossChainStatusQuestion('create another direct contract'), false);
@@ -75,9 +80,29 @@ test('a completed direct contract gets an authoritative action-correct answer', 
   assert.equal(verifierInput.action, 'startDirectContract');
   assert.equal(verifierInput.jobId, '30365-10');
   assert.match(result.text, /direct contract/);
-  assert.match(result.text, /contract is active/);
+  assert.match(result.text, /fully funded/);
+  assert.match(result.text, /first-milestone USDC receipt is confirmed/);
   assert.match(result.text, /No retry is needed/);
   assert.doesNotMatch(result.text, /job post|indexer/);
+});
+
+test('an escrow follow-up reports a pending direct-contract mint instead of a stale job', async () => {
+  const result = await resolveCrossChainStatusAnswer('okay was the money locked on arbitrum?', memory(), {
+    readCrossChainActionStatus: async () => ({
+      action: 'startDirectContract',
+      jobId: '30365-10',
+      state: 'in-progress',
+      complete: false,
+      source: { chainName: 'XDC Network' },
+      layerZero: { state: 'delivered' },
+      canonical: { state: 'complete', jobExists: true },
+      cctp: { required: true, state: 'pending', targetChainName: 'Arbitrum One', reason: 'nonce_unused' },
+    }),
+  });
+  assert.match(result.text, /job \*\*30365-10\*\*/);
+  assert.match(result.text, /first-milestone USDC is still being delivered to Arbitrum One/);
+  assert.match(result.text, /do not retry/i);
+  assert.doesNotMatch(result.text, /30365-11|marketplace posting/);
 });
 
 test('release completion requires and reports destination receipt evidence', async () => {

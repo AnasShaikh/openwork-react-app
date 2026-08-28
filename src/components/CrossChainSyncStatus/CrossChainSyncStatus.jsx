@@ -121,6 +121,9 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
     || (tracking.action === 'releasePayment' && Number(tracking.targetDomain) !== 3);
   const cctpComplete = !cctpRequired || sync.cctp?.state === 'received';
   const targetName = sync.cctp?.targetChainName || DOMAIN_NAMES.get(Number(tracking.targetDomain));
+  const showSeparatePaymentTarget = cctpRequired
+    && targetName
+    && !/^Arbitrum(?: One)?$/i.test(targetName);
   const checkedTime = sync.checkedAt
     ? new Date(sync.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
@@ -137,7 +140,7 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
           <span className="cross-chain-sync__eyebrow">{copy.eyebrow}</span>
           <h3>
             {source.name} <ArrowRight aria-hidden="true" size={16} /> Arbitrum
-            {cctpRequired && targetName && <><ArrowRight aria-hidden="true" size={16} /> {targetName}</>}
+            {showSeparatePaymentTarget && <><ArrowRight aria-hidden="true" size={16} /> {targetName}</>}
           </h3>
           <p>Job <strong>{tracking.jobId}</strong></p>
         </div>

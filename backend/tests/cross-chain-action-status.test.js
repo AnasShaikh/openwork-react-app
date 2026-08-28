@@ -77,3 +77,72 @@ test('LayerZero destination hashes are read from the current nested API shape', 
   assert.equal(destinationTransactionHash({ dstTxHash: destinationTxHash }), destinationTxHash);
   assert.equal(destinationTransactionHash({ destination: { tx: { txHash: 'invalid' } } }), null);
 });
+
+test('a direct contract is ready only after its first milestone reaches Arbitrum escrow', async () => {
+  let cctpInput = null;
+  const status = await readCrossChainActionStatus({
+    action: 'startDirectContract',
+    jobId: '30365-12',
+    sourceChainId: 50,
+    sourceTxHash,
+  }, {
+    fetchLayerZeroMessage: async () => ({
+      status: { name: 'DELIVERED' },
+      destination: { tx: { txHash: destinationTxHash } },
+    }),
+    readCanonicalJob: async () => ({
+      jobId: '30365-12',
+      status: 1,
+      selectedApplicant: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+      totalPaid: '0',
+      totalPaidRaw: '0',
+      currentMilestone: 1,
+    }),
+    reconcileCCTPTransfer: async (input) => {
+      cctpInput = input;
+      return {
+        completed: true,
+        eventNonce: `0x${'c'.repeat(64)}`,
+        destinationDomain: 3,
+        mintRecipient: '0x8efbf240240613803b9c9e716d4b5ad1388afd99',
+        amount: '100000',
+      };
+    },
+  });
+
+  assert.deepEqual(cctpInput, { sourceTxHash, sourceDomain: 18 });
+  assert.equal(status.complete, true);
+  assert.equal(status.cctp.required, true);
+  assert.equal(status.cctp.state, 'received');
+  assert.equal(status.cctp.targetDomain, 3);
+  assert.equal(status.cctp.targetChainName, 'Arbitrum One');
+  assert.equal(status.cctp.amountRaw, '100000');
+  assert.match(status.links.circleStatusUrl, /\/18\?transactionHash=/);
+});
+
+test('canonical direct-contract creation cannot hide pending escrow delivery', async () => {
+  const status = await readCrossChainActionStatus({
+    action: 'startDirectContract',
+    jobId: '30365-12',
+    sourceChainId: 50,
+    sourceTxHash,
+  }, {
+    fetchLayerZeroMessage: async () => ({
+      status: { name: 'DELIVERED' },
+      destination: { tx: { txHash: destinationTxHash } },
+    }),
+    readCanonicalJob: async () => ({
+      jobId: '30365-12',
+      status: 1,
+      selectedApplicant: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+      totalPaidRaw: '0',
+      currentMilestone: 1,
+    }),
+    reconcileCCTPTransfer: async () => ({ completed: false, reason: 'nonce_unused' }),
+  });
+
+  assert.equal(status.complete, false);
+  assert.equal(status.canonical.state, 'complete');
+  assert.equal(status.cctp.state, 'pending');
+  assert.equal(status.cctp.reason, 'nonce_unused');
+});

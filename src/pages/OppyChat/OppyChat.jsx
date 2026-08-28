@@ -15,7 +15,13 @@ import {
   raiseDispute,
   createProfile,
 } from '../../services/localChainService';
-import { extractChainIdFromJobId, getChainConfig, getNativeChain, supportsApplicantMilestones } from '../../config/chainConfig';
+import {
+  extractChainIdFromJobId,
+  getChainConfig,
+  getNativeChain,
+  supportsApplicantMilestones,
+  usesAsyncApplicantMilestoneStart,
+} from '../../config/chainConfig';
 import { switchToChain } from '../../utils/switchNetwork';
 import GenesisABI from '../../ABIs/genesis_ABI.json';
 import {
@@ -65,6 +71,19 @@ import {
 import './OppyChat.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
+async function requestStartJobRelay({ jobId, txHash, asyncApplicantMilestones = false }) {
+  const response = await fetch(`${BACKEND_URL}/api/start-job`, {
+    method: 'POST',
+    headers: { ...(await uploadAuthHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobId, txHash, asyncApplicantMilestones }),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error || `USDC delivery could not be started (HTTP ${response.status})`);
+  }
+  return payload;
+}
 
 const SUGGESTED_PROMPTS = [
   'What needs my attention?',
@@ -1241,6 +1260,7 @@ const OppyChat = () => {
 
       let result;
       let trackingContext = null;
+      let relayContext = null;
       switch (tool.name) {
         case 'postJob': {
           report({ phase: 'preparing', message: 'Preparing job details…' });
@@ -1355,6 +1375,7 @@ const OppyChat = () => {
             amounts: milestoneAmounts.map(String),
             jobTakerChainDomain: chainConfig.cctpDomain,
           }, onStatus, walletProvider);
+          relayContext = { asyncApplicantMilestones: false };
           break;
         }
         case 'startJob': {
@@ -1395,6 +1416,9 @@ const OppyChat = () => {
             applicationId: Number(application.id),
             useAppMilestones,
           }, onStatus, walletProvider);
+          relayContext = {
+            asyncApplicantMilestones: useAppMilestones && usesAsyncApplicantMilestoneStart(chainIdDecimal),
+          };
           break;
         }
         case 'submitWork': {
@@ -1463,6 +1487,20 @@ const OppyChat = () => {
 
       if (!result?.transactionHash) throw new Error('The wallet action did not return a transaction hash.');
       const confirmedJobId = result.jobId || tool.params?.jobId || null;
+      let relayWarning = null;
+      if (confirmedJobId && relayContext && chainIdDecimal !== 42161) {
+        report({ phase: 'preparing', message: 'Starting the first-milestone USDC delivery…' });
+        try {
+          await requestStartJobRelay({
+            jobId: confirmedJobId,
+            txHash: result.transactionHash,
+            ...relayContext,
+          });
+        } catch (relayError) {
+          relayWarning = relayError?.message || 'The USDC delivery service did not accept the request.';
+          console.warn('[OppyChat] Start-job relay notification failed:', relayWarning);
+        }
+      }
       if (confirmedJobId) {
         setActiveJob(sanitizeActiveJob({
           jobId: confirmedJobId,
@@ -1484,7 +1522,10 @@ const OppyChat = () => {
       const crossChainDeliveryPending = chainIdDecimal !== 42161
         && ['postJob', 'startDirectContract', 'releasePayment'].includes(tool.name);
       if (result.canonicalDeliveryPending || crossChainDeliveryPending) {
-        addBotMessage('Your source transaction is confirmed. OpenWork is now syncing it across networks; you can remain in this chat.');
+        addBotMessage('Your source transaction is confirmed. The live status card above shows the latest network, OpenWork and USDC delivery state; you can remain in this chat.');
+        if (relayWarning) {
+          addBotMessage('The contract transaction is safe, but its USDC delivery needs attention. Do not submit the contract again; use **Check live status** so Oppy can guide recovery without creating a duplicate.');
+        }
       }
       return {
         txHash: result.transactionHash,

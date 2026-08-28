@@ -10,6 +10,7 @@ const {
   inspectWalletFunding,
   isJobCreationProvenanceQuestion,
   readJobCreationTransaction,
+  resolveGroundedJobId,
   resolveJobCreationProvenance,
   resolveJobCreationProvenanceAnswer,
   resolveTransactionTarget,
@@ -64,6 +65,69 @@ test('the latest transaction target is resolved from memory without asking the u
   assert.equal(target.jobId, '30365-11');
   assert.equal(target.chainId, 50);
   assert.equal(target.action, 'startDirectContract');
+});
+
+test('an unqualified follow-up is bound to the active job, not a stale model or history ID', async () => {
+  const activeHash = `0x${'c'.repeat(64)}`;
+  const staleContext = context({
+    message: 'Okay, was the money locked on Arbitrum?',
+    history: [
+      { role: 'user', text: 'Was 30365-11 a direct contract?' },
+      { role: 'oppy', text: '30365-11 was a marketplace posting.' },
+    ],
+    memory: {
+      activeJob: { jobId: '30365-12', sourceChainId: 50, sourceTxHash: activeHash, sourceReceiptConfirmed: true },
+      recentTransactions: [
+        { action: 'postJob', jobId: '30365-11', txHash: transactionHash, chainId: 50, confirmed: true },
+        { action: 'startDirectContract', jobId: '30365-12', txHash: activeHash, chainId: 50, confirmed: true },
+      ],
+      latestTransactionDiagnostic: null,
+      lastPreparedAction: null,
+    },
+  });
+
+  assert.equal(resolveGroundedJobId({ jobId: '30365-11' }, staleContext), '30365-12');
+  assert.equal(resolveTransactionTarget({ jobId: '30365-11', transactionHash }, staleContext).jobId, '30365-12');
+
+  let inspectedJobId = null;
+  let fundingInput = null;
+  const inspected = await inspectJob({ jobId: '30365-11' }, staleContext, {
+    readJobCreationTransaction: async () => ({ available: false }),
+    readCrossChainActionStatus: async (input) => {
+      fundingInput = input;
+      return {
+        state: 'in-progress',
+        complete: false,
+        cctp: { required: true, state: 'pending', targetChainName: 'Arbitrum One', reason: 'nonce_unused' },
+      };
+    },
+    getJobDeepDive: async (jobId) => {
+      inspectedJobId = jobId;
+      return {
+        generatedAt: '2026-08-28T08:00:00.000Z',
+        job: { jobId, status: 'In progress' },
+        milestones: [],
+        applications: [],
+        submissions: [],
+      };
+    },
+  });
+  assert.equal(inspectedJobId, '30365-12');
+  assert.equal(inspected.job.jobId, '30365-12');
+  assert.equal(fundingInput.jobId, '30365-12');
+  assert.equal(fundingInput.sourceTxHash, activeHash);
+  assert.equal(inspected.fundingDelivery.paymentDelivery.state, 'pending');
+});
+
+test('an explicit current-turn job ID overrides the previously active job', () => {
+  const explicit = context({
+    message: 'Check job 30365-11 instead.',
+    memory: {
+      activeJob: { jobId: '30365-12', sourceChainId: 50 },
+      recentTransactions: [],
+    },
+  });
+  assert.equal(resolveGroundedJobId({ jobId: '30365-12' }, explicit), '30365-11');
 });
 
 test('transaction inspection joins the source receipt and cross-chain delivery evidence', async () => {
@@ -171,6 +235,11 @@ test('latest-attempt and job tools return compact, conversation-grounded evidenc
 
   const job = await inspectJob({}, context(), {
     readJobCreationTransaction: async () => ({ available: false }),
+    readCrossChainActionStatus: async () => ({
+      state: 'complete',
+      complete: true,
+      cctp: { required: true, state: 'received', targetChainName: 'Arbitrum One', amountRaw: '100000' },
+    }),
     getJobDeepDive: async (jobId) => ({
       generatedAt: '2026-08-28T05:00:00.000Z',
       job: { jobId, status: 'In progress', applicationCount: 1 },
@@ -185,6 +254,7 @@ test('latest-attempt and job tools return compact, conversation-grounded evidenc
   assert.equal(job.nextAction.type, 'release-payment');
   assert.equal(job.creation.type, 'direct-contract');
   assert.equal(job.creation.sourceReceiptConfirmed, true);
+  assert.equal(job.fundingDelivery.paymentDelivery.state, 'received');
 });
 
 test('job creation provenance comes from its recorded source action, never lifecycle status', () => {

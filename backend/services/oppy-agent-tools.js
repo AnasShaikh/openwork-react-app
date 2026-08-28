@@ -87,19 +87,51 @@ function conversationReferences(message, history = []) {
   return { transactionHash, jobId, chainId };
 }
 
+function currentMessageReferences(message) {
+  return conversationReferences(message, []);
+}
+
+function activeContextJobId(context = {}) {
+  const memoryJobId = context.memory?.activeJob?.jobId;
+  if (VALID_JOB_ID.test(memoryJobId || '')) return memoryJobId;
+  const serverJobId = context.jobContext?.activeJob?.jobId;
+  return VALID_JOB_ID.test(serverJobId || '') ? serverJobId : null;
+}
+
+function resolveGroundedJobId(params = {}, context = {}) {
+  const current = currentMessageReferences(context.message);
+  if (VALID_JOB_ID.test(current.jobId || '')) return current.jobId;
+
+  // A model-generated tool argument is only a hint. When the user uses a
+  // pronoun or asks an unqualified follow-up, bind it to the active job rather
+  // than allowing an older ID copied from chat history to steal the turn.
+  const activeJobId = activeContextJobId(context);
+  if (activeJobId) return activeJobId;
+
+  if (VALID_JOB_ID.test(params.jobId || '')) return params.jobId;
+  const historical = conversationReferences(context.message, context.history);
+  return VALID_JOB_ID.test(historical.jobId || '') ? historical.jobId : null;
+}
+
 function resolveTransactionTarget(params = {}, context = {}) {
   const memory = context.memory || {};
+  const currentRefs = currentMessageReferences(context.message);
   const refs = conversationReferences(context.message, context.history);
-  const requestedHash = params.transactionHash || refs.transactionHash;
-  const requestedJobId = params.jobId || refs.jobId;
   const transactions = Array.isArray(memory.recentTransactions) ? memory.recentTransactions : [];
   const recent = [...transactions].reverse();
+  const activeJob = memory.activeJob || context.jobContext?.activeJob || null;
+  const activeJobId = VALID_JOB_ID.test(activeJob?.jobId || '') ? activeJob.jobId : null;
+  const hasCurrentReference = Boolean(currentRefs.transactionHash || currentRefs.jobId);
+  const requestedHash = currentRefs.transactionHash
+    || (!hasCurrentReference && !activeJobId ? params.transactionHash || refs.transactionHash : null);
+  const requestedJobId = currentRefs.jobId
+    || (!hasCurrentReference && activeJobId ? activeJobId : null)
+    || (!hasCurrentReference ? params.jobId || refs.jobId : null);
   const candidate = (requestedHash && recent.find((entry) => entry.txHash?.toLowerCase() === requestedHash.toLowerCase()))
     || (requestedJobId && recent.find((entry) => entry.jobId === requestedJobId))
     || recent[0]
     || null;
   const diagnostic = memory.latestTransactionDiagnostic || null;
-  const activeJob = memory.activeJob || null;
   const transactionHash = requestedHash
     || candidate?.txHash
     || (VALID_TX_HASH.test(diagnostic?.txHash || '') ? diagnostic.txHash : null)
@@ -547,7 +579,7 @@ async function resolveJobCreationProvenanceAnswer(message, context = {}, depende
   return { kind: 'job-creation-provenance', jobId, creation, text };
 }
 
-function compactJobDeepDive(deepDive, creation) {
+function compactJobDeepDive(deepDive, creation, fundingDelivery = null) {
   return {
     kind: 'job-state',
     available: true,
@@ -558,19 +590,39 @@ function compactJobDeepDive(deepDive, creation) {
     submissionCount: deepDive.job?.submissionCount ?? deepDive.submissions?.length ?? 0,
     nextAction: deepDive.nextAction || null,
     creation,
+    fundingDelivery,
   };
 }
 
+async function readCreationFundingDelivery(jobId, creation, dependencies = {}) {
+  if (creation?.action !== 'startDirectContract'
+    || !VALID_TX_HASH.test(creation.transactionHash || '')
+    || ![10, 50].includes(Number(creation.chainId))) {
+    return null;
+  }
+  return (dependencies.readCrossChainActionStatus || readCrossChainActionStatus)({
+    action: 'startDirectContract',
+    jobId,
+    sourceChainId: Number(creation.chainId),
+    sourceTxHash: creation.transactionHash,
+  }).then(compactCrossChainStatus).catch((error) => ({
+    state: 'unavailable',
+    complete: false,
+    checkedAt: new Date().toISOString(),
+    error: error.message || 'Direct-contract funding status is temporarily unavailable',
+  }));
+}
+
 async function inspectJob(params, context, dependencies = {}) {
-  const refs = conversationReferences(context.message, context.history);
-  const jobId = params.jobId || refs.jobId || context.memory?.activeJob?.jobId || null;
+  const jobId = resolveGroundedJobId(params, context);
   if (!VALID_JOB_ID.test(jobId || '')) {
     return { kind: 'job-state', available: false, explanation: 'No active or explicitly referenced OpenWork job could be resolved.' };
   }
   const creation = await verifyJobCreationProvenance(jobId, context, dependencies);
+  const fundingDelivery = await readCreationFundingDelivery(jobId, creation, dependencies);
   try {
     const deepDive = await (dependencies.getJobDeepDive || getJobDeepDive)(jobId, context.wallet?.address || null, dependencies);
-    return compactJobDeepDive(deepDive, creation);
+    return compactJobDeepDive(deepDive, creation, fundingDelivery);
   } catch (error) {
     const cached = context.jobContext?.jobs?.find((job) => job.jobId === jobId)
       || (context.jobContext?.activeJob?.jobId === jobId ? context.jobContext.activeJob : null);
@@ -579,6 +631,7 @@ async function inspectJob(params, context, dependencies = {}) {
       available: Boolean(cached),
       job: cached || { jobId },
       creation,
+      fundingDelivery,
       explanation: cached
         ? 'The latest wallet context is available, but a fresh canonical deep-dive read failed.'
         : 'The canonical job could not be loaded from the live RPC.',
@@ -616,6 +669,7 @@ module.exports = {
   CHAIN_CONFIG,
   compactCrossChainStatus,
   conversationReferences,
+  currentMessageReferences,
   executeOppyReadTool,
   inspectJob,
   inspectLatestAttempt,
@@ -623,11 +677,13 @@ module.exports = {
   inspectWalletFunding,
   preparedUsdcRequirement,
   readJobCreationTransaction,
+  readCreationFundingDelivery,
   readTransactionReceipt,
   readUsdcBalance,
   isJobCreationProvenanceQuestion,
   resolveJobCreationProvenance,
   resolveJobCreationProvenanceAnswer,
+  resolveGroundedJobId,
   resolveTransactionTarget,
   verifyJobCreationProvenance,
 };

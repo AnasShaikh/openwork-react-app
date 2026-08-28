@@ -125,6 +125,8 @@ test('all supported Oppy actions stay inside chat and reuse canonical preflight 
   assert.match(chat, /await ensureUsdcFunding\(\{/);
   assert.match(chat, /await startDirectContract\(/);
   assert.match(chat, /await startJob\(/);
+  assert.match(chat, /await requestStartJobRelay\(\{/);
+  assert.match(chat, /asyncApplicantMilestones: useAppMilestones && usesAsyncApplicantMilestoneStart\(chainIdDecimal\)/);
   assert.match(chat, /await releasePaymentCrossChain\(/);
   assert.match(chat, /await raiseDispute\(/);
   assert.doesNotMatch(chat, /navigate\(`\/(?:direct-contract|release-payment|raise-dispute|view-received-application)/);
@@ -207,11 +209,12 @@ test('cross-chain progress is action-scoped and payment completion uses independ
   assert.match(chat, /tracking=\{tracking\}/);
   assert.doesNotMatch(chat, /<CrossChainSyncStatus activeJob=\{activeJob\}/);
   assert.match(chat, /baselineTotalPaidRaw: usdcDecimalToBaseUnits/);
-  assert.match(chat, /OpenWork is now syncing it across networks/);
+  assert.match(chat, /live status card above shows the latest network, OpenWork and USDC delivery state/);
   assert.match(tracker, /Network delivery/);
   assert.match(tracker, /onStatusChangeRef\.current\?\.\(tracking, next\)/);
   assert.match(tracker, /OpenWork payment/);
   assert.match(tracker, /USDC received/);
+  assert.match(tracker, /showSeparatePaymentTarget/);
   assert.match(tracker, /Payment received/);
   assert.match(service, /api\/oppy\/cross-chain-status/);
   assert.doesNotMatch(service, /jobExists/);

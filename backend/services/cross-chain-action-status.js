@@ -14,8 +14,8 @@ const VALID_JOB_ID = /^\d+-\d+$/;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const SUPPORTED_ACTIONS = new Set(['postJob', 'startDirectContract', 'releasePayment']);
 const SOURCE_CHAINS = new Map([
-  [10, { name: 'Optimism', explorer: 'https://optimistic.etherscan.io/tx/', jobPrefix: '30111' }],
-  [50, { name: 'XDC Network', explorer: 'https://xdcscan.com/tx/', jobPrefix: '30365' }],
+  [10, { name: 'Optimism', explorer: 'https://optimistic.etherscan.io/tx/', jobPrefix: '30111', cctpDomain: 2 }],
+  [50, { name: 'XDC Network', explorer: 'https://xdcscan.com/tx/', jobPrefix: '30365', cctpDomain: 18 }],
 ]);
 const DOMAIN_CHAINS = new Map([
   [2, { name: 'Optimism', chainId: 10, explorer: 'https://optimistic.etherscan.io/tx/' }],
@@ -103,7 +103,15 @@ function canonicalActionComplete(action, job, baselineTotalPaidRaw) {
   return false;
 }
 
-function statusLinks({ sourceChainId, sourceTxHash, jobId, destinationTxHash, targetDomain }) {
+function statusLinks({
+  sourceChainId,
+  sourceTxHash,
+  jobId,
+  destinationTxHash,
+  targetDomain,
+  cctpSourceDomain,
+  cctpSourceTxHash,
+}) {
   const source = SOURCE_CHAINS.get(Number(sourceChainId));
   const target = DOMAIN_CHAINS.get(Number(targetDomain));
   return {
@@ -111,8 +119,8 @@ function statusLinks({ sourceChainId, sourceTxHash, jobId, destinationTxHash, ta
     layerZeroScanUrl: `https://layerzeroscan.com/tx/${sourceTxHash}`,
     canonicalExplorerUrl: destinationTxHash ? `https://arbiscan.io/tx/${destinationTxHash}` : null,
     canonicalJobUrl: `/job-details/${encodeURIComponent(jobId)}`,
-    circleStatusUrl: destinationTxHash
-      ? `${config.CIRCLE_API_BASE_URL}/3?transactionHash=${destinationTxHash}`
+    circleStatusUrl: cctpSourceTxHash && cctpSourceDomain !== null
+      ? `${config.CIRCLE_API_BASE_URL}/${cctpSourceDomain}?transactionHash=${cctpSourceTxHash}`
       : null,
     targetExplorerUrl: target?.explorer || null,
   };
@@ -163,14 +171,22 @@ async function readCrossChainActionStatus(input, dependencies = {}) {
   const canonicalComplete = layerZeroDelivered
     && canonicalActionComplete(action, canonicalJob, baselineTotalPaidRaw);
 
-  const cctpRequired = action === 'releasePayment' && targetDomain !== null && targetDomain !== 3;
+  // A direct contract burns its first milestone on the local source chain and
+  // mints it into the Arbitrum escrow independently of the LayerZero job
+  // message. Do not call the contract ready until both transports complete.
+  const directContractFunding = action === 'startDirectContract';
+  const releasePayout = action === 'releasePayment' && targetDomain !== null && targetDomain !== 3;
+  const cctpRequired = directContractFunding || releasePayout;
+  const cctpSourceTxHash = directContractFunding ? sourceTxHash : (releasePayout ? destinationTxHash : null);
+  const cctpSourceDomain = directContractFunding ? SOURCE_CHAINS.get(sourceChainId).cctpDomain : (releasePayout ? 3 : null);
+  const paymentTargetDomain = directContractFunding ? 3 : targetDomain;
   let cctpResult = null;
   let cctpError = null;
-  if (cctpRequired && destinationTxHash) {
+  if (cctpRequired && cctpSourceTxHash) {
     try {
       cctpResult = await (dependencies.reconcileCCTPTransfer || reconcileCCTPTransfer)({
-        sourceTxHash: destinationTxHash,
-        sourceDomain: 3,
+        sourceTxHash: cctpSourceTxHash,
+        sourceDomain: cctpSourceDomain,
       }, dependencies.cctpDependencies || {});
     } catch (error) {
       cctpError = error.message || 'Circle delivery status is temporarily unavailable';
@@ -182,7 +198,7 @@ async function readCrossChainActionStatus(input, dependencies = {}) {
     ? 'complete'
     : (layerZeroFailed ? 'failed' : ((layerZeroError || canonicalError || cctpError) ? 'unavailable' : 'in-progress'));
   const source = SOURCE_CHAINS.get(sourceChainId);
-  const target = targetDomain === null ? null : DOMAIN_CHAINS.get(targetDomain);
+  const target = paymentTargetDomain === null ? null : DOMAIN_CHAINS.get(paymentTargetDomain);
 
   return {
     action,
@@ -216,7 +232,7 @@ async function readCrossChainActionStatus(input, dependencies = {}) {
     cctp: {
       required: cctpRequired,
       state: cctpComplete ? 'received' : (cctpError ? 'unavailable' : 'pending'),
-      targetDomain,
+      targetDomain: paymentTargetDomain,
       targetChainName: target?.name || null,
       eventNonce: cctpResult?.eventNonce || null,
       amountRaw: cctpResult?.amount || null,
@@ -224,7 +240,15 @@ async function readCrossChainActionStatus(input, dependencies = {}) {
       reason: cctpResult?.reason || null,
       error: cctpError,
     },
-    links: statusLinks({ sourceChainId, sourceTxHash, jobId, destinationTxHash, targetDomain }),
+    links: statusLinks({
+      sourceChainId,
+      sourceTxHash,
+      jobId,
+      destinationTxHash,
+      targetDomain: paymentTargetDomain,
+      cctpSourceDomain,
+      cctpSourceTxHash,
+    }),
   };
 }
 
