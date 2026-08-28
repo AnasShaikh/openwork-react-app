@@ -133,6 +133,15 @@ test('all supported Oppy actions stay inside chat and reuse canonical preflight 
   assert.match(chainService, /export async function startDirectContract/);
 });
 
+test('semantic action conflicts are removed before a review card can reach the wallet', () => {
+  const chat = source('src/pages/OppyChat/OppyChat.jsx');
+  const memory = source('src/services/oppyMemory.js');
+  assert.match(chat, /const semanticConflict = getOppyActionSemanticConflict\(proposedCandidate\)/);
+  assert.match(chat, /const proposedTool = semanticConflict \? null : proposedCandidate/);
+  assert.match(chat, /assertOppyActionSemantics\(tool\)/);
+  assert.match(memory, /if \(getOppyActionSemanticConflict\(value\)\) return null/);
+});
+
 test('Oppy binds every transaction to an explicit injected wallet provider', () => {
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const providerService = source('src/services/injectedWalletProviders.js');

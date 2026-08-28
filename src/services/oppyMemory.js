@@ -1,3 +1,5 @@
+import { getOppyActionSemanticConflict } from './oppyActionSemantics.js';
+
 const STORAGE_PREFIX = 'openwork:oppy:memory:v2';
 const MAX_MESSAGES = 60;
 const MAX_TRANSACTIONS = 12;
@@ -221,6 +223,7 @@ export function sanitizeTransactionDiagnostic(value) {
 export function sanitizePreparedAction(value) {
   if (!value || typeof value !== 'object' || !TRANSACTION_ACTIONS.has(value.name)) return null;
   if (!value.params || typeof value.params !== 'object' || Array.isArray(value.params)) return null;
+  if (getOppyActionSemanticConflict(value)) return null;
   try {
     const serialized = JSON.stringify(value.params);
     if (!serialized || serialized.length > MAX_PREPARED_ACTION_BYTES) return null;

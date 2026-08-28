@@ -14,6 +14,7 @@ const VALID_ADDRESS = /^0x[a-fA-F0-9]{40}$/;
 const VALID_JOB_ID = /^\d+-\d+$/;
 const VALID_TX_HASH = /^0x[a-fA-F0-9]{64}$/;
 const CROSS_CHAIN_ACTIONS = new Set(['postJob', 'startDirectContract', 'releasePayment']);
+const JOB_CREATION_ACTIONS = new Set(['postJob', 'startDirectContract']);
 const CHAIN_BY_JOB_PREFIX = new Map([
   ['42161', 42161],
   ['30110', 42161],
@@ -382,7 +383,38 @@ async function inspectWalletFunding(params, context, dependencies = {}) {
   };
 }
 
-function compactJobDeepDive(deepDive) {
+function resolveJobCreationProvenance(jobId, context = {}) {
+  const recent = Array.isArray(context.memory?.recentTransactions)
+    ? context.memory.recentTransactions
+    : [];
+  const durable = Array.isArray(context.jobContext?.durableTransactions)
+    ? context.jobContext.durableTransactions
+    : [];
+  const candidate = [...durable, ...recent]
+    .reverse()
+    .find((transaction) => transaction?.jobId === jobId && JOB_CREATION_ACTIONS.has(transaction.action));
+  if (!candidate) {
+    return {
+      available: false,
+      type: null,
+      action: null,
+      explanation: 'Creation type is not proven by the available source-transaction history. Do not infer it from lifecycle status.',
+    };
+  }
+  return {
+    available: true,
+    type: candidate.action === 'startDirectContract' ? 'direct-contract' : 'marketplace-posting',
+    action: candidate.action,
+    transactionHash: VALID_TX_HASH.test(candidate.txHash || '') ? candidate.txHash : null,
+    chainId: Number.isInteger(Number(candidate.chainId)) ? Number(candidate.chainId) : null,
+    sourceReceiptConfirmed: candidate.confirmed === true,
+    explanation: candidate.action === 'startDirectContract'
+      ? 'The recorded creation action is startDirectContract.'
+      : 'The recorded creation action is postJob.',
+  };
+}
+
+function compactJobDeepDive(deepDive, creation) {
   return {
     kind: 'job-state',
     available: true,
@@ -392,6 +424,7 @@ function compactJobDeepDive(deepDive) {
     applicationCount: deepDive.job?.applicationCount ?? deepDive.applications?.length ?? 0,
     submissionCount: deepDive.job?.submissionCount ?? deepDive.submissions?.length ?? 0,
     nextAction: deepDive.nextAction || null,
+    creation,
   };
 }
 
@@ -403,7 +436,7 @@ async function inspectJob(params, context, dependencies = {}) {
   }
   try {
     const deepDive = await (dependencies.getJobDeepDive || getJobDeepDive)(jobId, context.wallet?.address || null, dependencies);
-    return compactJobDeepDive(deepDive);
+    return compactJobDeepDive(deepDive, resolveJobCreationProvenance(jobId, context));
   } catch (error) {
     const cached = context.jobContext?.jobs?.find((job) => job.jobId === jobId)
       || (context.jobContext?.activeJob?.jobId === jobId ? context.jobContext.activeJob : null);
@@ -411,6 +444,7 @@ async function inspectJob(params, context, dependencies = {}) {
       kind: 'job-state',
       available: Boolean(cached),
       job: cached || { jobId },
+      creation: resolveJobCreationProvenance(jobId, context),
       explanation: cached
         ? 'The latest wallet context is available, but a fresh canonical deep-dive read failed.'
         : 'The canonical job could not be loaded from the live RPC.',
@@ -456,5 +490,6 @@ module.exports = {
   preparedUsdcRequirement,
   readTransactionReceipt,
   readUsdcBalance,
+  resolveJobCreationProvenance,
   resolveTransactionTarget,
 };

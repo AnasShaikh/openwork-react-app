@@ -11,6 +11,12 @@ const SUPPORTED_JOB_CHAINS = new Map([
 ]);
 
 const EVM_ADDRESS_PATTERN = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g;
+const DIRECT_CONTRACT_MARKER = /\b(?:direct\s+(?:job|contract)|job\s*taker)\b/i;
+const ACTION_REQUEST_VERB = /\b(?:post|create|make|start|open|set\s+up|hire|engage|publish)\b/i;
+const FRESH_ACTION_REQUEST = /\b(?:post|create|make|start|open|set\s+up|hire|engage|publish|release|pay\s+out|apply|submit|raise)\b[\s\S]{0,160}\b(?:job|contract|payment|milestone|work|dispute|profile|applicant)\b/i;
+const READ_ONLY_QUESTION_LEAD = /^(?:what|why|how|when|where|who|which|is|are|was|were|did|does|do|can\s+you\s+check|could\s+you\s+check|would\s+you\s+check|check|tell\s+me|explain)\b/i;
+const READ_ONLY_STATE_LANGUAGE = /\b(?:balance|enough|afford|fee|fees|gas|cost|status|state|confirm(?:ed|ation)?|sync(?:ed|ing)?|done|complete(?:d)?|work(?:ed|ing)?|succeed(?:ed)?|successful|fail(?:ed|ure)?|stuck|pending|happened|safe\s+to\s+retry|retry\s+safe|signed|broadcast)\b/i;
+const MULTIPLE_CREATION_ACTIONS = /\b(?:post|create|publish)\b[\s\S]{0,100}\bjob\b[\s\S]{0,80}\b(?:and(?:\s+then)?|then|also)\b[\s\S]{0,100}\b(?:post|create|make|start|open|set\s+up|hire|engage|publish)\b[\s\S]{0,100}\bdirect\s+(?:job|contract)\b|\b(?:post|create|make|start|open|set\s+up|hire|engage|publish)\b[\s\S]{0,100}\bdirect\s+(?:job|contract)\b[\s\S]{0,80}\b(?:and(?:\s+then)?|then|also)\b[\s\S]{0,100}\b(?:post|create|publish)\b[\s\S]{0,100}\bjob\b/i;
 
 const EXPLICIT_TOOL_INTENT_RULES = [
   {
@@ -19,13 +25,17 @@ const EXPLICIT_TOOL_INTENT_RULES = [
   },
   {
     name: 'startDirectContract',
-    pattern: /\b(?:post|create|make|start|open|set up)\b[\s\S]{0,30}\bdirect\s+(?:job|contract)\b|\bhire\b[\s\S]{0,30}\bdirectly\b/i,
+    // Direct-contract intent often contains a 42-character recipient between
+    // the action verb and the words "direct contract". Do not use a short
+    // distance window here: it caused an explicit direct hire to fall through
+    // to stale conversation history and become a marketplace post.
+    pattern: /\b(?:post|create|make|start|open|set\s+up|hire|engage|publish)\b[\s\S]{0,320}\b(?:direct\s+(?:job|contract)|job\s*taker)\b|\b(?:direct\s+(?:job|contract)|job\s*taker)\b[\s\S]{0,160}\b(?:post|create|make|start|open|set\s+up|hire|engage|publish)\b|\bhire\b[\s\S]{0,80}\bdirectly\b/i,
   },
-  { name: 'postJob', pattern: /\b(?:post|create|publish)\s+(?:a\s+|the\s+)?job\b/i },
-  { name: 'applyToJob', pattern: /\bapply\s+(?:to|for)\s+(?:(?:a|the)\s+job|\d+-\d+)\b/i },
+  { name: 'postJob', pattern: /\b(?:post|create|publish)\s+(?:(?:a|the|another|new)\s+)?(?:(?:marketplace|public|regular)\s+)?job\b/i },
+  { name: 'applyToJob', pattern: /\bapply\s+(?:to|for)\s+(?:(?:(?:a|the)\s+)?job(?:\s+\d+-\d+)?|\d+-\d+)\b/i },
   { name: 'submitWork', pattern: /\bsubmit\s+(?:the\s+)?work\b/i },
   { name: 'raiseDispute', pattern: /\b(?:raise|open|start)\s+(?:a\s+|the\s+)?dispute\b/i },
-  { name: 'createProfile', pattern: /\b(?:create|set up|make)\s+(?:a\s+|my\s+)?profile\b/i },
+  { name: 'createProfile', pattern: /\b(?:create|set\s+up|make)\s+(?:a\s+|my\s+)?(?:freelancer\s+)?profile\b/i },
   { name: 'startJob', pattern: /\bstart\s+(?:the\s+)?job\b|\bhire\s+(?:the\s+)?applicant\b/i },
   { name: 'viewApplications', pattern: /\b(?:view|show|open)\s+(?:the\s+)?applications\b/i },
   { name: 'openMyJobs', pattern: /\b(?:check|show|open|view)\s+my\s+jobs\b/i },
@@ -190,12 +200,42 @@ function extractEvmAddressFacts(message, history = []) {
   });
 }
 
-function detectExplicitToolIntent(message) {
+function isReadOnlyActionQuestion(message) {
   const text = String(message || '').trim();
-  if (!text) return null;
+  if (!text) return false;
+  if (/\b(?:do|will|would|can|could|should)\s+(?:i|we)\s+(?:have\s+)?enough\b/i.test(text)) return true;
+  return READ_ONLY_QUESTION_LEAD.test(text) && READ_ONLY_STATE_LANGUAGE.test(text);
+}
+
+function explicitToolIntentMatches(message) {
+  const text = String(message || '').trim();
+  if (!text || isReadOnlyActionQuestion(text)) return [];
   const matches = EXPLICIT_TOOL_INTENT_RULES
     .filter((rule) => rule.pattern.test(text))
     .map((rule) => rule.name);
+
+  // A direct contract is a specialized creation action. Natural phrasing such
+  // as "post a job as a direct contract" legitimately matches both rules, so
+  // the specialized action must win rather than turning the request ambiguous.
+  if (
+    matches.includes('startDirectContract')
+    && matches.includes('postJob')
+    && !MULTIPLE_CREATION_ACTIONS.test(text)
+  ) {
+    return matches.filter((name) => name !== 'postJob');
+  }
+  return matches;
+}
+
+function isDirectContractActionRequest(message) {
+  const text = String(message || '').trim();
+  return !isReadOnlyActionQuestion(text)
+    && DIRECT_CONTRACT_MARKER.test(text)
+    && ACTION_REQUEST_VERB.test(text);
+}
+
+function detectExplicitToolIntent(message) {
+  const matches = explicitToolIntentMatches(message);
   return matches.length === 1 ? matches[0] : null;
 }
 
@@ -203,6 +243,10 @@ function isActionContinuation(message, assistantMessage, toolName) {
   const reply = String(message || '').trim();
   const prompt = String(assistantMessage || '').trim();
   if (!reply || reply.length > 500 || reply.includes('?') || QUESTION_OR_NEW_REQUEST.test(reply)) return false;
+  // A fresh action request is never an answer to an older prompt, even when it
+  // begins conversationally ("okay, let's post another..."). Let the current
+  // turn resolve on its own instead of inheriting a stale transaction type.
+  if (detectExplicitToolIntent(reply) || FRESH_ACTION_REQUEST.test(reply)) return false;
   if (!prompt || !prompt.includes('?')) return false;
   return Boolean(TOOL_CONTINUATION_HINTS[toolName]?.test(prompt));
 }
@@ -217,9 +261,7 @@ function isSafeActionRetryRequest(message) {
 }
 
 function resolveTransactionToolIntent(message, history = [], memory = {}) {
-  const currentMatches = EXPLICIT_TOOL_INTENT_RULES
-    .filter((rule) => rule.pattern.test(String(message || '').trim()))
-    .map((rule) => rule.name);
+  const currentMatches = explicitToolIntentMatches(message);
   if (currentMatches.length === 1) return { name: currentMatches[0], source: 'current' };
   if (currentMatches.length > 1 || !Array.isArray(history)) return null;
 
@@ -231,24 +273,21 @@ function resolveTransactionToolIntent(message, history = [], memory = {}) {
   }
 
   const recent = history.slice(-12);
-  const lastEntry = recent[recent.length - 1];
-  const lastAssistantText = lastEntry
-    && ['oppy', 'bot', 'assistant'].includes(lastEntry.role)
-    && typeof lastEntry.text === 'string'
-    ? lastEntry.text
+  const lastAssistant = recent.at(-1);
+  const previousUser = recent.at(-2);
+  const lastAssistantText = lastAssistant
+    && ['oppy', 'bot', 'assistant'].includes(lastAssistant.role)
+    && typeof lastAssistant.text === 'string'
+    ? lastAssistant.text
     : '';
-  if (!lastAssistantText) return null;
+  if (!lastAssistantText || previousUser?.role !== 'user' || typeof previousUser.text !== 'string') return null;
 
-  for (let index = recent.length - 2; index >= 0; index -= 1) {
-    const entry = recent[index];
-    if (entry?.role !== 'user' || typeof entry.text !== 'string') continue;
-    const toolName = detectExplicitToolIntent(entry.text);
-    if (!toolName) continue;
-    return isActionContinuation(message, lastAssistantText, toolName)
-      ? { name: toolName, source: 'continuation' }
-      : null;
-  }
-  return null;
+  // Continuation is deliberately adjacent-only. Searching arbitrarily far
+  // back can bind a new action to an unrelated balance/status question.
+  const toolName = detectExplicitToolIntent(previousUser.text);
+  return toolName && isActionContinuation(message, lastAssistantText, toolName)
+    ? { name: toolName, source: 'continuation' }
+    : null;
 }
 
 function explicitToolIntentContext(toolIntent) {
@@ -322,10 +361,12 @@ Safety rules:
 - Do not infer a recipient address, job ID, amount, chain or application from incomplete text.
 - Server-validated EVM address facts are authoritative. Never replace them with your own character count or checksum guess.
 - Treat the supplied active job as the referent for “this job”, “that job”, “it” and similar follow-ups unless the user explicitly names another job.
+- Current-turn action language always outranks older conversation actions. Never reinterpret a new direct-contract request as a continuation of an earlier job post, balance question or status check.
 - If the user explicitly asks for their XDC job and the active job is not XDC, use the first XDC job in the supplied recent canonical history only when it is unambiguous; otherwise ask which XDC job.
 - A source-confirmed XDC/Optimism post can be remembered before it reaches Genesis, but describe canonical delivery as pending until the Genesis read contains that job ID.
 - Use canonical wallet job history and transaction memory to resolve titles and follow-ups. Never overwrite an explicit job ID from the user with a different historical job.
 - Respect canonical lifecycle state: Open jobs can accept applications or be started after selection; In progress jobs can accept work, payment release or disputes; Completed and Cancelled jobs are read-only and must not receive another lifecycle transaction proposal.
+- A direct contract is created only by \`startDirectContract\`; \`postJob\` creates a marketplace posting. Never infer creation type from Open/In progress status alone: use the recorded creation action or source transaction. Never claim a wallet request was unsigned when a confirmed source transaction exists. \`startDirectContract\` creates a new job and cannot convert an existing marketplace posting in place.
 - Keep every supported job workflow inside Oppy. Navigation tools render live data in the chat, and transaction tools render an inline action card with posting-chain, balance and allowance preflight. Never tell the user that a separate page or screen will open.
 - A wallet extension may still show its own secure approval or signature panel. Explain this as a wallet request, not as leaving Oppy.
 
@@ -346,6 +387,8 @@ module.exports = {
   deployedCodeContext,
   extractEvmAddressFacts,
   isSafeActionRetryRequest,
+  isDirectContractActionRequest,
+  isReadOnlyActionQuestion,
   registryContext,
   resolveTransactionToolIntent,
   sanitizeWalletState,

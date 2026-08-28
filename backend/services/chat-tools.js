@@ -3,6 +3,9 @@
 const ADDRESS_PATTERN = '^0x[a-fA-F0-9]{40}$';
 const JOB_ID_PATTERN = '^[0-9]+(?:-[0-9]+)?$';
 const TRANSACTION_HASH_PATTERN = '^0x[a-fA-F0-9]{64}$';
+const DIRECT_CONTRACT_LANGUAGE = /\bdirect\s+(?:contract|job)\b/i;
+const EVM_ADDRESS = /0x[a-fA-F0-9]{40}\b/i;
+const JOB_TAKER_LANGUAGE = /\b(?:job\s*taker|freelancer|recipient)\b/i;
 
 const textProperty = (description, maxLength = 4000) => ({
   type: 'string',
@@ -42,7 +45,7 @@ function tool(name, description, properties, required = []) {
 }
 
 const BEDROCK_TRANSACTION_TOOLS = [
-  tool('postJob', 'Prepare a new job for review and wallet confirmation. Posting does not approve or transfer USDC.', {
+  tool('postJob', 'Prepare a public marketplace job listing that applicants can apply to. Never use this for a direct contract or a named job taker. Posting does not approve or transfer USDC.', {
     title: textProperty('Job title.', 160),
     budget: amountProperty('Total nominal job budget in USDC.'),
     description: textProperty('Job description and requirements.'),
@@ -91,7 +94,7 @@ const BEDROCK_TRANSACTION_TOOLS = [
     skills: { type: 'array', items: textProperty('One skill.', 80), minItems: 1, maxItems: 20 },
     hourlyRate: amountProperty('Public hourly rate in USDC.'),
   }, ['name', 'skills', 'hourlyRate']),
-  tool('startDirectContract', 'Prepare a direct contract inside Oppy, including exact first-milestone USDC funding checks.', {
+  tool('startDirectContract', 'Prepare a new direct contract with a named job taker inside Oppy. This is the only creation tool for direct hires and includes exact first-milestone USDC funding checks.', {
     title: textProperty('Contract title.', 160),
     budget: amountProperty('Total budget in USDC.'),
     description: textProperty('Contract requirements.'),
@@ -142,6 +145,12 @@ const BEDROCK_READ_TOOLS = [
 ];
 
 const READ_TOOL_NAMES = new Set(BEDROCK_READ_TOOLS.map((entry) => entry.toolSpec.name));
+const TOOL_INPUT_FIELDS = new Map(
+  [...BEDROCK_TRANSACTION_TOOLS, ...BEDROCK_READ_TOOLS].map((entry) => [
+    entry.toolSpec.name,
+    new Set(Object.keys(entry.toolSpec.inputSchema.json.properties || {})),
+  ]),
+);
 
 const TOOL_RULES = {
   postJob: { required: ['title', 'budget', 'description'], kind: 'transaction' },
@@ -160,6 +169,11 @@ const TOOL_RULES = {
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasOnlyDeclaredInputFields(name, input) {
+  const allowed = TOOL_INPUT_FIELDS.get(name);
+  return Boolean(allowed) && Object.keys(input).every((field) => allowed.has(field));
 }
 
 function cleanString(value, maxLength = 4000) {
@@ -186,9 +200,19 @@ function cleanAmount(value) {
   return Number.isFinite(number) && number > 0 && number <= 1000000000 ? number : null;
 }
 
+function actionInvariantError(name, params = {}) {
+  if (name !== 'postJob') return null;
+  const text = `${params.title || ''}\n${params.description || ''}`;
+  if (EVM_ADDRESS.test(text) && (DIRECT_CONTRACT_LANGUAGE.test(text) || JOB_TAKER_LANGUAGE.test(text))) {
+    return 'A direct contract with a named recipient cannot be prepared as a marketplace job post.';
+  }
+  return null;
+}
+
 function validateToolUse(toolUse) {
   if (!toolUse || typeof toolUse.name !== 'string' || !TOOL_RULES[toolUse.name]) return null;
   if (!isPlainObject(toolUse.input)) return null;
+  if (!hasOnlyDeclaredInputFields(toolUse.name, toolUse.input)) return null;
 
   const rule = TOOL_RULES[toolUse.name];
   const input = toolUse.input;
@@ -294,6 +318,11 @@ function validateToolUse(toolUse) {
       return null;
   }
 
+  // Fail closed if a model ever encodes direct-hire semantics inside the
+  // generic postJob tool. This is the last backend boundary before the browser
+  // renders a review card and prevents a wrong function from reaching a wallet.
+  if (actionInvariantError(toolUse.name, params)) return null;
+
   const labels = {
     postJob: `Post “${params.title}” with a ${params.budget} USDC budget`,
     applyToJob: `Apply to job ${params.jobId}`,
@@ -321,6 +350,7 @@ function validateToolUse(toolUse) {
 
 function validateReadToolUse(toolUse) {
   if (!toolUse || !READ_TOOL_NAMES.has(toolUse.name) || !isPlainObject(toolUse.input)) return null;
+  if (!hasOnlyDeclaredInputFields(toolUse.name, toolUse.input)) return null;
   const input = toolUse.input;
   let params;
 
@@ -361,6 +391,7 @@ function validateReadToolUse(toolUse) {
 }
 
 module.exports = {
+  actionInvariantError,
   ADDRESS_PATTERN,
   BEDROCK_READ_TOOLS,
   BEDROCK_TRANSACTION_TOOLS,

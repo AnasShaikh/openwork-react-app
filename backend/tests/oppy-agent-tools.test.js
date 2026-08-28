@@ -8,6 +8,7 @@ const {
   inspectLatestAttempt,
   inspectTransaction,
   inspectWalletFunding,
+  resolveJobCreationProvenance,
   resolveTransactionTarget,
 } = require('../services/oppy-agent-tools');
 
@@ -177,4 +178,40 @@ test('latest-attempt and job tools return compact, conversation-grounded evidenc
   assert.equal(job.job.jobId, '30365-11');
   assert.equal(job.applicationCount, 1);
   assert.equal(job.nextAction.type, 'release-payment');
+  assert.equal(job.creation.type, 'direct-contract');
+  assert.equal(job.creation.sourceReceiptConfirmed, true);
+});
+
+test('job creation provenance comes from its recorded source action, never lifecycle status', () => {
+  const openDirect = resolveJobCreationProvenance('30365-11', context({
+    memory: {
+      recentTransactions: [{
+        action: 'startDirectContract',
+        jobId: '30365-11',
+        txHash: transactionHash,
+        chainId: 50,
+        confirmed: true,
+      }],
+    },
+  }));
+  assert.equal(openDirect.type, 'direct-contract');
+  assert.equal(openDirect.action, 'startDirectContract');
+
+  const inProgressPost = resolveJobCreationProvenance('30365-12', context({
+    memory: {
+      recentTransactions: [{
+        action: 'postJob',
+        jobId: '30365-12',
+        txHash: destinationTxHash,
+        chainId: 50,
+        confirmed: true,
+      }],
+    },
+  }));
+  assert.equal(inProgressPost.type, 'marketplace-posting');
+  assert.equal(inProgressPost.action, 'postJob');
+
+  const unknown = resolveJobCreationProvenance('30365-13', context({ memory: { recentTransactions: [] } }));
+  assert.equal(unknown.available, false);
+  assert.match(unknown.explanation, /Do not infer it from lifecycle status/);
 });

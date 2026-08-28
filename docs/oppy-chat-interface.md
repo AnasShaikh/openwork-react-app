@@ -134,6 +134,38 @@ and state that no transaction was submitted.
 Never claim MetaMask is required, never ask for a seed phrase or private key, and
 never submit a second write while the first provider request is unresolved.
 
+## Action intent and provenance invariants
+
+Oppy understands unfamiliar layman wording through the model's complete set of
+review-only action tools. Deterministic intent checks are a safety boundary around that
+agent behavior, not the only way an action can be understood. A clearly identified
+current-turn action narrows the available write tool to exactly one; otherwise the
+model may select among all supported review tools or use read-only inspection tools.
+
+Fresh action language always outranks older chat history. A reply can inherit an older
+action only when it directly follows Oppy's question about that action. Continuation
+resolution is adjacent-turn only and must never search backward through unrelated
+balance, status or troubleshooting messages. Questions such as “Do I have enough XDC
+to post?” and “Did the payment work?” are read-only even though they name a write
+action.
+
+Creation semantics are strict:
+
+- `postJob` creates a public marketplace listing that applicants can apply to.
+- `startDirectContract` creates a new job for a named job taker.
+- A job's Open/In progress/Completed status does not establish how it was created.
+  Creation type comes from the recorded creation action and confirmed source
+  transaction. If that provenance is unavailable, Oppy must say it is unknown.
+- A public posting cannot be converted into a direct contract in place. A requested
+  direct hire must prepare a new `startDirectContract` review action.
+
+A direct-hire payload encoded as `postJob` is rejected independently by backend tool
+validation, persisted-action sanitization, review-card rendering and the final wallet
+boundary. The user sees an error and no wallet request opens. This defense protects
+against model error, stale browser memory and an old malformed card. Add regression
+coverage for the exact user wording whenever an action-routing incident is found, plus
+the full write-action routing matrix and read-only status variants.
+
 ## Responsive and accessibility requirements
 
 - Do not introduce horizontal page overflow at 390 px.

@@ -40,6 +40,10 @@ import {
   updateOppyTransactionDelivery,
 } from '../../services/oppyMemory';
 import {
+  assertOppyActionSemantics,
+  getOppyActionSemanticConflict,
+} from '../../services/oppyActionSemantics';
+import {
   mergeComposerTranscript,
   startOppyTranscription,
   voiceErrorMessage,
@@ -994,8 +998,12 @@ const OppyChat = () => {
 
       if (data.success) {
         const legacy = parseToolBlock(data.response);
-        const proposedTool = data.tool || legacy.tool;
-        const cleanText = data.tool ? data.response : legacy.cleanText;
+        const proposedCandidate = data.tool || legacy.tool;
+        const semanticConflict = getOppyActionSemanticConflict(proposedCandidate);
+        const proposedTool = semanticConflict ? null : proposedCandidate;
+        const cleanText = semanticConflict
+          ? `${semanticConflict} No wallet request was opened. Please ask Oppy to prepare the action again.`
+          : (data.tool ? data.response : legacy.cleanText);
         const contextualJob = sanitizeActiveJob(
           proposedTool?.params?.jobId
             ? { jobId: proposedTool.params.jobId }
@@ -1096,6 +1104,11 @@ const OppyChat = () => {
   };
 
   const appendActionCard = (tool) => {
+    const conflict = getOppyActionSemanticConflict(tool);
+    if (conflict) {
+      addBotMessage(`${conflict} No wallet request was opened. Please prepare the action again.`);
+      return;
+    }
     setChat((current) => [...current, { role: 'bot', isTxCard: true, tool }]);
   };
 
@@ -1146,6 +1159,9 @@ const OppyChat = () => {
   // ── Chat-native action handler ───────────────────────────────
   const handleTransaction = async (tool, formValues = {}, report = () => {}) => {
     console.log('[OppyChat] Action requested:', tool.name);
+    // Defense in depth: a stale or malformed review card must not cross the
+    // wallet boundary when its human meaning conflicts with its function.
+    assertOppyActionSemantics(tool);
     const walletProvider = walletProviderRef.current;
     const walletOption = walletOptions.find((wallet) => wallet.provider === walletProvider) || null;
     let submissionAttempted = false;

@@ -117,6 +117,14 @@ test('prepared-action memory is bounded to supported transaction tools', () => {
     name: 'startDirectContract',
     params: { description: 'x'.repeat(13 * 1024) },
   }), null);
+  assert.equal(sanitizePreparedAction({
+    name: 'postJob',
+    params: {
+      title: 'Frontend Developer – Direct Contract',
+      budget: 0.1,
+      description: 'Job taker: 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+    },
+  }), null);
 });
 
 test('explicit job IDs replace pronoun memory while ordinary follow-ups retain it', () => {

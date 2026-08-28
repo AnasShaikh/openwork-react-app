@@ -15,6 +15,8 @@ const {
   buildTransactionSystemPrompt,
   detectExplicitToolIntent,
   extractEvmAddressFacts,
+  isDirectContractActionRequest,
+  isReadOnlyActionQuestion,
   isSafeActionRetryRequest,
   resolveTransactionToolIntent,
   sanitizeWalletState,
@@ -191,11 +193,71 @@ test('the current explicit transaction intent overrides stale conversation actio
     'startDirectContract',
   );
   assert.equal(detectExplicitToolIntent('post a job and then release payment'), null);
+  assert.equal(
+    detectExplicitToolIntent('post a job as a direct contract with 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724'),
+    'startDirectContract',
+  );
+  assert.equal(
+    detectExplicitToolIntent('post a marketplace job and then create a direct contract'),
+    null,
+  );
 
   const prompt = buildTransactionSystemPrompt('release payment for 30365-8', { chainId: 50 });
   assert.match(prompt, /explicitly requests `releasePayment`/);
   assert.match(prompt, /overrides any different action discussed earlier/);
   assert.match(prompt, /Never continue, reopen or substitute a tool from an older conversation turn/);
+});
+
+test('every explicit write action is routed to exactly its matching review tool', () => {
+  const actionCases = [
+    ['post a public job', 'postJob'],
+    ['apply to job 30365-11', 'applyToJob'],
+    ['hire applicant 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724 for job 30365-11', 'startJob'],
+    ['submit the work for 30365-11', 'submitWork'],
+    ['release the current milestone payment', 'releasePayment'],
+    ['raise a dispute for 30365-11', 'raiseDispute'],
+    ['create my freelancer profile', 'createProfile'],
+    ['make a direct contract for 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724', 'startDirectContract'],
+  ];
+  for (const [message, expected] of actionCases) {
+    assert.equal(detectExplicitToolIntent(message), expected, message);
+    assert.deepEqual(resolveTransactionToolIntent(message, [], {}), { name: expected, source: 'current' }, message);
+  }
+});
+
+test('the reported direct-contract wording cannot inherit an older postJob intent', () => {
+  const message = 'Okay so lets post another job with 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724 as job taker for 0.1 usdc again , direct contract, make the rest of the details up';
+  const history = [
+    { role: 'user', text: 'do i have enough XDC to post a job on the XDc chain?' },
+    { role: 'oppy', text: 'You have enough XDC. Would you like me to help with anything else?' },
+    { role: 'user', text: 'I think this might have been a direct job rather than a posting' },
+    { role: 'oppy', text: 'That older job is open. Would you like me to help track another one down?' },
+  ];
+
+  assert.equal(isDirectContractActionRequest(message), true);
+  assert.deepEqual(
+    resolveTransactionToolIntent(message, history, {}),
+    { name: 'startDirectContract', source: 'current' },
+  );
+});
+
+test('read-only action questions never become transaction intents or stale continuations', () => {
+  const questions = [
+    'Do I have enough XDC to post a job on the XDC chain?',
+    'Did the release payment work?',
+    'Can you check whether the direct contract is confirmed?',
+    'Why did the job transaction fail?',
+  ];
+  for (const question of questions) {
+    assert.equal(isReadOnlyActionQuestion(question), true, question);
+    assert.equal(detectExplicitToolIntent(question), null, question);
+    assert.equal(resolveTransactionToolIntent(question, [], {}), null, question);
+  }
+
+  assert.equal(resolveTransactionToolIntent('Okay, create a fresh job now', [
+    { role: 'user', text: 'release payment for 30365-9' },
+    { role: 'oppy', text: 'Which payment would you like to release?' },
+  ], {}), null);
 });
 
 test('a direct answer resumes only the action behind the latest assistant question', () => {
@@ -332,6 +394,16 @@ test('conversation memory keeps only bounded job and receipt context', () => {
   assert.equal(memory.lastPreparedAction.name, 'startDirectContract');
   assert.equal(memory.lastPreparedAction.params.title, 'React Developer');
   assert.equal(sanitizeConversationMemory({ activeJob: { jobId: '../bad' } }).activeJob, null);
+  assert.equal(sanitizeConversationMemory({
+    lastPreparedAction: {
+      name: 'postJob',
+      params: {
+        title: 'Direct Contract',
+        budget: 0.1,
+        description: 'Job taker: 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+      },
+    },
+  }).lastPreparedAction, null);
 });
 
 test('native Bedrock tool calls are strictly validated', () => {
@@ -372,6 +444,29 @@ test('native Bedrock tool calls are strictly validated', () => {
   assert.equal(validateToolUse({
     name: 'releasePayment',
     input: { jobId: '../unsafe' },
+  }), null);
+
+  assert.equal(validateToolUse({
+    name: 'postJob',
+    input: {
+      title: 'Frontend Developer – Direct Contract',
+      budget: 0.1,
+      description: 'Named direct contract. Job Taker: 0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+    },
+  }), null);
+  assert.equal(validateToolUse({
+    name: 'postJob',
+    input: {
+      title: 'Generic title',
+      budget: 0.1,
+      description: 'Generic description',
+      jobTaker: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+    },
+  }), null);
+  assert.equal(validateReadToolUse({
+    toolUseId: 'read-extra',
+    name: 'inspectJob',
+    input: { jobId: '30365-11', unsafeExtra: true },
   }), null);
 });
 
