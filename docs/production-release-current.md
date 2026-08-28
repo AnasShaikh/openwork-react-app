@@ -6,21 +6,56 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 28 August 2026 21:18 IST |
+| Deployed at | 28 August 2026 23:19 IST |
 | Git branch | `main` |
-| Git commit | `c39f82842fd4537522cc81656fb16b3aca035391` |
-| Release gate | GitHub CI `33186166959`; frontend tests (`139/139`), backend tests (`119/119`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; exact job `30365-13` source proof, live XDC/LayerZero/Arbitrum/Circle evidence, recovery calldata, user-wallet static call, App Runner, public endpoints and browser console/layout checks all passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-c39f82842fd4537522cc81656fb16b3aca035391.zip` |
-| Source archive SHA-256 | `846dadc82ec1f5bd667b2941d5db0ba2450244d67ceafed93f98c5ba8d2ad9d9` |
-| CodeBuild | `openwork-react-app-prod-build:fd839473-4270-4295-9e0c-16605374ca57` — succeeded |
-| ECR image | `openwork-app:prod-c39f828-20260828210938` |
-| ECR digest | `sha256:c32c7ab85521a73098af41d21aee93e5038009d434254905fd83c7e781f2301b` |
+| Git commit | `11c6b6208393e1f1ba3129871d33c4551d0d9e0b` |
+| Release gate | GitHub CI `33195652918`; frontend tests (`139/139`), backend tests (`122/122`), backend high-severity production dependency gate, production frontend build and `git diff --check` passed; App Runner health, public routes, cache/compression headers, transfer timing and browser console/layout/render checks all passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-11c6b6208393e1f1ba3129871d33c4551d0d9e0b.zip` |
+| Source archive SHA-256 | `e0b979b722eaecb00e1c317b1cd9070ed5d93e210a99ee3f1f64ceeadafcfcf0` |
+| CodeBuild | `openwork-react-app-prod-build:4c4baa78-e673-45b5-886e-5b5dc0added2` — succeeded |
+| ECR image | `openwork-app:prod-11c6b62-20260828230950` |
+| ECR digest | `sha256:f44ee9318971555f6e934989ea2e9e726b26b99ca91cc1c311f6d47aaec46d33` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `cc1b80a1dfce46d186c65d90c88682d9` — succeeded |
+| App Runner operation | `28650cf027b640b7bb2d843c5749faf0` — succeeded |
 | Public application | `https://app.openwork.technology` |
 | Deployed JS asset | `/assets/index-CTUPKfKe.js` — SHA-256 `10750461375f90f4bfd31a58552f39782ba7ca12680ce98f33ad3e29acfe2d2c` |
 | Rollback target | `openwork-app:prod-8435477-20260828143225` |
 | Rollback digest | `sha256:ecc3e67412e3164cefcd281dd67f627cb84167ae1d15d50ab78da9c5b9532174` |
+
+## Frontend startup delivery and blank-page recovery
+
+The reported blank production page was not a React exception. Production returned
+the HTML shell, but Express served the 3,075,322-byte JavaScript entry bundle without
+compression even though Vite had generated a gzip artifact. A direct production
+download did not complete after more than 60 seconds, so React never mounted and the
+browser console contained no application error. This is why the page appeared as an
+empty white surface while the browser continued loading.
+
+Production now selects Vite's precompressed `.js.gz` and `.css.gz` files whenever the
+browser advertises gzip support. Content-hashed assets receive a one-year immutable
+cache policy, while `index.html` is always served with
+`no-cache, no-store, must-revalidate` so a deployment cannot strand a tab on an old
+asset hash. The static HTML also contains a lightweight OpenWork loading shell and a
+delayed safe-reload control; it is replaced as soon as React mounts and prevents a
+slow network from looking like an unexplained blank page.
+
+Final production acceptance returned HTTP 200 from `/`, `/chat` and `/healthz`, with
+`{"status":"ok"}` from the health endpoint. The JavaScript response carried
+`Content-Encoding: gzip`, `Vary: Origin, Accept-Encoding`, an immutable cache header
+and a 747,626-byte content length. The same read completed in approximately 1.91
+seconds, compared with the earlier request that remained incomplete past 60 seconds.
+The HTML entrypoint carried the required no-store header. A clean browser reload
+removed the startup shell, rendered the OpenWork home page, produced zero warning/error
+console entries and had no horizontal overflow at 1280 px.
+
+The first CodeBuild attempt for the compression change,
+`openwork-react-app-prod-build:1fb9c12c-22b7-44f2-91b8-48d5f2d162d4`, failed only in
+`DOWNLOAD_SOURCE` with the known transient S3 `NoSuchKey` race. The immutable object
+was verified and the unchanged source then built successfully. Intermediate deployment
+`4e770e07710c4715ac1178a6e5c6d75b` proved the compression improvement; acceptance
+then caught that `express.static` had also applied the immutable policy to HTML. The
+final release above corrects that policy and passed the complete gate. No wallet
+request, signature or on-chain transaction was made during diagnosis or deployment.
 
 ## Oppy relayer readiness and self-service CCTP recovery
 
