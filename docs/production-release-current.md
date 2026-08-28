@@ -6,21 +6,56 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 28 August 2026 11:21 IST |
+| Deployed at | 28 August 2026 13:11 IST |
 | Git branch | `main` |
-| Git commit | `d05197d09c09590d460421d65a78e95a03d128dc` |
-| Release gate | GitHub CI `33145233064`; frontend tests (`133/133`), backend tests (`95/95`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; local desktop/mobile and production browser QA passed; CodeBuild, App Runner, public endpoint, natural-language action, live read-tool and production-log checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-d05197d09c09590d460421d65a78e95a03d128dc.zip` |
-| Source archive SHA-256 | `e477b6c39a836c6228e2472b573cdd217751eda087f4acfc9109894da2ae05ad` |
-| CodeBuild | `openwork-react-app-prod-build:c429d1cf-2362-44f9-94b4-815a96497aaf` — succeeded |
-| ECR image | `openwork-app:prod-d05197d-20260828053758` |
-| ECR digest | `sha256:5bf88fdd1066c5e38608f923566889cf227f6b55d9c6a75650a094aa00d9af3e` |
+| Git commit | `38ba68fbe2eef09c5b2ab8ef245d0b1ade1815c5` |
+| Release gate | GitHub CI `33151691388`; frontend tests (`136/136`), backend tests (`105/105`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; the exact reported natural-language request, contradictory-memory provenance, live XDC calldata, browser UI and console, App Runner and public endpoints all passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-38ba68fbe2eef09c5b2ab8ef245d0b1ade1815c5.zip` |
+| Source archive SHA-256 | `c680787b6c4886326f5ef667c18d410753b0a07fea9290e39c8eca113fd0b1b3` |
+| CodeBuild | `openwork-react-app-prod-build:30bce6f0-5529-4706-9448-0c4edc089dc4` — succeeded |
+| ECR image | `openwork-app:prod-38ba68f-20260828130123` |
+| ECR digest | `sha256:0bb3b5ddb76ba3393adc90406593815d55c0fbd8acdfe1fa6c1dcaa3839d8c80` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `91ff14a935014bb9acdbe7306cf936c3` — succeeded |
+| App Runner operation | `e4171a4823d8462fa9088a2c44d33524` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-DqLq8psL.js` — SHA-256 `87126c9a347fd87eb295ba4f76169ca14b07dfe79faed715949dbfe8bb3ea155` |
-| Rollback target | `openwork-app:prod-72bca49-20260826100546` |
-| Rollback digest | `sha256:ba7507a27c997c20cc83f68a211c1a61684b123b52ea17dcf009cb21c968596b` |
+| Deployed JS asset | `/assets/index-D6vfeQ8l.js` — SHA-256 `7b98918c4e5339dd46c0957bee8382ddb74e2e80d655151c412fd6e88f5ecc83` |
+| Rollback target | `openwork-app:prod-ae091e2-20260828065641` |
+| Rollback digest | `sha256:f56738e3b27f90506b354a68bb464bb47d2b1212bf44835ccbf5f9b0bad4e56e` |
+
+## Oppy transaction intent and on-chain creation provenance
+
+The reported direct-contract request was incorrectly routed to `postJob`. The old
+fast-path pattern stopped looking for direct-contract language after a short character
+window, so the recipient address and natural phrasing pushed `direct contract` outside
+that window. A stale continuation heuristic then allowed an earlier marketplace-post
+conversation to reinforce the wrong action. Transaction `0xb1684b86463a03e63c10082d458d50555d956fdb720c596b7d1df802a3e4c9ae`
+therefore called selector `0xd3988d47`, the cross-chain `postJob` function, and created
+job `30365-11` as a marketplace posting. Its direct-contract title did not change the
+on-chain creation type.
+
+Current-turn intent now has precedence over all prior chat state, direct-contract
+phrasing is recognized across the whole bounded message, and continuation is limited
+to the immediately preceding assistant question. The model receives only the one
+write tool matching an explicit current action. Both the browser and backend also
+enforce an independent semantic invariant: a direct hire carrying a job-taker address
+cannot be rendered or submitted as `postJob`.
+
+Creation-type questions no longer depend on the model. Oppy resolves the job's
+confirmed source transaction, fetches the live transaction input from redundant RPCs,
+and decodes the four deployed `postJob` and `startDirectContract` selectors. Mined live
+calldata outranks durable server history, which outranks sanitized browser memory.
+If the job or confirmed evidence cannot be resolved, Oppy returns a deterministic
+unknown answer and explicitly refuses to infer from the title or lifecycle status.
+
+Production acceptance replayed the exact reported sentence with a deliberately stale
+`postJob` prepared action. Oppy returned only a `startDirectContract` review card with
+the exact recipient and 0.1 USDC budget. A second request supplied deliberately false
+browser memory claiming `startDirectContract` for job `30365-11`; Oppy used zero model
+calls and returned `marketplace posting`, selector `0xd3988d47`, from the mined XDC
+source calldata. `/healthz` returned `{"status":"ok"}`, `/` and `/chat` returned HTTP
+200, App Runner reported `RUNNING`, and the live browser review found no console
+warnings or errors. These checks prepared no wallet action and submitted no approval,
+signature, token transfer or transaction.
 
 ## Oppy bounded natural-language transaction agent
 

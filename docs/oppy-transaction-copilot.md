@@ -44,6 +44,21 @@ memory sent on the next chat turn. A completed direct-contract sync therefore ca
 be mistaken for a later payment-release result, and a later natural-language question
 can use the latest transaction-specific delivery evidence rather than a stale UI card.
 
+### Job-creation provenance
+
+Questions such as “was this really a direct contract?” bypass the model. The backend
+resolves the exact job and confirmed source hash, reads the mined transaction input
+from the configured and public RPCs, and decodes the deployed creation selector. The
+recognized selectors are the direct and cross-chain variants of `postJob` and
+`startDirectContract`. Live mined calldata outranks durable server history; durable
+history outranks sanitized browser memory. Lifecycle state, title and description are
+never creation evidence.
+
+This path fails closed. An unmined transaction, an unknown selector, an unresolved job
+or unavailable confirmed provenance produces a deterministic “cannot verify” answer
+instead of falling through to Bedrock. That rule both improves correctness and removes
+an unnecessary model call for a high-consequence factual question.
+
 ### Cost envelope
 
 The production defaults are designed to preserve AWS credits:
@@ -89,7 +104,9 @@ The lifecycle crosses five deliberately small boundaries:
    observed state and safe retry commands can recreate the same review card.
 6. `backend/services/bedrock-chat.js` runs the bounded model/read-tool loop, while
    `backend/services/oppy-agent-tools.js` resolves conversational references and
-   executes the four allowlisted live inspections.
+   executes the four allowlisted live inspections. The same service owns deterministic
+   source-calldata creation provenance; `backend/routes/chat.js` invokes it before the
+   Bedrock loop.
 
 No private key, seed phrase, signature, raw calldata or browser-extension console log
 is collected. The record is bounded and contains only action metadata, public wallet

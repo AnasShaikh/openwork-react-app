@@ -154,8 +154,11 @@ Creation semantics are strict:
 - `postJob` creates a public marketplace listing that applicants can apply to.
 - `startDirectContract` creates a new job for a named job taker.
 - A job's Open/In progress/Completed status does not establish how it was created.
-  Creation type comes from the recorded creation action and confirmed source
-  transaction. If that provenance is unavailable, Oppy must say it is unknown.
+  Creation type comes first from the mined source transaction selector, then from
+  confirmed durable server history if the live calldata is temporarily unavailable.
+  Sanitized browser memory is a last-resort record, never stronger evidence. If no
+  confirmed provenance is available, Oppy must say it is unknown and must not let the
+  model infer a type from title, description or lifecycle state.
 - A public posting cannot be converted into a direct contract in place. A requested
   direct hire must prepare a new `startDirectContract` review action.
 
@@ -164,7 +167,10 @@ validation, persisted-action sanitization, review-card rendering and the final w
 boundary. The user sees an error and no wallet request opens. This defense protects
 against model error, stale browser memory and an old malformed card. Add regression
 coverage for the exact user wording whenever an action-routing incident is found, plus
-the full write-action routing matrix and read-only status variants.
+the full write-action routing matrix, contradictory-memory provenance and read-only
+status variants. Keep the deployed selectors in `JOB_CREATION_BY_SELECTOR` synchronized
+with `src/services/contractWriteRouter.js`; regenerate them from the canonical ABI
+signatures rather than copying explorer labels.
 
 ## Responsive and accessibility requirements
 
