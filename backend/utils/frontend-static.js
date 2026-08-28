@@ -34,6 +34,17 @@ function setSpaNoCache(res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 }
 
+function setStaticCacheHeaders(res, filePath, distDir) {
+  const relativePath = path.relative(path.resolve(distDir), filePath);
+  const isAsset = relativePath === 'assets' || relativePath.startsWith(`assets${path.sep}`);
+  if (isAsset) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return;
+  }
+
+  if (path.basename(filePath) === 'index.html') setSpaNoCache(res);
+}
+
 /**
  * Serve Vite's precompressed assets and the SPA shell.
  *
@@ -59,8 +70,8 @@ function mountFrontendStatic(app, { distDir }) {
   });
 
   app.use(express.static(resolvedDist, {
-    immutable: true,
-    maxAge: '1y',
+    maxAge: 0,
+    setHeaders: (res, filePath) => setStaticCacheHeaders(res, filePath, resolvedDist),
   }));
 
   app.get('*', (req, res) => {
@@ -74,5 +85,6 @@ module.exports = {
   acceptsGzip,
   findPrecompressedAsset,
   mountFrontendStatic,
+  setStaticCacheHeaders,
   setSpaNoCache,
 };

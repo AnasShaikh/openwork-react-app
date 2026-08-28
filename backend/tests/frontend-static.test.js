@@ -6,6 +6,7 @@ const test = require('node:test');
 const {
   acceptsGzip,
   findPrecompressedAsset,
+  setStaticCacheHeaders,
   setSpaNoCache,
 } = require('../utils/frontend-static');
 
@@ -37,5 +38,17 @@ test('recognizes browser gzip support and disables SPA shell caching', () => {
 
   const headers = new Map();
   setSpaNoCache({ setHeader: (name, value) => headers.set(name, value) });
+  assert.equal(headers.get('Cache-Control'), 'no-cache, no-store, must-revalidate');
+});
+
+test('static delivery caches hashed assets but never the HTML entrypoint', () => {
+  const distDir = path.join(os.tmpdir(), 'openwork-dist');
+  const headers = new Map();
+  const response = { setHeader: (name, value) => headers.set(name, value) };
+
+  setStaticCacheHeaders(response, path.join(distDir, 'assets/index-123.js'), distDir);
+  assert.equal(headers.get('Cache-Control'), 'public, max-age=31536000, immutable');
+
+  setStaticCacheHeaders(response, path.join(distDir, 'index.html'), distDir);
   assert.equal(headers.get('Cache-Control'), 'no-cache, no-store, must-revalidate');
 });
