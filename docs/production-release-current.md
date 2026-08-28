@@ -6,21 +6,62 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 22 August 2026 20:00 IST |
+| Deployed at | 28 August 2026 11:21 IST |
 | Git branch | `main` |
-| Git commit | `5aa9b4eff793967686afa490e02060d293b36940` |
-| Release gate | GitHub CI `32578230466`; frontend tests (`126/126`), backend tests (`66/66`), backend high-severity production dependency gate, JavaScript parse check, production frontend build and `git diff --check` passed; local and live deterministic-retry browser QA passed; CodeBuild, App Runner, public endpoint and production-log checks succeeded |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-5aa9b4eff793967686afa490e02060d293b36940.zip` |
-| Source archive SHA-256 | `7ca79a52294876ce2885e96a967b7e694b6aeadfe81ed8a20c816843edeb502c` |
-| CodeBuild | `openwork-react-app-prod-build:7a1c9b3c-20b6-4cd9-9eb9-8068846c9842` — succeeded |
-| ECR image | `openwork-app:prod-5aa9b4e-20260822195255` |
-| ECR digest | `sha256:4ef4ca7f6f837e95529e94df738405edfcfed0d6241668644f62bd9d229dcf70` |
+| Git commit | `d05197d09c09590d460421d65a78e95a03d128dc` |
+| Release gate | GitHub CI `33145233064`; frontend tests (`133/133`), backend tests (`95/95`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; local desktop/mobile and production browser QA passed; CodeBuild, App Runner, public endpoint, natural-language action, live read-tool and production-log checks succeeded |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-d05197d09c09590d460421d65a78e95a03d128dc.zip` |
+| Source archive SHA-256 | `e477b6c39a836c6228e2472b573cdd217751eda087f4acfc9109894da2ae05ad` |
+| CodeBuild | `openwork-react-app-prod-build:c429d1cf-2362-44f9-94b4-815a96497aaf` — succeeded |
+| ECR image | `openwork-app:prod-d05197d-20260828053758` |
+| ECR digest | `sha256:5bf88fdd1066c5e38608f923566889cf227f6b55d9c6a75650a094aa00d9af3e` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `7fdaf0cd5c674406b98ad0ad8ee70260` — succeeded |
+| App Runner operation | `91ff14a935014bb9acdbe7306cf936c3` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-BzsunG5M.js` — SHA-256 `b5e04ea90b0f901ab5ffe62b566587991f754ceb8b3d04013870598f723e0fd1` |
-| Rollback target | `openwork-app:prod-9ecceed-20260822191008` |
-| Rollback digest | `sha256:3bafb22fd42ba9de0c97cb72816641331261b596b4a43a3678f02837c66c4553` |
+| Deployed JS asset | `/assets/index-DqLq8psL.js` — SHA-256 `87126c9a347fd87eb295ba4f76169ca14b07dfe79faed715949dbfe8bb3ea155` |
+| Rollback target | `openwork-app:prod-72bca49-20260826100546` |
+| Rollback digest | `sha256:ba7507a27c997c20cc83f68a211c1a61684b123b52ea17dcf009cb21c968596b` |
+
+## Oppy bounded natural-language transaction agent
+
+Oppy now treats deterministic intent matching as a fast path rather than a capability
+limit. When ordinary wording does not match a predefined phrase, Sonnet can select one
+validated review-card action from the user's meaning or request a bounded read-only
+inspection. The four live readers cover source receipts plus cross-chain delivery,
+native and USDC funding, canonical job state and the latest sanitized wallet attempt.
+Several independent reads are executed in parallel and returned in one tool-result
+round; the model must then answer. The default ceiling is two model calls, one read
+round, 12 safe history messages, a 1,000-token transaction response and a 20 KiB
+tool-result payload. Common deterministic balance, identity, explorer and exact status
+questions continue to use zero Bedrock calls.
+
+The model still cannot broadcast a write. It can produce only one allowlisted review
+card, after which the existing browser preflight and the user's selected wallet remain
+the signing boundary. Mixed or multiple write calls fail closed. Live evidence never
+unlocks retry while a receipt is pending or unavailable, and provider failure is
+reported rather than converted into a success claim.
+
+The cross-chain status card now publishes each live poll into the transaction memory
+used by the next message. This removes the stale-chip failure where a completed direct
+contract status remained visually attached while the user had moved on to a payment
+release; every update is keyed to its source transaction and action.
+
+Production acceptance used no wallet and submitted no transaction. The layman request
+`Set aside 0.1 USDC for ... to polish a React screen` produced a validated
+`startDirectContract` review card with the exact recipient and 0.1 USDC budget in one
+model call. A second request—`The last thing still feels stuck ... should I poke it
+again?`—batched `inspectLatestAttempt` and `inspectTransaction`, verified XDC receipt
+`0xecc503...1090b`, LayerZero delivery and canonical job `30365-10`, then correctly
+answered that the action was complete and must not be retried. Production logs recorded
+one call/zero reads for the review and two calls/two reads for the live diagnosis; no
+prompt or raw tool result was logged.
+
+`/healthz`, `/`, and `/chat` returned HTTP 200. The deployed browser rendered the
+reviewed chat with no warnings or errors; the local 390×844 gate had zero horizontal
+overflow and preserved a 42×42 px Send control. The release changed application and
+documentation code only. It made no smart-contract deployment, token transfer,
+approval or wallet signature. The known no-database and low relayer-wallet warnings
+remain operationally separate from Oppy's non-custodial transaction workflow.
 
 ## Oppy deterministic action execution and retry
 
@@ -955,7 +996,7 @@ If this release regresses, update the same App Runner service back to:
 
 | Field | Value |
 |---|---|
-| ECR image | `openwork-app:prod-d671e16-20260823134749` |
-| ECR digest | `sha256:da8c9a8f3a96a3064aab1960bfb2d8b6612f35bb517aff290082d5c0bc74c191` |
+| ECR image | `openwork-app:prod-72bca49-20260826100546` |
+| ECR digest | `sha256:ba7507a27c997c20cc83f68a211c1a61684b123b52ea17dcf009cb21c968596b` |
 
 Rollback should be followed by the same App Runner operation, health, and public read-only verification gates.
