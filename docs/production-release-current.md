@@ -6,21 +6,59 @@ This file is the canonical application release pointer. It describes deployed ap
 
 | Field | Value |
 |---|---|
-| Deployed at | 28 August 2026 13:11 IST |
+| Deployed at | 28 August 2026 14:02 IST |
 | Git branch | `main` |
-| Git commit | `38ba68fbe2eef09c5b2ab8ef245d0b1ade1815c5` |
-| Release gate | GitHub CI `33151691388`; frontend tests (`136/136`), backend tests (`105/105`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; the exact reported natural-language request, contradictory-memory provenance, live XDC calldata, browser UI and console, App Runner and public endpoints all passed |
-| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-38ba68fbe2eef09c5b2ab8ef245d0b1ade1815c5.zip` |
-| Source archive SHA-256 | `c680787b6c4886326f5ef667c18d410753b0a07fea9290e39c8eca113fd0b1b3` |
-| CodeBuild | `openwork-react-app-prod-build:30bce6f0-5529-4706-9448-0c4edc089dc4` — succeeded |
-| ECR image | `openwork-app:prod-38ba68f-20260828130123` |
-| ECR digest | `sha256:0bb3b5ddb76ba3393adc90406593815d55c0fbd8acdfe1fa6c1dcaa3839d8c80` |
+| Git commit | `38877c3e534b9d447c83e7629a03a9d925c0d5c7` |
+| Release gate | GitHub CI `33154961048`; frontend tests (`136/136`), backend tests (`110/110`), backend high-severity production dependency gate, JavaScript parse checks, production frontend build and `git diff --check` passed; the exact stale-job escrow follow-up, live XDC/LayerZero/Arbitrum/Circle evidence, App Runner and public endpoints all passed |
+| Source archive | `s3://openwork-react-app-build-source-256309399568/source/releases/openwork-react-app-38877c3e534b9d447c83e7629a03a9d925c0d5c7.zip` |
+| Source archive SHA-256 | `870dbd52e08d2dbc1087b0acd5ca7fe3258e7973302470793abb67ae30d9c49f` |
+| CodeBuild | `openwork-react-app-prod-build:1e0151ee-5089-44d4-8f50-78198f572c24` — succeeded |
+| ECR image | `openwork-app:prod-38877c3-20260828135122` |
+| ECR digest | `sha256:28ff6d0bacb0c435583d753863e068e0182757b41d5148ebca4614a8b11340a9` |
 | App Runner service | `openwork-react-app-prod` |
-| App Runner operation | `e4171a4823d8462fa9088a2c44d33524` — succeeded |
+| App Runner operation | `070ee6f300004325ab57adc53f22aeef` — succeeded |
 | Public application | `https://app.openwork.technology` |
-| Deployed JS asset | `/assets/index-D6vfeQ8l.js` — SHA-256 `7b98918c4e5339dd46c0957bee8382ddb74e2e80d655151c412fd6e88f5ecc83` |
-| Rollback target | `openwork-app:prod-ae091e2-20260828065641` |
-| Rollback digest | `sha256:f56738e3b27f90506b354a68bb464bb47d2b1212bf44835ccbf5f9b0bad4e56e` |
+| Deployed JS asset | `/assets/index-fEOES_K2.js` — SHA-256 `56859f40da40106ec1df145a92617caf23878e5a9ead7f8f4586939ad51027a0` |
+| Rollback target | `openwork-app:prod-38ba68f-20260828130123` |
+| Rollback digest | `sha256:0bb3b5ddb76ba3393adc90406593815d55c0fbd8acdfe1fa6c1dcaa3839d8c80` |
+
+## Oppy direct-contract funding truth and active-job binding
+
+The reported follow-up `okay was the money locked on arbitrum?` was answered for job
+`30365-11` even though job `30365-12` was the active direct contract. The model copied
+the older job ID from bounded conversation history into `inspectJob`, and the backend
+trusted that generated argument ahead of active transaction memory. Read tools now bind
+an unqualified follow-up to the active job. An ID explicitly written by the user in the
+current message still wins; stale history and model-generated arguments cannot replace
+it.
+
+The same investigation exposed an independent completion error. Direct-contract job
+`30365-12` was created canonically on Arbitrum, but its XDC CCTP burn had not been
+consumed on Arbitrum. The prior tracker required only LayerZero delivery and canonical
+job state, so it displayed `Contract ready` too early. A direct contract now remains in
+progress until Circle's source message from domain 2 or 18 is proven consumed in domain
+3. The status card renders a separate `USDC received` step and no longer duplicates
+`Arbitrum -> Arbitrum` in its header.
+
+Oppy's inline `startDirectContract` and `startJob` handlers now notify the existing
+authenticated relay endpoint immediately after the user's source receipt is confirmed.
+This closes the missing handoff that existed only in chat; the standalone direct-contract
+and selected-applicant pages already performed it. A relay-notification failure preserves
+the source transaction, keeps retry protection active, and gives recovery guidance rather
+than prompting a duplicate contract.
+
+The job read tool now joins creation provenance with transaction-scoped funding delivery,
+and common escrow questions use the deterministic live status path with zero Bedrock calls.
+Production acceptance deliberately supplied stale job `30365-11` history while setting
+job `30365-12` active. Oppy returned job `30365-12`, LayerZero `delivered`, canonical
+`complete`, CCTP `pending` with reason `nonce_unused`, and correctly said the first-milestone
+USDC was still being delivered. No wallet prompt or transaction was submitted during
+acceptance. The existing 0.1 USDC burn was not relayed as part of this application release.
+
+The first CodeBuild attempt, `196279ae-9bc7-4fe9-88ae-256bec9eecb3`, stopped in
+`DOWNLOAD_SOURCE` with a transient S3 `NoSuchKey`. The object was then independently
+verified at the exact immutable key and the unchanged source/tag succeeded in build
+`1e0151ee-5089-44d4-8f50-78198f572c24`.
 
 ## Oppy transaction intent and on-chain creation provenance
 
