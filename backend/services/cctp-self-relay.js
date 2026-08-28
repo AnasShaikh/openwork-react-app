@@ -70,7 +70,7 @@ async function validateDirectContractSource(input, dependencies = {}) {
   if (dependencies.validateDirectContractSource) {
     return dependencies.validateDirectContractSource(input);
   }
-  const source = DIRECT_SOURCE_CHAINS[Number(input.sourceChainId)]?.();
+  const source = dependencies.sourceChain || DIRECT_SOURCE_CHAINS[Number(input.sourceChainId)]?.();
   if (!source?.contract) throw new Error('The direct-contract source is not configured');
   const expectedJobTopic = Web3.utils.keccak256(input.jobId).toLowerCase();
   const createWeb3 = dependencies.createWeb3 || ((rpcUrl) => new Web3(rpcUrl));

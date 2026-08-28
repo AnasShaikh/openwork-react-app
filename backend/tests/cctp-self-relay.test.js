@@ -85,7 +85,8 @@ test('bytes32 Circle recipients normalize to their EVM address', () => {
 });
 
 test('wallet recovery is bound to the mined direct-contract action and exact job ID', async () => {
-  const sourceContract = config.LOWJC_XDC_ADDRESS;
+  const sourceContract = '0x5cF21bFb944B6851048F9ac18a8C84F6323a8ce7';
+  const sourceChain = { name: 'XDC Network', contract: sourceContract, rpcUrls: ['https://xdc.example'] };
   const createWeb3 = () => ({
     eth: {
       getTransaction: async () => ({
@@ -107,11 +108,11 @@ test('wallet recovery is bound to the mined direct-contract action and exact job
     sourceChainId: 50,
     sourceTxHash,
     jobId: '30365-13',
-  }, { createWeb3 }), true);
+  }, { createWeb3, sourceChain }), true);
 
   await assert.rejects(() => validateDirectContractSource({
     sourceChainId: 50,
     sourceTxHash,
     jobId: '30365-14',
-  }, { createWeb3 }), /does not prove this OpenWork job ID/);
+  }, { createWeb3, sourceChain }), /does not prove this OpenWork job ID/);
 });
