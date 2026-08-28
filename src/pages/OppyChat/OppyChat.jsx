@@ -68,6 +68,8 @@ import {
   inspectTransactionDiagnostic,
   updateTransactionDiagnostic,
 } from '../../services/transactionDiagnostics';
+import { preflightRelay } from '../../services/relayReadiness';
+import { completeCctpTransferWithWallet } from '../../services/cctpSelfRelay';
 import './OppyChat.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -146,7 +148,7 @@ function usdcDecimalToBaseUnits(value) {
 }
 
 // ── Transaction Card ─────────────────────────────────────────────
-function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, onDiagnosticChange, onTrackingChange }) {
+function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, onDiagnosticChange, onTrackingChange, onCompleteCctp }) {
   const [txHash, setTxHash] = useState(null);
   const [txChainId, setTxChainId] = useState(null);
   const [jobId, setJobId] = useState(null);
@@ -496,6 +498,7 @@ function TransactionCard({ tool, walletState, onConfirm, onCancel, onDiagnose, o
             key={`${tool.name}:${txHash}`}
             tracking={tracking}
             onStatusChange={onTrackingChange}
+            onCompleteCctp={onCompleteCctp}
           />
         </>
       ) : status === 'opened' ? (
@@ -1136,6 +1139,18 @@ const OppyChat = () => {
     rpcUrl: getChainConfig(diagnostic.chainId)?.rpcUrl,
   });
 
+  const handleCompleteCctp = async (tracking, report = () => {}) => {
+    const result = await completeCctpTransferWithWallet({
+      tracking,
+      walletProvider: walletProviderRef.current,
+      onStatus: report,
+    });
+    addBotMessage(result.alreadyCompleted
+      ? `The USDC delivery for job **${tracking.jobId}** was already complete. Oppy has refreshed the live state.`
+      : `The destination transaction for job **${tracking.jobId}** is confirmed. Oppy is verifying the Circle nonce and final USDC receipt now.`);
+    return result;
+  };
+
   const loadExplorerIntoChat = async (path, report) => {
     report?.({ phase: 'preparing', message: 'Loading live OpenWork data…' });
     const explorer = await fetchOppyExplorer(path);
@@ -1359,6 +1374,7 @@ const OppyChat = () => {
             jobTaker: tool.params.jobTaker,
             timestamp: new Date().toISOString(),
           });
+          await preflightRelay({ action: 'startDirectContract', sourceChainId: chainIdDecimal, targetDomain: 3 }, onStatus);
           submissionAttempted = true;
           await ensureUsdcFunding({
             chainId: chainIdDecimal,
@@ -1409,6 +1425,7 @@ const OppyChat = () => {
             ? application.proposedMilestones?.[0]?.amount
             : deepDive.milestones?.[0]?.amount;
           const firstAmountRaw = toUsdcBaseUnits(firstAmount, 'First milestone amount');
+          await preflightRelay({ action: 'startJob', sourceChainId: chainIdDecimal, targetDomain: 3 }, onStatus);
           submissionAttempted = true;
           await ensureUsdcFunding({ chainId: chainIdDecimal, owner: userAddress, spender: chainConfig.contracts.lowjc, amount: firstAmountRaw, onStatus, walletProvider });
           result = await startJob(chainIdDecimal, userAddress, {
@@ -1438,6 +1455,11 @@ const OppyChat = () => {
             targetDomain: target.targetChainDomain,
             baselineTotalPaidRaw,
           };
+          await preflightRelay({
+            action: 'releasePayment',
+            sourceChainId: chainIdDecimal,
+            targetDomain: target.targetChainDomain,
+          }, onStatus);
           submissionAttempted = true;
           result = await releasePaymentCrossChain(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
@@ -1687,6 +1709,7 @@ const OppyChat = () => {
                       onTrackingChange={(trackingUpdate, statusUpdate) => {
                         setRecentTransactions((current) => updateOppyTransactionDelivery(current, trackingUpdate, statusUpdate));
                       }}
+                      onCompleteCctp={handleCompleteCctp}
                       onCancel={() => handleCancelTx(idx)}
                     />
                   </div>
@@ -1719,6 +1742,41 @@ const OppyChat = () => {
                 </div>
               );
             })}
+            {(() => {
+              const pending = [...recentTransactions].reverse().find((transaction) => (
+                ['startDirectContract', 'releasePayment'].includes(transaction.action)
+                && transaction.confirmed
+                && transaction.txHash
+                && [10, 50].includes(Number(transaction.chainId))
+                && transaction.delivery?.complete !== true
+              ));
+              if (!pending) return null;
+              const alreadyRendered = chat.some((message) => message.isTxCard && (
+                (message.tool?.name === pending.action && message.tool?.params?.jobId === pending.jobId)
+                || (pending.action === 'startDirectContract' && message.tool?.name === 'startDirectContract')
+              ));
+              if (alreadyRendered) return null;
+              const tracking = {
+                action: pending.action,
+                jobId: pending.jobId,
+                sourceChainId: pending.chainId,
+                sourceTxHash: pending.txHash,
+                sourceReceiptConfirmed: true,
+                targetDomain: pending.targetDomain,
+                baselineTotalPaidRaw: pending.baselineTotalPaidRaw,
+              };
+              return (
+                <div className="chat-msg-row bot chat-msg-row--data" key={`persisted-sync:${pending.txHash}`}>
+                  <CrossChainSyncStatus
+                    tracking={tracking}
+                    onStatusChange={(trackingUpdate, statusUpdate) => {
+                      setRecentTransactions((current) => updateOppyTransactionDelivery(current, trackingUpdate, statusUpdate));
+                    }}
+                    onCompleteCctp={handleCompleteCctp}
+                  />
+                </div>
+              );
+            })()}
             <div ref={messagesEndRef} />
           </div>
 

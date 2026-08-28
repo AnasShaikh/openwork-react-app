@@ -130,7 +130,17 @@ async function reconcileCCTPTransfer(record, dependencies = {}) {
     destinationDomain,
   }, dependencies);
 
-  if (!consumed) return { completed: false, reason: 'nonce_unused' };
+  if (!consumed) {
+    return {
+      completed: false,
+      reason: 'nonce_unused',
+      attestationReady: true,
+      eventNonce: message.eventNonce,
+      destinationDomain: Number(destinationDomain),
+      mintRecipient: message.decodedMessage?.decodedMessageBody?.mintRecipient || null,
+      amount: message.decodedMessage?.decodedMessageBody?.amount || null,
+    };
+  }
 
   return {
     completed: true,

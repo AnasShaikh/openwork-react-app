@@ -5,7 +5,7 @@ const MAX_MESSAGES = 60;
 const MAX_TRANSACTIONS = 12;
 const MAX_PREPARED_ACTION_BYTES = 12 * 1024;
 const DIAGNOSTIC_STATES = new Set(['preparing', 'wallet', 'pending', 'confirmed', 'reverted', 'dropped', 'cancelled', 'failed', 'unknown']);
-const DELIVERY_STATES = new Set(['checking', 'in-progress', 'complete', 'failed', 'unavailable']);
+const DELIVERY_STATES = new Set(['checking', 'in-progress', 'requires-action', 'complete', 'failed', 'unavailable']);
 const DELIVERY_STEP_STATES = new Set(['pending', 'delivered', 'complete', 'received', 'failed', 'unavailable']);
 const TRANSACTION_ACTIONS = new Set([
   'postJob',

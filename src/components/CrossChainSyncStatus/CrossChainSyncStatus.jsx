@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, CircleAlert, LoaderCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, LoaderCircle, RefreshCw, WalletCards } from 'lucide-react';
 import {
   CROSS_CHAIN_SYNC_POLL_MS,
   crossChainTrackingKey,
@@ -57,12 +57,13 @@ function actionCopy(action) {
   };
 }
 
-export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
+export default function CrossChainSyncStatus({ tracking, onStatusChange, onCompleteCctp }) {
   const source = getCrossChainSource(tracking);
   const trackingKey = crossChainTrackingKey(tracking);
   const copy = actionCopy(tracking?.action);
   const [sync, setSync] = useState({ state: 'checking', checkedAt: null, error: null });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [recovery, setRecovery] = useState({ state: 'idle', message: null });
   const onStatusChangeRef = useRef(onStatusChange);
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -128,10 +129,28 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
     ? new Date(sync.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
   const unavailable = sync.state === 'unavailable';
+  const needsAction = sync.state === 'requires-action';
+  const canSelfRelay = sync.cctp?.selfRelayAvailable === true && typeof onCompleteCctp === 'function';
+  const completeWithWallet = async () => {
+    if (!canSelfRelay || recovery.state === 'working') return;
+    setRecovery({ state: 'working', message: 'Preparing the destination transaction…' });
+    try {
+      const result = await onCompleteCctp(tracking, (update) => {
+        setRecovery({ state: 'working', message: update?.message || String(update || '') });
+      });
+      setRecovery({
+        state: 'complete',
+        message: result?.alreadyCompleted ? 'This USDC transfer was already completed.' : 'USDC delivery transaction confirmed.',
+      });
+      refresh();
+    } catch (error) {
+      setRecovery({ state: 'failed', message: error.message || 'The wallet completion was not finished.' });
+    }
+  };
 
   return (
     <section
-      className={`cross-chain-sync ${complete ? 'cross-chain-sync--synced' : ''} ${failed ? 'cross-chain-sync--failed' : ''}`}
+      className={`cross-chain-sync ${complete ? 'cross-chain-sync--synced' : ''} ${failed ? 'cross-chain-sync--failed' : ''} ${needsAction ? 'cross-chain-sync--action' : ''}`}
       aria-live="polite"
       aria-label={`${copy.eyebrow} status for job ${tracking.jobId}`}
     >
@@ -144,8 +163,8 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
           </h3>
           <p>Job <strong>{tracking.jobId}</strong></p>
         </div>
-        <span className={`cross-chain-sync__badge ${complete ? 'cross-chain-sync__badge--synced' : ''} ${failed ? 'cross-chain-sync__badge--failed' : ''}`}>
-          {complete ? copy.completeBadge : (failed ? 'Needs attention' : 'In progress')}
+        <span className={`cross-chain-sync__badge ${complete ? 'cross-chain-sync__badge--synced' : ''} ${failed ? 'cross-chain-sync__badge--failed' : ''} ${needsAction ? 'cross-chain-sync__badge--action' : ''}`}>
+          {complete ? copy.completeBadge : (failed || needsAction ? 'Needs attention' : 'In progress')}
         </span>
       </div>
 
@@ -163,9 +182,13 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
           <div><strong>{copy.canonicalTitle}</strong><span>{canonicalComplete ? copy.canonicalComplete : copy.canonicalPending}</span></div>
         </li>
         {cctpRequired && (
-          <li className={stepStateClass(cctpComplete, canonicalComplete && !cctpComplete)}>
-            <StepIcon complete={cctpComplete} active={canonicalComplete && !cctpComplete} />
-            <div><strong>USDC received</strong><span>{cctpComplete ? `Confirmed on ${targetName}` : `Transferring to ${targetName || 'the payment chain'}`}</span></div>
+          <li className={stepStateClass(cctpComplete, canonicalComplete && !cctpComplete && !needsAction, needsAction)}>
+            <StepIcon complete={cctpComplete} active={canonicalComplete && !cctpComplete && !needsAction} failed={needsAction} />
+            <div><strong>USDC received</strong><span>{cctpComplete
+              ? `Confirmed on ${targetName}`
+              : (sync.cctp?.reason === 'attestation_incomplete'
+                ? 'Waiting for Circle attestation'
+                : (canSelfRelay ? 'Ready to complete with a wallet' : `Transferring to ${targetName || 'the payment chain'}`))}</span></div>
           </li>
         )}
       </ol>
@@ -179,6 +202,28 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange }) {
         <p className="cross-chain-sync__notice cross-chain-sync__notice--failed">
           LayerZero reports that this delivery needs attention. Open Delivery details before attempting another transaction.
         </p>
+      )}
+      {canSelfRelay && (
+        <div className="cross-chain-sync__recovery">
+          <div>
+            <strong>{needsAction ? 'Automatic delivery cannot continue' : 'USDC is ready to finalize'}</strong>
+            <span>
+              {needsAction
+                ? (sync.relayer?.reason === 'service_wallet_underfunded'
+                  ? `The OpenWork relayer needs more ${sync.relayer?.destination?.nativeSymbol || 'gas'} on ${sync.relayer?.destination?.chainName || 'the destination chain'}.`
+                  : 'The automatic destination relay is unavailable.')
+                : 'Automatic delivery may still finish it, or you can complete the permissionless receive now.'}
+              {' '}Your source transaction is safe; do not submit it again.
+            </span>
+          </div>
+          <button type="button" onClick={completeWithWallet} disabled={recovery.state === 'working'}>
+            <WalletCards aria-hidden="true" size={15} />
+            {recovery.state === 'working' ? 'Waiting for wallet…' : 'Complete with my wallet'}
+          </button>
+          {recovery.message && (
+            <p className={`cross-chain-sync__recovery-message cross-chain-sync__recovery-message--${recovery.state}`}>{recovery.message}</p>
+          )}
+        </div>
       )}
 
       <div className="cross-chain-sync__footer">

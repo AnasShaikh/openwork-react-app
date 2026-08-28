@@ -16,6 +16,8 @@ const chatRoutes = require('./routes/chat');
 const transcriptionRoutes = require('./routes/transcription');
 const oppyExplorerRoutes = require('./routes/oppy-explorer');
 const crossChainStatusRoutes = require('./routes/cross-chain-status');
+const relayReadinessRoutes = require('./routes/relay-readiness');
+const cctpSelfRelayRoutes = require('./routes/cctp-self-relay');
 const docsRoutes = require('./routes/docs');
 const e2eTestRoute = require('./routes/e2e-test-route');
 const designReviewRouter = require('./routes/design-review');
@@ -98,6 +100,10 @@ app.use('/api/oppy/explore', oppyExplorerRoutes);
 
 // Transaction-scoped LayerZero, canonical-state and CCTP evidence for Oppy.
 app.use('/api/oppy/cross-chain-status', crossChainStatusRoutes);
+
+// Read-only service-wallet preflight and permissionless Circle recovery plans.
+app.use('/api/oppy/relay-readiness', relayReadinessRoutes);
+app.use('/api/oppy/cctp-recovery', cctpSelfRelayRoutes);
 
 // Mount docs routes (machine-readable documentation for AI agents)
 app.use('/api/docs', docsRoutes);

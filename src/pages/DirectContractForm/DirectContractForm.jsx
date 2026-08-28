@@ -31,6 +31,7 @@ import {
   resolveDirectContractJobId,
   saveDirectContractProgress,
 } from "../../utils/directContractReceipt";
+import { preflightRelay } from "../../services/relayReadiness";
 
 const SKILLOPTIONS = [
   'UX/UI Skill Oracle','Full Stack development','UX/UI Skill Oracle',
@@ -593,6 +594,18 @@ export default function DirectContractForm() {
         throw new Error(
           `Insufficient USDC balance. The first milestone requires ${formatUsdcBaseUnits(firstMilestoneAmount)} USDC, but this wallet has ${formatUsdcBaseUnits(userUsdcBalance)} USDC. Add USDC on ${currentChainConfig.name} before trying again.`,
         );
+      }
+
+      const relayReadiness = await preflightRelay(
+        { action: "startDirectContract", sourceChainId: chainId, targetDomain: 3 },
+        (update) => setTransactionState({
+          phase: "preparing",
+          message: update?.message || "Checking automatic USDC delivery…",
+          variant: update?.relayReadiness?.ready === false ? "warning" : "info",
+        }),
+      );
+      if (relayReadiness.required && !relayReadiness.ready) {
+        throw new Error('Automatic USDC delivery is not ready. Open Oppy Chat to create this contract with wallet-assisted recovery, or try again after the relayer is funded.');
       }
 
       for (let index = 0; index < milestones.length; index += 1) {

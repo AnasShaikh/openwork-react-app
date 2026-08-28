@@ -13,6 +13,7 @@ import Warning from "../../components/Warning/Warning";
 import CrossChainStatus, { buildSettleSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { formatAddress } from "../../utils/oracleHelpers";
 import { getNativeChain, isMainnet } from "../../config/chainConfig";
+import { preflightRelay } from "../../services/relayReadiness";
 
 // Get Native Athena address dynamically
 function getNativeAthenaAddress() {
@@ -415,6 +416,13 @@ export default function ReviewDispute() {
       let settleTxHash = '';
       const sourceChainId = isMainnet() ? 42161 : 421614;
       const destChainId   = isMainnet() ? 10    : 11155420;
+      const settlementJobId = disputeId.split('-').slice(0, 2).join('-');
+      const jobPrefix = Number(settlementJobId.split('-')[0]);
+      const settlementTargetDomain = jobPrefix === 30365 ? 18 : (jobPrefix === 30111 ? 2 : 3);
+      await preflightRelay(
+        { action: 'settleDispute', sourceChainId, targetDomain: settlementTargetDomain },
+        (update) => setLoadingT(update?.message || 'Checking automatic USDC delivery…'),
+      );
 
       // Initialise step tracker — show immediately on MetaMask open
       setSettleStepState({ sourceChainId, destChainId });
@@ -447,7 +455,7 @@ export default function ReviewDispute() {
       setLoadingT("");
 
       // jobId is the disputeId without the trailing -counter (e.g. "30111-100-1" → "30111-100")
-      const jobId = disputeId.split('-').slice(0, 2).join('-');
+      const jobId = settlementJobId;
 
       // Send to backend for CCTP completion
       const backendResponse = await fetch(`${BACKEND_URL}/api/settle-dispute`, {

@@ -26,6 +26,7 @@ import {
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS, pollOnChainJobState, pollNowjcUSDCBalance } from "../../utils/crossChainMonitor";
+import { preflightRelay } from "../../services/relayReadiness";
 
 const OPTIONS = [
   'Milestone 1','Milestone 2','Milestone 3'
@@ -386,6 +387,14 @@ export default function ReleasePayment() {
 
       // Get the applicant's preferred chain domain (fetched from NOWJC)
       const destinationDomain = job.applicantChainDomain || 2; // Default to Optimism if not set
+
+      const relayReadiness = await preflightRelay(
+        { action: 'releasePayment', sourceChainId: jobChainId, targetDomain: destinationDomain },
+        (update) => setTransactionStatus(update?.message || 'Checking automatic USDC delivery…'),
+      );
+      if (relayReadiness.required && !relayReadiness.ready) {
+        throw new Error('Automatic USDC delivery is not ready. Open this job in Oppy Chat for wallet-assisted recovery, or try again after the relayer is funded.');
+      }
 
       let layerZeroFee;
       if (!isNativeArbitrum) {
@@ -841,6 +850,11 @@ export default function ReleasePayment() {
       }
 
       const nextMilestoneAmount = job.milestonePayments[nextMilestoneIndex].amount;
+
+      await preflightRelay(
+        { action: 'lockNextMilestone', sourceChainId: jobChainId, targetDomain: 3 },
+        (update) => setTransactionStatus(update?.message || 'Checking automatic USDC delivery…'),
+      );
       
       // Approve USDC spending
       setTransactionStatus("💰 Approving USDC spending - Please confirm in MetaMask");

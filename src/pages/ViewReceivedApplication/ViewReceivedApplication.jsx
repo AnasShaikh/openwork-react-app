@@ -34,6 +34,7 @@ import {
 } from "../../services/contractWriteRouter";
 import CrossChainStatus, { buildPaymentSteps } from "../../components/CrossChainStatus/CrossChainStatus";
 import { monitorLZMessage, monitorCCTPTransfer, STATUS } from "../../utils/crossChainMonitor";
+import { preflightRelay } from "../../services/relayReadiness";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
@@ -498,6 +499,14 @@ export default function ViewReceivedApplication() {
       
       if (BigInt(userBalance) < amountInUSDCUnits) {
         throw new Error(`Insufficient USDC balance. Required: ${firstMilestoneAmount} USDC, Available: ${balanceInUSDC.toFixed(2)} USDC`);
+      }
+
+      const relayReadiness = await preflightRelay(
+        { action: 'startJob', sourceChainId: jobChainId, targetDomain: 3 },
+        (update) => setTransactionStatus(update?.message || 'Checking automatic USDC delivery…'),
+      );
+      if (relayReadiness.required && !relayReadiness.ready) {
+        throw new Error('Automatic USDC delivery is not ready. No approval or job-start transaction was submitted.');
       }
 
       // ============ STEP 1: CHECK ALLOWANCE & APPROVE IF NEEDED ============

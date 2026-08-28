@@ -65,7 +65,12 @@ test('an unused Circle nonce is not reported as delivered', async () => {
     source_domain: 3,
   }, dependencies({ usedNonce: '0' }));
 
-  assert.deepEqual(result, { completed: false, reason: 'nonce_unused' });
+  assert.equal(result.completed, false);
+  assert.equal(result.reason, 'nonce_unused');
+  assert.equal(result.attestationReady, true);
+  assert.equal(result.destinationDomain, 18);
+  assert.equal(result.amount, '100000');
+  assert.match(result.eventNonce, /^0x[a-f0-9]{64}$/);
 });
 
 test('an incomplete Circle attestation is not reported as delivered', async () => {

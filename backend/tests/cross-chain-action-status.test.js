@@ -138,11 +138,20 @@ test('canonical direct-contract creation cannot hide pending escrow delivery', a
       totalPaidRaw: '0',
       currentMilestone: 1,
     }),
-    reconcileCCTPTransfer: async () => ({ completed: false, reason: 'nonce_unused' }),
+    reconcileCCTPTransfer: async () => ({ completed: false, reason: 'nonce_unused', attestationReady: true }),
+    readRelayerReadiness: async () => ({
+      required: true,
+      ready: false,
+      reason: 'service_wallet_underfunded',
+      recoverySupported: true,
+    }),
   });
 
   assert.equal(status.complete, false);
   assert.equal(status.canonical.state, 'complete');
   assert.equal(status.cctp.state, 'pending');
   assert.equal(status.cctp.reason, 'nonce_unused');
+  assert.equal(status.cctp.selfRelayAvailable, true);
+  assert.equal(status.state, 'requires-action');
+  assert.equal(status.relayer.reason, 'service_wallet_underfunded');
 });

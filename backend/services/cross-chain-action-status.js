@@ -6,6 +6,7 @@ const config = require('../config');
 const genesisAbi = require('../../src/ABIs/genesis_ABI.json');
 const { normalizeLedgerJob } = require('./oppy-job-context');
 const { reconcileCCTPTransfer } = require('../utils/cctp-reconciliation');
+const { readRelayerReadiness } = require('./relayer-readiness');
 
 const LAYERZERO_API = 'https://scan.layerzero-api.com/v1/messages/tx';
 const PUBLIC_ARBITRUM_RPC = 'https://arb1.arbitrum.io/rpc';
@@ -193,10 +194,39 @@ async function readCrossChainActionStatus(input, dependencies = {}) {
     }
   }
   const cctpComplete = !cctpRequired || cctpResult?.completed === true;
+  let relayer = null;
+  if (cctpRequired && !cctpComplete) {
+    try {
+      relayer = await (dependencies.readRelayerReadiness || readRelayerReadiness)({
+        action,
+        sourceChainId,
+        targetDomain: paymentTargetDomain,
+      }, dependencies.relayerDependencies || {});
+    } catch (error) {
+      relayer = {
+        required: true,
+        ready: false,
+        reason: 'readiness_check_failed',
+        recoverySupported: true,
+        error: error.message,
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  }
+  const selfRelayAvailable = Boolean(
+    cctpRequired
+    && !cctpComplete
+    && cctpResult?.attestationReady
+    && cctpResult?.reason === 'nonce_unused'
+  );
   const complete = layerZeroDelivered && canonicalComplete && cctpComplete;
   const state = complete
     ? 'complete'
-    : (layerZeroFailed ? 'failed' : ((layerZeroError || canonicalError || cctpError) ? 'unavailable' : 'in-progress'));
+    : (layerZeroFailed
+      ? 'failed'
+      : (selfRelayAvailable && relayer?.ready === false
+        ? 'requires-action'
+        : ((layerZeroError || canonicalError || cctpError) ? 'unavailable' : 'in-progress')));
   const source = SOURCE_CHAINS.get(sourceChainId);
   const target = paymentTargetDomain === null ? null : DOMAIN_CHAINS.get(paymentTargetDomain);
 
@@ -237,9 +267,12 @@ async function readCrossChainActionStatus(input, dependencies = {}) {
       eventNonce: cctpResult?.eventNonce || null,
       amountRaw: cctpResult?.amount || null,
       recipient: cctpResult?.mintRecipient || null,
+      attestationReady: cctpResult?.attestationReady === true,
+      selfRelayAvailable,
       reason: cctpResult?.reason || null,
       error: cctpError,
     },
+    relayer,
     links: statusLinks({
       sourceChainId,
       sourceTxHash,

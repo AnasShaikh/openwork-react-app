@@ -30,6 +30,12 @@
   border-left-color: #dc2626;
 }
 
+.cross-chain-sync--action {
+  background: linear-gradient(145deg, #fffaf0 0%, #ffffff 62%);
+  border-color: #edcf84;
+  border-left-color: #d28a0e;
+}
+
 .cross-chain-sync__header {
   align-items: flex-start;
   display: flex;
@@ -85,6 +91,12 @@
   background: #fff0f0;
   border-color: #f2c5c5;
   color: #b42318;
+}
+
+.cross-chain-sync__badge--action {
+  background: #fff2cf;
+  border-color: #edcf84;
+  color: #7a4d08;
 }
 
 .cross-chain-sync__steps {
@@ -192,6 +204,56 @@
   border-color: #f3c4c4;
   color: #991b1b;
 }
+
+.cross-chain-sync__recovery {
+  align-items: center;
+  background: #fff8e8;
+  border: 1px solid #f1cf78;
+  border-radius: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 0 0 13px;
+  padding: 11px 12px;
+}
+
+.cross-chain-sync__recovery > div {
+  display: flex;
+  flex: 1 1 300px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cross-chain-sync__recovery strong { color: #69430a; font-size: 12px; }
+.cross-chain-sync__recovery span { color: #805b13; font-size: 11px; line-height: 1.45; }
+
+.cross-chain-sync__recovery > button {
+  align-items: center;
+  background: #0047ff;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 13px;
+}
+
+.cross-chain-sync__recovery > button:disabled { cursor: wait; opacity: .62; }
+
+.cross-chain-sync__recovery-message {
+  flex-basis: 100%;
+  font-size: 11px;
+  margin: 0;
+}
+
+.cross-chain-sync__recovery-message--failed { color: #b42318; }
+.cross-chain-sync__recovery-message--complete { color: #147a3d; }
 
 .cross-chain-sync__footer {
   align-items: center;

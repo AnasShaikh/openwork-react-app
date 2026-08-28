@@ -17,6 +17,7 @@
 
 import Web3 from "web3";
 import { applyTxTimeouts, sendTrackedContractMethod } from './txReliability';
+import { preflightRelay } from './relayReadiness';
 import {
   getChainConfig,
   isChainAllowed,
@@ -408,6 +409,7 @@ export async function startDirectContract(chainId, userAddress, contractData, on
   const readContract = await getReadOnlyLOWJCContract(chainId);
   const config = getChainConfig(chainId);
   const native = isNativeArbChain(chainId);
+  await preflightRelay({ action: 'startDirectContract', sourceChainId: chainId, targetDomain: 3 }, emit);
   const counterBefore = Number(await readContract.methods.getJobCount().call());
   const jobIdPrefix = native ? chainId : config.layerzero.eid;
   const predictedJobId = `${jobIdPrefix}-${counterBefore + 1}`;
@@ -496,6 +498,7 @@ export async function startJob(chainId, userAddress, startData, onStatus, wallet
     const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
+    await preflightRelay({ action: 'startJob', sourceChainId: chainId, targetDomain: 3 }, emit);
 
     const requestedApplicantMilestones = Boolean(startData.useAppMilestones);
     const applicantMilestonesSupported = supportsApplicantMilestones(chainId);
@@ -633,6 +636,11 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
     const contract = await getLOWJCContract(chainId, walletProvider);
     const config   = getChainConfig(chainId);
     const native   = isNativeArbChain(chainId);
+    await preflightRelay({
+      action: 'releasePayment',
+      sourceChainId: chainId,
+      targetDomain: paymentData.targetChainDomain,
+    }, emit);
 
     const nativeOptions = native ? null : buildLzOptions(DESTINATION_GAS_ESTIMATES.RELEASE_PAYMENT);
     let lzFee = "0";

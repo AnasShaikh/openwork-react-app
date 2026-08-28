@@ -55,9 +55,6 @@ async function executeReceiveOnArbitrum(attestationData) {
   const balance = await web3.eth.getBalance(account.address);
   const balanceEth = parseFloat(web3.utils.fromWei(balance, 'ether'));
   console.log(`   Service Wallet: ${account.address} (${balanceEth.toFixed(6)} ETH)`);
-  if (balanceEth < 0.0001) {
-    throw new Error(`Service wallet balance too low on Arbitrum: ${balanceEth.toFixed(6)} ETH. Top up required.`);
-  }
 
   console.log('📋 Transaction parameters:', {
     contract: transmitterAddress,
@@ -81,12 +78,22 @@ async function executeReceiveOnArbitrum(attestationData) {
       gasLimit = 300000;
     }
 
+    const gasPrice = await web3.eth.getGasPrice();
+    const requiredWei = BigInt(gasLimit) * BigInt(gasPrice) * 110n / 100n;
+    if (BigInt(balance) < requiredWei) {
+      throw new Error(
+        `Service wallet balance too low on Arbitrum: needs about ${web3.utils.fromWei(requiredWei.toString(), 'ether')} ETH ` +
+        `but has ${web3.utils.fromWei(balance.toString(), 'ether')} ETH. User-wallet completion is available after attestation.`
+      );
+    }
+
     const tx = await transmitterContract.methods.receiveMessage(
       attestationData.message,
       attestationData.attestation
     ).send({
       from: account.address,
-      gas: gasLimit
+      gas: gasLimit,
+      gasPrice,
     });
 
     console.log('✅ ARB receiveMessage completed:', {
@@ -192,9 +199,6 @@ async function executeReceiveMessage(attestationData, destinationChain = 'Optimi
   const balance = await web3.eth.getBalance(account.address);
   const balanceEth = parseFloat(web3.utils.fromWei(balance, 'ether'));
   console.log(`   Service Wallet Balance: ${balanceEth.toFixed(6)} ETH`);
-  if (balanceEth < 0.001) {
-    throw new Error(`Service wallet balance too low on ${destinationChain}: ${balanceEth.toFixed(6)} ETH. Top up required.`);
-  }
 
   console.log('📋 Transaction parameters:', {
     chain: destinationChain,
@@ -221,12 +225,22 @@ async function executeReceiveMessage(attestationData, destinationChain = 'Optimi
       gasLimit = 300000;
     }
 
+    const gasPrice = await web3.eth.getGasPrice();
+    const requiredWei = BigInt(gasLimit) * BigInt(gasPrice) * 110n / 100n;
+    if (BigInt(balance) < requiredWei) {
+      throw new Error(
+        `Service wallet balance too low on ${destinationChain}: needs about ` +
+        `${web3.utils.fromWei(requiredWei.toString(), 'ether')} ETH. User-wallet completion may be used after attestation.`
+      );
+    }
+
     const tx = await transmitterContract.methods.receiveMessage(
       attestationData.message,
       attestationData.attestation
     ).send({
       from: account.address,
-      gas: gasLimit
+      gas: gasLimit,
+      gasPrice,
     });
     
     console.log(`✅ ReceiveMessage transaction completed on ${destinationChain}:`, {
