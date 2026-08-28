@@ -16,6 +16,9 @@ function isCrossChainStatusQuestion(message) {
     /^(?:check\s+)?(?:the\s+)?(?:live\s+)?status(?:\s+(?:of|for)\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction)|\d+-\d+))?\??$/,
     /^(?:what(?:'s|\s+is)\s+)?(?:the\s+)?(?:live\s+)?status\s+(?:of|for)\s+(?:it|this|that|the\s+(?:job|contract|payment|transaction)|\d+-\d+)\??$/,
     /^(?:so\s+|okay\s+|ok\s+)?(?:was|is|has|did)\s+(?:the\s+)?(?:money|funds?|usdc|payment|milestone|escrow)(?:\s+(?:been|get|got))?\s+(?:locked|funded|received|delivered|arrived|escrowed)(?:\s+(?:on|in|at)\s+(?:arbitrum|the\s+contract|escrow))?\??$/,
+    /^(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:check|confirm|verify|tell\s+me)(?:\s+(?:whether|if))?\s+(?:the\s+)?(?:job\s*taker|freelancer|recipient|worker|their\s+wallet|his\s+wallet|her\s+wallet)\s+(?:(?:has|had)\s+)?(?:received|got|been\s+paid|gotten)\s+(?:the\s+)?(?:money|funds?|usdc|payment|payout)\??$/,
+    /^(?:so\s+|okay\s+|ok\s+)?(?:did|has)\s+(?:the\s+)?(?:job\s*taker|freelancer|recipient|worker|they|he|she)\s+(?:receive|get|got|been\s+paid)\s+(?:the\s+)?(?:money|funds?|usdc|payment|payout)\??$/,
+    /^(?:so\s+|okay\s+|ok\s+)?(?:did|has)\s+(?:the\s+)?(?:job\s*taker|freelancer|recipient|worker|they|he|she)\s+(?:get|got|been)\s+paid\??$/,
   ].some((pattern) => pattern.test(text));
 }
 
@@ -40,6 +43,19 @@ function actionLabel(action) {
   return 'job post';
 }
 
+function formatUsdcRaw(raw) {
+  if (!/^\d+$/.test(String(raw || ''))) return null;
+  const value = BigInt(raw);
+  const whole = value / 1_000_000n;
+  const fraction = (value % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function shortAddress(address) {
+  const value = String(address || '');
+  return /^0x[a-fA-F0-9]{40}$/.test(value) ? `${value.slice(0, 8)}…${value.slice(-4)}` : null;
+}
+
 function completeMessage(status) {
   const label = actionLabel(status.action);
   const sourceName = status.source?.chainName || 'the source network';
@@ -49,7 +65,10 @@ function completeMessage(status) {
 
   if (status.action === 'releasePayment') {
     const target = status.cctp?.targetChainName || 'the payment network';
-    return `Yes — the ${label} for job **${status.jobId}** is complete. The source transaction is confirmed on ${sourceName}, OpenWork recorded the payment on Arbitrum, and the USDC receipt is confirmed on ${target}. **No retry is needed.**${destinationLink}`;
+    const amount = formatUsdcRaw(status.cctp?.amountRaw);
+    const recipient = shortAddress(status.cctp?.recipient);
+    const receipt = `${amount ? `${amount} ` : ''}USDC receipt${recipient ? ` for **${recipient}**` : ''}`;
+    return `Yes — the ${label} for job **${status.jobId}** is complete. The source transaction is confirmed on ${sourceName}, OpenWork recorded the payment on Arbitrum, and the ${receipt} is confirmed on ${target}. **No retry is needed.**${destinationLink}`;
   }
 
   if (status.action === 'startDirectContract') {

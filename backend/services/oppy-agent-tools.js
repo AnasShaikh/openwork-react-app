@@ -117,7 +117,18 @@ function resolveTransactionTarget(params = {}, context = {}) {
   const memory = context.memory || {};
   const currentRefs = currentMessageReferences(context.message);
   const refs = conversationReferences(context.message, context.history);
-  const transactions = Array.isArray(memory.recentTransactions) ? memory.recentTransactions : [];
+  const durableTransactions = Array.isArray(context.jobContext?.durableTransactions)
+    ? [...context.jobContext.durableTransactions].sort((left, right) => (
+      Date.parse(left?.createdAt || 0) - Date.parse(right?.createdAt || 0)
+    ))
+    : [];
+  // Browser memory carries action-specific proof inputs immediately after a
+  // transaction. Keep it after durable history so it wins when both contain
+  // the same, newly confirmed action.
+  const transactions = [
+    ...durableTransactions,
+    ...(Array.isArray(memory.recentTransactions) ? memory.recentTransactions : []),
+  ];
   const recent = [...transactions].reverse();
   const activeJob = memory.activeJob || context.jobContext?.activeJob || null;
   const activeJobId = VALID_JOB_ID.test(activeJob?.jobId || '') ? activeJob.jobId : null;
@@ -274,8 +285,10 @@ function compactCrossChainStatus(status) {
     paymentDelivery: status.cctp ? {
       required: status.cctp.required === true,
       state: status.cctp.state,
+      targetDomain: status.cctp.targetDomain ?? null,
       targetChainName: status.cctp.targetChainName || null,
       amountRaw: status.cctp.amountRaw || null,
+      recipient: status.cctp.recipient || null,
       reason: status.cctp.reason || null,
       error: status.cctp.error || null,
     } : null,
@@ -579,7 +592,7 @@ async function resolveJobCreationProvenanceAnswer(message, context = {}, depende
   return { kind: 'job-creation-provenance', jobId, creation, text };
 }
 
-function compactJobDeepDive(deepDive, creation, fundingDelivery = null) {
+function compactJobDeepDive(deepDive, creation, fundingDelivery = null, latestActionDelivery = null) {
   return {
     kind: 'job-state',
     available: true,
@@ -590,7 +603,11 @@ function compactJobDeepDive(deepDive, creation, fundingDelivery = null) {
     submissionCount: deepDive.job?.submissionCount ?? deepDive.submissions?.length ?? 0,
     nextAction: deepDive.nextAction || null,
     creation,
+    creationFundingDelivery: fundingDelivery,
+    // Backward-compatible alias for clients/models deployed before the field
+    // was named explicitly.
     fundingDelivery,
+    latestActionDelivery,
   };
 }
 
@@ -613,16 +630,52 @@ async function readCreationFundingDelivery(jobId, creation, dependencies = {}) {
   }));
 }
 
+async function readLatestJobActionDelivery(jobId, context, dependencies = {}) {
+  const target = resolveTransactionTarget({}, context);
+  if (target.jobId !== jobId
+    || !CROSS_CHAIN_ACTIONS.has(target.action)
+    || !VALID_TX_HASH.test(target.transactionHash || '')
+    || ![10, 50].includes(Number(target.chainId))) {
+    return null;
+  }
+  const delivery = await (dependencies.readCrossChainActionStatus || readCrossChainActionStatus)({
+    action: target.action,
+    jobId,
+    sourceChainId: Number(target.chainId),
+    sourceTxHash: target.transactionHash,
+    targetDomain: target.targetDomain,
+    baselineTotalPaidRaw: target.baselineTotalPaidRaw,
+  }).then(compactCrossChainStatus).catch((error) => ({
+    state: 'unavailable',
+    complete: false,
+    checkedAt: new Date().toISOString(),
+    error: error.message || 'Latest action delivery is temporarily unavailable',
+  }));
+  return {
+    action: target.action,
+    jobId,
+    transactionHash: target.transactionHash,
+    sourceChainId: Number(target.chainId),
+    targetDomain: target.targetDomain,
+    ...delivery,
+  };
+}
+
 async function inspectJob(params, context, dependencies = {}) {
   const jobId = resolveGroundedJobId(params, context);
   if (!VALID_JOB_ID.test(jobId || '')) {
     return { kind: 'job-state', available: false, explanation: 'No active or explicitly referenced OpenWork job could be resolved.' };
   }
   const creation = await verifyJobCreationProvenance(jobId, context, dependencies);
-  const fundingDelivery = await readCreationFundingDelivery(jobId, creation, dependencies);
+  const latestActionDelivery = await readLatestJobActionDelivery(jobId, context, dependencies);
+  const latestIsCreation = latestActionDelivery?.action === 'startDirectContract'
+    && latestActionDelivery.transactionHash?.toLowerCase() === creation?.transactionHash?.toLowerCase();
+  const fundingDelivery = latestIsCreation
+    ? latestActionDelivery
+    : await readCreationFundingDelivery(jobId, creation, dependencies);
   try {
     const deepDive = await (dependencies.getJobDeepDive || getJobDeepDive)(jobId, context.wallet?.address || null, dependencies);
-    return compactJobDeepDive(deepDive, creation, fundingDelivery);
+    return compactJobDeepDive(deepDive, creation, fundingDelivery, latestActionDelivery);
   } catch (error) {
     const cached = context.jobContext?.jobs?.find((job) => job.jobId === jobId)
       || (context.jobContext?.activeJob?.jobId === jobId ? context.jobContext.activeJob : null);
@@ -631,7 +684,9 @@ async function inspectJob(params, context, dependencies = {}) {
       available: Boolean(cached),
       job: cached || { jobId },
       creation,
+      creationFundingDelivery: fundingDelivery,
       fundingDelivery,
+      latestActionDelivery,
       explanation: cached
         ? 'The latest wallet context is available, but a fresh canonical deep-dive read failed.'
         : 'The canonical job could not be loaded from the live RPC.',
@@ -678,6 +733,7 @@ module.exports = {
   preparedUsdcRequirement,
   readJobCreationTransaction,
   readCreationFundingDelivery,
+  readLatestJobActionDelivery,
   readTransactionReceipt,
   readUsdcBalance,
   isJobCreationProvenanceQuestion,

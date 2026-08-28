@@ -51,6 +51,8 @@ test('simple completion follow-ups are recognized without hijacking new actions'
   assert.equal(isCrossChainStatusQuestion('status for 30365-10'), true);
   assert.equal(isCrossChainStatusQuestion('is it confirmed?'), true);
   assert.equal(isCrossChainStatusQuestion('okay was the money locked on arbitrum?'), true);
+  assert.equal(isCrossChainStatusQuestion('can you check if the job taker received the money?'), true);
+  assert.equal(isCrossChainStatusQuestion('Did the freelancer get paid?'), true);
   assert.equal(isCrossChainStatusQuestion('did my money thing actually happen'), false);
   assert.equal(isCrossChainStatusQuestion('release the payment'), false);
   assert.equal(isCrossChainStatusQuestion('create another direct contract'), false);
@@ -106,11 +108,16 @@ test('an escrow follow-up reports a pending direct-contract mint instead of a st
 });
 
 test('release completion requires and reports destination receipt evidence', async () => {
-  const result = await resolveCrossChainStatusAnswer('did it go through?', memory('releasePayment'), {
-    readCrossChainActionStatus: async () => completeStatus('releasePayment'),
+  const status = completeStatus('releasePayment');
+  status.cctp.amountRaw = '100000';
+  status.cctp.recipient = '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724';
+  const result = await resolveCrossChainStatusAnswer('can you check if the job taker received the money?', memory('releasePayment'), {
+    readCrossChainActionStatus: async () => status,
   });
   assert.match(result.text, /payment release/);
-  assert.match(result.text, /USDC receipt is confirmed on XDC Network/);
+  assert.match(result.text, /0\.1 USDC receipt/);
+  assert.match(result.text, /0xC28455…7724/);
+  assert.match(result.text, /confirmed on XDC Network/);
 });
 
 test('temporary verifier unavailability never becomes a false completion or retry instruction', () => {

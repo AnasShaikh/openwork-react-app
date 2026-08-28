@@ -257,6 +257,60 @@ test('latest-attempt and job tools return compact, conversation-grounded evidenc
   assert.equal(job.fundingDelivery.paymentDelivery.state, 'received');
 });
 
+test('job inspection keeps creation funding separate from the latest release payout', async () => {
+  const releaseHash = `0x${'d'.repeat(64)}`;
+  const inspected = await inspectJob({}, context({
+    message: 'Can you check if the job taker received the money?',
+    memory: {
+      activeJob: { jobId: '30365-11', sourceChainId: 50, sourceTxHash: transactionHash, sourceReceiptConfirmed: true },
+      recentTransactions: [
+        { action: 'startDirectContract', jobId: '30365-11', txHash: transactionHash, chainId: 50, confirmed: true },
+        {
+          action: 'releasePayment',
+          jobId: '30365-11',
+          txHash: releaseHash,
+          chainId: 50,
+          confirmed: true,
+          targetDomain: 18,
+          baselineTotalPaidRaw: '0',
+        },
+      ],
+    },
+  }), {
+    readJobCreationTransaction: async () => ({ available: false }),
+    readCrossChainActionStatus: async (input) => ({
+      action: input.action,
+      jobId: input.jobId,
+      state: input.action === 'releasePayment' ? 'complete' : 'in-progress',
+      complete: input.action === 'releasePayment',
+      cctp: input.action === 'releasePayment'
+        ? {
+            required: true,
+            state: 'received',
+            targetDomain: 18,
+            targetChainName: 'XDC Network',
+            amountRaw: '100000',
+            recipient: '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724',
+          }
+        : { required: true, state: 'pending', targetDomain: 3, targetChainName: 'Arbitrum One' },
+    }),
+    getJobDeepDive: async (jobId) => ({
+      generatedAt: '2026-08-28T08:51:41.199Z',
+      job: { jobId, status: 'Completed', totalPaid: '0.1' },
+      milestones: [],
+      applications: [],
+      submissions: [],
+    }),
+  });
+
+  assert.equal(inspected.creationFundingDelivery.paymentDelivery.targetChainName, 'Arbitrum One');
+  assert.equal(inspected.latestActionDelivery.action, 'releasePayment');
+  assert.equal(inspected.latestActionDelivery.transactionHash, releaseHash);
+  assert.equal(inspected.latestActionDelivery.paymentDelivery.state, 'received');
+  assert.equal(inspected.latestActionDelivery.paymentDelivery.targetChainName, 'XDC Network');
+  assert.equal(inspected.latestActionDelivery.paymentDelivery.recipient, '0xC28455B90eEeA6d95B6f0Cd01A0b03f9D50a7724');
+});
+
 test('job creation provenance comes from its recorded source action, never lifecycle status', () => {
   const openDirect = resolveJobCreationProvenance('30365-11', context({
     memory: {

@@ -1433,15 +1433,17 @@ const OppyChat = () => {
           const deepDive = await fetchOppyExplorer(`/jobs/${encodeURIComponent(tool.params.jobId)}?wallet=${userAddress}`);
           if (deepDive.job?.viewerRole !== 'job giver') throw new Error('Only the job poster can release this payment.');
           const target = resolveReleaseTarget(deepDive);
+          const baselineTotalPaidRaw = usdcDecimalToBaseUnits(deepDive.job?.totalPaid);
           trackingContext = {
             targetDomain: target.targetChainDomain,
-            baselineTotalPaidRaw: usdcDecimalToBaseUnits(deepDive.job?.totalPaid),
+            baselineTotalPaidRaw,
           };
           submissionAttempted = true;
           result = await releasePaymentCrossChain(chainIdDecimal, userAddress, {
             jobId: tool.params.jobId,
             targetChainDomain: target.targetChainDomain,
             targetRecipient: target.targetRecipient,
+            baselineTotalPaidRaw,
           }, onStatus, walletProvider);
           break;
         }

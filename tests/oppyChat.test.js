@@ -204,11 +204,15 @@ test('cross-chain progress is action-scoped and payment completion uses independ
   const chat = source('src/pages/OppyChat/OppyChat.jsx');
   const tracker = source('src/components/CrossChainSyncStatus/CrossChainSyncStatus.jsx');
   const service = source('src/services/crossChainSyncService.js');
+  const localChain = source('src/services/localChainService.js');
 
   assert.match(chat, /key=\{`\$\{tool\.name\}:\$\{txHash\}`\}/);
   assert.match(chat, /tracking=\{tracking\}/);
   assert.doesNotMatch(chat, /<CrossChainSyncStatus activeJob=\{activeJob\}/);
-  assert.match(chat, /baselineTotalPaidRaw: usdcDecimalToBaseUnits/);
+  assert.match(chat, /const baselineTotalPaidRaw = usdcDecimalToBaseUnits/);
+  assert.match(chat, /baselineTotalPaidRaw,/);
+  assert.match(localChain, /saveTxHash\('releasePayment'[\s\S]*targetDomain: paymentData\.targetChainDomain/);
+  assert.match(localChain, /baselineTotalPaidRaw: paymentData\.baselineTotalPaidRaw/);
   assert.match(chat, /live status card above shows the latest network, OpenWork and USDC delivery state/);
   assert.match(tracker, /Network delivery/);
   assert.match(tracker, /onStatusChangeRef\.current\?\.\(tracking, next\)/);

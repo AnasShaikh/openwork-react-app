@@ -676,7 +676,13 @@ export async function releasePaymentCrossChain(chainId, userAddress, paymentData
       { pendingMessage: `Payment release submitted on ${config.name}; checking confirmation…` },
     );
     emit(`Payment release confirmed: ${tx.transactionHash}`);
-    saveTxHash('releasePayment', tx.transactionHash, paymentData.jobId, chainId, userAddress);
+    saveTxHash('releasePayment', tx.transactionHash, paymentData.jobId, chainId, userAddress, {
+      targetDomain: paymentData.targetChainDomain,
+      targetRecipient: paymentData.targetRecipient,
+      baselineTotalPaidRaw: paymentData.baselineTotalPaidRaw,
+      sourceReceiptConfirmed: true,
+      canonicalDeliveryPending: !native,
+    });
     console.log(`[releasePayment] confirmed on ${config.name}:`, tx.transactionHash);
     return tx;
   } catch (error) {
