@@ -38,6 +38,7 @@ const {
 } = require('./utils/cctp-storage');
 const { reconcileCCTPTransfer } = require('./utils/cctp-reconciliation');
 const { classifyPaymentReleasedJobId } = require('./utils/payment-released-event');
+const { mountFrontendStatic } = require('./utils/frontend-static');
 
 // Initialize Express
 const app = express();
@@ -1319,11 +1320,9 @@ async function processSettleDisputeFlow(disputeId, arbitrumTxHash) {
   }
 }
 
-// Serve React frontend static files
-app.use(express.static(path.join(__dirname, "../dist")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../dist/index.html"));
-});
+// Serve React's content-hashed files with Vite's prebuilt gzip variants. This
+// is deliberately last so API and operational routes always win.
+mountFrontendStatic(app, { distDir: path.join(__dirname, '../dist') });
 
 // Start the server with async database initialization
 const PORT = config.PORT;

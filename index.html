@@ -7,7 +7,45 @@
     <title>Openwork</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        id="openwork-startup"
+        role="status"
+        aria-live="polite"
+        style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8faff;color:#16213a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+      >
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:24px">
+          <img src="/OWIcon.svg" alt="" width="44" height="44" />
+          <div style="font-size:18px;font-weight:700;letter-spacing:-0.02em">Loading OpenWork</div>
+          <div style="width:112px;height:3px;overflow:hidden;border-radius:999px;background:#dfe7ff">
+            <div style="width:42%;height:100%;border-radius:inherit;background:#2457ff;animation:openwork-loading 1.1s ease-in-out infinite alternate"></div>
+          </div>
+          <p id="openwork-startup-delay" style="display:none;max-width:320px;margin:4px 0 0;color:#64708a;font-size:14px;line-height:1.45">
+            This is taking longer than expected. You can reload safely; no transaction is submitted while this page loads.
+          </p>
+          <button id="openwork-startup-reload" type="button" style="display:none;border:1px solid #cbd7f3;border-radius:10px;background:#fff;color:#2457ff;padding:9px 15px;font:inherit;font-size:14px;font-weight:650;cursor:pointer">
+            Reload page
+          </button>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes openwork-loading {
+        from { transform: translateX(-75%); }
+        to { transform: translateX(140%); }
+      }
+    </style>
+    <script>
+      window.setTimeout(function () {
+        var shell = document.getElementById('openwork-startup');
+        if (!shell) return;
+        document.getElementById('openwork-startup-delay').style.display = 'block';
+        document.getElementById('openwork-startup-reload').style.display = 'block';
+      }, 12000);
+      document.getElementById('openwork-startup-reload').addEventListener('click', function () {
+        window.location.reload();
+      });
+    </script>
     <script type="module" src="/src/index.jsx"></script>
   </body>
 </html>
