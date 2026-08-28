@@ -43,6 +43,7 @@ import {
   sanitizeActiveJob,
   sanitizePreparedAction,
   saveOppyMemory,
+  selectPendingCrossChainTransaction,
   updateOppyTransactionDelivery,
 } from '../../services/oppyMemory';
 import {
@@ -1743,13 +1744,7 @@ const OppyChat = () => {
               );
             })}
             {(() => {
-              const pending = [...recentTransactions].reverse().find((transaction) => (
-                ['startDirectContract', 'releasePayment'].includes(transaction.action)
-                && transaction.confirmed
-                && transaction.txHash
-                && [10, 50].includes(Number(transaction.chainId))
-                && transaction.delivery?.complete !== true
-              ));
+              const pending = selectPendingCrossChainTransaction(recentTransactions, activeJob);
               if (!pending) return null;
               const alreadyRendered = chat.some((message) => message.isTxCard && (
                 (message.tool?.name === pending.action && message.tool?.params?.jobId === pending.jobId)

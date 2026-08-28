@@ -302,6 +302,11 @@ export function updateOppyTransactionDelivery(transactions, tracking, status) {
     transaction?.txHash?.toLowerCase() === key
       ? {
           ...transaction,
+          targetDomain: status.cctp?.targetDomain !== null
+            && status.cctp?.targetDomain !== undefined
+            && Number.isInteger(Number(status.cctp.targetDomain))
+            ? Number(status.cctp.targetDomain)
+            : transaction.targetDomain,
           delivery: {
             state: status.state,
             complete: status.complete === true,
@@ -314,6 +319,25 @@ export function updateOppyTransactionDelivery(transactions, tracking, status) {
         }
       : transaction
   )));
+}
+
+export function selectPendingCrossChainTransaction(transactions, activeJob = null) {
+  const eligible = cleanTransactions(transactions).filter((transaction) => (
+    ['startDirectContract', 'releasePayment'].includes(transaction.action)
+    && transaction.confirmed
+    && transaction.txHash
+    && [10, 50].includes(Number(transaction.chainId))
+    && transaction.delivery?.complete !== true
+  ));
+  if (!eligible.length) return null;
+
+  const activeJobId = sanitizeActiveJob(activeJob)?.jobId || null;
+  if (activeJobId) {
+    // Never replace the current job's completed card with an unrelated stale
+    // tracker merely because an older transaction remains unresolved in memory.
+    return [...eligible].reverse().find((transaction) => transaction.jobId === activeJobId) || null;
+  }
+  return eligible.at(-1) || null;
 }
 
 export function historyForOppy(messages) {

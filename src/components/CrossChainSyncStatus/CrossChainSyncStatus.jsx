@@ -72,6 +72,10 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange, onCompl
   }, [onStatusChange]);
 
   useEffect(() => {
+    setRecovery({ state: 'idle', message: null });
+  }, [trackingKey]);
+
+  useEffect(() => {
     setSync({ state: 'checking', checkedAt: null, error: null });
     if (!isCrossChainSyncCandidate(tracking)) return undefined;
     let cancelled = false;
@@ -121,10 +125,11 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange, onCompl
   const cctpRequired = sync.cctp?.required === true
     || (tracking.action === 'releasePayment' && Number(tracking.targetDomain) !== 3);
   const cctpComplete = !cctpRequired || sync.cctp?.state === 'received';
-  const targetName = sync.cctp?.targetChainName || DOMAIN_NAMES.get(Number(tracking.targetDomain));
+  const resolvedTargetName = sync.cctp?.targetChainName || DOMAIN_NAMES.get(Number(tracking.targetDomain));
+  const targetName = resolvedTargetName || 'the destination chain';
   const showSeparatePaymentTarget = cctpRequired
-    && targetName
-    && !/^Arbitrum(?: One)?$/i.test(targetName);
+    && resolvedTargetName
+    && !/^Arbitrum(?: One)?$/i.test(resolvedTargetName);
   const checkedTime = sync.checkedAt
     ? new Date(sync.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
@@ -188,7 +193,7 @@ export default function CrossChainSyncStatus({ tracking, onStatusChange, onCompl
               ? `Confirmed on ${targetName}`
               : (sync.cctp?.reason === 'attestation_incomplete'
                 ? 'Waiting for Circle attestation'
-                : (canSelfRelay ? 'Ready to complete with a wallet' : `Transferring to ${targetName || 'the payment chain'}`))}</span></div>
+                : (canSelfRelay ? 'Ready to complete with a wallet' : `Transferring to ${targetName}`))}</span></div>
           </li>
         )}
       </ol>

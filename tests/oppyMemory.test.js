@@ -10,6 +10,7 @@ import {
   sanitizePreparedAction,
   sanitizeOppyText,
   saveOppyMemory,
+  selectPendingCrossChainTransaction,
   updateOppyTransactionDelivery,
 } from '../src/services/oppyMemory.js';
 
@@ -179,11 +180,12 @@ test('live tracker updates the matching transaction and Oppy receives only the l
     checkedAt: '2026-08-28T05:00:00.000Z',
     layerZero: { state: 'delivered', destinationTxHash: `0x${'f'.repeat(64)}` },
     canonical: { state: 'complete' },
-    cctp: { state: 'received' },
+    cctp: { state: 'received', targetDomain: 18 },
   });
   assert.equal(transactions[0].delivery.state, 'complete');
   assert.equal(transactions[0].delivery.networkState, 'delivered');
   assert.equal(transactions[0].delivery.canonicalState, 'complete');
+  assert.equal(transactions[0].targetDomain, 18);
 
   const history = historyForOppy(Array.from({ length: 20 }, (_, index) => ({
     role: index % 2 ? 'bot' : 'user',
@@ -192,6 +194,20 @@ test('live tracker updates the matching transaction and Oppy receives only the l
   assert.equal(history.length, 12);
   assert.equal(history[0].text, 'message 8');
   assert.equal(history.at(-1).text, 'message 19');
+});
+
+test('restored tracking stays scoped to the active job after its recovery completes', () => {
+  const oldHash = `0x${'1'.repeat(64)}`;
+  const currentHash = `0x${'2'.repeat(64)}`;
+  const transactions = [{
+    action: 'releasePayment', jobId: '30365-9', txHash: oldHash, chainId: 50, confirmed: true,
+  }, {
+    action: 'startDirectContract', jobId: '30365-13', txHash: currentHash, chainId: 50, confirmed: true,
+    delivery: { state: 'complete', complete: true },
+  }];
+
+  assert.equal(selectPendingCrossChainTransaction(transactions, { jobId: '30365-13' }), null);
+  assert.equal(selectPendingCrossChainTransaction(transactions, null)?.jobId, '30365-9');
 });
 
 test('stored Oppy text removes internal traces and renders tables as readable bullets', () => {

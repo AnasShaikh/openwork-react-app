@@ -29,8 +29,9 @@ test('a stalled Circle transfer is restored from Oppy memory and can be complete
   const chat = read('src/pages/OppyChat/OppyChat.jsx');
   const status = read('src/components/CrossChainSyncStatus/CrossChainSyncStatus.jsx');
   const recovery = read('src/services/cctpSelfRelay.js');
+  const fee = read('src/services/cctpFee.js');
 
-  assert.match(chat, /\[\.\.\.recentTransactions\]\.reverse\(\)\.find/);
+  assert.match(chat, /selectPendingCrossChainTransaction\(recentTransactions, activeJob\)/);
   assert.match(chat, /onCompleteCctp=\{handleCompleteCctp\}/);
   assert.match(status, /Complete with my wallet/);
   assert.match(status, /Your source transaction is safe; do not submit it again/);
@@ -39,6 +40,27 @@ test('a stalled Circle transfer is restored from Oppy memory and can be complete
   assert.match(recovery, /web3\.eth\.estimateGas/);
   assert.match(recovery, /web3\.eth\.getBalance/);
   assert.match(recovery, /readCctpRecoveryPlan\(tracking/);
+  assert.match(fee, /buildFeeOverrides/);
+  assert.match(fee, /No transaction was sent; use Complete with my wallet again/);
+  assert.match(status, /setRecovery\(\{ state: 'idle', message: null \}\)/);
+  assert.match(status, /resolvedTargetName \|\| 'the destination chain'/);
+});
+
+test('wallet recovery fees have EIP-1559 headroom and fee errors are safe to retry', async () => {
+  const { buildCctpFeeEnvelope, cctpWalletErrorMessage } = await import('../src/services/cctpFee.js');
+  const envelope = await buildCctpFeeEnvelope({
+    eth: {
+      getBlock: async () => ({ baseFeePerGas: 20026000n }),
+      getGasPrice: async () => { throw new Error('legacy gas price should not be used'); },
+    },
+  });
+  assert.equal(envelope.fields.maxFeePerGas, String(20026000n * 5n));
+  assert.equal(envelope.fields.maxPriorityFeePerGas, '0');
+  assert.equal(envelope.costPerGas, 20026000n * 5n);
+  assert.equal(
+    cctpWalletErrorMessage(new Error('max fee per gas less than block base fee')),
+    'The network fee changed before the transaction was broadcast. No transaction was sent; use Complete with my wallet again.',
+  );
 });
 
 test('the status card distinguishes Circle attestation, relayer failure, and destination execution', () => {
