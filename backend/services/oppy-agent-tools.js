@@ -15,6 +15,12 @@ const VALID_JOB_ID = /^\d+-\d+$/;
 const VALID_TX_HASH = /^0x[a-fA-F0-9]{64}$/;
 const CROSS_CHAIN_ACTIONS = new Set(['postJob', 'startDirectContract', 'releasePayment']);
 const JOB_CREATION_ACTIONS = new Set(['postJob', 'startDirectContract']);
+const JOB_CREATION_BY_SELECTOR = new Map([
+  ['0x4b18d3c2', 'postJob'],
+  ['0xd3988d47', 'postJob'],
+  ['0x6caa5397', 'startDirectContract'],
+  ['0x03edef0e', 'startDirectContract'],
+]);
 const CHAIN_BY_JOB_PREFIX = new Map([
   ['42161', 42161],
   ['30110', 42161],
@@ -160,6 +166,57 @@ async function readTransactionReceipt(chainId, transactionHash, dependencies = {
     return { state: 'pending', confirmed: false, reverted: false, blockNumber: null, transactionHash };
   }
   return { state: 'unavailable', confirmed: false, reverted: false, blockNumber: null, transactionHash };
+}
+
+async function readJobCreationTransaction(chainId, transactionHash, dependencies = {}) {
+  if (dependencies.readJobCreationTransaction) {
+    return dependencies.readJobCreationTransaction(chainId, transactionHash);
+  }
+  const chain = CHAIN_CONFIG[Number(chainId)];
+  if (!chain || !VALID_TX_HASH.test(transactionHash || '')) {
+    return { available: false, action: null, type: null, explanation: 'A supported source chain and transaction hash are required.' };
+  }
+  const createWeb3 = dependencies.createWeb3 || ((rpcUrl) => new Web3(rpcUrl));
+  const checks = unique([chain.rpc(), ...chain.publicRpcs]).map(async (rpcUrl) => {
+    const web3 = createWeb3(rpcUrl);
+    return withTimeout(
+      Promise.resolve(web3.eth.getTransaction(transactionHash)),
+      dependencies.timeoutMs || 6000,
+      `${chain.name} transaction-input check`,
+    );
+  });
+  const settled = await Promise.allSettled(checks);
+  const transaction = settled.find((entry) => entry.status === 'fulfilled' && entry.value)?.value || null;
+  if (!transaction) {
+    return {
+      available: false,
+      action: null,
+      type: null,
+      transactionHash,
+      chainId: Number(chainId),
+      explanation: 'The source transaction calldata is temporarily unavailable.',
+    };
+  }
+  const input = String(transaction.input || transaction.data || '');
+  const selector = /^0x[a-fA-F0-9]{8}/.test(input) ? input.slice(0, 10).toLowerCase() : null;
+  const action = selector ? JOB_CREATION_BY_SELECTOR.get(selector) || null : null;
+  const sourceReceiptConfirmed = transaction.blockNumber !== undefined && transaction.blockNumber !== null;
+  return {
+    available: Boolean(action) && sourceReceiptConfirmed,
+    action,
+    type: action === 'startDirectContract' ? 'direct-contract' : (action === 'postJob' ? 'marketplace-posting' : null),
+    selector,
+    transactionHash,
+    chainId: Number(chainId),
+    to: VALID_ADDRESS.test(transaction.to || '') ? transaction.to : null,
+    sourceReceiptConfirmed,
+    evidenceSource: 'live-source-calldata',
+    explanation: action && sourceReceiptConfirmed
+      ? 'Creation type was decoded from the mined source transaction selector.'
+      : action
+        ? 'The source transaction creation selector is recognized, but the transaction is not mined yet.'
+      : 'The live source transaction does not call a recognized OpenWork job-creation selector.',
+  };
 }
 
 function compactCrossChainStatus(status) {
@@ -390,9 +447,16 @@ function resolveJobCreationProvenance(jobId, context = {}) {
   const durable = Array.isArray(context.jobContext?.durableTransactions)
     ? context.jobContext.durableTransactions
     : [];
-  const candidate = [...durable, ...recent]
-    .reverse()
-    .find((transaction) => transaction?.jobId === jobId && JOB_CREATION_ACTIONS.has(transaction.action));
+  const isCreationProof = (transaction) => transaction?.jobId === jobId
+    && JOB_CREATION_ACTIONS.has(transaction.action)
+    && transaction.confirmed === true
+    && VALID_TX_HASH.test(transaction.txHash || '');
+  // Durable server history is stronger than browser memory. The latter is a
+  // fallback for deployments without a database or while server persistence is
+  // unavailable, and only a confirmed source receipt can establish creation.
+  const durableCandidate = [...durable].reverse().find(isCreationProof);
+  const recentCandidate = [...recent].reverse().find(isCreationProof);
+  const candidate = durableCandidate || recentCandidate;
   if (!candidate) {
     return {
       available: false,
@@ -408,10 +472,79 @@ function resolveJobCreationProvenance(jobId, context = {}) {
     transactionHash: VALID_TX_HASH.test(candidate.txHash || '') ? candidate.txHash : null,
     chainId: Number.isInteger(Number(candidate.chainId)) ? Number(candidate.chainId) : null,
     sourceReceiptConfirmed: candidate.confirmed === true,
+    evidenceSource: durableCandidate ? 'durable-server-history' : 'browser-confirmed-history',
     explanation: candidate.action === 'startDirectContract'
       ? 'The recorded creation action is startDirectContract.'
       : 'The recorded creation action is postJob.',
   };
+}
+
+async function verifyJobCreationProvenance(jobId, context = {}, dependencies = {}) {
+  const recorded = resolveJobCreationProvenance(jobId, context);
+  const active = context.memory?.activeJob?.jobId === jobId
+    ? context.memory.activeJob
+    : (context.jobContext?.activeJob?.jobId === jobId ? context.jobContext.activeJob : null);
+  const transactionHash = recorded.transactionHash
+    || (VALID_TX_HASH.test(active?.sourceTxHash || '') ? active.sourceTxHash : null);
+  const chainId = recorded.chainId || Number(active?.sourceChainId) || inferChainFromJobId(jobId);
+  if (transactionHash && CHAIN_CONFIG[chainId]) {
+    const live = await (dependencies.readJobCreationTransaction || readJobCreationTransaction)(
+      chainId,
+      transactionHash,
+      dependencies,
+    ).catch(() => ({ available: false }));
+    if (live?.available) return live;
+  }
+  return recorded.available
+    ? { ...recorded, liveCalldataAvailable: false }
+    : recorded;
+}
+
+function isJobCreationProvenanceQuestion(message) {
+  const text = String(message || '').trim();
+  if (!text || !/\b(?:direct\s+(?:contract|job)|marketplace(?:\s+(?:job|posting))?|regular\s+job)\b/i.test(text)) {
+    return false;
+  }
+  return /^(?:was|is|did|what|which|check|tell\s+me|can\s+you\s+check|could\s+you\s+check)\b/i.test(text)
+    || /\b(?:was|is)\s+(?:this|that|it|the\s+job|job\s+\d+-\d+)\b/i.test(text)
+    || /\b(?:creation|created|creation\s+type|kind\s+of\s+job|type\s+of\s+job)\b/i.test(text);
+}
+
+async function resolveJobCreationProvenanceAnswer(message, context = {}, dependencies = {}) {
+  if (!isJobCreationProvenanceQuestion(message)) return null;
+  const explicitIds = String(message || '').match(/\b\d+-\d+\b/g);
+  const jobId = explicitIds?.at(-1) || context.memory?.activeJob?.jobId || context.jobContext?.activeJob?.jobId;
+  if (!VALID_JOB_ID.test(jobId || '')) {
+    return {
+      kind: 'job-creation-provenance',
+      jobId: null,
+      creation: {
+        available: false,
+        action: null,
+        type: null,
+        evidenceSource: null,
+        explanation: 'No exact job ID or confirmed source transaction could be resolved.',
+      },
+      text: 'I cannot verify the creation type yet because I cannot resolve an exact job and its confirmed source transaction. I will not infer direct-contract versus marketplace creation from the job title or current status.',
+    };
+  }
+  const creation = await verifyJobCreationProvenance(jobId, context, dependencies);
+  if (!creation.available) {
+    return {
+      kind: 'job-creation-provenance',
+      jobId,
+      creation,
+      text: `I cannot independently verify how job **${jobId}** was created because its confirmed source-transaction evidence is unavailable. I will not infer direct-contract versus marketplace creation from its title or lifecycle status.`,
+    };
+  }
+  const isLive = creation.evidenceSource === 'live-source-calldata';
+  const evidence = isLive
+    ? `I decoded selector \`${creation.selector}\` from its live source transaction calldata`
+    : 'OpenWork\'s confirmed transaction history records the creation action; the live calldata check is temporarily unavailable';
+  const text = creation.type === 'direct-contract'
+    ? `Job **${jobId}** was created as a **direct contract**. ${evidence}. The job's current lifecycle status was not used to decide this.`
+    : `Job **${jobId}** was created as a **marketplace posting**, not a direct contract. ${evidence}. A title or an Open/In progress status cannot change how the job was created.`;
+  return { kind: 'job-creation-provenance', jobId, creation, text };
 }
 
 function compactJobDeepDive(deepDive, creation) {
@@ -434,9 +567,10 @@ async function inspectJob(params, context, dependencies = {}) {
   if (!VALID_JOB_ID.test(jobId || '')) {
     return { kind: 'job-state', available: false, explanation: 'No active or explicitly referenced OpenWork job could be resolved.' };
   }
+  const creation = await verifyJobCreationProvenance(jobId, context, dependencies);
   try {
     const deepDive = await (dependencies.getJobDeepDive || getJobDeepDive)(jobId, context.wallet?.address || null, dependencies);
-    return compactJobDeepDive(deepDive, resolveJobCreationProvenance(jobId, context));
+    return compactJobDeepDive(deepDive, creation);
   } catch (error) {
     const cached = context.jobContext?.jobs?.find((job) => job.jobId === jobId)
       || (context.jobContext?.activeJob?.jobId === jobId ? context.jobContext.activeJob : null);
@@ -444,7 +578,7 @@ async function inspectJob(params, context, dependencies = {}) {
       kind: 'job-state',
       available: Boolean(cached),
       job: cached || { jobId },
-      creation: resolveJobCreationProvenance(jobId, context),
+      creation,
       explanation: cached
         ? 'The latest wallet context is available, but a fresh canonical deep-dive read failed.'
         : 'The canonical job could not be loaded from the live RPC.',
@@ -488,8 +622,12 @@ module.exports = {
   inspectTransaction,
   inspectWalletFunding,
   preparedUsdcRequirement,
+  readJobCreationTransaction,
   readTransactionReceipt,
   readUsdcBalance,
+  isJobCreationProvenanceQuestion,
   resolveJobCreationProvenance,
+  resolveJobCreationProvenanceAnswer,
   resolveTransactionTarget,
+  verifyJobCreationProvenance,
 };

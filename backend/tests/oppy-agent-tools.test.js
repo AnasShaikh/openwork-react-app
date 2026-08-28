@@ -8,8 +8,12 @@ const {
   inspectLatestAttempt,
   inspectTransaction,
   inspectWalletFunding,
+  isJobCreationProvenanceQuestion,
+  readJobCreationTransaction,
   resolveJobCreationProvenance,
+  resolveJobCreationProvenanceAnswer,
   resolveTransactionTarget,
+  verifyJobCreationProvenance,
 } = require('../services/oppy-agent-tools');
 
 const walletAddress = '0x7a2B7feAB9b0e30A5368d3CC4CB8279c9606384C';
@@ -166,6 +170,7 @@ test('latest-attempt and job tools return compact, conversation-grounded evidenc
   assert.match(latest.safety, /Do not prepare a duplicate/);
 
   const job = await inspectJob({}, context(), {
+    readJobCreationTransaction: async () => ({ available: false }),
     getJobDeepDive: async (jobId) => ({
       generatedAt: '2026-08-28T05:00:00.000Z',
       job: { jobId, status: 'In progress', applicationCount: 1 },
@@ -196,6 +201,7 @@ test('job creation provenance comes from its recorded source action, never lifec
   }));
   assert.equal(openDirect.type, 'direct-contract');
   assert.equal(openDirect.action, 'startDirectContract');
+  assert.equal(openDirect.evidenceSource, 'browser-confirmed-history');
 
   const inProgressPost = resolveJobCreationProvenance('30365-12', context({
     memory: {
@@ -214,4 +220,132 @@ test('job creation provenance comes from its recorded source action, never lifec
   const unknown = resolveJobCreationProvenance('30365-13', context({ memory: { recentTransactions: [] } }));
   assert.equal(unknown.available, false);
   assert.match(unknown.explanation, /Do not infer it from lifecycle status/);
+});
+
+test('creation-type questions receive a deterministic source-action answer', async () => {
+  const question = 'Was job 30365-11 actually created as a direct contract or as a marketplace posting?';
+  assert.equal(isJobCreationProvenanceQuestion(question), true);
+  const answer = await resolveJobCreationProvenanceAnswer(question, context({
+    memory: {
+      activeJob: { jobId: '30365-11' },
+      recentTransactions: [{
+        action: 'postJob',
+        jobId: '30365-11',
+        txHash: transactionHash,
+        chainId: 50,
+        confirmed: true,
+      }],
+    },
+  }), { readJobCreationTransaction: async () => ({ available: false }) });
+  assert.equal(answer.creation.type, 'marketplace-posting');
+  assert.match(answer.text, /marketplace posting/);
+  assert.match(answer.text, /not a direct contract/);
+  assert.equal(await resolveJobCreationProvenanceAnswer('Create a direct contract now', context()), null);
+});
+
+test('creation-type questions fail closed instead of falling through to a model guess', async () => {
+  const unknownJob = await resolveJobCreationProvenanceAnswer(
+    'Was job 30365-999 a direct contract?',
+    context(),
+    { readJobCreationTransaction: async () => ({ available: false }) },
+  );
+  assert.equal(unknownJob.creation.available, false);
+  assert.match(unknownJob.text, /cannot independently verify/);
+  assert.match(unknownJob.text, /will not infer/);
+
+  const unresolvedJob = await resolveJobCreationProvenanceAnswer(
+    'Was this a marketplace posting or direct contract?',
+    context({ memory: { activeJob: null } }),
+  );
+  assert.equal(unresolvedJob.jobId, null);
+  assert.match(unresolvedJob.text, /cannot verify/);
+  assert.match(unresolvedJob.text, /will not infer/);
+});
+
+test('durable confirmed creation history outranks contradictory browser memory', () => {
+  const creation = resolveJobCreationProvenance('30365-11', context({
+    memory: {
+      recentTransactions: [{
+        action: 'startDirectContract',
+        jobId: '30365-11',
+        txHash: destinationTxHash,
+        chainId: 50,
+        confirmed: true,
+      }],
+    },
+    jobContext: {
+      durableTransactions: [{
+        action: 'postJob',
+        jobId: '30365-11',
+        txHash: transactionHash,
+        chainId: 50,
+        confirmed: true,
+      }],
+    },
+  }));
+  assert.equal(creation.type, 'marketplace-posting');
+  assert.equal(creation.evidenceSource, 'durable-server-history');
+});
+
+test('live source calldata outranks contradictory recorded creation labels', async () => {
+  const creation = await verifyJobCreationProvenance('30365-11', context({
+    memory: {
+      activeJob: { jobId: '30365-11', sourceChainId: 50, sourceTxHash: transactionHash },
+      recentTransactions: [{
+        action: 'startDirectContract',
+        jobId: '30365-11',
+        txHash: transactionHash,
+        chainId: 50,
+        confirmed: true,
+      }],
+    },
+  }), {
+    readJobCreationTransaction: async () => ({
+      available: true,
+      action: 'postJob',
+      type: 'marketplace-posting',
+      selector: '0xd3988d47',
+      transactionHash,
+      chainId: 50,
+      sourceReceiptConfirmed: true,
+      evidenceSource: 'live-source-calldata',
+    }),
+  });
+  assert.equal(creation.type, 'marketplace-posting');
+  assert.equal(creation.evidenceSource, 'live-source-calldata');
+});
+
+test('source transaction selectors distinguish marketplace and direct creation', async () => {
+  const makeWeb3 = (input) => () => ({
+    eth: {
+      getTransaction: async () => ({
+        input,
+        to: '0x5cF21fA9Bc3f1B9B477A1DFB76105386a038cE7D',
+        blockNumber: 123,
+      }),
+    },
+  });
+  const posted = await readJobCreationTransaction(50, transactionHash, { createWeb3: makeWeb3('0xd3988d47abcd') });
+  const direct = await readJobCreationTransaction(50, transactionHash, { createWeb3: makeWeb3('0x03edef0eabcd') });
+  assert.equal(posted.type, 'marketplace-posting');
+  assert.equal(direct.type, 'direct-contract');
+  assert.equal(posted.evidenceSource, 'live-source-calldata');
+});
+
+test('recognized creation calldata is not treated as completed before mining', async () => {
+  const pending = await readJobCreationTransaction(50, transactionHash, {
+    createWeb3: () => ({
+      eth: {
+        getTransaction: async () => ({
+          input: '0x03edef0eabcd',
+          to: '0x5cF21fA9Bc3f1B9B477A1DFB76105386a038cE7D',
+          blockNumber: null,
+        }),
+      },
+    }),
+  });
+  assert.equal(pending.available, false);
+  assert.equal(pending.type, 'direct-contract');
+  assert.equal(pending.sourceReceiptConfirmed, false);
+  assert.match(pending.explanation, /not mined yet/);
 });

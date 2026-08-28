@@ -23,7 +23,11 @@ const {
 const { resolveCrossChainStatusAnswer } = require('../services/oppy-cross-chain-answer');
 const { isJobIdentityQuestion, resolveJobIdentityAnswer } = require('../services/oppy-job-identity');
 const { resolveNativeBalanceAnswer } = require('../services/oppy-native-balance');
-const { executeOppyReadTool } = require('../services/oppy-agent-tools');
+const {
+  executeOppyReadTool,
+  isJobCreationProvenanceQuestion,
+  resolveJobCreationProvenanceAnswer,
+} = require('../services/oppy-agent-tools');
 const { BEDROCK_READ_TOOLS, BEDROCK_TRANSACTION_TOOLS, TOOL_RULES } = require('../services/chat-tools');
 
 const router = express.Router();
@@ -208,6 +212,34 @@ router.post('/', async (req, res) => {
           latestTransactionDiagnostic: request.memory.latestTransactionDiagnostic,
           lastPreparedAction: request.memory.lastPreparedAction,
         };
+    const creationProvenanceAnswer = transactionMode
+      && !allowedToolName
+      && isJobCreationProvenanceQuestion(request.message)
+      ? await resolveJobCreationProvenanceAnswer(request.message, {
+          memory: request.memory,
+          jobContext,
+        })
+      : null;
+    if (creationProvenanceAnswer) {
+      console.info('[chat] answered from deterministic job-creation provenance', {
+        jobId: creationProvenanceAnswer.jobId,
+        type: creationProvenanceAnswer.creation.type,
+        evidenceSource: creationProvenanceAnswer.creation.evidenceSource,
+      });
+      return res.json({
+        success: true,
+        response: creationProvenanceAnswer.text,
+        tool: null,
+        explorer: null,
+        creationProvenance: creationProvenanceAnswer.creation,
+        model: 'deterministic-job-creation-provenance',
+        context: {
+          activeJob: jobContext.activeJob || request.memory.activeJob || null,
+          canonicalJobHistoryAvailable: jobContext.available === true,
+          canonicalJobCount: jobContext.jobs?.length || 0,
+        },
+      });
+    }
     let explorer = null;
     if (explorerIntent) {
       try {
